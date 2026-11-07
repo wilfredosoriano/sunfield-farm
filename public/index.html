@@ -2454,6 +2454,7 @@ const inRect=(R,x,z,m)=>x>R[0]-m&&x<R[1]+m&&z>R[2]-m&&z<R[3]+m;
   const busyIn=(x,z)=>inField(x,z,1.8)||inRect(ORCH,x,z,.3)||inRect(UTIL,x,z,.3)||FARM.areas.some(a=>inRect([a.fence[0],a.fence[2],a.fence[1],a.fence[3]],x,z,1.5))||inRect([-27,-20,-6,2],x,z,1)
     ||inRect(lotRect('house',S.housePos.x,S.housePos.z),x,z,.5)||inRect([GX-12,GX+12,G0-4.5,G0+4.5],x,z,.5)||roadDist(x,z)<.4;
   const busy=(x,z,m)=>inLot(x,z)&&(m>=0||busyIn(x,z))   // the farm lot
+    ||(x>116-m&&x<216+m&&z>-171-m&&z<-112+m)   // the poblacion block round the palengke (streets and shophouses)
     ||(x>PX-25-m&&x<PX+25+m&&z>PZ-19-m&&z<HZ-4)||(x>HWX-14-m&&x<HWX+14+m&&z>HZ-25-m&&z<HZ-4)||(x>PSX-14-m&&x<PSX+14+m&&z>HZ-25-m&&z<HZ-4)||(x>SSX-12-m&&x<SSX+12+m&&z>HZ-25-m&&z<HZ-4)||(x>DX+1-m&&x<DX+32+m&&z>HZ+3-m&&z<HZ+12+m)||(x>34-m&&x<336+m&&z>-218-m&&z<-164+m)||(x>34-m&&x<46+m&&z>-190&&z<HZ-4)||(x>324-m&&x<336+m&&z>-190&&z<HZ-4)||(x>PX+38-m&&x<PX+46+m&&z>-190-m&&z<HZ-4)||(x>WHX-14-m&&x<WHX+30+m&&z>HZ-32-m&&z<HZ-4)||(x>FX-30-m&&x<FX+30+m&&z>HZ-64-m&&z<HZ-4)   // sakayan, warehouse, factory
     ||inRect(ORCH,x,z,m)||inRect(UTIL,x,z,m)||inRect(SARI,x,z,m);
   const trunks=[],blobs=[],segs=[],fronds=[],nuts=[],bleaves=[],culms=[],bananaL=[];
@@ -4382,6 +4383,55 @@ const resCars=[0,1].map(k=>{const g=makeCar(k?'l300':'innova',CAR_COLS[(k*5+3)%C
   const r=rng(77), L=[];
   for(let k=0;k<420;k++){const x=-160+r()*420, z=-225+r()*270; if(inLot(x,z)||roadDist(x,z)<1) continue; if(z>HZ-6&&z<HZ+6) continue; const s=2+r()*5; L.push([x,.012,z,s,.01,s*(.6+r()*.6),[STYLE.grassDark,STYLE.grassDry,0x86a056,0x9aa862,0x7d9450][(r()*5)|0],r()*3]);}
   const pm=instR(new THREE.CylinderGeometry(1,1,1,10),L); pm.receiveShadow=true; scene.add(pm);
+})();
+// ---- the poblacion block round the palengke: a narrow west street off the highway and a back street behind the market joining the
+// side street, both with sidewalks and curbs; parking bays; zebra crossings; two-storey shophouses with their signs; street lamps
+const TWN={wx:140, bz:-156, w:6};   // west street centre x, back street centre z, carriageway width
+(()=>{const b=[], L=[], R=(x,y,z,sx,sy,sz,c)=>L.push([x,y,z,sx,sy,sz,c]), r=rng(4242), W=TWN.w, wx=TWN.wx, bz=TWN.bz;
+  const z0=HZ-5.2, z1=bz-W/2-1.3, xe=SRX-4.3;   // west street from the highway to the back street; back street from the west street to the side street
+  // carriageways, centre lines, sidewalks and curbs
+  R(wx,.036,(z0+z1)/2,W,.05,z0-z1,0x4a4c50); for(let z=z0-3;z>bz+3;z-=5) R(wx,.064,z,.12,.01,2.5,0xf1c40f);
+  R((wx+xe)/2,.036,bz,xe-wx+W,.05,W,0x4a4c50); for(let x=wx+5;x<xe-2;x+=5) R(x,.064,bz,2.5,.01,.12,0xf1c40f);
+  {const zw=bz-W/2-1.3, ze=bz+W/2; R(wx-W/2-.65,.06,(z0+zw)/2,1.3,.08,z0-zw,0xbdb8ad); R(wx+W/2+.65,.06,(z0+ze)/2,1.3,.08,z0-ze,0xbdb8ad);   // west street sidewalks and curbs
+   R(wx-W/2-.06,.07,(z0+bz-W/2)/2,.14,.1,z0-bz+W/2,0xd8d4cc); R(wx+W/2+.06,.07,(z0+ze)/2,.14,.1,z0-ze,0xd8d4cc);}
+  R((wx-W/2-1.3+xe)/2,.06,bz-W/2-.65,xe-wx+W/2+1.3,.08,1.3,0xbdb8ad); R((wx+W/2+xe)/2,.06,bz+W/2+.65,xe-wx-W/2,.08,1.3,0xbdb8ad);   // back street sidewalks
+  // zebra crossings: the west street mouth, across the highway there, and at the back street ends
+  for(let k=0;k<6;k++){R(wx-2.5+k,.072,z0-1.6,.5,.01,2.4,0xf2f2f2); R(wx-2.5+k,.075,HZ,.5,.01,6.6,0xf2f2f2); R(xe-2.2,.072,bz-2.5+k,2.4,.01,.5,0xf2f2f2); R(wx+5,.072,bz-2.5+k,2.4,.01,.5,0xf2f2f2);}
+  // parallel parking along the market side of the west street
+  for(let z=z0-6;z>bz+8;z-=5.6) R(wx+W/2-1.1,.066,z,2.2,.01,.1,0xf2f2f2);
+  scene.add(instR(G.tiny,L));
+  // shophouses: shop below with a half-open roll-up shutter and goods out front, a home above, GI roof, a signboard
+  const SHOPS=[['KARINDERYA','ulam · kanin · sabaw','#c62828',0xf5e6c8,'eat'],['PANADERYA','pandesal · ensaymada','#8d5a2b',0xf3e3c3,'bread'],['BOTIKA','gamot · bitamina','#2e7d32',0xe8f1e4,'med'],
+    ['BIGASAN','bigas · mais · asukal','#5d4037',0xf1e7d0,'rice'],['E-LOAD · CELLPHONE','load · repair · accessories','#1565c0',0xe3edf7,'load'],['WATER REFILLING','purified · alkaline','#00838f',0xe0f2f1,'water'],
+    ['BARBERSHOP','gupit · ahit','#37474f',0xeceff1,'barber'],['UKAY-UKAY','damit · sapatos','#6a1b9a',0xf3e5f5,'ukay']];
+  const shop=(x,z,ry,k)=>{const [t1,t2,bg,wall,kind]=SHOPS[k%SHOPS.length], g=new THREE.Group(), s=[]; g.position.set(x,0,z); g.rotation.y=ry; scene.add(g);
+    const w=6.2, d=5, h1=3, h2=2.6;
+    s.push(P('box',wall,0,h1/2,0,w,h1,d)); s.push(P('box',[0xe0d4bc,0xd7e3e6,0xf0e0d0][k%3],0,h1+h2/2,-.3,w,h2,d-.6)); s.push(P('box',0xb5ab98,0,.2,0,w+.04,.4,d+.04));
+    s.push(P('box',0x2b2b2b,0,1.25,d/2+.01,w-1.2,2.2,.04)); s.push(P('box',0xa7adb1,0,2.25,d/2+.03,w-1.2,.55,.05)); for(let i=0;i<4;i++) s.push(P('box',0x8e959a,0,2.06+i*.13,d/2+.06,w-1.2,.02,.02));   // shutter half up
+    for(const lx of [-1.5,1.5]){s.push(P('box',0xffffff,lx,h1+1.3,d/2-.58,1.3,1.1,.05)); s.push(P('box',0x4f6f7f,lx,h1+1.3,d/2-.55,1.1,.9,.04));}                                          // upstairs windows
+    s.push(P('box',0x6d7378,0,h1+.05,d/2-.3,w+.2,.1,.8)); for(const lx of [-w/2+.3,w/2-.3]) s.push(P('box',0x6d7378,lx,h1+.5,d/2+.05,.06,.9,.06)); s.push(P('box',0x6d7378,0,h1+.95,d/2+.05,w-.6,.06,.06));   // balcony rail
+    s.push(P('gable',wall,0,h1+h2,-.3,w+.02,1.1,d-.58)); for(const sd of [-1,1]) s.push(P('box',0xa24a3a,0,h1+h2+.55,-.3+sd*((d-.6)/4+.15),w+.6,.08,(d-.6)/2+.6,sd*.5,0,0));   // gable roof
+    s.push(P('box',0xa24a3a,0,h1-.15,d/2+.9,w+.2,.08,1.9,.18,0,0));                                                                                              // awning over the shop
+    if(kind==='eat'){for(const lx of [-1.6,1.6]){s.push(P('box',0xe9e3d6,lx,.75,d/2+1.4,1.1,.06,.8)); s.push(P('cyl',0x8d6e4b,lx,.37,d/2+1.4,.12,.74,.12)); for(const sz of [-1,1]) s.push(P('cyl',0xd32f2f,lx+sz*.75,.25,d/2+1.4,.36,.45,.36));}
+      for(let i=0;i<5;i++) s.push(P('cyl',0xb0bec5,-1.8+i*.9,1.0,d/2+.35,.4,.25,.4));}                                                                          // tables, stools, pots on the counter
+    if(kind==='rice') for(let i=0;i<6;i++) s.push(P('box',0xf3ecd8,-2.2+(i%3)*.75,.3+(i>2?.4:0),d/2+.6,.65,.4,.5));
+    if(kind==='bread') s.push(P('box',0xd8a35a,0,.9,d/2+.4,2.4,.6,.5));
+    if(kind==='water') for(let i=0;i<6;i++) s.push(P('cyl',0x4fa3d1,-2.2+(i%3)*.5,.28+(i>2?.55:0),d/2+.6,.42,.55,.42));
+    if(kind==='med') s.push(P('box',0x43a047,w/2-.2,h1+1.4,d/2+.1,.6,.6,.1));
+    const m=new THREE.Mesh(mergeGeo(s),VCMAT); m.castShadow=m.receiveShadow=true; g.add(m);
+    const sg=new THREE.Mesh(new THREE.PlaneGeometry(w-.6,1.15),new THREE.MeshBasicMaterial({map:signTex([t1,t2],bg,'#fff')})); sg.position.set(0,h1+.35,d/2+.86); sg.rotation.x=-.12; g.add(sg);
+    if(kind==='eat'||kind==='rice'||kind==='load'){const L2=randLook(r); L2.bag=null; const p=bakePerson(L2,kind==='eat'?poseSit:pp=>poseStand(pp,r()*5)); p.position.set(kind==='eat'?-2.35:1.2,kind==='eat'?.25:.08,d/2+(kind==='eat'?1.4:1.6)); p.rotation.y=kind==='eat'?Math.PI/2:Math.PI; g.add(p);}};
+  let k=0; for(let z=z0-7;z>bz+9;z-=7.2) shop(wx-W/2-1.3-3.1,z,Math.PI/2,k++);                     // along the west street, facing it
+  for(let x=wx+9;x<xe-8;x+=7.2) shop(x,bz-W/2-1.3-2.6,0,k++);                                      // along the back street, facing it
+  // parked: a jeepney, an owner-type jeep, a tricycle and motorsiklo along the bays
+  const pz=[z0-9,z0-14.6,z0-20.2,z0-25.8]; const t=makeTrike(0xc62828); t.g.position.set(wx+W/2-1.1,0,pz[0]); scene.add(t.g);
+  {const j=new THREE.Group(), c=[]; c.push(P('box',0x1565c0,0,.85,0,1.8,.7,4.6)); c.push(P('box',0xd5dbe0,0,1.45,-.4,1.8,.5,3.4)); c.push(P('box',0x2b3a48,0,1.4,1.55,1.6,.5,.04)); c.push(P('box',0xf1c40f,0,1.75,-.4,1.9,.1,3.6));
+    for(const sx of [-1,1]) for(const sz of [-1.5,1.5]) c.push(P('cyl',0x1b1b1b,sx*.88,.38,sz,.72,.24,.72,0,0,Math.PI/2)); j.add(new THREE.Mesh(mergeGeo(c),PAINT)); j.position.set(wx+W/2-1.1,0,pz[1]); scene.add(j);}   // owner-type jeep
+  [pz[2],pz[2]+1.2,pz[3]].forEach((z,q)=>{const m=motoMesh([0x212121,0xc62828,0x1565c0][q]); m.position.set(wx+W/2-1,0,z); m.rotation.y=.25; scene.add(m);});
+  // street lamps
+  const lb=[]; for(let z=z0-4;z>bz+4;z-=12){lb.push(P('cyl',0x6b7075,wx-W/2-1,2.3,z,.14,4.6,.14)); lb.push(P('box',0x6b7075,wx-W/2-.4,4.58,z,1.25,.08,.08)); glow(scene,wx-W/2+.2,4.25,z,4.2,GM.white);}
+  for(let x=wx+6;x<xe;x+=14){lb.push(P('cyl',0x6b7075,x,2.3,bz+W/2+1,.14,4.6,.14)); lb.push(P('box',0x6b7075,x,4.58,bz+W/2+.4,.08,.08,1.25)); glow(scene,x,4.25,bz+W/2-.2,4.2,GM.white);}
+  const lm=new THREE.Mesh(mergeGeo(lb),VCMAT); lm.castShadow=true; scene.add(lm);
 })();
 /* ---------- Liwasan (park) beside the barangay: tambay on benches, skateboarders, and a dancing fountain ---------- */
 const PKX=88, PKZ=STZ-17;   // park centre (west end of the barangay, south of the road)

@@ -20,10 +20,11 @@ Coordinates are the game's own world units (1 unit ≈ 1 m): **x runs east, z ru
 | Mabuhay Hardware | (−60, −124) | 12 × 10 | shop menu `STORE.hardware` |
 | Agrivet & Poultry Supply | (92, −127) | 11 × 10 | shop menu `STORE.poultry` |
 | Palengke (Pamilihang Bayan) | (170, −139) | hall 22 × 16 (x 159…181, z −147…−131), apron to the highway | dry side: vegetable and fruit rows; wet side behind a low tiled wall: meat and fish counters; umbrella stalls outside, kargador, tricycle terminal |
+| Poblacion block | (175, −140) | x 116…216, z −171…−112 | west street (x 140) and back street (z −156) round the palengke with sidewalks, crossings, parking bays and shophouses: karinderya, panaderya, botika, bigasan, e-load, water refilling, barbershop, ukay-ukay |
 | Bagsakan (warehouse) | (62, −131) | shed 18 × 12; yard x 50…90, z −124.5…−114.5 | one unloading bay at (75, −119.5); van docks at x 56, 62, 68 |
 | Mega Foods (meat-buying factory) | (395, −144) | compound x 369…421, z −169…−119 | gate (395, −119); plant x 384…418; conveyor shed (380, −134); vans park at z −135 |
 | Barangay | (185, −191) | x 34…336, z −218…−164 | houses along the back road z −186; park at (88, −203) |
-| Hillside barangay (new) | (190, −285) | x 60…320, z −330…−245 | modest homes on a slope, reached by a dirt road from the back road |
+| Mountain barangay | (190, −300) | x 50…330, z −376…−224 | a real slope; contour-following roads from the back road (x 150), house clusters at junctions and bends, rice terraces on two faces |
 | Bus / jeepney stop | (48, −102.6) | bay at z −105.5 | |
 
 ## Roads

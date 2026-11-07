@@ -1,6 +1,6 @@
 # Sunfield Farm — revised farm masterplan (revision 2)
 
-This replaces the farm part of [masterplan.md](masterplan.md). Nothing has been moved in the game yet; this is the plan to approve first.
+This replaces the farm part of [masterplan.md](masterplan.md). All stages below are built (screenshots in [stages/](stages/)).
 
 ![farm plan](farm-plan.svg)
 

@@ -1,5 +1,8 @@
-// node docs/build-farm-plan.js  →  writes docs/farm-plan.svg from docs/farm-layout.js (top-down, 4 px per metre)
-const fs=require('fs'), path=require('path'), F=require('./farm-layout.js');
+// node docs/build-farm-plan.js  →  writes docs/farm-plan.svg from the farm layout in public/index.html (top-down, 4 px per metre)
+const fs=require('fs'), path=require('path');
+// the layout lives in the game itself, between the FARM-LAYOUT markers in public/index.html
+const src=fs.readFileSync(path.join(__dirname,'../public/index.html'),'utf8'), blk=src.slice(src.indexOf('/*FARM-LAYOUT*/')+15,src.indexOf('/*END-FARM-LAYOUT*/'));
+const F=new Function(blk+';return FARM;')();
 const X0=-118, X1=52, Z0=-112, Z1=92, K=4, W=(X1-X0)*K, H=(Z1-Z0)*K;
 const px=x=>((x-X0)*K).toFixed(1), pz=z=>((z-Z0)*K).toFixed(1);
 // Catmull-Rom spline through the points (what the game will use for the road meshes), sampled every ~1 m

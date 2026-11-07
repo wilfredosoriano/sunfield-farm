@@ -904,32 +904,15 @@ const LAWN_MAT=worldGrass(0xd2e3c0), YARD_MATS=[worldGrass(0xe2edcf),worldGrass(
 const VCSMOOTH=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.85,metalness:0});
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(1800,1800),new THREE.MeshStandardMaterial({map:GRASS_TEX,roughness:1,metalness:0})); ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; scene.add(ground);
 
-function addFence(){
-  const E=H+.6, step=(E*2)/12;
-  for(let side=0;side<4;side++){
-    for(let k=0;k<=12;k++){
-      const a=-E+k*step;
-      const [x,z]=side===0?[a,-E]:side===1?[a,E]:side===2?[-E,a]:[E,a];
-      if(side===0&&Math.abs(x)<1.6) continue;
-      scene.add(part(.16,.9,.16,0xd8c3a0,x,.45,z));
-      if(k<12){const mid=a+step/2; if(side===0&&Math.abs(mid)<1.6) continue;
-        const [mx,mz]=side===0?[mid,-E]:side===1?[mid,E]:side===2?[-E,mid]:[E,mid];
-        const horiz=side<2;
-        [.35,.7].forEach(y=>scene.add(part(horiz?step:.08,.08,horiz?.08:step,0xd8c3a0,mx,y,mz)));
-      }
-    }
-  }
-}
-addFence();
 
 // kamalig (wooden storehouse) + dayami haystacks
-(()=>{const g=new THREE.Group(); g.position.set(-(H+9),0,-5); g.rotation.y=Math.PI/2;
+(()=>{const g=new THREE.Group(); g.position.set(-24,0,-2); g.rotation.y=Math.PI/2;   // the bodega, beside the service road (door faces the field)
   g.add(part(6,3.4,5,0x9a6b3d,0,1.7,0));
   for(let k=0;k<6;k++) g.add(part(6.05,.06,5.05,0x7d5530,0,.4+k*.55,0));
   g.add(roof(6.6,5.6,2.2,0x8a959c,3.4,0,0));
   g.add(part(2.2,2.4,.1,0xe8dcc0,0,1.2,2.52)); g.add(part(1.8,2.1,.12,0x5e3d22,0,1.05,2.53));
   scene.add(g);
-  [[-(H+4),1.5],[-(H+5.5),3.4],[-(H+3.6),3.8],[-(H+4),-11],[-(H+5.6),-12]].forEach(([x,z])=>{
+  [[-19,4.5],[-17.4,5.8],[-19.6,6.6],[-29.5,4.2],[-31,5.6]].forEach(([x,z])=>{
     scene.add(mesh(new THREE.CylinderGeometry(.9,1,1.1,10),0xe5c45a,x,.55,z));
     scene.add(mesh(new THREE.ConeGeometry(.95,.6,10),0xd9b44a,x,1.4,z));});
 })();
@@ -943,7 +926,7 @@ const carabao=new THREE.Group(), carabaoHead=new THREE.Group();
   h.add(part(.45,.4,.42,dark,.15,-.05,0)); h.add(part(.2,.24,.32,0x6a6a72,.42,-.12,0));
   [-1,1].forEach(s=>{const horn=mesh(new THREE.ConeGeometry(.07,.6,5),0xd8cfbf,.05,.18,s*.36); horn.rotation.set(s*-1.25,0,.7); h.add(horn);});
   c.add(h); c.add(part(.05,.55,.05,dark,-.78,.85,0));
-  c.position.set(-(H+6),0,H+5); scene.add(c);
+  c.position.set(-20,0,24); scene.add(c);
 })();
 // ---------- Pamilihang Bayan (palengke): a big covered market far from the farm, reached by jeepney ----------
 const PX=170, PZ=-144, HZ=-110;                       // palengke hall center, highway center line
@@ -1269,7 +1252,88 @@ const jeep=new THREE.Group(), jeepCargo=new THREE.Group(), jeepWheels=[];
   jeepCargo.visible=false; jeep.add(jeepCargo); scene.add(jeep);
 })();
 /* ================= The wider world: dirt road, endless highway, hardware store, garage, house ================= */
-const LE=HZ+1.75, LW=HZ-1.75, DX=34, RZ=-14.5, HWX=-60;
+const LE=HZ+1.75, LW=HZ-1.75, DX=34, HWX=-60;   // highway lanes, where the farm road meets the highway, the hardware store
+/* ---------- farm layout (revision 2): one set of numbers for the game and the planning map ----------
+   docs/build-farm-plan.js reads this block to draw docs/farm-plan.svg. Metres; x east, z south; highway at z = -110. */
+/*FARM-LAYOUT*/
+const FARM = {
+  // the lot fence follows the land instead of a rectangle (smoothed through these points)
+  fence: [[38,-36],[39,-6],[41,24],[37,54],[22,76],[-6,86],[-44,85],[-82,78],[-106,56],[-111,16],[-106,-18],[-88,-42],[-50,-45],[-10,-43]],
+  gate: {x:38.6, z:-17, w:6},
+  // roads: centre-line control points (smooth Catmull-Rom curve through them) and width in metres
+  roads: [
+    {id:'access',  kind:'farm road: dirt with gravel shoulders', w:4.5, pts:[[34,-104],[31,-88],[36,-70],[42,-54],[42,-36],[40,-23],[37.5,-17]]},
+    {id:'service', kind:'main farm service road: dirt', w:4.5, pts:[[37.5,-17],[26,-13],[12,-11],[-4,-10],[-18,-10.5],[-30,-11],[-42,-11.5],[-52,-6],[-56,4],[-52,20],[-44,40],[-40,53],[-28,58],[-10,56],[8,53],[17,41],[17,23],[17,3],[21,-8],[26,-13]]},
+    {id:'t-water', kind:'farm vehicle track', w:3.5, pts:[[-30,-11],[-34,-15],[-36,-18.5]]},
+    {id:'t-goat',  kind:'farm vehicle track', w:3.5, pts:[[-56,2],[-66,1],[-74,0]]},
+    {id:'t-cow',   kind:'farm vehicle track', w:3.5, pts:[[-53,18],[-58,24],[-62,27]]},
+    {id:'t-broil', kind:'farm vehicle track', w:3.5, pts:[[-44.5,37],[-38,37]]},
+    {id:'t-egg',   kind:'farm vehicle track', w:3.5, pts:[[17,37],[12,37]]},
+    {id:'t-pig',   kind:'farm vehicle track', w:3.5, pts:[[-22,57.5],[-20,62]]},
+    {id:'p-house', kind:'footpath', w:1.5, pts:[[0,-10],[0,-12.5]]},
+    {id:'p-field', kind:'footpath (round the beds)', w:1.5, pts:[[-14.5,-9],[-14.5,19],[14.5,19],[14.5,-9],[-14.5,-9]]},
+    {id:'p-poultry',kind:'footpath', w:1.5, pts:[[-15,21],[-15,51]]},
+    {id:'p-dike',  kind:'footpath on the pond dike', w:1.5, pts:[[-54,-27.75],[-22,-27.75]]},
+  ],
+  turning: [{x:14,z:-12,r:7,name:'garage apron'},{x:-27,z:-15,r:7,name:'bodega yard'},{x:-34,z:57,r:6,name:'feed drop'}],
+  // fixed buildings (the house and garage stay movable by the player)
+  buildings: [
+    {id:'house',   name:'Farmhouse',        x:0,    z:-19.5, w:9.2,  d:11.3},
+    {id:'garage',  name:'4-bay garage',     x:16.7, z:-21,   w:23.6, d:9,  note:'4 bays of 5.6 × 8.5 m, shared 9 m apron'},
+    {id:'bodega',  name:'Bodega (storage)', x:-24,  z:-2,    w:14,   d:9},
+    {id:'utility', name:'Utility yard',     x:-38,  z:-1,    w:14,   d:12},
+  ],
+  // crop field: the same 12 × 12 plots (2 m each), drawn as four beds of 6 × 6 with 1.5 m soil tracks between them
+  field: {x:0, z:5, plot:2, beds:2, gap:1.5},
+  orchard: {pts:[[21,-6],[35,-6],[38,12],[36,44],[22,47],[20,24]]},
+  // animal areas: each has its own fence, gate and up to three slots (the game allows up to 3 of each); slot = [x, z, w, d]
+  areas: [
+    {type:'coop',    name:'Egg-laying houses', fence:[-12,24,12,50],    gate:[12,37],  slots:[[0,29,16,6.5],[0,37,16,6.5],[0,45,16,6.5]]},
+    {type:'broiler', name:'Broiler houses',    fence:[-38,24,-18,50],   gate:[-38,37], slots:[[-28,29,14,6.5],[-28,37,14,6.5],[-28,45,14,6.5]]},
+    {type:'cows',    name:'Cow pasture and barns', fence:[-104,18,-62,70], gate:[-62,27], slots:[[-92,24,10,7],[-80,24,10,7],[-68,24,10,7]], pasture:true},
+    {type:'goat',    name:'Goat yard',         fence:[-100,-14,-74,12], gate:[-74,0],  slots:[[-94,-6,7,5],[-84,-6,7,5],[-94,5,7,5]]},
+    {type:'pig',     name:'Pig pens',          fence:[-44,62,0,80],     gate:[-20,62], slots:[[-36,71,11,9],[-22,71,11,9],[-8,71,11,9]]},
+    {type:'fish',    name:'Tilapia ponds',     fence:[-54,-40,-22,-18], gate:[-36,-18.5], slots:[[-46,-33,13,9],[-30,-33,13,9],[-46,-23,13,8]], water:true},
+    {type:'duck',    name:'Duck enclosures',   fence:[-70,-40,-58,-12], gate:[-58,-26], slots:[[-64,-35,10,7],[-64,-26,10,7],[-64,-17,10,6]], water:true},
+  ],
+  canal: [[-58,-13],[-34,-14],[-17,-8],[-16,20.5],[14,20.5],[19,46]],
+};
+/*END-FARM-LAYOUT*/
+// smooth curve (Catmull-Rom) through control points, sampled about every step metres; footpaths stay straight between their points
+function spline(pts,closed,step=1){const P=closed?[pts[pts.length-1],...pts,pts[0],pts[1]]:[pts[0],...pts,pts[pts.length-1]], out=[];
+  for(let i=1;i<P.length-2;i++){const [a,b,c,d]=[P[i-1],P[i],P[i+1],P[i+2]], n=Math.max(2,Math.ceil(Math.hypot(c[0]-b[0],c[1]-b[1])/step));
+    for(let k=0;k<n;k++){const t=k/n, t2=t*t, t3=t2*t, f=(p0,p1,p2,p3)=>.5*(2*p1+(-p0+p2)*t+(2*p0-5*p1+4*p2-p3)*t2+(-p0+3*p1-3*p2+p3)*t3); out.push([f(a[0],b[0],c[0],d[0]),f(a[1],b[1],c[1],d[1])]);}}
+  out.push(closed?out[0]:pts[pts.length-1]); return out;}
+function straight(pts,step=1){const out=[]; for(let i=0;i<pts.length-1;i++){const [a,b]=[pts[i],pts[i+1]], n=Math.max(1,Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/step)); for(let k=0;k<n;k++) out.push([a[0]+(b[0]-a[0])*k/n,a[1]+(b[1]-a[1])*k/n]);} out.push(pts[pts.length-1]); return out;}
+// the roads built so far (the vehicle tracks to the animal areas arrive with the areas)
+const LIVE_ROADS=['access','service','p-house','p-field'];
+const ROADS={}; for(const r of FARM.roads) ROADS[r.id]={...r,s:r.kind.startsWith('footpath')?straight(r.pts):spline(r.pts,false)};
+const ACCESS=ROADS.access.s, SERVICE=ROADS.service.s;   // ACCESS runs highway → gate; SERVICE runs gate → garage → bodega → … → back to the garage apron
+// fast lookup: how far a point is from the nearest built road edge (negative = on the road)
+const ROADGRID=new Map(), RG=8, rgKey=(x,z)=>Math.floor(x/RG)+','+Math.floor(z/RG);
+for(const id of LIVE_ROADS) for(const [x,z] of ROADS[id].s){const k=rgKey(x,z); if(!ROADGRID.has(k)) ROADGRID.set(k,[]); ROADGRID.get(k).push([x,z,ROADS[id].w/2]);}
+function roadDist(x,z){let best=99; const cx=Math.floor(x/RG), cz=Math.floor(z/RG);
+  for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){const L=ROADGRID.get((cx+i)+','+(cz+j)); if(L) for(const [a,b,h] of L){const d=Math.hypot(x-a,z-b)-h; if(d<best) best=d;}} return best;}
+const FENCE=spline(FARM.fence,true,2.4);
+function inLot(x,z){let c=false; for(let i=0,j=FENCE.length-1;i<FENCE.length;j=i++){const [xi,zi]=FENCE[i], [xj,zj]=FENCE[j]; if((zi>z)!==(zj>z)&&x<(xj-xi)*(z-zi)/(zj-zi)+xi) c=!c;} return c;}
+// the crop field: 12 × 12 plots drawn as four 6 × 6 beds with soil tracks between them (plot indexes in the save do not change)
+const FLD=FARM.field, FHALF=N*T/2+FLD.gap/2;
+const fieldX=c=>FLD.x+(c-N/2+.5)*T+(c<N/2?-FLD.gap/2:FLD.gap/2), fieldZ=r=>FLD.z+(r-N/2+.5)*T+(r<N/2?-FLD.gap/2:FLD.gap/2);
+const inField=(x,z,m=0)=>Math.abs(x-FLD.x)<FHALF+m&&Math.abs(z-FLD.z)<FHALF+m;
+// the point on a sampled road nearest to (x,z), and the index of that sample
+function nearestOn(S,x,z){let bi=0,bd=1e9; S.forEach(([a,b],i)=>{const d=(x-a)**2+(z-b)**2; if(d<bd){bd=d; bi=i;}}); return bi;}
+// the front stretch of the service road (gate → past the garage and house): what the garage and the house face
+const SVC0=SERVICE.slice(0,nearestOn(SERVICE,-18,-10.5)+1);
+function frontIdx(x){let bi=0,bd=1e9; SVC0.forEach(([a],i)=>{const d=Math.abs(a-x); if(d<bd){bd=d; bi=i;}}); return bi;}
+const frontZ=x=>SVC0[frontIdx(x)][1]-2.25;   // the road's north edge in front of x
+// vehicle legs between a garage bay at x = sx and the highway junction, along the service road and the farm road
+function toHwy(sx,d){const p=[]; for(let k=frontIdx(sx);k>=0;k-=2) p.push([SVC0[k][0],SVC0[k][1],d]); for(let k=ACCESS.length-1;k>=0;k-=2) p.push([ACCESS[k][0],ACCESS[k][1],d]); return p;}
+function fromHwy(sx,d,sl){const p=[]; for(let k=0;k<ACCESS.length;k+=2) p.push([ACCESS[k][0],ACCESS[k][1],d]); const i=frontIdx(sx-3.5);
+  for(let k=0;k<=i;k+=2) p.push([SVC0[k][0],SVC0[k][1],d]); const az=SVC0[i][1]; p.push([sx-3.5,az,sl,true],[sx,az-2.5,sl,true],[sx,G0]); return p;}   // drive past the bay, then back into it
+// walking between the house and the bus stop by the highway: along the roadside of the same roads
+function walkOut(){const p=[], off=(S,k,o)=>{const a=S[Math.max(0,k-1)], b=S[Math.min(S.length-1,k+1)], L=Math.hypot(b[0]-a[0],b[1]-a[1])||1; return [S[k][0]-(b[1]-a[1])/L*o,S[k][1]+(b[0]-a[0])/L*o];};
+  for(let k=frontIdx(6);k>=0;k-=3) p.push(off(SVC0,k,-1.6)); for(let k=ACCESS.length-1;k>=0;k-=3) p.push(off(ACCESS,k,1.6)); p.push([DX-1.3,HZ+7.6]); return p;}
+const walkIn=()=>walkOut().reverse();
 if(!S.housePos) S.housePos={x:0,z:-20}; if(!S.garagePos) S.garagePos={x:12,z:-19.5};
 let GX=S.garagePos.x, G0=S.garagePos.z;                         // garage centre (movable)   // lanes (east/westbound), dirt road, garage line
 const SPD={dirt:7,hwy:16,slow:3.5};
@@ -1311,11 +1375,6 @@ const LEAFMAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.85,fl
 // ---- roads, rice paddies, power poles
 (()=>{
   const L=[], R=(x,y,z,sx,sy,sz,c)=>L.push([x,y,z,sx,sy,sz,c]);
-  const dz0=RZ, dz1=HZ+3.6, dzm=(dz0+dz1)/2, dlen=Math.abs(dz1-dz0)+1.6;
-  R((5+DX+1.6)/2,.025,RZ,DX+1.6-5,.05,3.2,0xa08a6a); R(DX,.025,dzm,3.2,.05,dlen,0xa08a6a);           // dirt road (lupa)
-  R((5+DX)/2,.052,RZ-.65,DX-5,.01,.35,0x8c7657); R((5+DX)/2,.052,RZ+.65,DX-5,.01,.35,0x8c7657);       // tyre ruts
-  R(DX-.65,.052,dzm,.35,.01,dlen-1,0x8c7657); R(DX+.65,.052,dzm,.35,.01,dlen-1,0x8c7657);
-  R(0,.03,-15.2,2.2,.05,5.2,0xbca88a);                                                              // farm driveway
   R(0,.02,HZ,1700,.04,10.4,0xa8a090); R(0,.04,HZ,1700,.05,7.2,0x45474b);                            // highway + shoulders
   R(0,.068,HZ+3.35,1700,.01,.15,0xf2f2f2); R(0,.068,HZ-3.35,1700,.01,.15,0xf2f2f2);
   for(let x=-850;x<=850;x+=6) R(x,.069,HZ,3,.01,.15,0xf1c40f);
@@ -1324,8 +1383,8 @@ const LEAFMAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.85,fl
   for(let x=-420;x<=560;x+=30){R(x,3.5,HZ+6.2,.26,7,.26,0x9a9a9a); R(x,6.7,HZ+6.2,.12,.12,2.0,0x6b6b6b);}  // electric posts
   // rice paddies (palayan): muddy water with rows of palay
   const RICE=[], TONES=[0x7cb342,0x8bc34a,0x9ccc65,0xc5b358];
-  for(let z=RZ-22;z>HZ+12;z-=9) for(const side of [-1,1]){
-    const cx=DX+side*9.5, tone=TONES[(Math.abs(z|0)+side+9)%TONES.length];
+  for(let z=-47;z>HZ+12;z-=9) for(const side of [-1,1]){   // paddies on both sides of the farm road, following its curve
+    const cx=ACCESS[nearestOn(ACCESS,DX,z)][0]+side*10.5, tone=TONES[(Math.abs(z|0)+side+9)%TONES.length];
     R(cx,.04,z,7.6,.06,8.2,0x6f8a5c);
     R(cx,.1,z+4.2,7.9,.14,.35,0x7a8a4a); R(cx,.1,z-4.2,7.9,.14,.35,0x7a8a4a); R(cx-3.9,.1,z,.35,.14,8.6,0x7a8a4a); R(cx+3.9,.1,z,.35,.14,8.6,0x7a8a4a);
     for(let ix=0;ix<12;ix++) for(let iz=0;iz<13;iz++) RICE.push([cx-3.3+ix*.6,.07,z-3.6+iz*.6,1,.8+((ix*7+iz*3)%5)*.08,1,tone,(ix*13+iz)%6]);
@@ -1344,27 +1403,38 @@ function blobGeo(r,seed,squash,color,y){ // a flat patch with a ragged, uneven o
     const x=Math.cos(a)*rr, z=Math.sin(a)*rr*squash; k?sh.lineTo(x,z):sh.moveTo(x,z);}
   const g=new THREE.ShapeGeometry(sh,1); g.rotateX(Math.PI/2); g.translate(0,y,0); return [g,color];
 }
+// the farm's dirt roads and footpaths: one continuous strip along each curve (grassy edges, darker wheel ruts, a lighter crown,
+// slightly ragged edges), with loose stones, muddy patches, grass on the shoulders and three potholes on the farm road
+function ribbon(S,w,cols,y,seed){const r=rng(seed), pos=[], col=[], idx=[], C=cols.map(c=>new THREE.Color(c)), prof=[-1,-.42,0,.42,1];
+  for(let i=0;i<S.length;i++){const a=S[Math.max(0,i-1)], b=S[Math.min(S.length-1,i+1)]; let tx=b[0]-a[0], tz=b[1]-a[1]; const L=Math.hypot(tx,tz)||1; tx/=L; tz/=L;
+    const rl=1+(r()-.5)*.18, rr2=1+(r()-.5)*.18;
+    prof.forEach((p,k)=>{const hw=w/2*(p<0?rl:rr2); pos.push(S[i][0]-tz*p*hw,y,S[i][1]+tx*p*hw); const c=C[k===0||k===4?0:k===2?2:1]; col.push(c.r,c.g,c.b);});}
+  for(let i=0;i<S.length-1;i++) for(let k=0;k<4;k++){const a=i*5+k, c=a+5; idx.push(a,a+1,c,a+1,c+1,c);}
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
+  g.setAttribute('normal',new THREE.Float32BufferAttribute(new Array(pos.length).fill(0).map((_,i)=>i%3===1?1:0),3)); g.setIndex(idx); return g;}
+const ROAD_MAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,metalness:0,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
 (()=>{const rr=rng(808), parts=[], st=[], gr=[];
-  POTHOLES.push({x:17.5,z:RZ+.7,r:.85,d:.2,s:1.3},{x:DX-.65,z:RZ-21,r:.95,d:.22,s:4.1},{x:DX+.7,z:RZ-58,r:.8,d:.18,s:2.6});
+  for(const id of LIVE_ROADS){const R=ROADS[id], foot=R.kind.startsWith('footpath');
+    const m=new THREE.Mesh(ribbon(R.s,R.w,foot?[0x9d9a6e,0xb9a682,0xc2b08c]:[0x8f8c5e,0x8c7657,0xa89272],foot?.03:.035,id.length*31),ROAD_MAT); m.receiveShadow=true; scene.add(m);}
+  const along=(S,k,off)=>{const a=S[Math.max(0,k-1)], b=S[Math.min(S.length-1,k+1)], L=Math.hypot(b[0]-a[0],b[1]-a[1])||1; return [S[k][0]-(b[1]-a[1])/L*off,S[k][1]+(b[0]-a[0])/L*off];};
+  const n=ACCESS.length; [[.22,.85,.2,1.3],[.5,.95,.22,4.1],[.78,.8,.18,2.6]].forEach(([u,r,d,s],k)=>{const [x,z]=along(ACCESS,Math.floor(n*u),k%2?.7:-.65); POTHOLES.push({x,z,r,d,s});});
   const put=(geo,x,z,rot)=>{const [g,c]=geo; return [g,Mx(x,0,z,1,1,1,0,rot,0),c];};
   POTHOLES.forEach(p=>{parts.push(put(blobGeo(p.r*1.45,p.s+.5,.85,0x5f4a30,.054),p.x,p.z,p.s));        // wet mud around the hole
     parts.push(put(blobGeo(p.r*1.05,p.s+1.7,.8,0x4e3c27,.056),p.x,p.z,p.s));                           // darker mud
     parts.push(put(blobGeo(p.r*.8,p.s,.75,0x6c7d82,.059),p.x,p.z,p.s));});                              // muddy water
-  const patch=(x,z)=>parts.push(put(blobGeo(.4+rr()*.8,rr()*9,.5+rr()*.5,[0x93805f,0xa89474,0x9b8666,0xb19d7d][(rr()*4)|0],.051),x,z,rr()*6));
-  for(let k=0;k<60;k++) patch(5+rr()*(DX-4),RZ+(rr()-.5)*2.4); for(let k=0;k<150;k++) patch(DX+(rr()-.5)*2.4,RZ-rr()*(RZ-HZ-4));
-  const pm=new THREE.Mesh(mergeGeo(parts),new THREE.MeshStandardMaterial({vertexColors:true,roughness:.95,side:THREE.DoubleSide})); pm.receiveShadow=true; scene.add(pm);
+  for(const S of [ACCESS,SERVICE]) for(let k=0;k<S.length;k+=2){
+    if(rr()<.55){const [x,z]=along(S,k,(rr()-.5)*3); parts.push(put(blobGeo(.4+rr()*.8,rr()*9,.5+rr()*.5,[0x93805f,0xa89474,0x9b8666,0xb19d7d][(rr()*4)|0],.051),x,z,rr()*6));}
+    for(let q=0;q<2;q++){const [x,z]=along(S,k,(rr()-.5)*3.6); st.push([x,.07,z,.06+rr()*.1,.04+rr()*.05,.06+rr()*.1,[0x8d8d8d,0xa39e93,0x7a7468][(rr()*3)|0],rr()*3]);}
+    for(const sd of [-1,1]) if(rr()<.8){const [x,z]=along(S,k,sd*(2.3+rr()*.6)); if(!POTHOLES.some(p=>Math.hypot(x-p.x,z-p.z)<p.r*1.5)&&!inField(x,z,.5)) gr.push([x,.05,z,.7+rr()*.6,.6+rr()*.7,.7+rr()*.6,[0x6aa84a,0x7cb342,0x8fbf4a][(rr()*3)|0],rr()*6]);}
+    if(rr()<.5){const [x,z]=along(S,k,(rr()-.5)*.5); gr.push([x,.05,z,.6+rr()*.4,.5+rr()*.4,.6+rr()*.4,0x7cb342,rr()*6]);}}   // grass down the middle
+  const pm=new THREE.Mesh(mergeGeo(parts),new THREE.MeshStandardMaterial({vertexColors:true,roughness:.95,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-3})); pm.receiveShadow=true; scene.add(pm);
   const water=new THREE.Mesh(mergeGeo(POTHOLES.map(p=>put(blobGeo(p.r*.78,p.s,.75,0xffffff,.061),p.x,p.z,p.s))),
     new THREE.MeshStandardMaterial({color:0x7f949b,roughness:.05,metalness:.4,transparent:true,opacity:.8,side:THREE.DoubleSide})); scene.add(water);
-  const stone=(x,z)=>st.push([x,.07,z,.06+rr()*.1,.04+rr()*.05,.06+rr()*.1,[0x8d8d8d,0xa39e93,0x7a7468][(rr()*3)|0],rr()*3]);
-  for(let k=0;k<120;k++) stone(5+rr()*(DX-4),RZ+(rr()-.5)*3); for(let k=0;k<260;k++) stone(DX+(rr()-.5)*3,RZ-rr()*(RZ-HZ-4));
-  const tuft=(x,z)=>{if(POTHOLES.some(p=>Math.hypot(x-p.x,z-p.z)<p.r*1.5)) return; gr.push([x,.05,z,.7+rr()*.6,.6+rr()*.7,.7+rr()*.6,[0x6aa84a,0x7cb342,0x8fbf4a][(rr()*3)|0],rr()*6]);};
-  for(let x=6;x<DX-1;x+=.45) tuft(x+(rr()-.5)*.3,RZ+(rr()-.5)*.35);
-  for(let z=RZ-2;z>HZ+5;z-=.45) tuft(DX+(rr()-.5)*.35,z+(rr()-.5)*.3);
   const sm=instR(new THREE.DodecahedronGeometry(1,0),st); sm.castShadow=true; scene.add(sm);
   const blade=new THREE.ConeGeometry(.04,.35,3,1,true), tf=mergeGeo([0,1,2].map(k=>[blade,Mx(Math.cos(k*2.1)*.05,.17,Math.sin(k*2.1)*.05,1,1,1,Math.sin(k*2.1)*.3,0,Math.cos(k*2.1)*.3),0xffffff]));
   softCover(instR(tf,gr,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,flatShading:true})));
 })();
-function onDirt(x,z){return (z>RZ-1.7&&z<RZ+1.7&&x>4.5&&x<DX+1.7)||(x>DX-1.7&&x<DX+1.7&&z<RZ+1.7&&z>HZ+3.4)||(Math.abs(x-GX)<5&&z>G0+3&&z<RZ);}
+function onDirt(x,z){return roadDist(x,z)<.2||(Math.abs(x-GX)<5&&z>G0+3&&z<frontZ(GX));}
 function bumpAt(x,z){ // ground height under a wheel: rough dirt plus the potholes; the highway is smooth
   if(!onDirt(x,z)) return 0;
   let h=Math.sin(x*1.9)*.02+Math.sin(z*1.4+x*.5)*.025+Math.sin(x*4.3+z*3.1)*.012;
@@ -1547,7 +1617,7 @@ function buildGarage(){
     b.push(P('box',0x8a9aa3,GX,3.15,G0-.05,10.4,.08,7.4,.08)); b.push(P('box',0x2e86de,GX,3.0,G0+3.6,10.4,.35,.08));
     b.push(P('box',0xf1c40f,GX,.11,G0+.2,.1,.01,5.6));
   }
-  clearGroup(driveG); if(G0+3.3<RZ-1.5) driveG.add(new THREE.Mesh(mergeGeo([P('box',0xa08a6a,GX,.026,(G0+3.3+RZ-1.5)/2,S.garage>=3?22:9.6,.05,RZ-1.5-(G0+3.3))]),VCMAT));   // dirt driveway to the road (not part of the garage, so it can't be grabbed)
+  {const fz=frontZ(GX)+.4; clearGroup(driveG); if(G0+3.3<fz) driveG.add(new THREE.Mesh(mergeGeo([P('box',0xa08a6a,GX,.026,(G0+3.3+fz)/2,S.garage>=3?22:9.6,.05,fz-(G0+3.3))]),VCMAT));}   // dirt driveway to the road (not part of the garage, so it can't be grabbed)
   const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.castShadow=m.receiveShadow=true; garageG.add(m);
 }
 // ---- construction site (scaffolding + workers hammering)
@@ -1792,28 +1862,28 @@ setSlots();   // bays for the garage level you have
 function routesFor(vid,dest){
   const key=vid+dest; if(ROUTES[key]) return ROUTES[key];
   const sx=VEH[vid].slot, sl=SPD.slow, d=SPD.dirt, h=SPD.hwy;
-  const toGarage=[[DX,RZ,d],[sx-3.5,RZ,sl,true],[sx,RZ-2.5,sl,true],[sx,G0]];
+  const toGarage=fromHwy(sx,d,sl);
   let out,back;
   if(dest==='palengke'){
-    out=[[sx,G0,sl],[sx,RZ,d],[DX,RZ,d],[DX,LE,h],[PX-4,LE,sl],[PX+2,HZ-5,sl],[PX+2,-124]];
+    out=[[sx,G0,sl],...toHwy(sx,d),[DX,LE,h],[PX-4,LE,sl],[PX+2,HZ-5,sl],[PX+2,-124]];
     back=[[PX+2,-124,sl],[PX,-128.5,sl],[PX-3,-124,sl],[PX-3,HZ-5,sl],[PX-7,LW,h],[DX,LW,d]].concat(toGarage);
   }else if(dest==='poultry'){
-    out=[[sx,G0,sl],[sx,RZ,d],[DX,RZ,d],[DX,LE,h],[PSX-5,LE,sl],[PSX,HZ-5.5,sl],[PSX,HZ-7.5]];
+    out=[[sx,G0,sl],...toHwy(sx,d),[DX,LE,h],[PSX-5,LE,sl],[PSX,HZ-5.5,sl],[PSX,HZ-7.5]];
     back=[[PSX,HZ-7.5,sl],[PSX+3,HZ-10.5,sl],[PSX+6,HZ-7,sl],[PSX+2,LW,h],[DX,LW,d]].concat(toGarage);
   }else if(dest==='brgy'){ // down the west road into the barangay, drop the order near the houses, back up and home
-    out=[[sx,G0,sl],[sx,RZ,d],[DX,RZ,d],[DX,LE,h],[37,LE,sl],[41.75,HZ-8,d],[41.75,STZ+5,sl],[48,STZ+1.75,d],[118,STZ+1.75]];
+    out=[[sx,G0,sl],...toHwy(sx,d),[DX,LE,h],[37,LE,sl],[41.75,HZ-8,d],[41.75,STZ+5,sl],[48,STZ+1.75,d],[118,STZ+1.75]];
     back=[[118,STZ+1.75,sl],[124,STZ,sl],[118,STZ-1.75,d],[46,STZ-1.75,sl],[38.25,STZ+5,d],[38.25,HZ-8,sl],[DX,LW,d]].concat(toGarage);
   }else if(dest==='city'){ // east along the highway, off the map to the city, and back
-    out=[[sx,G0,sl],[sx,RZ,d],[DX,RZ,d],[DX,LE,h],[TX1+40,LE]];
+    out=[[sx,G0,sl],...toHwy(sx,d),[DX,LE,h],[TX1+40,LE]];
     back=[[TX1+40,LW,h],[DX,LW,d]].concat(toGarage);
   }else if(dest==='warehouse'){
-    out=[[sx,G0,sl],[sx,RZ,d],[DX,RZ,d],[DX,LE,h],[WHX+8,LE,sl],[WHX+13,HZ-5.2,sl],[WHX+13,HZ-9]];
+    out=[[sx,G0,sl],...toHwy(sx,d),[DX,LE,h],[WHX+8,LE,sl],[WHX+13,HZ-5.2,sl],[WHX+13,HZ-9]];
     back=[[WHX+13,HZ-9,sl],[WHX+16,HZ-11.5,sl],[WHX+19,HZ-7,sl],[WHX+15,LW,h],[DX,LW,d]].concat(toGarage);
   }else if(dest==='seeds'){
-    out=[[sx,G0,sl],[sx,RZ,d],[DX,RZ,d],[DX,LW,h],[SSX-5,LW,sl,true],[SSX,HZ-4.5,sl,true],[SSX,HZ-5.6]];
+    out=[[sx,G0,sl],...toHwy(sx,d),[DX,LW,h],[SSX-5,LW,sl,true],[SSX,HZ-4.5,sl,true],[SSX,HZ-5.6]];
     back=[[SSX,HZ-5.6,sl],[SSX+4,LE,h],[DX,LE,d]].concat(toGarage);
   }else{
-    out=[[sx,G0,sl],[sx,RZ,d],[DX,RZ,d],[DX,LW,h],[HWX-5,LW,sl,true],[HWX,HZ-4.5,sl,true],[HWX,HZ-5.6]];
+    out=[[sx,G0,sl],...toHwy(sx,d),[DX,LW,h],[HWX-5,LW,sl,true],[HWX,HZ-4.5,sl,true],[HWX,HZ-5.6]];
     back=[[HWX,HZ-5.6,sl],[HWX+4,LE,h],[DX,LE,d]].concat(toGarage);
   }
   return ROUTES[key]={out:mkRoute(out),back:mkRoute(back)};
@@ -2364,29 +2434,18 @@ function buildFishpond(t){
     w.add(hub); w.add(new THREE.Mesh(mergeGeo([P('box',0xeeeeee,0,.3,0,.6,.15,.4),P('box',0x9e9e9e,0,.15,0,1.1,.06,.06)]),VCMAT)); w.position.set(-1.2+k*1.3,.42,.6+(k%2)*.9); g.add(w); wheels.push(hub);}
   const fishM=new THREE.MeshStandardMaterial({color:0x78909c,roughness:.6}), fish=[]; for(let k=0;k<3;k++){const f=new THREE.Mesh(new THREE.SphereGeometry(.14,8,6),fishM); f.scale.set(.6,.6,1.4); f.visible=false; g.add(f); fish.push({f,t0:Math.random()*6,x:(Math.random()-.5)*3.5,z:(Math.random()-.5)*3.5});}
   return farmReturn(g,(tm,hungry)=>{wheels.forEach(h=>h.rotation.x=tm*(hungry?1:3)); fish.forEach(o=>{const u=((tm+o.t0)%4)/.8; o.f.visible=u<1; if(u<1){o.f.position.set(o.x+u*.6,.35+Math.sin(u*Math.PI)*.6,o.z); o.f.rotation.x=(u-.5)*2;} else if(u>4.9){o.x=(Math.random()-.5)*3.5; o.z=(Math.random()-.5)*3.5;}});});}
-// pond with ducks
-const ducks=[];
-(()=>{const px=H+9,pz=H-2;
-  const sand=mesh(new THREE.CylinderGeometry(5.6,5.6,.04,24),0xcdb98a,px,.02,pz); sand.scale.z=.7; scene.add(sand);
-  const water=mesh(new THREE.CylinderGeometry(5,5,.06,24),0x5f8a80,px,.05,pz); water.scale.z=.68; scene.add(water);
-  const rr=rng(11);
-  for(let k=0;k<14;k++){const a=rr()*Math.PI*2; scene.add(mesh(new THREE.ConeGeometry(.08,1+rr()*.6,4),0x5e8f3a,px+Math.cos(a)*5.2,.6,pz+Math.sin(a)*3.6));}
-  for(let k=0;k<5;k++){const a=rr()*Math.PI*2; const r=mesh(new THREE.DodecahedronGeometry(.4+rr()*.3,0),0x9aa0a6,px+Math.cos(a)*5.7,.2,pz+Math.sin(a)*4); scene.add(r);}
-  for(let k=0;k<2;k++){const d=new THREE.Group();
-    const b=mesh(G.chickBody,0xfdfdf8,0,.12,0); b.scale.set(1.4,.8,1); d.add(b);
-    d.add(mesh(G.chickHead,0x2f6b3a,.17,.3,0));
-    const bk=mesh(G.beak,0xf0a530,.27,.29,0); bk.rotation.z=-Math.PI/2; d.add(bk);
-    d.scale.setScalar(1.6); scene.add(d); ducks.push({d,px,pz,ph:k*Math.PI});}
-})();
+const ducks=[];   // (the little decorative duck pond made way for the farm service road; ducks now live in their own enclosures)
 // inside the lot fence: the halamanan (orchard) east of the field and the talyer / utility yard west of the kamalig
-const ORCH=[15.5,31.5,-11.2,4.2], UTIL=[-47,-29.5,-12.4,4], SARI=[16.5,28,-104.8,-96.5];   // [x0,x1,z0,z1]; SARI: sari-sari store where the dirt road meets the highway
+const ORCH=[21,36,-5,44], UTIL=[-45,-31,-7,5], SARI=[16.5,28,-104.8,-96.5];   // [x0,x1,z0,z1]; SARI: sari-sari store where the dirt road meets the highway
 const inRect=(R,x,z,m)=>x>R[0]-m&&x<R[1]+m&&z>R[2]-m&&z<R[3]+m;
 // countryside: acacia, mango, niyog, saging and kawayan trees, wild grass and flowers (all instanced, all cast shadows)
 (()=>{const rr=rng(42);
-  const onRoad=(x,z,m)=>(z>RZ-1.6-m&&z<RZ+1.6+m&&x>4-m&&x<DX+1.6+m)||(x>DX-1.6-m&&x<DX+1.6+m&&z<RZ+1.6+m&&z>HZ-m)||(z>HZ-5.4-m&&z<HZ+5.4+m);
-  const busy=(x,z,m)=>(x>-H-3-m&&x<H+3+m&&z>-H-3-m&&z<H+3+m)||(x>-9-m&&x<31+m&&z>-35-m&&z<-11+m)||(x>YX0-2-m&&x<YX0+YC*T+2+m&&z>YZ0-2-m&&z<YZ0+YR*T+2+m)
-    ||(x<-(H+2)+m&&x>-(H+16)-m&&z>-14-m&&z<6+m)||Math.hypot(x-(H+9),z-(H-2))<7.5+m||Math.hypot(x+(H+6),z-(H+5))<4+m
-    ||(x>DX-14&&x<DX+14&&z<RZ-17.4&&z>HZ+7.4)
+  const accessX=z=>ACCESS[nearestOn(ACCESS,DX,z)][0];
+  const onRoad=(x,z,m)=>roadDist(x,z)<m||(z>HZ-5.4-m&&z<HZ+5.4+m);
+  // inside the lot: keep clear of the field, buildings, yards and roads (grass may grow in between; trees only where planted on purpose)
+  const busyIn=(x,z)=>inField(x,z,1.8)||inRect(ORCH,x,z,.3)||inRect(UTIL,x,z,.3)||inRect([YX0,YX0+YC*T,YZ0,YZ0+YR*T],x,z,1)||inRect([-27,-20,-6,2],x,z,1)
+    ||inRect(lotRect('house',S.housePos.x,S.housePos.z),x,z,.5)||inRect([GX-12,GX+12,G0-4.5,G0+4.5],x,z,.5)||roadDist(x,z)<.4;
+  const busy=(x,z,m)=>inLot(x,z)&&(m>=0||busyIn(x,z))||(z<-40&&z>HZ+7.4&&Math.abs(x-accessX(z))<15.5)   // the farm lot, and the paddies along the farm road
     ||(x>PX-25-m&&x<PX+25+m&&z>PZ-19-m&&z<HZ-4)||(x>HWX-14-m&&x<HWX+14+m&&z>HZ-25-m&&z<HZ-4)||(x>PSX-14-m&&x<PSX+14+m&&z>HZ-25-m&&z<HZ-4)||(x>SSX-12-m&&x<SSX+12+m&&z>HZ-25-m&&z<HZ-4)||(x>DX+1-m&&x<DX+32+m&&z>HZ+3-m&&z<HZ+12+m)||(x>34-m&&x<336+m&&z>-218-m&&z<-164+m)||(x>34-m&&x<46+m&&z>-190&&z<HZ-4)||(x>324-m&&x<336+m&&z>-190&&z<HZ-4)||(x>PX+38-m&&x<PX+46+m&&z>-190-m&&z<HZ-4)||(x>WHX-14-m&&x<WHX+30+m&&z>HZ-32-m&&z<HZ-4)||(x>FX-30-m&&x<FX+30+m&&z>HZ-64-m&&z<HZ-4)   // sakayan, warehouse, factory
     ||inRect(ORCH,x,z,m)||inRect(UTIL,x,z,m)||inRect(SARI,x,z,m);
   const trunks=[],blobs=[],segs=[],fronds=[],nuts=[],bleaves=[],culms=[],bananaL=[];
@@ -2435,12 +2494,10 @@ const inRect=(R,x,z,m)=>x>R[0]-m&&x<R[1]+m&&z>R[2]-m&&z<R[3]+m;
   while(placed<520&&tries<12000){tries++; if(plant(-170+rr()*430,-235+rr()*290)) placed++;}
   for(placed=0,tries=0;placed<190&&tries<6000;tries++) if(plant(260+rr()*200,-235+rr()*290)) placed++;   // out east by the factory too
   // roadside trees: along the dirt road and both sides of the highway
-  for(let x=6;x<DX-3;x+=4+rr()*5) for(const sd of [-1,1]) if(rr()<.75) plant(x+(rr()-.5)*2,RZ+sd*(3.5+rr()*3));
-  for(let z=RZ-4;z>HZ+6;z-=4+rr()*5) for(const sd of [-1,1]) if(rr()<.5) plant(DX+sd*(15+rr()*4),z);
+  for(let k=4;k<ACCESS.length-4;k+=4+((rr()*5)|0)){const [x,z]=ACCESS[k], [a,b]=ACCESS[k+1], L=Math.hypot(a-x,b-z)||1; for(const sd of [-1,1]) if(rr()<.6){const o=sd*(z<-40?16.5+rr()*3:3.5+rr()*3); plant(x-(b-z)/L*o,z+(a-x)/L*o);}}   // along the farm road
   for(let x=-190;x<460;x+=6+rr()*9) for(const sd of [-1,1]) if(rr()<.8) plant(x,HZ+sd*(8+rr()*6));
-  // a windbreak of niyog, mango and acacia just outside the lot fence (south and west sides)
-  for(let x=-52;x<36;x+=3.2+rr()*2.4){plant(x,22.5+rr()*3.5); if(rr()<.6) plant(x+1.5,28+rr()*4);}
-  for(let z=-36;z<22;z+=3.2+rr()*2.4){plant(-52+rr()*-3.5,z); if(rr()<.6) plant(-58-rr()*4,z+1.5);}
+  // a windbreak of niyog, mango and acacia just outside the lot fence, all the way round
+  for(let k=0;k<FENCE.length;k+=1+((rr()*2)|0)){const [x,z]=FENCE[k], ox=x+35, oz=z-20, L=Math.hypot(ox,oz)||1, o=3+rr()*4; plant(x+ox/L*o,z+oz/L*o); if(rr()<.45) plant(x+ox/L*(o+5),z+oz/L*(o+5));}
   const shade=l=>{const m=instR(l[0],l[1],l[2]); m.castShadow=true; scene.add(m);};
   const BLOB=new THREE.IcosahedronGeometry(1,1), CYL=new THREE.CylinderGeometry(.42,.5,1,7), LEAF=new THREE.BoxGeometry(1,1,1);
   [[CYL,trunks],[BLOB,blobs,new THREE.MeshStandardMaterial({color:0xffffff,roughness:.9})],[G.palmSeg,segs],[G.nut,nuts],[LEAF,bleaves],[new THREE.CylinderGeometry(.5,.5,1,6),culms]].forEach(shade);
@@ -2449,16 +2506,16 @@ const inRect=(R,x,z,m)=>x>R[0]-m&&x<R[1]+m&&z>R[2]-m&&z<R[3]+m;
   const blade=new THREE.ConeGeometry(.05,.5,3,1,true), tuft=mergeGeo([0,1,2,3].map(k=>[blade,Mx(Math.cos(k*1.6)*.08,.24,Math.sin(k*1.6)*.08,1,.8+(k%3)*.25,1,Math.sin(k*1.6)*.38,0,Math.cos(k*1.6)*.38),0xffffff]));
   const grass=[], flowers=[], GC=[0x6aa84a,0x7cb342,0x5f9e3f,0x8fbf4a,0xa3b35a,0x739e45];
   let g=0; tries=0;
-  const HOT=[[0,-8,60],[DX,(RZ+HZ)/2,55],[20,HZ,70],[PX,HZ-10,45],[HWX,HZ-10,40],[-60,HZ,50]];   // denser near places you look at
+  const HOT=[[0,-8,60],[DX,-62,55],[20,HZ,70],[PX,HZ-10,45],[HWX,HZ-10,40],[-60,HZ,50]];   // denser near places you look at
   while(g<15000&&tries<60000){tries++; let x,z;
     if(rr()<.65){const h=HOT[(rr()*HOT.length)|0], a=rr()*6.28, r=Math.sqrt(rr())*h[2]; x=h[0]+Math.cos(a)*r; z=h[1]+Math.sin(a)*r;}
     else {x=-160+rr()*410; z=-230+rr()*280;}
-    if(onRoad(x,z,.3)||busy(x,z,-.5)) continue; g++;
+    if(onRoad(x,z,.3)||busy(x,z,-.5)) continue; g++;   // (a negative margin means ground cover, which may grow inside the lot)
     const s=.7+rr()*.9; grass.push([x,0,z,s,s*(.8+rr()*.6),s,GC[(rr()*GC.length)|0],rr()*6]);
     if(rr()<.08) flowers.push([x+.15,.42*s,z,.1,.1,.1,[0xf1c40f,0xffffff,0xe84393,0x9b59b6,0xff7f50][(rr()*5)|0]]);}
   for(let k=0;k<1400;k++){ // tall cogon along the road edges
     const t=rr(); let x,z;
-    if(t<.35){x=5+rr()*(DX-5); z=RZ+(rr()<.5?-1:1)*(1.9+rr()*1.4);} else if(t<.6){z=RZ-2-rr()*(RZ-HZ-6); x=DX+(rr()<.5?-1:1)*(1.9+rr()*1.4);}
+    if(t<.6){const k=(rr()*(ACCESS.length-1))|0, [a,b]=ACCESS[k], [c,d]=ACCESS[k+1], L=Math.hypot(c-a,d-b)||1, o=(rr()<.5?-1:1)*(2.5+rr()*1.4); x=a-(d-b)/L*o; z=b+(c-a)/L*o;}
     else {x=-180+rr()*470; z=HZ+(rr()<.5?-1:1)*(5.6+rr()*1.8);}
     if(busy(x,z,-.5)||onRoad(x,z,.1)) continue;
     const s=1.4+rr()*1.2; grass.push([x,0,z,s,s*1.3,s,[0xa3b35a,0xb5b85a,0x8fa84a][(rr()*3)|0],rr()*6]);}
@@ -2468,7 +2525,7 @@ const inRect=(R,x,z,m)=>x>R[0]-m&&x<R[1]+m&&z>R[2]-m&&z<R[3]+m;
 // gentle hills (burol) beyond the farm, the town and the factory, where nothing is built
 (()=>{const r=rng(606), b=[], CL=[0x7fb352,0x86b85a,0x78ab4e,0x8fbf5e];
   const hill=(x,z)=>{const w=24+r()*36; b.push(P('dome',CL[(r()*4)|0],x,-.4,z,w,4+r()*7,w*(.6+r()*.5),0,r()*3,0));};
-  for(let k=0;k<26;k++) hill(-190+r()*660,70+r()*110);          // south, past the farm
+  for(let k=0;k<26;k++) hill(-190+r()*660,100+r()*90);           // south, past the farm lot
   for(let k=0;k<26;k++){const x=-190+r()*660, z=-262-r()*110; if(x<40||x>340) hill(x,z);}   // north, past the barangay (the hillside barangay has its own slope)
   for(let k=0;k<10;k++){hill(-205-r()*80,-200+r()*260); hill(470+r()*80,-200+r()*260);}   // west and east ends
   const m=new THREE.Mesh(mergeGeo(b),new THREE.MeshStandardMaterial({vertexColors:true,flatShading:true,roughness:1})); m.receiveShadow=true; scene.add(m);
@@ -2539,7 +2596,7 @@ function startCycle(i,quiet){ // each batch of eggs / broilers eats patuka from 
   if((S.mats[fk]||0)>=need){S.mats[fk]-=need; t.t=Date.now(); t.hungry=false; return true;}
   t.hungry=true; t.t=Date.now(); if(!quiet) toast(`${BLDS[t.b].icon} Gutom! Buy ${FEED_NAME[fk]} at the 🐣 Agrivet & Poultry Supply.`,3200); return false;
 }
-const tilePos=i=>i<NF?{x:(i%N-N/2+.5)*T, z:(((i/N)|0)-N/2+.5)*T}:{x:YX0+((i-NF)%YC+.5)*T, z:YZ0+(((i-NF)/YC)|0)*T+T/2};
+const tilePos=i=>i<NF?{x:fieldX(i%N), z:fieldZ((i/N)|0)}:{x:YX0+((i-NF)%YC+.5)*T, z:YZ0+(((i-NF)/YC)|0)*T+T/2};
 for(let i=0;i<NT;i++){
   const p=tilePos(i), g=new THREE.Group(); g.position.set(p.x,0,p.z); g.userData.idx=i;
   const gr=new THREE.Mesh(G.tile,mat(C.grass)); gr.position.y=.1; gr.receiveShadow=true; g.add(gr);
@@ -2708,18 +2765,21 @@ function updateTile(i,now){
     const x=YX0+(k*6+3)*T, z=YZ0+YR*T+1.3, sg=new THREE.Mesh(new THREE.PlaneGeometry(2.6,.65),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)})); sg.position.set(x,1.45,z+.06); scene.add(sg);
     scene.add(part(2.8,.8,.08,0x6d4c41,x,1.45,z)); scene.add(part(.1,1.5,.1,0x6d4c41,x-1.2,.75,z)); scene.add(part(.1,1.5,.1,0x6d4c41,x+1.2,.75,z));});
 })();
-// one big fence around your whole lot: field, house, garage, bakuran and pond, with a gate where the dirt road comes in
-(()=>{const L=[], c=0x8d6e4b, X0=-48, X1=32.5, Z0=-32.6, Z1=19.5, gate=[RZ-2.6,RZ+2.6], step=2.4;
-  const run=(x0,z0,x1,z1)=>{const len=Math.hypot(x1-x0,z1-z0), n=Math.max(1,Math.round(len/step));
-    for(let i=0;i<=n;i++){const t=i/n; L.push([x0+(x1-x0)*t,.7,z0+(z1-z0)*t,.16,1.4,.16,0x6d4c41]);}
-    for(const y of [.45,1.0]) L.push([(x0+x1)/2,y,(z0+z1)/2,x1===x0?.07:len,.08,x1===x0?len:.07,c]);};
-  run(X0,Z0,X1,Z0); run(X0,Z1,X1,Z1); run(X0,Z0,X0,Z1); run(X1,Z0,X1,gate[0]); run(X1,gate[1],X1,Z1);
-  const m=instR(G.tiny,L); m.castShadow=true; scene.add(m);
-  const b=[]; for(const z of gate){b.push(P('box',0x5d4037,X1,1.6,z,.35,3.2,.35));} b.push(P('box',0x5d4037,X1,3.1,RZ,.3,.35,5.6));
-  const gm=new THREE.Mesh(mergeGeo(b),VCMAT); gm.castShadow=true; scene.add(gm);
+// one fence around the whole lot, following its irregular boundary, with the SUNFIELD FARM gate where the farm road comes in
+(()=>{const L=[], c=0x8d6e4b, G=FARM.gate, gi=nearestOn(FENCE,G.x,G.z);
+  const nearGate=(x,z)=>Math.hypot(x-G.x,z-G.z)<G.w/2;
+  for(let k=0;k<FENCE.length-1;k++){const [x0,z0]=FENCE[k], [x1,z1]=FENCE[k+1]; if(nearGate(x0,z0)||nearGate(x1,z1)) continue;
+    const len=Math.hypot(x1-x0,z1-z0), ry=Math.atan2(x1-x0,z1-z0);
+    L.push([x0,.7,z0,.16,1.4,.16,0x6d4c41,ry]); for(const y of [.45,1.0]) L.push([(x0+x1)/2,y,(z0+z1)/2,.07,.08,len+.05,c,ry]);}
+  const m=instR(PG.box,L); m.castShadow=true; scene.add(m);
+  // gate: two tall posts across the opening, a beam and the sign, square to the fence there
+  const [ax,az]=FENCE[Math.max(0,gi-1)], [bx,bz]=FENCE[Math.min(FENCE.length-1,gi+1)], along=Math.atan2(bx-ax,bz-az), ux=Math.sin(along), uz=Math.cos(along);
+  const g=new THREE.Group(); g.position.set(G.x,0,G.z); g.rotation.y=along; scene.add(g);
+  const b=[]; for(const s of [-1,1]) b.push(P('box',0x5d4037,0,1.6,s*G.w/2,.35,3.2,.35)); b.push(P('box',0x5d4037,0,3.1,0,.3,.35,G.w+.6));
+  const gm=new THREE.Mesh(mergeGeo(b),VCMAT); gm.castShadow=true; g.add(gm);
   const cv=document.createElement('canvas'); cv.width=512; cv.height=96; const cx=cv.getContext('2d'); cx.fillStyle='#4e342e'; cx.fillRect(0,0,512,96); cx.fillStyle='#ffe082'; cx.font='900 54px "Arial Black", Arial, sans-serif'; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText('SUNFIELD FARM',256,50);
-  for(const sd of [-1,1]){const sg=new THREE.Mesh(new THREE.PlaneGeometry(4.6,.85),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)})); sg.position.set(X1+sd*.2,3.6,RZ); sg.rotation.y=sd*Math.PI/2; scene.add(sg);}
-  scene.add(part(.3,1.0,4.8,0x4e342e,X1,3.6,RZ));
+  for(const sd of [-1,1]){const sg=new THREE.Mesh(new THREE.PlaneGeometry(4.6,.85),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)})); sg.position.set(sd*.2,3.6,0); sg.rotation.y=sd*Math.PI/2; g.add(sg);}
+  g.add(part(.3,1.0,4.8,0x4e342e,0,3.6,0));
 })();
 // a painted board on two posts (both faces readable, or the front only when two=false: arrows only make sense one way)
 function boardSign(lines,bg,fg,x,z,ry,w=3.2,h=1,y=1.6,post=0x6d4c41,two=true){
@@ -2730,10 +2790,11 @@ function boardSign(lines,bg,fg,x,z,ry,w=3.2,h=1,y=1.6,post=0x6d4c41,two=true){
   for(const sd of two?[0,Math.PI]:[0]){const q=new THREE.Mesh(new THREE.PlaneGeometry(w,h),m); q.rotation.y=sd; q.position.z=sd?-.04:.04; g.add(q);}
   g.add(part(w+.1,h+.1,.06,post,0,0,0)); for(const sx of [-1,1]) g.add(part(.12,y+h/2,.12,post,sx*(w/2+.11),h/2-(y+h/2)/2,0));
   g.position.set(x,y,z); g.rotation.y=ry; scene.add(g); return g;}
-// ---- halamanan (orchard): mangga, kalamansi and bayabas in rows, saging by the fence, a dirt path and a kubol where the fruit is sorted
-(()=>{const b=[], banana=[], r=rng(314), [x0,x1,z0,z1]=ORCH, cz=(z0+z1)/2;
-  {const fl=new THREE.Mesh(new THREE.PlaneGeometry(x1-x0,z1-z0),worldGrass(0xc6dbb0)); fl.rotation.x=-Math.PI/2; fl.position.set((x0+x1)/2,.02,cz); fl.receiveShadow=true; scene.add(fl);}   // mowed floor
-  b.push(P('box',0xb08a5a,(x0+x1)/2,.032,-3.6,x1-x0,.02,1.5));                                         // dirt path
+// ---- halamanan (orchard): a long strip along the east fence: mangga at the north end, kalamansi and bayabas in the middle,
+// saging by the fence, a picking path down the west side and a kubol where the fruit is sorted
+(()=>{const b=[], banana=[], r=rng(314), [x0,x1,z0,z1]=ORCH;
+  {const fl=new THREE.Mesh(new THREE.PlaneGeometry(x1-x0,z1-z0),worldGrass(0xc6dbb0)); fl.rotation.x=-Math.PI/2; fl.position.set((x0+x1)/2,.02,(z0+z1)/2); fl.receiveShadow=true; scene.add(fl);}   // mowed floor
+  b.push(P('box',0xb08a5a,x0+1.6,.032,(z0+z1)/2,1.5,.02,z1-z0-1));                                      // picking path
   const fruitRing=(x,y,z,R,n,cols,sz)=>{for(let k=0;k<n;k++){const a=r()*6.28, e=(r()-.6)*1.1; b.push(P('sph',cols[k%cols.length],x+Math.cos(a)*Math.cos(e)*R,y+Math.sin(e)*R*.8,z+Math.sin(a)*Math.cos(e)*R,sz,sz*1.25,sz));}};
   const mango=(x,z,s)=>{b.push(P('cyl',0x6b4a2a,x,.9*s,z,.36*s,1.8*s,.36*s)); b.push(P('sph',0x2f6b2a,x,2.6*s,z,3*s,2.3*s,3*s));
     for(let k=0;k<5;k++){const a=k*1.26+r(); b.push(P('sph',[0x356f2e,0x3a7a32,0x2a5f26][k%3],x+Math.cos(a)*.95*s,(2.2+r()*.5)*s,z+Math.sin(a)*.95*s,1.7*s,1.4*s,1.7*s));}
@@ -2742,34 +2803,36 @@ function boardSign(lines,bg,fg,x,z,ry,w=3.2,h=1,y=1.6,post=0x6d4c41,two=true){
     fruitRing(x,1.15*s,z,.78*s,14,[0x9ccc3a,0x8bc34a,0xf0a030],.1*s);};
   const bayabas=(x,z,s)=>{for(const a of [-.25,.3]) b.push(P('cyl',0x9a7b5a,x+a*.6*s,.85*s,z,.2*s,1.8*s,.2*s,0,0,a)); b.push(P('sph',0x5fae4a,x-.3*s,2.05*s,z,2*s,1.5*s,2*s)); b.push(P('sph',0x6aa84a,x+.5*s,2.2*s,z+.2*s,1.6*s,1.3*s,1.6*s));
     fruitRing(x,1.85*s,z,1.05*s,8,[0xc5e17a,0xd4e98a],.17*s);};
-  for(const x of [18.2,22,25.8]){mango(x,-9.1,.62+r()*.08); mango(x+1.9,-6.1,.55+r()*.08);}                     // mangga along the dirt-road side
-  for(const x of [17.6,21,24.4]){kalamansi(x,-.9,.8+r()*.15); bayabas(x+1.7,2.2,.62+r()*.1);}
-  for(const z of [-10,-7.2,1.2,3.4]){const bx=30.4+(r()-.5)*.6, bz=z+(r()-.5)*.6;                               // saging by the east fence
+  const KX=25.6, KZ=19;                                                                                  // the kubol
+  for(let z=z0+2;z<z1-1.5;z+=3.4){const row=Math.round((z-z0)/3.4); for(const x of [25,28.6,32.2]){const xx=x+(row%2?1:0)+(r()-.5)*.5, zz=z+(r()-.5)*.6;
+      if(Math.hypot(xx-KX,zz-KZ)<3.5) continue;
+      if(z<z0+14) mango(xx,zz,.6+r()*.08); else if(z<z0+32) (row%2?kalamansi(xx,zz,.85+r()*.15):bayabas(xx,zz,.62+r()*.1)); else mango(xx,zz,.55+r()*.08);}}
+  for(let z=z0+1.5;z<z1-1;z+=3.6){const bx=x1-1.1+(r()-.5)*.5, bz=z+(r()-.5)*.8;                          // saging along the fence
     for(let q=0;q<2;q++){const x=bx+(r()-.5)*.9, zz=bz+(r()-.5)*.9, h=1.4+r()*.5; b.push(P('cyl',0x7d9a3a,x,h/2,zz,.24,h,.24));
       for(let k=0;k<6;k++){const L=1.05+r()*.35; banana.push([x,h-.08,zz,L,L,L,k?0xffffff:0xb8a070,k/6*6.28+r(),0,.35+r()*.45]);}}}
   // kubol: bamboo posts, nipa roof, a sorting table with crates of mangga and kalamansi
-  const kx=29, kz=-1.3; for(const dx of [-1.3,1.3]) for(const dz of [-1,1]) b.push(P('cyl',0xc9a96a,kx+dx,1.1,kz+dz,.12,2.2,.12));
+  const kx=KX, kz=KZ; for(const dx of [-1.3,1.3]) for(const dz of [-1,1]) b.push(P('cyl',0xc9a96a,kx+dx,1.1,kz+dz,.12,2.2,.12));
   b.push(P('pyr',0xb8945a,kx,2.65,kz,3.6,1.1,2.9)); b.push(P('box',0xa98a52,kx,.78,kz,2.2,.08,1.2)); for(const dx of [-.95,.95]) b.push(P('box',0x8d6e4b,kx+dx,.39,kz,.08,.78,1.1));
   [[-.6,0xf2b23a],[0,0x9ccc3a],[.6,0xf2b23a]].forEach(([dx,c])=>{b.push(P('box',0x8d6e4b,kx+dx,.94,kz,.5,.22,.42)); for(let k=0;k<4;k++) b.push(P('sph',c,kx+dx+(k%2-.5)*.18,1.07,kz+((k>>1)-.5)*.16,.15,.17,.15));});
   for(let i=0;i<5;i++) b.push(P('box',[0x8d6e4b,0x7a5a3a][i%2],kx-1.2+(i%3)*.55,.2+(i>2?.4:0),kz+1.7,.5,.38,.42));      // empty kaing (crates)
-  b.push(P('box',0x8d6e4b,21.5,1.4,-7.6,.08,2.8,.08,.25,0,.12)); b.push(P('box',0x8d6e4b,22.1,1.4,-7.6,.08,2.8,.08,.25,0,.12));   // a bamboo ladder against a mango tree
-  for(let i=0;i<6;i++) b.push(P('box',0x8d6e4b,21.8,.3+i*.45,-7.6+(.3+i*.45)*.25,.62,.05,.05));
+  b.push(P('box',0x8d6e4b,27.4,1.4,z0+5.4,.08,2.8,.08,.25,0,.12)); b.push(P('box',0x8d6e4b,28,1.4,z0+5.4,.08,2.8,.08,.25,0,.12));   // a bamboo ladder against a mango tree
+  for(let i=0;i<6;i++) b.push(P('box',0x8d6e4b,27.7,.3+i*.45,z0+5.4+(.3+i*.45)*.25,.62,.05,.05));
   scene.add(vcGroup(b));
   const bl=instR(BLEAF,banana,LEAFMAT); bl.castShadow=true; scene.add(bl);
-  boardSign(['HALAMANAN','mangga · kalamansi · bayabas · saging'],'#33691e','#fff',16.2,-5,-Math.PI/2,2.8,.8,1.2);
+  boardSign(['HALAMANAN','mangga · kalamansi · bayabas · saging'],'#33691e','#fff',x0+.3,z0+8,-Math.PI/2,2.8,.8,1.2);
 })();
 // ---- talyer at imbakan (utility yard): water tower, workshop, feed bodega, and a shed for the kuliglig
 (()=>{const b=[], [x0,x1,z0,z1]=UTIL, cx=(x0+x1)/2, cz=(z0+z1)/2, CHB=0xcfc8b8, GI=0x9aa3a8, r=rng(57);
   b.push(P('box',0xb9b19f,cx,.016,cz,x1-x0,.03,z1-z0));                                               // gravel pad
   for(let k=0;k<160;k++) b.push(P('box',[0x9e9686,0xc8c0ae,0x8f8879][k%3],x0+r()*(x1-x0),.035,z0+r()*(z1-z0),.1+r()*.12,.02,.1+r()*.12,0,r()*3,0));
-  b.push(P('box',0xb9b19f,-22,.016,-9.6,15,.03,1.4));                                                  // path past the kamalig to the field
+  b.push(P('box',0xb9b19f,-28.75,.016,0,4.5,.03,1.4));                                               // path across to the bodega
   // water tower: steel legs, braces, a platform and a big blue tangke
-  const wx=-43.4, wz=-8.6; for(const dx of [-1.4,1.4]) for(const dz of [-1.4,1.4]) b.push(P('box',0x78858c,wx+dx,3.6,wz+dz,.22,7.2,.22));
+  const wx=-42.4, wz=-3.8; for(const dx of [-1.4,1.4]) for(const dz of [-1.4,1.4]) b.push(P('box',0x78858c,wx+dx,3.6,wz+dz,.22,7.2,.22));
   for(const y of [2.2,4.6]){b.push(P('box',0x78858c,wx,y,wz-1.4,2.8,.1,.1)); b.push(P('box',0x78858c,wx,y,wz+1.4,2.8,.1,.1)); b.push(P('box',0x78858c,wx-1.4,y,wz,.1,.1,2.8)); b.push(P('box',0x78858c,wx+1.4,y,wz,.1,.1,2.8));}
   b.push(P('box',0x6b767c,wx,7.25,wz,3.4,.2,3.4)); b.push(P('cyl',0x1e6fbf,wx,8.65,wz,2.8,2.6,2.8)); b.push(P('dome',0x1e6fbf,wx,9.95,wz,2.8,.7,2.8)); b.push(P('cyl',0x1a5ea3,wx,8.65,wz,2.84,.12,2.84));
   b.push(P('cyl',0x9e9e9e,wx+1.1,3.6,wz+1.1,.12,7.2,.12)); b.push(P('box',0x9e9e9e,wx+3,.25,wz+1.1,3.8,.12,.12));   // down pipe to the field
   // talyer (workshop): CHB walls, open front, GI roof, workbench, tool board, oil drums
-  const tx=-36, tz=-9.3; b.push(P('box',CHB,tx,1.5,tz-1.9,6.2,3,.25)); for(const sx of [-1,1]) b.push(P('box',CHB,tx+sx*3,1.4,tz,.25,2.8,4));
+  const tx=-35.5, tz=-4.4; b.push(P('box',CHB,tx,1.5,tz-1.9,6.2,3,.25)); for(const sx of [-1,1]) b.push(P('box',CHB,tx+sx*3,1.4,tz,.25,2.8,4));
   b.push(P('box',GI,tx,3.15,tz+.1,6.8,.1,4.8,-.08,0,0)); for(let i=0;i<9;i++) b.push(P('box',0x8a939a,tx-3.2+i*.8,3.2,tz+.1,.05,.06,4.8,-.08,0,0));
   b.push(P('box',0x8d6e4b,tx-1,1,tz-1.3,3.2,.12,1)); for(const sx of [-1,1]) b.push(P('box',0x6d4c41,tx-1+sx*1.45,.5,tz-1.3,.12,1,.9));   // workbench
   b.push(P('box',0x546e7a,tx-1.8,1.2,tz-1.3,.5,.3,.4)); b.push(P('box',0x6d4c41,tx-1,2,tz-1.74,3,1.1,.06));                              // vise, tool board
@@ -2777,18 +2840,18 @@ function boardSign(lines,bg,fg,x,z,ry,w=3.2,h=1,y=1.6,post=0x6d4c41,two=true){
   for(const [dx,c] of [[1.8,0x1565c0],[2.4,0xc62828],[2.1,0x2e7d32]]) b.push(P('cyl',c,tx+dx,.48,tz-1.1+(dx>2.2?.65:0),.62,.96,.62));
   b.push(P('box',0x37474f,tx+1.6,.45,tz+1.1,1,.9,.7)); b.push(P('cyl',0x263238,tx+1.6,1,tz+1.1,.12,.3,.12));                          // generator
   // bodega ng patuka (feed store): small concrete house, steel door, sacks stacked outside on pallets
-  const fx=-43, fz=-1.2; b.push(P('box',CHB,fx,1.4,fz,4.6,2.8,3.8)); b.push(P('box',GI,fx,2.95,fz,5,.12,4.3,.12,0,0)); b.push(P('box',0x546e7a,fx+2.31,1.05,fz,.05,2.1,1.5));
+  const fx=-42.6, fz=2.6; b.push(P('box',CHB,fx,1.4,fz,4.6,2.8,3.8)); b.push(P('box',GI,fx,2.95,fz,5,.12,4.3,.12,0,0)); b.push(P('box',0x546e7a,fx+2.31,1.05,fz,.05,2.1,1.5));
   for(let i=0;i<12;i++){const px=fx+3.5+(i%3)*.62, pz=fz-1.2+((i/3|0)%2)*.85, py=.32+(i>5?.3:0); b.push(P('box',[0xece3cf,0xdfd2b6][i%2],px,py,pz,.56,.28,.8));}
   b.push(P('box',0x8d6e4b,fx+4.12,.08,fz-.78,2,.12,1.8));
   // kuliglig shed: four posts, a GI roof, the hand tractor and its trailer
-  const kx=-34.5, kz=.4; for(const dx of [-2.4,2.4]) for(const dz of [-1.6,1.6]) b.push(P('box',0x6d4c41,kx+dx,1.3,kz+dz,.18,2.6,.18));
+  const kx=-34.2, kz=2.8; for(const dx of [-2.4,2.4]) for(const dz of [-1.6,1.6]) b.push(P('box',0x6d4c41,kx+dx,1.3,kz+dz,.18,2.6,.18));
   b.push(P('box',GI,kx,2.68,kz,5.4,.1,3.8,.06,0,0));
   b.push(P('box',0xc62828,kx-1.6,.75,kz,1,.6,.7)); b.push(P('cyl',0x37474f,kx-1.6,1.15,kz,.2,.3,.2)); for(const sd of [-1,1]) b.push(P('cyl',0x212121,kx-1.3,.45,kz+sd*.55,.9,.22,.9,Math.PI/2,0,0));
   for(const sd of [-1,1]) b.push(P('box',0x424242,kx-2.6,1,kz+sd*.3,1.3,.07,.07,0,0,-.4));                                                    // handlebars
   b.push(P('box',0x8d6e4b,kx+.8,.75,kz,2.6,.12,1.6)); for(const sd of [-1,1]) b.push(P('box',0x8d6e4b,kx+.8,.95,kz+sd*.78,2.6,.35,.06)); b.push(P('box',0x6d4c41,kx-.6,.65,kz,.9,.08,.08));
   for(const sd of [-1,1]) b.push(P('cyl',0x212121,kx+.8,.38,kz+sd*.85,.7,.18,.7,Math.PI/2,0,0));
   const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.castShadow=m.receiveShadow=true; scene.add(m);
-  boardSign(['TALYER AT IMBAKAN','tangke · talyer · patuka · kuliglig'],'#37474f','#ffd23f',-31,-6.6,Math.PI/2,2.8,.8,1.2);
+  boardSign(['TALYER AT IMBAKAN','tangke · talyer · patuka · kuliglig'],'#37474f','#ffd23f',-30.5,-6.2,Math.PI/2,2.8,.8,1.2);
 })();
 // ---- sari-sari store where the farm road meets the highway: CHB house, grilled window, tin awning, a bench and a tindera
 (()=>{const b=[], sx=22, sz=-100.2, CHB=0xe8dcc6, r=rng(91);
@@ -2923,7 +2986,8 @@ const groundPlane=new THREE.Plane(new THREE.Vector3(0,1,0),-.2), hitV=new THREE.
 function tileAt(x,y){
   ndc.set(x/innerWidth*2-1,-(y/innerHeight)*2+1); ray.setFromCamera(ndc,camera);
   if(!ray.ray.intersectPlane(groundPlane,hitV)) return -1;
-  const c=Math.floor(hitV.x/T+N/2), r=Math.floor(hitV.z/T+N/2);
+  const cell=(u)=>{const g=FLD.gap/2; if(Math.abs(u)<g) return -1; return Math.floor((u<0?u+g:u-g)/T+N/2);};   // the soil tracks between the beds are not plots
+  const c=cell(hitV.x-FLD.x), r=cell(hitV.z-FLD.z);
   if(c>=0&&r>=0&&c<N&&r<N) return r*N+c;
   const yc=Math.floor((hitV.x-YX0)/T), yr=Math.floor((hitV.z-YZ0)/T);
   return (yc>=0&&yr>=0&&yc<YC&&yr<YR)?NF+yr*YC+yc:-1;
@@ -3070,14 +3134,13 @@ function startHold(x,y){
 }
 function cancelHold(){if(holdT){clearTimeout(holdT); holdT=0;} const r=$('holdRing'); if(r) r.classList.remove('on');}
 /* moving the house and garage around the home lot north of the field */
-function lotRect(k,x,z){const gw=S.garage>=3?11.7:5.3; return k==='house'?[x-4.6,x+4.6,z-4.3,z+7.0]:[x-gw,x+gw,z-3.8,RZ-1.6];}
+function lotRect(k,x,z){const gw=S.garage>=3?11.7:5.3; return k==='house'?[x-4.6,x+4.6,z-4.3,z+7.0]:[x-gw,x+gw,z-3.8,frontZ(x)];}
 function lotOK(k,x,z){
   const [x0,x1,z0,z1]=lotRect(k,x,z), hit=(a0,a1,b0,b1)=>x0<a1&&x1>a0&&z0<b1&&z1>b0;
   if(hit(YX0-.6,YX0+YC*T+.6,YZ0-.6,YZ0+YR*T+.6)) return 'Your bakuran is there.';
   if(x0<-8.4||x1>30||z0<-34) return 'Too far. Keep it in the home lot near your farm.';
-  if(k==='house'&&z1>-12.9) return 'That is your crop field.';
-  if(k==='house'&&hit(5,36,-16.3,-12.7)) return 'That would block the dirt road.';
-  if(k==='garage'&&(x<11.5||z+3.2>-16.3)) return 'The garage has to face the dirt road, a little back from it.';
+  if(k==='house'&&z1>frontZ(x)+.3) return 'That would block the farm road.';
+  if(k==='garage'&&(x<11.5||z+3.8>frontZ(x)-2.5)) return 'The garage has to face the farm road, a little back from it.';
   const o=k==='house'?lotRect('garage',GX,G0):lotRect('house',S.housePos.x,S.housePos.z);
   if(hit(o[0],o[1],o[2],o[3])) return k==='house'?'The garage and its driveway are there.':'Your house is there.';
   return '';
@@ -3158,7 +3221,7 @@ function changed(){
 }
 
 /* ---------- Your farmer: every Hoe / Seeds / Sickle job becomes a task he runs to do ---------- */
-const FARM_HOME=seatWorld(0).slice(0,2), BODEGA=[-17.4,-5];
+const FARM_HOME=seatWorld(0).slice(0,2), BODEGA=[-20.6,-2];
 const FARMER_LOOK={f:false,skin:0xb07850,hair:0x1c1c1c,top:0x3b6e8f,bottom:0x5d4037,shorts:false,skirt:false,style:'salakot',capC:0,shoes:0x5d4037,bag:null,h:1.02};
 const farmer=(()=>{
   const L=FARMER_LOOK;
@@ -3213,7 +3276,7 @@ function doJob(j){
   return null;
 }
 function showCarry(k){for(const n in farmer.props) farmer.props[n].visible=(n===k);}
-function farmerY(x,z){return (Math.abs(x)<H&&Math.abs(z)<H)?.2:.08;}
+function farmerY(x,z){return inField(x,z)?.2:.08;}
 function updateFarmer(dt,t){
   const F=farmer, r=F.p.root, p=F.p;
   if(F.riding){r.visible=false; const pill=$('farmPill'); pill.hidden=false; $('farmTxt').textContent=`Driving the ${VEH[F.riding].name.toLowerCase()}`; pill.classList.toggle('on',followFarmer&&follow); return;}
@@ -3255,7 +3318,7 @@ function updateFarmer(dt,t){
 const $=id=>document.getElementById(id);
 /* ---------- Pasabay: no vehicle of your own, so your farmer rides the bus or jeepney with a small load ---------- */
 function startPasabay(o){const F=farmer; if(F.cur){F.jobs.unshift(F.cur); F.cur=null;} F.state='idle';
-  S.pasa={...o,phase:'walk',path:[[6,RZ+.9],[DX-1.3,RZ+.9],[DX-1.3,HZ+7.6]],t0:0,done:false}; save();}
+  S.pasa={...o,phase:'walk',path:walkOut(),t0:0,done:false}; save();}
 function settlePasabay(P){ // pay at the palengke, or bring the things you bought home
   if(P.dest==='palengke'&&!P.done){let coins=0,xp=0; (P.cargo||[]).forEach(c=>{coins+=c.coins; xp+=c.xp||0; if(c.order) S.stats.orders++;}); S.stats.pasabay++; S.coins+=coins; if(xp) gainXP(xp); P.done=true;
     toast(`🚌 Your farmer reached the palengke by bus! ${(P.cargo||[]).map(c=>c.label).join(', ')} · +🪙${coins}`,3400);}
@@ -3354,7 +3417,7 @@ function updateHelpers(dt,t){
     if(H.state==='gone'||H.state==='wait') return;            // home asleep, or at the bus stop (the commuter code moves them)
     if(!isWork()&&H.state!=='leave'){                          // quitting time: drop the task and walk to the sakayan
       if(H.cur&&H.cur.type==='board') releaseTrip(H); r.visible=true; H.cur=null; H.carry=false; H.basket.visible=false; H.msg='';
-      H.state='leave'; H.path=[[6,RZ+.9],[DX-1.3,RZ+.9],[DX-1.3,HZ+7.6]];}
+      H.state='leave'; H.path=walkOut();}
     if(H.state==='leave'||H.state==='arrive'){const q=H.path[0];
       if(!q){ if(H.state==='leave'){H.state='wait'; riders.push({kind:'helper',H,p,state:'walkin',ph:0});} else {H.state='idle'; H.timer=.3; r.rotation.y=seatWorld(k+1)[2];} return;}
       if(goTo(q[0],q[1],3.4)) H.path.shift(); return;}
@@ -4164,10 +4227,10 @@ const garageLamp=glow(scene,GX,2.9,G0+3.9,2.2,GM.white);
 for(let k=-2;k<=2;k++) glow(scene,PX+k*4.5,4.6,-130.3,3.6);
 // street lamps along the dirt road and the highway
 const LAMPS=[];
-for(let z=RZ-8;z>HZ+9;z-=13) LAMPS.push([DX+2.4,z,-1,0]);
+for(let k=6;k<ACCESS.length-4;k+=13){const [x,z]=ACCESS[k], [a,b]=ACCESS[k+1], L=Math.hypot(a-x,b-z)||1, nx=-(b-z)/L, nz=(a-x)/L; LAMPS.push([x+nx*2.6,z+nz*2.6,-nx,-nz]);}   // street lamps along the farm road
 [[DX-14,HZ+6.3,0,-1],[DX+5,HZ+8.6,0,-1],[DX+40,HZ+8.6,0,-1],[HWX-9,HZ-6.3,0,1],[HWX+9,HZ-6.3,0,1],[SSX-8,HZ-6.3,0,1],[SSX+8,HZ-6.3,0,1],[PSX-10,HZ-6.3,0,1],[PSX+10,HZ-6.3,0,1],[PX-14,HZ-6.3,0,1],[PX+14,HZ-6.3,0,1]].forEach(l=>LAMPS.push(l));
 (()=>{const b=[], heads=[];
-  LAMPS.forEach(([x,z,dx,dz])=>{b.push(P('cyl',0x6b7075,x,2.3,z,.14,4.6,.14)); b.push(P('box',0x6b7075,x+dx*.6,4.58,z+dz*.6,dx?1.25:.08,.08,dz?1.25:.08));
+  LAMPS.forEach(([x,z,dx,dz])=>{b.push(P('cyl',0x6b7075,x,2.3,z,.14,4.6,.14)); b.push(P('box',0x6b7075,x+dx*.6,4.58,z+dz*.6,.08,.08,1.25,0,Math.atan2(dx,dz),0));
     heads.push(P('box',0xffffff,x+dx*1.2,4.48,z+dz*1.2,.42,.12,.42)); glow(scene,x+dx*1.2,4.25,z+dz*1.2,4.2,GM.white);});
   const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.castShadow=true; scene.add(m); scene.add(new THREE.Mesh(mergeGeo(heads),LAMP_MAT));})();
 // headlights on your jeepney, Elf truck and the tricycles
@@ -4235,10 +4298,10 @@ const RES_ROUTE=mkRoute([[420,LW,12],[336,LW,5],[331.75,HZ-8,8],[331.75,STZ+5,4]
 const resCars=[0,1].map(k=>{const g=makeCar(k?'l300':'innova',CAR_COLS[(k*5+3)%CAR_COLS.length]); g.visible=false; return {g,e:-6-k*30,blk:0};});
 (()=>{const b=[];
   // irrigation canal along the front of the field, with a small wooden footbridge
-  b.push(P('box',0x8d6e4b,0,.05,H+2.6,2*H+2,.1,2.2)); b.push(P('box',0x4f9fc4,0,.09,H+2.6,2*H+1.4,.06,1.4)); for(const sd of [-1,1]) b.push(P('box',0x6f8a5c,0,.14,H+2.6+sd*.95,2*H+2,.1,.25));
-  b.push(P('box',0x8d6e4b,0,.28,H+2.6,1.4,.08,2.6)); for(const x of [-.6,.6]) b.push(P('box',0x6d4c41,x,.45,H+2.6,.06,.4,2.6));
+  {const cz=FLD.z+FHALF+3.2, w=2*FHALF+4; b.push(P('box',0x8d6e4b,FLD.x,.05,cz,w,.1,2.2)); b.push(P('box',0x4f8a90,FLD.x,.09,cz,w-.6,.06,1.4)); for(const sd of [-1,1]) b.push(P('box',0x6f8a5c,FLD.x,.14,cz+sd*.95,w,.1,.25));
+   b.push(P('box',0x8d6e4b,FLD.x,.28,cz,1.4,.08,2.6)); for(const x of [-.6,.6]) b.push(P('box',0x6d4c41,FLD.x+x,.45,cz,.06,.4,2.6));}
   // panakot (scarecrow) by the field corner
-  const sx=-H-1.4, sz=H+1.2; b.push(P('box',0x8d6e4b,sx,1.1,sz,.1,2.2,.1)); b.push(P('box',0x8d6e4b,sx,1.6,sz,1.4,.08,.08)); b.push(P('box',0x3949ab,sx,1.45,sz,.6,.6,.3)); b.push(P('sph',0xe8d5a3,sx,2.05,sz,.36,.36,.36)); b.push(P('cone',0xd4b06a,sx,2.3,sz,.8,.25,.8));
+  const sx=FLD.x-FHALF-1.6, sz=FLD.z+FHALF+1.2; b.push(P('box',0x8d6e4b,sx,1.1,sz,.1,2.2,.1)); b.push(P('box',0x8d6e4b,sx,1.6,sz,1.4,.08,.08)); b.push(P('box',0x3949ab,sx,1.45,sz,.6,.6,.3)); b.push(P('sph',0xe8d5a3,sx,2.05,sz,.36,.36,.36)); b.push(P('cone',0xd4b06a,sx,2.3,sz,.8,.25,.8));
   for(const x of [-.6,.6]) b.push(P('box',0xe53935,sx+x,1.6,sz,.25,.18,.2));
   const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.receiveShadow=true; m.castShadow=true; scene.add(m);
   // tagak on the carabao
@@ -4246,7 +4309,7 @@ const resCars=[0,1].map(k=>{const g=makeCar(k?'l300':'innova',CAR_COLS[(k*5+3)%C
   eg.position.set(-.1,1.35,0); eg.rotation.y=Math.PI/2; carabao.add(eg);
   // patches of darker and lighter grass so the land is not one flat colour
   const r=rng(77), L=[];
-  for(let k=0;k<420;k++){const x=-160+r()*420, z=-225+r()*270; if(Math.abs(x)<H+4&&Math.abs(z)<H+4) continue; if(z>HZ-6&&z<HZ+6) continue; const s=2+r()*5; L.push([x,.012,z,s,.01,s*(.6+r()*.6),[STYLE.grassDark,STYLE.grassDry,0x86a056,0x9aa862,0x7d9450][(r()*5)|0],r()*3]);}
+  for(let k=0;k<420;k++){const x=-160+r()*420, z=-225+r()*270; if(inLot(x,z)||roadDist(x,z)<1) continue; if(z>HZ-6&&z<HZ+6) continue; const s=2+r()*5; L.push([x,.012,z,s,.01,s*(.6+r()*.6),[STYLE.grassDark,STYLE.grassDry,0x86a056,0x9aa862,0x7d9450][(r()*5)|0],r()*3]);}
   const pm=instR(new THREE.CylinderGeometry(1,1,1,10),L); pm.receiveShadow=true; scene.add(pm);
 })();
 /* ---------- Liwasan (park) beside the barangay: tambay on benches, skateboarders, and a dancing fountain ---------- */
@@ -4421,7 +4484,7 @@ function updateTransit(dt,t){
   // queue under the shed, facing the road
   let slot=0;
   for(const R of riders.slice()){
-    if(R.kind==='helper'&&work&&(R.state==='walkin'||R.state==='wait')){dropRider(R); R.H.state='arrive'; R.H.path=[[DX-1.3,RZ+.9],[6,RZ+.9],helperHome(helpers.indexOf(R.H))]; continue;}   // morning came before a ride
+    if(R.kind==='helper'&&work&&(R.state==='walkin'||R.state==='wait')){dropRider(R); R.H.state='arrive'; R.H.path=walkIn().slice(1).concat([helperHome(helpers.indexOf(R.H))]); continue;}   // morning came before a ride
     if(R.state==='walkin'&&R.path&&R.path.length){if(stepTo(R,R.p,R.path[0][0],R.path[0][1],dt,1.4)) R.path.shift(); slot++; continue;}   // still walking from their house
     if(R.state==='walkin'||R.state==='wait'){const x=STOPX-2.4+(slot%7)*.8, z=STOPZ+(slot>=7?.6:0); slot++;
       if(stepTo(R,R.p,x,z,dt,1.3)){R.state='wait'; R.p.root.rotation.y=Math.PI; poseStand(R.p,t+slot);}}
@@ -4440,8 +4503,8 @@ function updateTransit(dt,t){
         if(d<.05){V.x=target; V.v=0; V.state='stop'; V.stopped=true; V.slowing=false; V.timer=3+Math.random()*2;
           const dx=V.x+V.door, dz=BAYZ+1.3;
           for(const R of waiting()){R.state='board'; R.tx=dx; R.tz=dz;}                 // everyone at the sakayan gets on
-          if(S.pasa&&S.pasa.phase==='ret'){const r=farmer.p.root; r.visible=true; r.position.set(dx,.08,dz); S.pasa.phase='home'; S.pasa.path=[[DX-1.3,HZ+7.6],[DX-1.3,RZ+.9],[6,RZ+.9],[FARM_HOME[0],FARM_HOME[1]]];}
-          if(work) for(const H of goneHelpers()){H.p.root.visible=true; H.p.root.position.set(dx,.08,dz); H.state='arrive'; H.path=[[DX-1.3,HZ+7.6],[DX-1.3,RZ+.9],[6,RZ+.9],helperHome(helpers.indexOf(H))];}
+          if(S.pasa&&S.pasa.phase==='ret'){const r=farmer.p.root; r.visible=true; r.position.set(dx,.08,dz); S.pasa.phase='home'; S.pasa.path=walkIn().concat([[FARM_HOME[0],FARM_HOME[1]]]);}
+          if(work) for(const H of goneHelpers()){H.p.root.visible=true; H.p.root.position.set(dx,.08,dz); H.state='arrive'; H.path=walkIn().concat([helperHome(helpers.indexOf(H))]);}
           const off=late?0:(Math.random()*3)|0; for(let q=0;q<off;q++){const p=spawnRider(dx); p.root.position.z=dz; riders.push({kind:'npc',p,state:'off',tx:STOPX+(Math.random()<.5?-1:1)*(26+Math.random()*8),ph:0});}}}
       else {V.v+=(V.vmax-V.v)*Math.min(1,dt*.8); if(V.x>target+1) V.slowing=false;}
       {const gap=aheadGap(V.g,V.g.position.x,V.g.position.z,V.g.rotation.y,V.len); if(gap<1.5) V.v=0; else if(gap<12) V.v=Math.min(V.v,(gap-1.5)*1.4);}
@@ -4592,7 +4655,7 @@ function frame(now){
 }
   {const fd=Math.min(.3,rawDt); for(let left=fd;left>1e-4;left-=.05){const d=Math.min(.05,left); updateFarmer(d,t); updateHelpers(d,t);} updateSplash(fd); updateKubo(t); updateTransit(fd,t); updateBiz(fd,t); updateDayNight(); garageLamp.position.set(GX,2.9,G0+3.9);}
   {const wdt=Math.min(.3,rawDt); for(let left=wdt;left>1e-4;left-=.05) updateWalkers(Math.min(.05,left),t);} updateVendors(t);
-  {const a=t*.12; carabao.position.x=-(H+6)+Math.sin(a)*2.2; carabao.rotation.y=Math.cos(a)>0?0:Math.PI; carabaoHead.rotation.z=Math.sin(t*1.2)*.1-.3;}
+  {const a=t*.12; carabao.position.x=-20+Math.sin(a)*2.2; carabao.rotation.y=Math.cos(a)>0?0:Math.PI; carabaoHead.rotation.z=Math.sin(t*1.2)*.1-.3;}
   ducks.forEach(o=>{const a=t*.25+o.ph; o.d.position.set(o.px+Math.cos(a)*2.6,.05+Math.sin(t*2+o.ph)*.03,o.pz+Math.sin(a)*1.6);
     o.d.rotation.y=Math.atan2(-Math.cos(a)*1.6,-Math.sin(a)*2.6);});
   if(constructing.size){const d=Date.now(); for(const i of [...constructing]){const t=S.tiles[i], o=tiles[i];
@@ -4603,7 +4666,7 @@ function frame(now){
   flashBox.material.opacity=Math.max(0,1-(now-flashT)/600);
   syncGrid(); updateRoofs(); updateCam(); followSun(); mountains.position.set(camera.position.x,0,camera.position.z); drawFrame();
 }
-if(/[?&]debug\b/.test(location.search)) window.SF={cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
+if(/[?&]debug\b/.test(location.search)) window.SF={cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,routesFor,routePos,roadDist,VEH,walkOut,noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
 renderHUD();
 requestAnimationFrame(frame);
 if(!S.seenHelp){S.seenHelp=true; save(); setTimeout(()=>toast('Open 🧰 Tools, pick a tool, and drag across the field. Sell your harvest at the 🏪 Palengke!',4800),600);}

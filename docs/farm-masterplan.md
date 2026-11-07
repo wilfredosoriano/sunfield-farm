@@ -4,7 +4,7 @@ This replaces the farm part of [masterplan.md](masterplan.md). Nothing has been 
 
 ![farm plan](farm-plan.svg)
 
-The map is drawn from [farm-layout.js](farm-layout.js) by `node docs/build-farm-plan.js`. The same file becomes the game's farm layout when this is built, so the plan and the game use one set of numbers.
+The map is drawn by `node docs/build-farm-plan.js` straight from the `FARM` layout block in `public/index.html`, so the plan and the game use one set of numbers.
 
 ## 1. What is there today (inspected)
 
@@ -42,7 +42,7 @@ The lot grows to about **150 × 130 m** (x −111…41, z −45…86) behind an 
 
 ## 3. Roads and paths
 
-Every road is a smooth curve (a Catmull-Rom spline through the points in `farm-layout.js`), built as one continuous strip that follows the ground. It has wheel ruts, gravel and grass shoulders, and slightly ragged edges.
+Every road is a smooth curve (a Catmull-Rom spline through the points in the `FARM` layout), built as one continuous strip that follows the ground. It has wheel ruts, gravel and grass shoulders, and slightly ragged edges.
 
 | Road | Width | Route |
 |---|---|---|

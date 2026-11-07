@@ -1514,8 +1514,15 @@ function houseLv4(){ // modern two-storey concrete house: balcony, big windows, 
   return houseGarden(b);
 }
 // merged parts as one group: spheres and domes (shrubs, canopies, pots) get smooth shading, everything else stays crisp
-function vcGroup(list){const g=new THREE.Group(), round=l=>l[0]===PG.sph||l[0]===PG.dome, sm=list.filter(round), fl=list.filter(l=>!round(l));
-  for(const [L,M] of [[fl,VCMAT],[sm,VCSMOOTH]]) if(L.length){const m=new THREE.Mesh(mergeGeo(L),M); m.castShadow=m.receiveShadow=true; g.add(m);} return g;}
+// hip roofs (pyr) get courses of tiles or thatch: the cone's v coordinate runs up the slope, so horizontal bands follow the eaves
+const ROOF_TILE=(()=>{const cv=document.createElement('canvas'); cv.width=4; cv.height=64; const c=cv.getContext('2d');
+  for(let y=0;y<64;y++){const u=(y%16)/16, v=Math.round(255-(u<.18?70:u<.3?30:0)-u*22); c.fillStyle=`rgb(${v},${v},${v})`; c.fillRect(0,y,4,1);}
+  const t=new THREE.CanvasTexture(cv); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(1,2.5);
+  return new THREE.MeshStandardMaterial({vertexColors:true,map:t,roughness:.9,metalness:0,flatShading:true});})();
+function mergeGeoUV(list){const g=mergeGeo(list), uv=[]; for(const [geo] of list){const s=geo.index?geo.toNonIndexed():geo, a=s.attributes.uv; for(let i=0;i<a.count;i++) uv.push(a.getX(i),a.getY(i)); if(s!==geo) s.dispose();}
+  g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); return g;}
+function vcGroup(list){const g=new THREE.Group(), kind=l=>l[0]===PG.sph||l[0]===PG.dome?1:l[0]===PG.pyr?2:0;
+  [[VCMAT,mergeGeo],[VCSMOOTH,mergeGeo],[ROOF_TILE,mergeGeoUV]].forEach(([M,merge],k)=>{const L=list.filter(l=>kind(l)===k); if(L.length){const m=new THREE.Mesh(merge(L),M); m.castShadow=m.receiveShadow=true; g.add(m);}}); return g;}
 function buildHouse(){clearGroup(houseG); houseG.add(vcGroup([houseLv1,houseLv2,houseLv3,houseLv4][S.house-1]()));}
 // ---- garage / paradahan
 const garageG=new THREE.Group(), driveG=new THREE.Group(); scene.add(garageG,driveG);
@@ -1951,7 +1958,13 @@ function updateTraffic(dt,t){
 /* ================= Poultry: battery-cage itlogan, broiler pens, hens that peck, feed store ================= */
 PG.cone=new THREE.ConeGeometry(.5,1,8);
 const PIV=new THREE.Matrix4().makeTranslation(0,.38,.16), _pm=new THREE.Matrix4(), _pr=new THREE.Matrix4();
-let HEN=null, CAGE_MAT=null, SEE_ROOF=null, EGG_GEO=null;
+let HEN=null, CAGE_MAT=null, SEE_ROOF=null, SEE_ROOF1=null, EGG_GEO=null;
+function updateRoofs(){if(!SEE_ROOF) return; const k=Math.max(0,Math.min(1,(cam.dist-18)/8)), o=.28+.72*k;   // 26 m out: solid; 18 m in: see-through
+  for(const m of [SEE_ROOF,SEE_ROOF1]){m.opacity=o; m.depthWrite=o>.95;}}
+// ridge cap and fascia boards for a two-slope shed roof of half-width 1.5 and length 6.3 at height ht (matches the SEE_ROOF slopes)
+function ridge(b,ht,vent){b.push(P('box',0x6f7d84,0,ht+.72,0,.5,.1,6.4));
+  if(vent){b.push(P('box',0x6f7d84,0,ht+.98,0,.9,.06,6.4)); for(const z of [-2.8,-1.4,0,1.4,2.8]) b.push(P('box',0x6f7d84,0,ht+.85,z,.08,.26,.08));}   // raised ridge vent
+  for(const s of [-1,1]) b.push(P('box',0xd8d0c0,s*3.04,ht,0,.06,.2,6.35));}
 function henGeo(){
   if(HEN) return HEN; HEN={};
   for(const white of [false,true]){
@@ -1973,7 +1986,13 @@ function poultryMats(){
   for(let k=0;k<=64;k+=32){c.beginPath(); c.moveTo(k,0); c.lineTo(k,64); c.stroke(); c.beginPath(); c.moveTo(0,k); c.lineTo(64,k); c.stroke();}
   const tx=new THREE.CanvasTexture(cv); tx.wrapS=tx.wrapT=THREE.RepeatWrapping; tx.repeat.set(8,3); tx.generateMipmaps=false; tx.minFilter=THREE.LinearFilter; tx.anisotropy=4;
   CAGE_MAT=new THREE.MeshStandardMaterial({color:0xc9ced2,map:tx,alphaTest:.5,side:THREE.DoubleSide,metalness:.3,roughness:.5});
-  SEE_ROOF=new THREE.MeshStandardMaterial({color:0xa7b3ba,transparent:true,opacity:.28,depthWrite:false,side:THREE.DoubleSide,roughness:.4,metalness:.3});
+  // corrugated yero roofs: solid from a normal distance, see-through when you zoom in close so you can still watch the animals (updateRoofs)
+  const rc=document.createElement('canvas'); rc.width=64; rc.height=8; const rx=rc.getContext('2d');
+  for(let x=0;x<64;x++){const v=Math.round(178+38*Math.cos(x/64*Math.PI*2*4)); rx.fillStyle=`rgb(${v},${v+4},${v+6})`; rx.fillRect(x,0,1,8);}
+  const rt=new THREE.CanvasTexture(rc); rt.wrapS=rt.wrapT=THREE.RepeatWrapping; rt.repeat.set(4,1); rt.anisotropy=4;
+  const rt2=rt.clone(); rt2.needsUpdate=true; rt2.center.set(.5,.5); rt2.rotation=Math.PI/2; rt2.repeat.set(6,1);
+  SEE_ROOF=new THREE.MeshStandardMaterial({color:0x9aa8ae,map:rt2,transparent:true,opacity:1,side:THREE.DoubleSide,roughness:.55,metalness:.25});
+  SEE_ROOF1=new THREE.MeshStandardMaterial({color:0x9aa8ae,map:rt,transparent:true,opacity:1,side:THREE.DoubleSide,roughness:.55,metalness:.25});
   EGG_GEO=new THREE.SphereGeometry(1,8,6);
 }
 function instOf(geo,material,list){const m=new THREE.InstancedMesh(geo,material,list.length); list.forEach((x,k)=>m.setMatrixAt(k,x)); m.frustumCulled=false; return m;}
@@ -2002,9 +2021,14 @@ function buildLayerHouse(t){ // battery cages like a real Philippine layer farm
   if(L>=3){for(const dx of [-.4,.4]) for(const dz of [-.4,.4]) b.push(P('box',0x7f8c8d,2.3+dx,1.6,2.3+dz,.08,3.2,.08));
     b.push(P('cyl',0x2e86de,2.3,3.7,2.3,1.0,1.0,1.0)); b.push(P('box',0xf2efe6,-2.2,.9,-2.35,1.2,1.8,1.0)); b.push(P('box',0x6b4423,-2.2,.7,-1.84,.5,1.2,.03));}
   for(let k=0;k<2+L;k++){b.push(P('box',0xf2f2f2,-2.4+k*.55,.22,2.5,.5,.3,.72)); b.push(P('box',0x27ae60,-2.4+k*.55,.24,2.87,.5,.1,.02));}
-  const base=new THREE.Mesh(mergeGeo(b),VCMAT); base.castShadow=base.receiveShadow=true; g.add(base);
+  g.add(vcGroup(b));
   const cm=instOf(G.tiny,CAGE_MAT,cages); cm.castShadow=true; g.add(cm);
   [-1,1].forEach(s=>{const r=new THREE.Mesh(new THREE.BoxGeometry(3.15,.06,6.3),SEE_ROOF); r.position.set(s*1.5,Ht+.35,0); r.rotation.z=-s*.24; g.add(r);});
+  {const t2=[]; ridge(t2,Ht,true);   // white CHB knee walls (an egg house is closed in; the broiler house is not) and the ridge vent
+    for(const s of [-1,1]){t2.push(P('box',0xeeeae0,s*2.88,.36,0,.16,.6,5.8)); t2.push(P('box',0xb9b2a2,s*2.88,.08,0,.2,.16,5.84));}
+    for(const x of [-1.9,1.9]){t2.push(P('box',0xeeeae0,x,.36,-2.88,2.1,.6,.16)); t2.push(P('box',0xeeeae0,x,.36,2.88,2.1,.6,.16));}
+    t2.push(P('box',0xb9b2a2,0,.05,3.25,2.2,.1,.9));                                                   // apron at the door
+    const tm=new THREE.Mesh(mergeGeo(t2),VCMAT); tm.castShadow=tm.receiveShadow=true; g.add(tm);}
   const HG=henGeo().b, bodies=instOf(HG.body,VCMAT,hens.map(h=>h.m)), heads=instOf(HG.head,VCMAT,hens.map(h=>_pm.multiplyMatrices(h.m,PIV).clone()));
   bodies.castShadow=true; g.add(bodies,heads);
   const eg=instOf(EGG_GEO,mat(0xd9a066),eggsL); eg.count=0; g.add(eg);
@@ -2021,19 +2045,20 @@ function buildLayerHouse(t){ // battery cages like a real Philippine layer farm
 function buildBroilerHouse(t){ // fenced pen with white broilers that wander and peck at the feeders
   poultryMats();
   const L=(t&&t.lvl)||1, g=new THREE.Group(), b=[], n=[0,10,18,28][L];
-  b.push(P('box',0xd9c48a,0,.05,0,5.8,.1,5.8));
+  b.push(P('box',0xcdb98c,0,.05,0,5.8,.1,5.8)); for(let k=0;k<22;k++) b.push(P('box',[0xbfa978,0xd8c79c][k%2],-2.5+((k*37)%50)/10,.105,-2.5+((k*53)%50)/10,.6,.01,.4,0,k,0));   // rice-hull litter
   for(const x of [-2.85,0,2.85]) for(const z of [-2.85,0,2.85]) if(x||z) b.push(P('box',0x8d6e4b,x,.6,z,.1,1.2,.1));
+  for(const [x,z,w,d] of [[0,-2.87,5.8,.06],[0,2.87,5.8,.06],[-2.87,0,.06,5.8],[2.87,0,.06,5.8]]) b.push(P('box',0x8a6a48,x,.22,z,w,.36,d));   // wooden kick-boards
   const FEED=L===1?[[0,.4]]:L===2?[[-1.2,.4],[1.2,.4]]:[[-1.4,-.8],[1.4,-.8],[0,1.4]];
   FEED.forEach(([x,z])=>{b.push(P('cyl',0xd63031,x,.1,z,.6,.08,.6)); b.push(P('cyl',0xd6c08a,x,.14,z,.46,.04,.46)); b.push(P('cone',0xe74c3c,x,.45,z,.3,.5,.3)); b.push(P('box',0x555555,x,1.4,z,.02,1.4,.02));});
   b.push(P('cyl',0x2e86de,2.2,.2,2.2,.35,.4,.35)); b.push(P('cyl',0x2e86de,-2.2,.2,2.2,.35,.4,.35));
   if(L===1){for(const x of [-2.6,2.6]) b.push(P('box',0x8d6e4b,x,1.0,-2.0,.1,2.0,.1)); b.push(P('box',0xa8823f,0,2.05,-2.3,5.8,.14,1.6,.2));}
-  if(L>=3){b.push(P('box',0x2e86de,-2.88,.75,0,.04,.9,5.7)); b.push(P('box',0x2e86de,2.88,.75,0,.04,.9,5.7));
+  if(L>=3){b.push(P('box',0x3f7f5a,-2.88,.75,0,.04,.9,5.7)); b.push(P('box',0x3f7f5a,2.88,.75,0,.04,.9,5.7)); ridge(b,3.1,false);
     for(const dx of [-.4,.4]) for(const dz of [-.4,.4]) b.push(P('box',0x7f8c8d,-2.3+dx,1.6,-2.3+dz,.08,3.2,.08)); b.push(P('cyl',0x2e86de,-2.3,3.7,-2.3,1.0,1.0,1.0));}
   if(L>=2) for(const x of [-2.85,2.85]) for(const z of L===2?[-2.85,0]:[-2.85,0,2.85]) b.push(P('box',0x7f8c8d,x,1.55,z,.1,3.1,.1));
   for(let k=0;k<L+1;k++){b.push(P('box',0xf2f2f2,2.3,.2+k*.3,-2.3,.7,.28,.5)); b.push(P('box',0xe67e22,2.3,.22+k*.3,-2.04,.7,.1,.02));}
-  const base=new THREE.Mesh(mergeGeo(b),VCMAT); base.castShadow=base.receiveShadow=true; g.add(base);
+  g.add(vcGroup(b));
   g.add(instOf(G.tiny,CAGE_MAT,[Mx(0,.55,-2.85,5.7,1.0,.02),Mx(0,.55,2.85,5.7,1.0,.02),Mx(-2.85,.55,0,.02,1.0,5.7),Mx(2.85,.55,0,.02,1.0,5.7)]));
-  if(L===2){const r=new THREE.Mesh(new THREE.BoxGeometry(6.2,.06,3.2),SEE_ROOF); r.position.set(0,3.15,-1.45); r.rotation.x=.12; g.add(r);}
+  if(L===2){const r=new THREE.Mesh(new THREE.BoxGeometry(6.2,.06,3.2),SEE_ROOF1); r.position.set(0,3.15,-1.45); r.rotation.x=.12; g.add(r);}
   if(L>=3) [-1,1].forEach(s=>{const r=new THREE.Mesh(new THREE.BoxGeometry(3.15,.06,6.3),SEE_ROOF); r.position.set(s*1.5,3.45,0); r.rotation.z=-s*.24; g.add(r);});
   const HG=henGeo().w, birds=[], rnd=()=>Math.random();
   for(let k=0;k<n;k++) birds.push({x:(rnd()-.5)*4.6,z:(rnd()-.5)*4.6,a:rnd()*6.3,tx:0,tz:0,wait:rnd()*2,peck:0,ph:rnd()*6});
@@ -2194,7 +2219,7 @@ function herd(g,animals,kinds,pivot){ // wander, walk to feeders, graze / root w
 function buildCowBarn(t){
   poultryMats();
   const L=(t&&t.lvl)||1, g=new THREE.Group(), b=[], W=0x8d6e4b;
-  b.push(P('box',0xa8a46a,0,.05,0,5.8,.1,5.8));
+  b.push(P('box',0x9a9a6a,0,.05,0,5.8,.1,5.8));
   for(let k=0;k<14;k++) b.push(P('box',0xd9c48a,-2.2+((k*37)%44)/10,.11,-2.3+((k*53)%46)/10,.5,.02,.3,0,k,0));   // scattered dayami
   for(const x of [-2.85,-1.42,0,1.42,2.85]) for(const z of [-2.85,2.85]) b.push(P('box',W,x,.6,z,.12,1.2,.12));
   for(const z of [-1.42,0,1.42]) for(const x of [-2.85,2.85]) b.push(P('box',W,x,.6,z,.12,1.2,.12));
@@ -2209,9 +2234,9 @@ function buildCowBarn(t){
     for(const x of [-2.75,0,2.75]) b.push(P('box',0x7f8c8d,x,1.6,-2.75,.12,3.2,.12)); for(const x of [-2.75,2.75]) b.push(P('box',0x7f8c8d,x,1.6,L>=3?2.75:0,.12,3.2,.12));}
   if(L>=3){b.push(P('box',0xb5432f,0,.9,-2.92,5.8,1.8,.06)); for(let k=0;k<5;k++) b.push(P('box',0x8f3424,0,.2+k*.36,-2.89,5.82,.03,.04));
     for(const dx of [-.4,.4]) for(const dz of [-.4,.4]) b.push(P('box',0x7f8c8d,-2.3+dx,1.6,2.2+dz,.08,3.2,.08)); b.push(P('cyl',0x2e86de,-2.3,3.7,2.2,1.0,1.0,1.0));
-    for(let k=0;k<3;k++) b.push(P('cyl',0xcfd6dc,1.0+k*.35,.3,-2.0,.28,.6,.28));}
-  const base=new THREE.Mesh(mergeGeo(b),VCMAT); base.castShadow=base.receiveShadow=true; g.add(base);
-  if(L===2){const r=new THREE.Mesh(new THREE.BoxGeometry(6.2,.06,3.4),SEE_ROOF); r.position.set(0,3.3,-1.3); r.rotation.x=.14; g.add(r);}
+    for(let k=0;k<3;k++) b.push(P('cyl',0xcfd6dc,1.0+k*.35,.3,-2.0,.28,.6,.28)); ridge(b,3.2,false);}
+  g.add(vcGroup(b));
+  if(L===2){const r=new THREE.Mesh(new THREE.BoxGeometry(6.2,.06,3.4),SEE_ROOF1); r.position.set(0,3.3,-1.3); r.rotation.x=.14; g.add(r);}
   if(L>=3) [-1,1].forEach(s=>{const r=new THREE.Mesh(new THREE.BoxGeometry(3.15,.06,6.3),SEE_ROOF); r.position.set(s*1.5,3.55,0); r.rotation.z=-s*.24; g.add(r);});
   const n=[0,2,4,6][L], cows=[];
   for(let k=0;k<n;k++) cows.push({kind:k%3,x:-1.5+(k%3)*1.5,z:k<3?.6:-.6,s:.78,speed:.35,graze:1.0,rate:1.3,bx0:-2.2,bx1:2.2,bz0:-1.7,bz1:2.2,feeds});
@@ -2242,7 +2267,8 @@ function buildPiggery(t){
   for(let k=0;k<L+1;k++){b.push(P('box',0xf2f2f2,0,.22+k*.3,2.55,.6,.28,.5)); b.push(P('box',0xd63031,0,.24+k*.3,2.81,.6,.1,.02));}
   if(L>=2) b.push(P('box',0x2e86de,0,.08,-2.6,.6,.02,.5));
   if(L>=3){for(const dx of [-.35,.35]) for(const dz of [-.35,.35]) b.push(P('box',0x7f8c8d,dx,1.7,-3.3+dz,.08,3.4,.08)); b.push(P('cyl',0x2e86de,0,3.9,-3.3,.9,1.0,.9));}
-  const base=new THREE.Mesh(mergeGeo(b),VCMAT); base.castShadow=base.receiveShadow=true; g.add(base);
+  ridge(b,Ht,false);
+  g.add(vcGroup(b));
   [-1,1].forEach(s=>{const r=new THREE.Mesh(new THREE.BoxGeometry(3.15,.06,6.3),SEE_ROOF); r.position.set(s*1.5,Ht+.35,0); r.rotation.z=-s*.24; g.add(r);});
   const tick=herd(g,pigs,pigGeo(),PIVP);
   let hungry=false;
@@ -2287,18 +2313,19 @@ function goatGeo(){ // white, brown and black native kambing with horns and a li
 function farmReturn(g,tick){let hungry=false; return {g,setReady:()=>{},setProgress:(p,hg)=>{hungry=hg;},tick:tm=>tick(tm,hungry)};}
 function buildDuckPen(t){
   const L=(t&&t.lvl)||1, g=new THREE.Group(), b=[], n=[0,8,14,20][L], pw=1.6+L*.5;
-  b.push(P('box',0x9e8a64,0,.06,0,5.8,.12,5.8)); b.push(P('box',0x7a6a4a,-1.1,.08,1.0,pw+.4,.06,pw+.4)); b.push(P('box',0x5fb2dc,-1.1,.12,1.0,pw,.05,pw));   // muddy pen and pond
+  b.push(P('box',0x9a8a68,0,.06,0,5.8,.12,5.8)); b.push(P('cyl',0x6e5e44,-1.1,.09,1.0,pw+.6,.06,pw+.4)); b.push(P('cyl',0x5f8a80,-1.1,.13,1.0,pw+.1,.04,pw-.1));   // muddy pen and a round pond
+  for(let k=0;k<10;k++){const a=k*.63+.3; b.push(P('cone',[0x6f8a46,0x7f9a50][k%2],-1.1+Math.cos(a)*(pw+.5)/2,.35,1.0+Math.sin(a)*(pw+.3)/2,.12,.55+(k%3)*.15,.12));}   // reeds round the edge
   for(const x of [-2.85,2.85]) for(const z of [-2.85,0,2.85]) b.push(P('box',0xc9a96a,x,.45,z,.1,.9,.1));
   for(const y of [.3,.65]){b.push(P('box',0xc9a96a,0,y,-2.85,5.7,.05,.05)); b.push(P('box',0xc9a96a,0,y,2.85,5.7,.05,.05)); b.push(P('box',0xc9a96a,-2.85,y,0,.05,.05,5.7)); b.push(P('box',0xc9a96a,2.85,y,0,.05,.05,5.7));}
   for(const x of [.9,2.6]) for(const z of [-2.6,-.9]) b.push(P('box',0x8d6e4b,x,.8,z,.1,1.6,.1)); b.push(P('pyr',0x9c7a45,1.75,1.9,-1.75,2.8,.9,2.6));   // nipa shelter
   for(let k=0;k<L+1;k++){const x=.8+k*.6; b.push(P('box',0x8d6e4b,x,.25,-2.4,.5,.4,.5)); b.push(P('sph',0xe8e0c8,x,.42,-2.35,.12,.09,.1));}            // nest boxes with eggs
   b.push(P('box',0xbdbdbd,1.9,.15,1.6,1.6,.2,.4)); b.push(P('box',0xd6c08a,1.9,.26,1.6,1.4,.03,.3));                                                // feed trough
-  const base=new THREE.Mesh(mergeGeo(b),VCMAT); base.castShadow=base.receiveShadow=true; g.add(base);
+  g.add(vcGroup(b));
   const ds=[]; for(let k=0;k<n;k++) ds.push({kind:k%3?0:1,x:-2+Math.random()*4,z:-2+Math.random()*4,s:.95,speed:.35,graze:.6,rate:4,bx0:-2.4,bx1:2.4,bz0:-1.2,bz1:2.4,feeds:[[1.9,1.2],[-1.1,1.0]]});
   return farmReturn(g,herd(g,ds,duckGeo(),PIVD));}
 function buildGoatHouse(t){
   const L=(t&&t.lvl)||1, g=new THREE.Group(), b=[], n=[0,4,7,10][L], W=2.4+L*.7;
-  b.push(P('box',0x9ccc65,0,.05,0,5.8,.1,5.8));
+  b.push(P('box',0x8ea25e,0,.05,0,5.8,.1,5.8)); for(let k=0;k<10;k++) b.push(P('box',0x9a8a68,-2.2+((k*37)%44)/10,.105,-.2+((k*53)%26)/10,.7,.01,.45,0,k,0));   // trodden patches
   for(const x of [-W/2,W/2]) for(const z of [-2.6,-1.0]) b.push(P('box',0x6d4c41,x,.75,z,.14,1.5,.14));                       // stilts
   b.push(P('box',0x8d6e4b,0,1.0,-1.8,W+.2,.1,2.0)); for(let i=0;i<10;i++) b.push(P('box',0x5d4037,-W/2+i*W/9,1.06,-1.8,.04,.02,2.0));   // slatted floor
   b.push(P('box',0xb08850,0,1.6,-2.75,W+.2,1.1,.08)); for(const x of [-W/2-.05,W/2+.05]) b.push(P('box',0xb08850,x,1.6,-1.8,.08,1.1,2.0));
@@ -2307,12 +2334,14 @@ function buildGoatHouse(t){
   if(L>=3) b.push(P('box',0x8d6e4b,1.8,.5,1.8,1.0,.08,.7));                                                                    // milking stand
   for(const x of [-2.85,2.85]) for(const z of [-2.85,0,2.85]) b.push(P('box',0x6d4c41,x,.6,z,.12,1.2,.12));
   for(const y of [.4,.95]){b.push(P('box',0x8d6e4b,0,y,2.85,5.7,.06,.06)); b.push(P('box',0x8d6e4b,-2.85,y,0,.06,.06,5.7)); b.push(P('box',0x8d6e4b,2.85,y,0,.06,.06,5.7));}
-  const base=new THREE.Mesh(mergeGeo(b),VCMAT); base.castShadow=base.receiveShadow=true; g.add(base);
+  g.add(vcGroup(b));
   const gs=[]; for(let k=0;k<n;k++) gs.push({kind:k%3,x:-2+Math.random()*4,z:.2+Math.random()*2,s:.85,speed:.32,graze:.85,rate:2.4,bx0:-2.3,bx1:2.3,bz0:-.4,bz1:2.4,feeds:[[-1.8,1.0]]});
   return farmReturn(g,herd(g,gs,goatGeo(),PIVG));}
 function buildFishpond(t){
   const L=(t&&t.lvl)||1, g=new THREE.Group(), b=[], lined=L>=3;
-  b.push(P('box',lined?0xbdbdbd:0x8d6e4b,0,.16,0,5.9,.32,5.9)); b.push(P('box',0x2f7d9e,0,.3,0,5.0,.05,5.0)); b.push(P('box',0x3f9fbf,0,.31,0,4.4,.04,4.4));
+  b.push(P('box',lined?0xbdbdbd:0x8a7456,0,.16,0,5.9,.32,5.9)); b.push(P('box',0x395a55,0,.3,0,5.0,.05,5.0)); b.push(P('box',0x44665f,0,.31,0,4.4,.04,4.4));   // dike, deep and shallow water
+  if(!lined) for(const [x,z,w,d] of [[0,2.8,5.9,.32],[2.8,0,.32,5.9],[-2.8,0,.32,5.9]]) b.push(P('box',0x7f9752,x,.33,z,w,.04,d));          // grass on the earthen dike
+  for(const [x,z] of [[2.5,2.5],[-2.5,2.5],[2.5,-2.2]]) for(let k=0;k<4;k++) b.push(P('cone',[0x6f8a46,0x7f9a50][k%2],x+(k%2-.5)*.3,.6,z+((k>>1)-.5)*.3,.1,.6+(k%3)*.2,.1));   // reeds in the corners
   b.push(P('box',0x8d6e4b,0,.36,-2.75,5.9,.1,.5));                                                                    // bamboo walkway on the dike
   for(const x of [-1.8,-1.0]) for(const z of [-2.85,-2.2]) b.push(P('box',0x6d4c41,x,.7,z,.1,.9,.1)); b.push(P('pyr',0x9c7a45,-1.4,1.45,-2.5,1.6,.6,1.2));   // feeding hut
   if(L>=3) for(let i=0;i<5;i++) b.push(P('box',0x37474f,-2+i,.6,1.8,.04,.6,.04));                                     // nets
@@ -2325,7 +2354,7 @@ function buildFishpond(t){
 const ducks=[];
 (()=>{const px=H+9,pz=H-2;
   const sand=mesh(new THREE.CylinderGeometry(5.6,5.6,.04,24),0xcdb98a,px,.02,pz); sand.scale.z=.7; scene.add(sand);
-  const water=mesh(new THREE.CylinderGeometry(5,5,.06,24),0x5fb2dc,px,.05,pz); water.scale.z=.68; scene.add(water);
+  const water=mesh(new THREE.CylinderGeometry(5,5,.06,24),0x5f8a80,px,.05,pz); water.scale.z=.68; scene.add(water);
   const rr=rng(11);
   for(let k=0;k<14;k++){const a=rr()*Math.PI*2; scene.add(mesh(new THREE.ConeGeometry(.08,1+rr()*.6,4),0x5e8f3a,px+Math.cos(a)*5.2,.6,pz+Math.sin(a)*3.6));}
   for(let k=0;k<5;k++){const a=rr()*Math.PI*2; const r=mesh(new THREE.DodecahedronGeometry(.4+rr()*.3,0),0x9aa0a6,px+Math.cos(a)*5.7,.2,pz+Math.sin(a)*4); scene.add(r);}
@@ -4474,7 +4503,7 @@ function frame(now){
     if(p>=1){constructing.delete(i); if(t.up){t.lvl=t.up; delete t.up;} if(BLDS[t.b].feed) startCycle(i,true); refreshTile(i,true); flash(i); const b=BLDS[t.b]; toast(`${b.icon} ${b.name}${lvlOf(t)>1?' level '+lvlOf(t):''} is finished!`); buzz(); changed(); if(bldOpen()&&bldIdx===i) renderBld(); continue;}
     o.bld.g.scale.set(1,.08+.92*p,1); o.barFill.scale.x=Math.max(.02,p); o.barFill.position.x=-.8+.8*p;}}
   flashBox.material.opacity=Math.max(0,1-(now-flashT)/600);
-  syncGrid(); updateCam(); followSun(); mountains.position.set(camera.position.x,0,camera.position.z); drawFrame();
+  syncGrid(); updateRoofs(); updateCam(); followSun(); mountains.position.set(camera.position.x,0,camera.position.z); drawFrame();
 }
 if(/[?&]debug\b/.test(location.search)) window.SF={cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
 renderHUD();

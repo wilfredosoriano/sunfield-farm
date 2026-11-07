@@ -132,7 +132,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 #cats{position:fixed;left:calc(env(safe-area-inset-left,0px) + 10px);top:50%;transform:translateY(-50%);flex-direction:column}
 .tool{position:relative;flex:0 0 auto}
 .tool .tc{font-size:11px;font-weight:800;opacity:.75}
-#tools .tool[data-bld]{touch-action:none}
+#tools .tool[data-bld]{touch-action:pan-x}
 #tools .tool{width:auto;min-width:58px;padding-left:8px;padding-right:8px;white-space:nowrap}
 .tool.locked{opacity:.45}
 .tool.cat.open{box-shadow:inset 0 0 0 2px var(--accent)}
@@ -2538,36 +2538,60 @@ const inRect=(R,x,z,m)=>x>R[0]-m&&x<R[1]+m&&z>R[2]-m&&z<R[3]+m;
   for(let k=0;k<10;k++){hill(-205-r()*80,-200+r()*260); hill(470+r()*80,-200+r()*260);}   // west and east ends
   const m=new THREE.Mesh(mergeGeo(b),new THREE.MeshStandardMaterial({vertexColors:true,flatShading:true,roughness:1})); m.receiveShadow=true; scene.add(m);
 })();
-// ---- hillside barangay: a real slope north of the barangay with modest homes along a winding dirt road, power poles and trees
+// ---- mountain barangay: a real slope north of the barangay. A main road climbs it in gentle switchbacks along the contours, two
+// branches lead off it, modest homes stand in small clusters at the junctions and bends (only where the ground is gentle enough to
+// build), rice terraces step down two faces of the hill, and trees fill the gaps.
 const HILL={x:190,z:-300,rx:140,rz:76,h:24};
 function hillH(x,z){const u=(x-HILL.x)/HILL.rx, v=(z-HILL.z)/HILL.rz, w=Math.max(0,1-u*u)*Math.max(0,1-v*v); return HILL.h*w*w*Math.exp(-u*u*1.2-v*v*.6)*(1+.06*Math.sin(x*.09)+.05*Math.sin(z*.13+x*.03));}
+const hillSlope=(x,z)=>Math.hypot(hillH(x+1,z)-hillH(x-1,z),hillH(x,z+1)-hillH(x,z-1))/2;
+const HROADS=[
+  {w:4,pts:[[150,-189],[151,-215],[158,-232],[178,-244],[206,-252],[232,-262],[246,-280],[236,-296],[212,-304],[186,-310],[160,-318],[146,-334],[158,-350],[186,-356],[214,-352]]},
+  {w:3.2,pts:[[206,-252],[196,-268],[176,-276],[150,-282],[128,-294],[118,-312]]},
+  {w:3.2,pts:[[246,-280],[272,-286],[294,-300]]}].map(r=>({...r,s:spline(r.pts,false,1.5)}));
+const hroadDist=(x,z)=>{let b=99; for(const r of HROADS) for(const [a,c] of r.s){const d=Math.hypot(x-a,z-c)-r.w/2; if(d<b) b=d;} return b;};
 (()=>{const r=rng(707), geo=new THREE.PlaneGeometry(HILL.rx*2,HILL.rz*2,70,38); geo.rotateX(-Math.PI/2); geo.translate(HILL.x,0,HILL.z);
   const p=geo.attributes.position; for(let i=0;i<p.count;i++) p.setY(i,hillH(p.getX(i),p.getZ(i))-.05); geo.computeVertexNormals();
   const hm=new THREE.Mesh(geo,worldGrass(0xe2ead2)); hm.receiveShadow=true; scene.add(hm);
-  const b=[], at=(x,z)=>hillH(x,z), _q=new THREE.Quaternion(), _e=new THREE.Euler(0,0,0,'YXZ');
+  const b=[], lv=[], at=(x,z)=>hillH(x,z), _q=new THREE.Quaternion(), _e=new THREE.Euler(0,0,0,'YXZ');
   const PY=(g,c,x,y,z,sx,sy,sz,rx,ry)=>[PG[g],new THREE.Matrix4().compose(new THREE.Vector3(x,y,z),_q.setFromEuler(_e.set(rx||0,ry||0,0,'YXZ')),new THREE.Vector3(sx,sy,sz)),c];   // turn first, then tilt
-  // the road: short sloped pieces following the ground, from the back road up the switchbacks
-  const RD=[[150,-189],[151,-228],[166,-246],[196,-256],[224,-270],[230,-288],[206,-302],[176,-310],[150,-322]], road=[];
-  for(let k=0;k<RD.length-1;k++){const [x0,z0]=RD[k], [x1,z1]=RD[k+1], n=Math.ceil(Math.hypot(x1-x0,z1-z0)/2);
-    for(let i=0;i<n;i++){const t0=i/n, t1=(i+1)/n, ax=x0+(x1-x0)*t0, az=z0+(z1-z0)*t0, bx=x0+(x1-x0)*t1, bz=z0+(z1-z0)*t1, ay=at(ax,az), by=at(bx,bz), L=Math.hypot(bx-ax,bz-az);
-      road.push([(ax+bx)/2,(az+bz)/2]); b.push(PY('box',0xa89272,(ax+bx)/2,(ay+by)/2+.06,(az+bz)/2,3.2,.12,Math.hypot(L,by-ay)+.15,-Math.atan2(by-ay,L),Math.atan2(bx-ax,bz-az),0));}}
-  // modest houses beside the road: CHB or wood walls, GI roofs in rust, blue or green, windows and a door facing the road
-  const WALLS=[0xe8dcc2,0xd7cbb0,0xc9d6c4,0xe9d0b8,0xb89a74,0xd0c4a8], ROOFS=[0xa24a3a,0x4f6f8f,0x5f7f4a,0x8a5a3a,0x9a3f34];
-  let placed=0; for(let k=6;k<road.length&&placed<22;k+=3+((r()*3)|0)){const [x,z]=road[k], nb=road[Math.min(road.length-1,k+1)], dir=Math.atan2(nb[0]-x,nb[1]-z), side=r()<.5?-1:1;
-    const hx=x+Math.cos(dir)*side*7.5, hz=z-Math.sin(dir)*side*7.5, y=at(hx,hz), face=dir+side*Math.PI/2+Math.PI, w=4.2+r()*2, d=3.6+r()*1.4, ht=2.6+r()*.6, wc=WALLS[(r()*WALLS.length)|0], rc=ROOFS[(r()*ROOFS.length)|0];
-    const M=(lx,ly,lz,sx,sy,sz,c,g='box',rx=0,ry=0)=>{const cx=hx+Math.cos(face)*lx+Math.sin(face)*lz, cz=hz-Math.sin(face)*lx+Math.cos(face)*lz; b.push(PY(g,c,cx,y+ly,cz,sx,sy,sz,rx,face+ry));};
-    M(0,-.7,0,w+.3,1.6,d+.3,0x9a9282);                                                    // footing down into the slope
-    M(0,ht/2+.1,0,w,ht,d,wc); M(0,ht+.1,0,w+.02,1.1,d+.02,wc,'gable');
-    for(const s of [-1,1]) M(0,ht+.65,s*(d/4+.15),w+.7,.08,d/2+.7,rc,'box',s*.5,0);       // two roof slopes
-    M(0,ht+1.2,0,w+.8,.1,.3,rc);
-    M(-w/4,1.0,d/2+.02,.85,1.9,.05,0x6b4423); M(w/4,1.6,d/2+.02,1.1,.9,.05,0x4f6f7f); M(w/4,1.6,d/2+.05,1.2,.06,.04,0xe9e3d6);   // door, window
-    if(r()<.6){M(0,.15,d/2+1.2,w,.1,2.2,0xbdb6a6); for(const s of [-1,1]) M(s*(w/2-.1),1.1,d/2+2.2,.1,2.1,.1,0x6d4c41); M(0,2.2,d/2+1.2,w+.2,.06,2.4,rc,'box',.12,0);}   // porch with a little roof
-    if(r()<.5){for(const s of [-1,1]) M(s*1.4,.9,-d/2-1.2,.06,1.8,.06,0x6d4c41); M(0,1.75,-d/2-1.2,2.8,.02,.02,0x444444); for(let i=0;i<4;i++) M(-1+i*.65,1.5,-d/2-1.2,.03,.5,.4,[0xe74c3c,0xf1c40f,0x2e86de,0xffffff][i]);}   // sampayan
-    if(r()<.4) M(w/2+.6,.5,0,.8,1.0,.8,0x3a6f9e,'cyl');                                    // water drum
-    placed++;}
-  // power poles up the road and trees scattered on the slope
-  for(let k=4;k<road.length;k+=7){const [x,z]=road[k]; b.push(P('cyl',0x8a8a80,x+2.4,at(x,z)+3.5,z,.22,7,.22)); b.push(P('box',0x6b6b6b,x+2.4,at(x,z)+6.6,z,1.6,.1,.1));}
-  const lv=[]; for(let k=0;k<140;k++){const x=HILL.x+(r()-.5)*HILL.rx*1.7, z=HILL.z+(r()-.5)*HILL.rz*1.7; if(road.some(([a,c])=>Math.hypot(a-x,c-z)<6)) continue; const y=at(x,z); if(y<.5) continue;
+  // roads: a strip whose every vertex sits on the ground, with ruts and a lighter crown like the farm roads
+  for(const R of HROADS){const g=ribbon(R.s,R.w,[0x8f8c5e,0x8c7657,0xa89272],0,R.w*13), q=g.attributes.position;
+    for(let k=0;k<q.count;k++) q.setY(k,at(q.getX(k),q.getZ(k))+.12); g.computeVertexNormals(); const m=new THREE.Mesh(g,ROAD_MAT); m.receiveShadow=true; scene.add(m);}
+  const S0=HROADS[0].s; for(let k=10;k<S0.length;k+=20){const [x,z]=S0[k], [a,c]=S0[k+1]||S0[k-1], L=Math.hypot(a-x,c-z)||1, px=x-(c-z)/L*3, pz=z+(a-x)/L*3;   // power poles
+    b.push(P('cyl',0x8a8a80,px,at(px,pz)+3.5,pz,.22,7,.22)); b.push(PY('box',0x6b6b6b,px,at(px,pz)+6.6,pz,1.6,.1,.1,0,Math.atan2(a-x,c-z)+Math.PI/2));}
+  // houses: CHB homes on a plinth stepped down to the lowest corner, or timber homes on posts on the downhill side
+  const WALLS=[0xe8dcc2,0xd7cbb0,0xc9d6c4,0xe9d0b8,0xd8c6b0,0xd0c4a8], WOOD=[0xa07850,0x8f6a46,0xb08860], ROOFS=[0xa24a3a,0x4f6f8f,0x5f7f4a,0x8a5a3a,0x9a3f34,0x8f9aa0];
+  const homes=[];
+  const house=(hx,hz,face,kind)=>{const w=4.2+r()*1.8, d=3.6+r()*1.2, ht=2.5+r()*.5, rc=ROOFS[(r()*ROOFS.length)|0];
+    const cs=[[-w/2,-d/2],[w/2,-d/2],[-w/2,d/2],[w/2,d/2]].map(([lx,lz])=>at(hx+Math.cos(face)*lx+Math.sin(face)*lz,hz-Math.sin(face)*lx+Math.cos(face)*lz));
+    const lo=Math.min(...cs), hi=Math.max(...cs), y=kind==='wood'?hi+.9:hi+.3;
+    const M=(lx,ly,lz,sx,sy,sz,c,g='box',rx=0,ry=0)=>{const cx=hx+Math.cos(face)*lx+Math.sin(face)*lz, cz=hz-Math.sin(face)*lx+Math.cos(face)*lz; b.push(PY(g,c,cx,ly,cz,sx,sy,sz,rx,face+ry));};
+    if(kind==='wood'){for(const [lx,lz] of [[-w/2+.2,-d/2+.2],[w/2-.2,-d/2+.2],[-w/2+.2,d/2-.2],[w/2-.2,d/2-.2],[0,-d/2+.2],[0,d/2-.2]]){const gy=at(hx+Math.cos(face)*lx+Math.sin(face)*lz,hz-Math.sin(face)*lx+Math.cos(face)*lz); M(lx,(gy+y)/2-.2,lz,.18,y-gy+.2,.18,0x6d4c41);}
+      M(0,y-.06,0,w+.3,.14,d+.3,0x8d6e4b); const wc=WOOD[(r()*WOOD.length)|0]; M(0,y+ht/2,0,w,ht,d,wc); for(let k=0;k<5;k++) M(0,y+.3+k*.5,0,w+.02,.04,d+.02,0x7a5a3a);
+      M(0,y-.9+.35,d/2+.9,1.0,.08,1.6,0x8d6e4b,'box',-.45,0);}                                                                         // steps
+    else {M(0,(lo-.3+y)/2,0,w+.3,y-lo+.3,d+.3,0x9a9282); M(0,y+ht/2,0,w,ht,d,WALLS[(r()*WALLS.length)|0]); M(0,y+.15,0,w+.04,.3,d+.04,0xb5ab98);}
+    M(0,y+ht,0,w+.02,1.1,d+.02,kind==='wood'?0xa88a5e:WALLS[0],'gable');
+    for(const s of [-1,1]) M(0,y+ht+.55,s*(d/4+.15),w+.7,.08,d/2+.7,rc,'box',s*.5,0);
+    M(0,y+ht+1.1,0,w+.8,.1,.3,rc);
+    M(-w/4,y+.95,d/2+.02,.85,1.9,.05,0x6b4423); M(w/4,y+1.5,d/2+.02,1.1,.9,.05,0x4f6f7f); M(w/4,y+1.5,d/2+.05,1.2,.06,.04,0xe9e3d6);   // door, window
+    if(kind!=='wood'&&r()<.5){M(0,y+.05,d/2+1.1,w,.1,2.1,0xbdb6a6); for(const s of [-1,1]) M(s*(w/2-.1),y+1.05,d/2+2.1,.1,2.1,.1,0x6d4c41); M(0,y+2.15,d/2+1.1,w+.2,.06,2.3,rc,'box',.12,0);}   // porch
+    if(r()<.5){for(const s of [-1,1]) M(s*1.4,y+.9,-d/2-1.2,.06,1.8,.06,0x6d4c41); M(0,y+1.75,-d/2-1.2,2.8,.02,.02,0x444444); for(let i=0;i<4;i++) M(-1+i*.65,y+1.5,-d/2-1.2,.03,.5,.4,[0xe74c3c,0xf1c40f,0x2e86de,0xffffff][i]);}   // sampayan
+    if(r()<.4) M(w/2+.6,y+.5,0,.8,1.0,.8,0x3a6f9e,'cyl');
+    homes.push([hx,hz,Math.max(w,d)/2+1]);};
+  const tryHouse=(cx,cz,rad)=>{for(let t=0;t<40;t++){const a=r()*6.28, rr=rad*(.3+r()*.7), x=cx+Math.cos(a)*rr, z=cz+Math.sin(a)*rr, rd=hroadDist(x,z);
+      if(rd<3.5||rd>11||at(x,z)<.4||hillSlope(x,z)>.3||homes.some(([a2,c2,q])=>Math.hypot(a2-x,c2-z)<q+3.5)) continue;
+      let bi=0,bd=1e9; for(const R of HROADS) for(const [a2,c2] of R.s){const d=Math.hypot(a2-x,c2-z); if(d<bd){bd=d; bi=[a2,c2];}}
+      house(x,z,Math.atan2(bi[0]-x,bi[1]-z),hillSlope(x,z)>.16?'wood':(r()<.25?'wood':'chb')); return true;} return false;};
+  for(const [cx,cz,n] of [[206,-252,5],[236,-294,4],[162,-316,4],[130,-292,3],[186,-352,3],[272,-288,3]]) for(let k=0;k<n;k++) tryHouse(cx,cz,16);   // clusters
+  for(const R of HROADS) for(let k=12;k<R.s.length;k+=30) if(r()<.6) tryHouse(R.s[k][0],R.s[k][1],10);                                      // a few on their own
+  // rice terraces: strips along the contour lines, each a green paddy edged with a soil riser, stepping down the hill
+  const terr=[];
+  for(const [x0,x1,z0,z1] of [[118,176,-262,-300],[254,296,-306,-338]]) for(let L=2;L<=16;L+=1.4) for(let x=x0;x<=x1;x+=1.6) for(let z=z1;z<=z0;z+=1.6){
+    const h=at(x,z); if(Math.abs(h-L)>.4||hroadDist(x,z)<3.5||homes.some(([a,c,q])=>Math.hypot(a-x,c-z)<q+2)) continue;
+    const gx=at(x+1,z)-at(x-1,z), gz=at(x,z+1)-at(x,z-1); if(Math.hypot(gx,gz)<.08) continue; const yaw=Math.atan2(-gz,gx);   // the strip runs across the slope
+    b.push(PY('box',0x8a7456,x,L-.5,z,1.9,1.1,1.6,0,yaw)); b.push(PY('box',[0x8fb35a,0x9cc068,0x7fa64e][((L*5)|0)%3],x,L+.07,z,1.9,.06,1.5,0,yaw)); terr.push([x,z]);}
+  // trees, leaving gaps round the houses, roads and terraces
+  for(let k=0;k<170;k++){const x=HILL.x+(r()-.5)*HILL.rx*1.8, z=HILL.z+(r()-.5)*HILL.rz*1.8, y=at(x,z); if(y<.5||hroadDist(x,z)<4||homes.some(([a,c,q])=>Math.hypot(a-x,c-z)<q+3)||terr.some(([a,c])=>Math.hypot(a-x,c-z)<3)) continue;
     const s=.7+r()*.6; b.push(P('cyl',0x6b4a2a,x,y+1.2*s,z,.4*s,2.4*s,.4*s)); lv.push(P('sph',[0x46733a,0x527f40,0x3a6630][k%3],x,y+3*s,z,3.2*s,2.6*s,3.2*s));}
   const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.castShadow=m.receiveShadow=true; scene.add(m);
   const t=new THREE.Mesh(mergeGeo(lv),VCSMOOTH); t.castShadow=true; scene.add(t);
@@ -3596,7 +3620,7 @@ function placeBuilding(id,i){
   const b=BLDS[id];
   if(YARD_B[id]&&!(slotOf(i)&&slotOf(i).type===id&&S.tiles[i].s==='grass')){   // animal buildings go to the next free slot of their own area
     if(MAXL[id]&&countOf(id)>=allowedN(id)) return toast(placeErr(id,findSpot(id)>=0?findSpot(id):i));
-    const k=findSpot(id); if(k<0) return toast(`All ${FARM.areas[AREA_OF[id]].name.toLowerCase()} slots are full.`); i=k; const s=slotOf(k); flyTo(s.x,s.z,30);}
+    const k=findSpot(id); if(k<0) return toast(`All ${FARM.areas[AREA_OF[id]].name.toLowerCase()} slots are full.`); i=k;}
   if(i<0) return toast('Drop it on your farm.');
   const t=S.tiles[i];
   if(t.s==='locked') return toast('Buy that land first, then build there.');
@@ -3608,15 +3632,16 @@ function placeBuilding(id,i){
 }
 $('tools').addEventListener('pointerdown',e=>{
   const b=e.target.closest('[data-bld]'); if(!b||b.dataset.bld==='road') return;
-  barDrag={id:b.dataset.bld,x:e.clientX,y:e.clientY,active:false,ghost:null,pid:e.pointerId};
+  barDrag={id:b.dataset.bld,x:e.clientX,y:e.clientY,lx:e.clientX,active:false,ghost:null,pid:e.pointerId,scroll:false};
   try{b.setPointerCapture(e.pointerId);}catch(_){}
 });
 $('tools').addEventListener('pointermove',e=>{
   const d=barDrag; if(!d||e.pointerId!==d.pid) return;
+  if(d.scroll){if(e.pointerType==='mouse') $('tools').scrollLeft-=e.clientX-d.lx; d.lx=e.clientX; return;}   // sideways: scroll the bar (touch scrolls by itself)
   if(!d.active){
-    if(Math.hypot(e.clientX-d.x,e.clientY-d.y)<12) return;
+    const dx=e.clientX-d.x, dy=e.clientY-d.y; if(Math.hypot(dx,dy)<12) return;
+    if(Math.abs(dx)>Math.abs(dy)){d.scroll=true; eatClick=true; d.lx=e.clientX; return;}              // only dragging up out of the bar picks a building up
     const o=BLDS[d.id]; if(S.level<o.lvl){barDrag=null; return toast(`${o.icon} ${o.name}: unlocks at level ${o.lvl}`);}
-    if(YARD_B[d.id]) flyTo(-20,-21,Math.max(30,Math.min(cam.dist,36)));       // show the bakuran
     d.active=true; d.ghost=o.build().g; d.ghost.traverse(c=>{if(c.isMesh) c.castShadow=true;}); scene.add(d.ghost);
     $('hint').textContent=`Drop the ${o.name} on an empty plot (🪙${o.cost})`;
   }
@@ -3627,6 +3652,7 @@ $('tools').addEventListener('pointermove',e=>{
 });
 function endBarDrag(e){
   const d=barDrag; if(!d||e.pointerId!==d.pid) return; barDrag=null;
+  if(d.scroll){setTimeout(()=>{eatClick=false;},0); return;}
   if(!d.active) return;
   eatClick=true; scene.remove(d.ghost);
   if(e.type==='pointerup') placeBuilding(d.id,tileAt(e.clientX,e.clientY));
@@ -3640,7 +3666,7 @@ $('tools').addEventListener('click',e=>{
   if(bb){const id=bb.dataset.bld, o=BLDS[id];
     if(S.tool==='build'&&S.bld===id){S.tool=null; return changed();}
     if(S.level<o.lvl) return toast(`${o.icon} ${o.name}: unlocks at level ${o.lvl}`);
-    S.tool='build'; S.bld=id; if(YARD_B[id]) flyTo(-20,-21,Math.max(30,Math.min(cam.dist,36))); changed();}
+    S.tool='build'; S.bld=id; changed();}
 });
 $('picker').addEventListener('click',e=>{if(e.target.closest('[data-buyseeds]')) return openHW('seeds'); const b=e.target.closest('[data-pick]'); if(!b) return;
   const id=b.dataset.pick, o=CROPS[id];

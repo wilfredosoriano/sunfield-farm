@@ -492,6 +492,92 @@ const isYard=i=>i>=NF, YARD_B={coop:1,broiler:1,cows:1,pig:1,duck:1,goat:1,fish:
 const ZONE_OF={cows:0,goat:0,pig:1,fish:1,coop:2,broiler:2,duck:2}, ZONE_NAME=['Pastulan (cows and goats)','Babuyan at palaisdaan (pigs and fish)','Manukan (chickens and ducks)'];
 const zoneOf=i=>{const c=(i-NF)%YC; return c<6?0:c<12?1:2;};
 const need=l=>40+l*40;
+/* ---------- farm layout (revision 2): one set of numbers for the game and the planning map ----------
+   docs/build-farm-plan.js reads this block to draw docs/farm-plan.svg. Metres; x east, z south; highway at z = -110. */
+/*FARM-LAYOUT*/
+const FARM = {
+  // the lot fence follows the land instead of a rectangle (smoothed through these points)
+  fence: [[38,-36],[39,-6],[41,24],[37,54],[22,76],[-6,86],[-44,85],[-82,78],[-106,56],[-111,16],[-106,-18],[-88,-42],[-50,-45],[-10,-43]],
+  gate: {x:38.6, z:-17, w:6},
+  // roads: centre-line control points (smooth Catmull-Rom curve through them) and width in metres
+  roads: [
+    {id:'access',  kind:'farm road: dirt with gravel shoulders', w:4.5, pts:[[34,-104],[31,-88],[36,-70],[42,-54],[42,-36],[40,-23],[37.5,-17]]},
+    {id:'service', kind:'main farm service road: dirt', w:4.5, pts:[[37.5,-17],[26,-13],[12,-11],[-4,-10],[-18,-10.5],[-30,-11],[-42,-11.5],[-52,-6],[-56,4],[-52,20],[-44,40],[-40,53],[-28,58],[-10,56],[8,53],[17,41],[17,23],[17,3],[21,-8],[26,-13]]},
+    {id:'t-water', kind:'farm vehicle track', w:3.5, pts:[[-30,-11],[-34,-15],[-36,-18.5]]},
+    {id:'t-goat',  kind:'farm vehicle track', w:3.5, pts:[[-56,2],[-66,1],[-74,0]]},
+    {id:'t-cow',   kind:'farm vehicle track', w:3.5, pts:[[-53,18],[-58,24],[-62,27]]},
+    {id:'t-broil', kind:'farm vehicle track', w:3.5, pts:[[-44.5,37],[-38,37]]},
+    {id:'t-egg',   kind:'farm vehicle track', w:3.5, pts:[[17,37],[12,37]]},
+    {id:'t-pig',   kind:'farm vehicle track', w:3.5, pts:[[-22,57.5],[-20,62]]},
+    {id:'p-house', kind:'footpath', w:1.5, pts:[[0,-10],[0,-12.5]]},
+    {id:'p-field', kind:'footpath (round the beds)', w:1.5, pts:[[-14.5,-9],[-14.5,19],[14.5,19],[14.5,-9],[-14.5,-9]]},
+    {id:'p-poultry',kind:'footpath', w:1.5, pts:[[-15,21],[-15,51]]},
+    {id:'p-dike',  kind:'footpath on the pond dike', w:1.5, pts:[[-54,-27.75],[-22,-27.75]]},
+  ],
+  turning: [{x:14,z:-12,r:7,name:'garage apron'},{x:-27,z:-15,r:7,name:'bodega yard'},{x:-34,z:57,r:6,name:'feed drop'}],
+  // fixed buildings (the house and garage stay movable by the player)
+  buildings: [
+    {id:'house',   name:'Farmhouse',        x:0,    z:-19.5, w:9.2,  d:11.3},
+    {id:'garage',  name:'4-bay garage',     x:16.7, z:-21,   w:23.6, d:9,  note:'4 bays of 5.6 × 8.5 m, shared 9 m apron'},
+    {id:'bodega',  name:'Bodega (storage)', x:-24,  z:-2,    w:14,   d:9},
+    {id:'utility', name:'Utility yard',     x:-38,  z:-1,    w:14,   d:12},
+  ],
+  // crop field: the same 12 × 12 plots (2 m each), drawn as four beds of 6 × 6 with 1.5 m soil tracks between them
+  field: {x:0, z:5, plot:2, beds:2, gap:1.5},
+  orchard: {pts:[[21,-6],[35,-6],[38,12],[36,44],[22,47],[20,24]]},
+  // animal areas: each has its own fence, gate and up to three slots (the game allows up to 3 of each); slot = [x, z, w, d]
+  areas: [
+    {type:'coop',    name:'Egg-laying houses', fence:[-12,24,12,50],    gate:[12,37],  slots:[[0,29,16,6.5],[0,37,16,6.5],[0,45,16,6.5]]},
+    {type:'broiler', name:'Broiler houses',    fence:[-38,24,-18,50],   gate:[-38,37], slots:[[-28,29,14,6.5],[-28,37,14,6.5],[-28,45,14,6.5]]},
+    {type:'cows',    name:'Cow pasture and barns', fence:[-104,18,-62,70], gate:[-62,27], slots:[[-92,24,10,7],[-80,24,10,7],[-68,24,10,7]], pasture:true},
+    {type:'goat',    name:'Goat yard',         fence:[-100,-14,-74,12], gate:[-74,0],  slots:[[-94,-6,7,5],[-84,-6,7,5],[-94,5,7,5]]},
+    {type:'pig',     name:'Pig pens',          fence:[-44,62,0,80],     gate:[-20,62], slots:[[-36,71,11,9],[-22,71,11,9],[-8,71,11,9]]},
+    {type:'fish',    name:'Tilapia ponds',     fence:[-54,-40,-22,-18], gate:[-36,-18.5], slots:[[-46,-33,13,9],[-30,-33,13,9],[-46,-23,13,8]], water:true},
+    {type:'duck',    name:'Duck enclosures',   fence:[-70,-40,-58,-12], gate:[-58,-26], slots:[[-64,-35,10,7],[-64,-26,10,7],[-64,-17,10,6]], water:true},
+  ],
+  canal: [[-58,-13],[-34,-14],[-17,-8],[-16,20.5],[14,20.5],[19,46]],
+};
+/*END-FARM-LAYOUT*/
+// smooth curve (Catmull-Rom) through control points, sampled about every step metres; footpaths stay straight between their points
+function spline(pts,closed,step=1){const P=closed?[pts[pts.length-1],...pts,pts[0],pts[1]]:[pts[0],...pts,pts[pts.length-1]], out=[];
+  for(let i=1;i<P.length-2;i++){const [a,b,c,d]=[P[i-1],P[i],P[i+1],P[i+2]], n=Math.max(2,Math.ceil(Math.hypot(c[0]-b[0],c[1]-b[1])/step));
+    for(let k=0;k<n;k++){const t=k/n, t2=t*t, t3=t2*t, f=(p0,p1,p2,p3)=>.5*(2*p1+(-p0+p2)*t+(2*p0-5*p1+4*p2-p3)*t2+(-p0+3*p1-3*p2+p3)*t3); out.push([f(a[0],b[0],c[0],d[0]),f(a[1],b[1],c[1],d[1])]);}}
+  out.push(closed?out[0]:pts[pts.length-1]); return out;}
+function straight(pts,step=1){const out=[]; for(let i=0;i<pts.length-1;i++){const [a,b]=[pts[i],pts[i+1]], n=Math.max(1,Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/step)); for(let k=0;k<n;k++) out.push([a[0]+(b[0]-a[0])*k/n,a[1]+(b[1]-a[1])*k/n]);} out.push(pts[pts.length-1]); return out;}
+// every road, track and footpath on the farm
+const LIVE_ROADS=['access','service','p-house','p-field','t-water','t-goat','t-cow','t-broil','t-egg','t-pig','p-poultry','p-dike'];
+const ROADS={}; for(const r of FARM.roads) ROADS[r.id]={...r,s:r.kind.startsWith('footpath')?straight(r.pts):spline(r.pts,false)};
+const ACCESS=ROADS.access.s, SERVICE=ROADS.service.s;   // ACCESS runs highway → gate; SERVICE runs gate → garage → bodega → … → back to the garage apron
+// fast lookup: how far a point is from the nearest built road edge (negative = on the road)
+const ROADGRID=new Map(), RG=8, rgKey=(x,z)=>Math.floor(x/RG)+','+Math.floor(z/RG);
+for(const id of LIVE_ROADS) for(const [x,z] of ROADS[id].s){const k=rgKey(x,z); if(!ROADGRID.has(k)) ROADGRID.set(k,[]); ROADGRID.get(k).push([x,z,ROADS[id].w/2]);}
+function roadDist(x,z){let best=99; const cx=Math.floor(x/RG), cz=Math.floor(z/RG);
+  for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){const L=ROADGRID.get((cx+i)+','+(cz+j)); if(L) for(const [a,b,h] of L){const d=Math.hypot(x-a,z-b)-h; if(d<best) best=d;}} return best;}
+const FENCE=spline(FARM.fence,true,2.4);
+function inLot(x,z){let c=false; for(let i=0,j=FENCE.length-1;i<FENCE.length;j=i++){const [xi,zi]=FENCE[i], [xj,zj]=FENCE[j]; if((zi>z)!==(zj>z)&&x<(xj-xi)*(z-zi)/(zj-zi)+xi) c=!c;} return c;}
+// the crop field: 12 × 12 plots drawn as four 6 × 6 beds with soil tracks between them (plot indexes in the save do not change)
+const FLD=FARM.field, FHALF=N*T/2+FLD.gap/2;
+const fieldX=c=>FLD.x+(c-N/2+.5)*T+(c<N/2?-FLD.gap/2:FLD.gap/2), fieldZ=r=>FLD.z+(r-N/2+.5)*T+(r<N/2?-FLD.gap/2:FLD.gap/2);
+const inField=(x,z,m=0)=>Math.abs(x-FLD.x)<FHALF+m&&Math.abs(z-FLD.z)<FHALF+m;
+// the point on a sampled road nearest to (x,z), and the index of that sample
+function nearestOn(S,x,z){let bi=0,bd=1e9; S.forEach(([a,b],i)=>{const d=(x-a)**2+(z-b)**2; if(d<bd){bd=d; bi=i;}}); return bi;}
+// the front stretch of the service road (gate → past the garage and house): what the garage and the house face
+const SVC0=SERVICE.slice(0,nearestOn(SERVICE,-18,-10.5)+1);
+function frontIdx(x){let bi=0,bd=1e9; SVC0.forEach(([a],i)=>{const d=Math.abs(a-x); if(d<bd){bd=d; bi=i;}}); return bi;}
+const frontZ=x=>SVC0[frontIdx(x)][1]-2.25;   // the road's north edge in front of x
+// vehicle legs between a garage bay at x = sx and the highway junction, along the service road and the farm road
+function toHwy(sx,d){const p=[]; for(let k=frontIdx(sx);k>=0;k-=2) p.push([SVC0[k][0],SVC0[k][1],d]); for(let k=ACCESS.length-1;k>=0;k-=2) p.push([ACCESS[k][0],ACCESS[k][1],d]); return p;}
+function fromHwy(sx,d,sl){const p=[]; for(let k=0;k<ACCESS.length;k+=2) p.push([ACCESS[k][0],ACCESS[k][1],d]); const i=frontIdx(sx-3.5);
+  for(let k=0;k<=i;k+=2) p.push([SVC0[k][0],SVC0[k][1],d]); const az=SVC0[i][1]; p.push([sx-3.5,az,sl,true],[sx,az-2.5,sl,true],[sx,G0]); return p;}   // drive past the bay, then back into it
+// walking between the house and the bus stop by the highway: along the roadside of the same roads
+function walkOut(){const p=[], off=(S,k,o)=>{const a=S[Math.max(0,k-1)], b=S[Math.min(S.length-1,k+1)], L=Math.hypot(b[0]-a[0],b[1]-a[1])||1; return [S[k][0]-(b[1]-a[1])/L*o,S[k][1]+(b[0]-a[0])/L*o];};
+  for(let k=frontIdx(6);k>=0;k-=3) p.push(off(SVC0,k,-1.6)); for(let k=ACCESS.length-1;k>=0;k-=3) p.push(off(ACCESS,k,1.6)); p.push([DX-1.3,HZ+7.6]); return p;}
+const walkIn=()=>walkOut().reverse();
+// animal areas: 3 numbered slots each. A slot is stored in the save at plot index NF+k (the old bakuran part of the array), so
+// every building keeps its level, timers, feed and stored goods; the slot only says where it stands and how big it is.
+const SLOTS=[]; FARM.areas.forEach((a,ai)=>a.slots.forEach(([x,z,w,d],si)=>SLOTS.push({i:NF+SLOTS.length,type:a.type,area:ai,n:si+1,x,z,w,d})));
+const AREA_OF={}; FARM.areas.forEach((a,ai)=>AREA_OF[a.type]=ai);
+const slotOf=i=>i>=NF&&i-NF<SLOTS.length?SLOTS[i-NF]:null;
 
 /* ---------- Save / load ---------- */
 const KEY='sunfield-farm-v1';
@@ -529,24 +615,21 @@ if(!S.mats) S.mats={}; if(!S.garage) S.garage=1; if(S.build===undefined) S.build
 // highest old level, so everything that used to wait for a bigger house (vehicles, helpers, the bagsakan deals) now only needs your level.
 const HOUSE_DONE=4; S.house=HOUSE_DONE; if(S.build&&S.build.what==='house') S.build=null;
 /* multi-plot buildings (3x3 manukan) in the bakuran */
-function foot(i,b){const B=BLDS[b]; if(!B||!(B.size>1)) return [i]; if(!isYard(i)) return null;
-  const k=i-NF, c=k%YC, r=(k/YC)|0, out=[];
-  for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){const cc=c+dc, rr=r+dr; if(cc<0||rr<0||cc>=YC||rr>=YR) return null; out.push(NF+rr*YC+cc);}
-  return out;}
+function foot(i,b){const B=BLDS[b]; if(!B||!(B.size>1)) return [i]; const s=slotOf(i); return s&&s.type===b?[i]:null;}   // an animal building fills exactly its own slot
 const anchorOf=i=>(i>=0&&S.tiles[i]&&S.tiles[i].s==='occ')?S.tiles[i].a:i;
 function footFree(i,b,ign){const f=foot(i,b); if(!f) return false;
   return f.every(k=>{const t=S.tiles[k]; return t.s==='grass'||(ign!=null&&(k===ign||(t.s==='occ'&&t.a===ign)));});}
 function setBld(i,obj){const f=foot(i,obj.b)||[i]; f.forEach(k=>{if(k!==i) S.tiles[k]={s:'occ',a:i};}); S.tiles[i]=obj; return f;}
 function clearBld(i){const t=S.tiles[i], f=(t.s==='bld'&&foot(i,t.b))||[i]; f.forEach(k=>S.tiles[k]={s:'grass'}); return f;}
-function findSpot(b){for(let r=1;r<YR-1;r++) for(let c=1;c<YC-1;c++){const i=NF+r*YC+c; if(footFree(i,b)) return i;} return -1;}
-function freeYard(pref){if(pref!=null&&S.tiles[pref].s==='grass') return pref; for(let i=NF;i<NT;i++) if(S.tiles[i].s==='grass') return i; return -1;}
+function findSpot(b){const s=SLOTS.find(s=>s.type===b&&S.tiles[s.i].s==='grass'); return s?s.i:-1;}   // the next empty slot in that animal's area
+const freeYard=(pref,b)=>findSpot(b);
 function ensurePremade(){ // every farm starts with a ready-made itlogan, broiler pen and bakahan
   if(S.premade) return; S.premade=true;
   if(!S.tiles.some(t=>t.s==='bld'&&t.b==='coop')){const i=findSpot('coop'); if(i>=0) setBld(i,{s:'bld',b:'coop',t:Date.now()-60000,lvl:1});}
   if(!S.tiles.some(t=>t.s==='bld'&&t.b==='cows')){const i=findSpot('cows'); if(i>=0) setBld(i,{s:'bld',b:'cows',t:Date.now()-60000,lvl:1});}
 }
 if(!S.yardMig){S.yardMig=true; // animals live in the bakuran now, not on the crop field
-  for(let i=0;i<NF;i++){const t=S.tiles[i]; if(t.s==='bld'&&YARD_B[t.b]){const y=freeYard(); if(y>=0){S.tiles[y]=t; S.tiles[i]={s:'grass'};}}}}
+  for(let i=0;i<NF;i++){const t=S.tiles[i]; if(t.s==='bld'&&YARD_B[t.b]){const y=freeYard(null,t.b); if(y>=0){S.tiles[y]=t; S.tiles[i]={s:'grass'};}}}}
 if(!S.coop3){S.coop3=true; // old one-plot coops become full 3x3 itlogan
   const olds=[]; for(let i=0;i<NT;i++){const t=S.tiles[i]; if(t.s==='bld'&&t.b==='coop'&&!t.lvl){olds.push(t); S.tiles[i]={s:'grass'};}}
   olds.forEach(t=>{const i=findSpot('coop'); if(i>=0) setBld(i,{s:'bld',b:'coop',t:t.t||Date.now(),lvl:1}); else S.coins+=180;});}
@@ -555,6 +638,11 @@ if(!S.cows3){S.cows3=true; // the old one-plot bakahan becomes a full 3x3 corral
   const olds=[]; for(let i=0;i<NT;i++){const t=S.tiles[i]; if(t.s==='bld'&&t.b==='cows'&&!t.lvl){olds.push(t); S.tiles[i]={s:'grass'};}}
   olds.forEach(t=>{const i=findSpot('cows'); if(i>=0) setBld(i,{s:'bld',b:'cows',t:t.t||Date.now(),lvl:1}); else S.coins+=450;});}
 if(!S.premade2){S.premade2=true; if(!S.tiles.some(t=>t.s==='bld'&&t.b==='broiler')){const i=findSpot('broiler'); if(i>=0) setBld(i,{s:'bld',b:'broiler',t:Date.now()-60000,lvl:1});}}
+// the shared bakuran grid is retired: every animal building moves into the next free slot of its own area (level, timers, feed and
+// stored goods travel with it). Anything that cannot fit (only possible in a hand-edited save) is refunded.
+if(!S.slots){S.slots=1; const keep=[];
+  for(let i=NF;i<NT;i++){const t=S.tiles[i]; if(t.s==='bld'&&YARD_B[t.b]) keep.push(t); else if(t.s==='bld'&&BLDS[t.b]) S.coins+=BLDS[t.b].cost||0; S.tiles[i]={s:'grass'};}
+  keep.forEach(t=>{const i=findSpot(t.b); if(i>=0) S.tiles[i]=t; else S.coins+=BLDS[t.b].cost||0;});}
 if(S.mats.feed==null) S.mats.feed=10;
 if(!S.wh) S.wh={owned:false,factory:false,stock:{}};
 if(!S.stats) S.stats={harvest:0,plant:0,egg:0,orders:0,pasabay:0,bulk:0,crops:{}}; if(!S.ach) S.ach={};
@@ -1253,87 +1341,6 @@ const jeep=new THREE.Group(), jeepCargo=new THREE.Group(), jeepWheels=[];
 })();
 /* ================= The wider world: dirt road, endless highway, hardware store, garage, house ================= */
 const LE=HZ+1.75, LW=HZ-1.75, DX=34, HWX=-60;   // highway lanes, where the farm road meets the highway, the hardware store
-/* ---------- farm layout (revision 2): one set of numbers for the game and the planning map ----------
-   docs/build-farm-plan.js reads this block to draw docs/farm-plan.svg. Metres; x east, z south; highway at z = -110. */
-/*FARM-LAYOUT*/
-const FARM = {
-  // the lot fence follows the land instead of a rectangle (smoothed through these points)
-  fence: [[38,-36],[39,-6],[41,24],[37,54],[22,76],[-6,86],[-44,85],[-82,78],[-106,56],[-111,16],[-106,-18],[-88,-42],[-50,-45],[-10,-43]],
-  gate: {x:38.6, z:-17, w:6},
-  // roads: centre-line control points (smooth Catmull-Rom curve through them) and width in metres
-  roads: [
-    {id:'access',  kind:'farm road: dirt with gravel shoulders', w:4.5, pts:[[34,-104],[31,-88],[36,-70],[42,-54],[42,-36],[40,-23],[37.5,-17]]},
-    {id:'service', kind:'main farm service road: dirt', w:4.5, pts:[[37.5,-17],[26,-13],[12,-11],[-4,-10],[-18,-10.5],[-30,-11],[-42,-11.5],[-52,-6],[-56,4],[-52,20],[-44,40],[-40,53],[-28,58],[-10,56],[8,53],[17,41],[17,23],[17,3],[21,-8],[26,-13]]},
-    {id:'t-water', kind:'farm vehicle track', w:3.5, pts:[[-30,-11],[-34,-15],[-36,-18.5]]},
-    {id:'t-goat',  kind:'farm vehicle track', w:3.5, pts:[[-56,2],[-66,1],[-74,0]]},
-    {id:'t-cow',   kind:'farm vehicle track', w:3.5, pts:[[-53,18],[-58,24],[-62,27]]},
-    {id:'t-broil', kind:'farm vehicle track', w:3.5, pts:[[-44.5,37],[-38,37]]},
-    {id:'t-egg',   kind:'farm vehicle track', w:3.5, pts:[[17,37],[12,37]]},
-    {id:'t-pig',   kind:'farm vehicle track', w:3.5, pts:[[-22,57.5],[-20,62]]},
-    {id:'p-house', kind:'footpath', w:1.5, pts:[[0,-10],[0,-12.5]]},
-    {id:'p-field', kind:'footpath (round the beds)', w:1.5, pts:[[-14.5,-9],[-14.5,19],[14.5,19],[14.5,-9],[-14.5,-9]]},
-    {id:'p-poultry',kind:'footpath', w:1.5, pts:[[-15,21],[-15,51]]},
-    {id:'p-dike',  kind:'footpath on the pond dike', w:1.5, pts:[[-54,-27.75],[-22,-27.75]]},
-  ],
-  turning: [{x:14,z:-12,r:7,name:'garage apron'},{x:-27,z:-15,r:7,name:'bodega yard'},{x:-34,z:57,r:6,name:'feed drop'}],
-  // fixed buildings (the house and garage stay movable by the player)
-  buildings: [
-    {id:'house',   name:'Farmhouse',        x:0,    z:-19.5, w:9.2,  d:11.3},
-    {id:'garage',  name:'4-bay garage',     x:16.7, z:-21,   w:23.6, d:9,  note:'4 bays of 5.6 × 8.5 m, shared 9 m apron'},
-    {id:'bodega',  name:'Bodega (storage)', x:-24,  z:-2,    w:14,   d:9},
-    {id:'utility', name:'Utility yard',     x:-38,  z:-1,    w:14,   d:12},
-  ],
-  // crop field: the same 12 × 12 plots (2 m each), drawn as four beds of 6 × 6 with 1.5 m soil tracks between them
-  field: {x:0, z:5, plot:2, beds:2, gap:1.5},
-  orchard: {pts:[[21,-6],[35,-6],[38,12],[36,44],[22,47],[20,24]]},
-  // animal areas: each has its own fence, gate and up to three slots (the game allows up to 3 of each); slot = [x, z, w, d]
-  areas: [
-    {type:'coop',    name:'Egg-laying houses', fence:[-12,24,12,50],    gate:[12,37],  slots:[[0,29,16,6.5],[0,37,16,6.5],[0,45,16,6.5]]},
-    {type:'broiler', name:'Broiler houses',    fence:[-38,24,-18,50],   gate:[-38,37], slots:[[-28,29,14,6.5],[-28,37,14,6.5],[-28,45,14,6.5]]},
-    {type:'cows',    name:'Cow pasture and barns', fence:[-104,18,-62,70], gate:[-62,27], slots:[[-92,24,10,7],[-80,24,10,7],[-68,24,10,7]], pasture:true},
-    {type:'goat',    name:'Goat yard',         fence:[-100,-14,-74,12], gate:[-74,0],  slots:[[-94,-6,7,5],[-84,-6,7,5],[-94,5,7,5]]},
-    {type:'pig',     name:'Pig pens',          fence:[-44,62,0,80],     gate:[-20,62], slots:[[-36,71,11,9],[-22,71,11,9],[-8,71,11,9]]},
-    {type:'fish',    name:'Tilapia ponds',     fence:[-54,-40,-22,-18], gate:[-36,-18.5], slots:[[-46,-33,13,9],[-30,-33,13,9],[-46,-23,13,8]], water:true},
-    {type:'duck',    name:'Duck enclosures',   fence:[-70,-40,-58,-12], gate:[-58,-26], slots:[[-64,-35,10,7],[-64,-26,10,7],[-64,-17,10,6]], water:true},
-  ],
-  canal: [[-58,-13],[-34,-14],[-17,-8],[-16,20.5],[14,20.5],[19,46]],
-};
-/*END-FARM-LAYOUT*/
-// smooth curve (Catmull-Rom) through control points, sampled about every step metres; footpaths stay straight between their points
-function spline(pts,closed,step=1){const P=closed?[pts[pts.length-1],...pts,pts[0],pts[1]]:[pts[0],...pts,pts[pts.length-1]], out=[];
-  for(let i=1;i<P.length-2;i++){const [a,b,c,d]=[P[i-1],P[i],P[i+1],P[i+2]], n=Math.max(2,Math.ceil(Math.hypot(c[0]-b[0],c[1]-b[1])/step));
-    for(let k=0;k<n;k++){const t=k/n, t2=t*t, t3=t2*t, f=(p0,p1,p2,p3)=>.5*(2*p1+(-p0+p2)*t+(2*p0-5*p1+4*p2-p3)*t2+(-p0+3*p1-3*p2+p3)*t3); out.push([f(a[0],b[0],c[0],d[0]),f(a[1],b[1],c[1],d[1])]);}}
-  out.push(closed?out[0]:pts[pts.length-1]); return out;}
-function straight(pts,step=1){const out=[]; for(let i=0;i<pts.length-1;i++){const [a,b]=[pts[i],pts[i+1]], n=Math.max(1,Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/step)); for(let k=0;k<n;k++) out.push([a[0]+(b[0]-a[0])*k/n,a[1]+(b[1]-a[1])*k/n]);} out.push(pts[pts.length-1]); return out;}
-// the roads built so far (the vehicle tracks to the animal areas arrive with the areas)
-const LIVE_ROADS=['access','service','p-house','p-field'];
-const ROADS={}; for(const r of FARM.roads) ROADS[r.id]={...r,s:r.kind.startsWith('footpath')?straight(r.pts):spline(r.pts,false)};
-const ACCESS=ROADS.access.s, SERVICE=ROADS.service.s;   // ACCESS runs highway → gate; SERVICE runs gate → garage → bodega → … → back to the garage apron
-// fast lookup: how far a point is from the nearest built road edge (negative = on the road)
-const ROADGRID=new Map(), RG=8, rgKey=(x,z)=>Math.floor(x/RG)+','+Math.floor(z/RG);
-for(const id of LIVE_ROADS) for(const [x,z] of ROADS[id].s){const k=rgKey(x,z); if(!ROADGRID.has(k)) ROADGRID.set(k,[]); ROADGRID.get(k).push([x,z,ROADS[id].w/2]);}
-function roadDist(x,z){let best=99; const cx=Math.floor(x/RG), cz=Math.floor(z/RG);
-  for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){const L=ROADGRID.get((cx+i)+','+(cz+j)); if(L) for(const [a,b,h] of L){const d=Math.hypot(x-a,z-b)-h; if(d<best) best=d;}} return best;}
-const FENCE=spline(FARM.fence,true,2.4);
-function inLot(x,z){let c=false; for(let i=0,j=FENCE.length-1;i<FENCE.length;j=i++){const [xi,zi]=FENCE[i], [xj,zj]=FENCE[j]; if((zi>z)!==(zj>z)&&x<(xj-xi)*(z-zi)/(zj-zi)+xi) c=!c;} return c;}
-// the crop field: 12 × 12 plots drawn as four 6 × 6 beds with soil tracks between them (plot indexes in the save do not change)
-const FLD=FARM.field, FHALF=N*T/2+FLD.gap/2;
-const fieldX=c=>FLD.x+(c-N/2+.5)*T+(c<N/2?-FLD.gap/2:FLD.gap/2), fieldZ=r=>FLD.z+(r-N/2+.5)*T+(r<N/2?-FLD.gap/2:FLD.gap/2);
-const inField=(x,z,m=0)=>Math.abs(x-FLD.x)<FHALF+m&&Math.abs(z-FLD.z)<FHALF+m;
-// the point on a sampled road nearest to (x,z), and the index of that sample
-function nearestOn(S,x,z){let bi=0,bd=1e9; S.forEach(([a,b],i)=>{const d=(x-a)**2+(z-b)**2; if(d<bd){bd=d; bi=i;}}); return bi;}
-// the front stretch of the service road (gate → past the garage and house): what the garage and the house face
-const SVC0=SERVICE.slice(0,nearestOn(SERVICE,-18,-10.5)+1);
-function frontIdx(x){let bi=0,bd=1e9; SVC0.forEach(([a],i)=>{const d=Math.abs(a-x); if(d<bd){bd=d; bi=i;}}); return bi;}
-const frontZ=x=>SVC0[frontIdx(x)][1]-2.25;   // the road's north edge in front of x
-// vehicle legs between a garage bay at x = sx and the highway junction, along the service road and the farm road
-function toHwy(sx,d){const p=[]; for(let k=frontIdx(sx);k>=0;k-=2) p.push([SVC0[k][0],SVC0[k][1],d]); for(let k=ACCESS.length-1;k>=0;k-=2) p.push([ACCESS[k][0],ACCESS[k][1],d]); return p;}
-function fromHwy(sx,d,sl){const p=[]; for(let k=0;k<ACCESS.length;k+=2) p.push([ACCESS[k][0],ACCESS[k][1],d]); const i=frontIdx(sx-3.5);
-  for(let k=0;k<=i;k+=2) p.push([SVC0[k][0],SVC0[k][1],d]); const az=SVC0[i][1]; p.push([sx-3.5,az,sl,true],[sx,az-2.5,sl,true],[sx,G0]); return p;}   // drive past the bay, then back into it
-// walking between the house and the bus stop by the highway: along the roadside of the same roads
-function walkOut(){const p=[], off=(S,k,o)=>{const a=S[Math.max(0,k-1)], b=S[Math.min(S.length-1,k+1)], L=Math.hypot(b[0]-a[0],b[1]-a[1])||1; return [S[k][0]-(b[1]-a[1])/L*o,S[k][1]+(b[0]-a[0])/L*o];};
-  for(let k=frontIdx(6);k>=0;k-=3) p.push(off(SVC0,k,-1.6)); for(let k=ACCESS.length-1;k>=0;k-=3) p.push(off(ACCESS,k,1.6)); p.push([DX-1.3,HZ+7.6]); return p;}
-const walkIn=()=>walkOut().reverse();
 if(!S.housePos) S.housePos={x:0,z:-20}; if(!S.garagePos) S.garagePos={x:12,z:-19.5};
 let GX=S.garagePos.x, G0=S.garagePos.z;                         // garage centre (movable)   // lanes (east/westbound), dirt road, garage line
 const SPD={dirt:7,hwy:16,slow:3.5};
@@ -1381,17 +1388,7 @@ const LEAFMAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.85,fl
   for(const s of [-1,1]){R(0,.06,HZ+s*3.7,1700,.08,.22,0xcfcac0); R(0,.045,HZ+s*4.5,1700,.05,1.4,0xbdb8ad);}       // low curbs and a concrete footpath on both sides (Binhi x -18, poultry x 92)
   for(const x of [PX,PX+42,DX,-18,HWX,92]) for(let k=0;k<7;k++) R(x+(k-3)*.9,.071,HZ,.5,.01,6.6,0xf2f2f2);       // zebra crossings at the stores, palengke and junctions
   for(let x=-420;x<=560;x+=30){R(x,3.5,HZ+6.2,.26,7,.26,0x9a9a9a); R(x,6.7,HZ+6.2,.12,.12,2.0,0x6b6b6b);}  // electric posts
-  // rice paddies (palayan): muddy water with rows of palay
-  const RICE=[], TONES=[0x7cb342,0x8bc34a,0x9ccc65,0xc5b358];
-  for(let z=-47;z>HZ+12;z-=9) for(const side of [-1,1]){   // paddies on both sides of the farm road, following its curve
-    const cx=ACCESS[nearestOn(ACCESS,DX,z)][0]+side*10.5, tone=TONES[(Math.abs(z|0)+side+9)%TONES.length];
-    R(cx,.04,z,7.6,.06,8.2,0x6f8a5c);
-    R(cx,.1,z+4.2,7.9,.14,.35,0x7a8a4a); R(cx,.1,z-4.2,7.9,.14,.35,0x7a8a4a); R(cx-3.9,.1,z,.35,.14,8.6,0x7a8a4a); R(cx+3.9,.1,z,.35,.14,8.6,0x7a8a4a);
-    for(let ix=0;ix<12;ix++) for(let iz=0;iz<13;iz++) RICE.push([cx-3.3+ix*.6,.07,z-3.6+iz*.6,1,.8+((ix*7+iz*3)%5)*.08,1,tone,(ix*13+iz)%6]);
-  }
-  const riceBlade=new THREE.ConeGeometry(.05,.55,3);
-  const riceTuft=mergeGeo([0,1,2,3].map(k=>[riceBlade,Mx(Math.cos(k*1.6)*.05,.27,Math.sin(k*1.6)*.05,1,1,1,Math.sin(k*1.6)*.28,0,Math.cos(k*1.6)*.28),0xffffff]));
-  softCover(instR(riceTuft,RICE,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,flatShading:true})));
+  // (the boxy rice paddies along the farm road are gone: the road now runs through trees and wild grass)
   scene.add(instR(G.tiny,L));
 })();
 // ---- rough dirt road: irregular patches, loose stones, grass down the middle, and 3 muddy potholes
@@ -2440,12 +2437,11 @@ const ORCH=[21,36,-5,44], UTIL=[-45,-31,-7,5], SARI=[16.5,28,-104.8,-96.5];   //
 const inRect=(R,x,z,m)=>x>R[0]-m&&x<R[1]+m&&z>R[2]-m&&z<R[3]+m;
 // countryside: acacia, mango, niyog, saging and kawayan trees, wild grass and flowers (all instanced, all cast shadows)
 (()=>{const rr=rng(42);
-  const accessX=z=>ACCESS[nearestOn(ACCESS,DX,z)][0];
   const onRoad=(x,z,m)=>roadDist(x,z)<m||(z>HZ-5.4-m&&z<HZ+5.4+m);
   // inside the lot: keep clear of the field, buildings, yards and roads (grass may grow in between; trees only where planted on purpose)
-  const busyIn=(x,z)=>inField(x,z,1.8)||inRect(ORCH,x,z,.3)||inRect(UTIL,x,z,.3)||inRect([YX0,YX0+YC*T,YZ0,YZ0+YR*T],x,z,1)||inRect([-27,-20,-6,2],x,z,1)
+  const busyIn=(x,z)=>inField(x,z,1.8)||inRect(ORCH,x,z,.3)||inRect(UTIL,x,z,.3)||FARM.areas.some(a=>inRect([a.fence[0],a.fence[2],a.fence[1],a.fence[3]],x,z,1.5))||inRect([-27,-20,-6,2],x,z,1)
     ||inRect(lotRect('house',S.housePos.x,S.housePos.z),x,z,.5)||inRect([GX-12,GX+12,G0-4.5,G0+4.5],x,z,.5)||roadDist(x,z)<.4;
-  const busy=(x,z,m)=>inLot(x,z)&&(m>=0||busyIn(x,z))||(z<-40&&z>HZ+7.4&&Math.abs(x-accessX(z))<15.5)   // the farm lot, and the paddies along the farm road
+  const busy=(x,z,m)=>inLot(x,z)&&(m>=0||busyIn(x,z))   // the farm lot
     ||(x>PX-25-m&&x<PX+25+m&&z>PZ-19-m&&z<HZ-4)||(x>HWX-14-m&&x<HWX+14+m&&z>HZ-25-m&&z<HZ-4)||(x>PSX-14-m&&x<PSX+14+m&&z>HZ-25-m&&z<HZ-4)||(x>SSX-12-m&&x<SSX+12+m&&z>HZ-25-m&&z<HZ-4)||(x>DX+1-m&&x<DX+32+m&&z>HZ+3-m&&z<HZ+12+m)||(x>34-m&&x<336+m&&z>-218-m&&z<-164+m)||(x>34-m&&x<46+m&&z>-190&&z<HZ-4)||(x>324-m&&x<336+m&&z>-190&&z<HZ-4)||(x>PX+38-m&&x<PX+46+m&&z>-190-m&&z<HZ-4)||(x>WHX-14-m&&x<WHX+30+m&&z>HZ-32-m&&z<HZ-4)||(x>FX-30-m&&x<FX+30+m&&z>HZ-64-m&&z<HZ-4)   // sakayan, warehouse, factory
     ||inRect(ORCH,x,z,m)||inRect(UTIL,x,z,m)||inRect(SARI,x,z,m);
   const trunks=[],blobs=[],segs=[],fronds=[],nuts=[],bleaves=[],culms=[],bananaL=[];
@@ -2494,7 +2490,7 @@ const inRect=(R,x,z,m)=>x>R[0]-m&&x<R[1]+m&&z>R[2]-m&&z<R[3]+m;
   while(placed<520&&tries<12000){tries++; if(plant(-170+rr()*430,-235+rr()*290)) placed++;}
   for(placed=0,tries=0;placed<190&&tries<6000;tries++) if(plant(260+rr()*200,-235+rr()*290)) placed++;   // out east by the factory too
   // roadside trees: along the dirt road and both sides of the highway
-  for(let k=4;k<ACCESS.length-4;k+=4+((rr()*5)|0)){const [x,z]=ACCESS[k], [a,b]=ACCESS[k+1], L=Math.hypot(a-x,b-z)||1; for(const sd of [-1,1]) if(rr()<.6){const o=sd*(z<-40?16.5+rr()*3:3.5+rr()*3); plant(x-(b-z)/L*o,z+(a-x)/L*o);}}   // along the farm road
+  for(let k=4;k<ACCESS.length-4;k+=4+((rr()*5)|0)){const [x,z]=ACCESS[k], [a,b]=ACCESS[k+1], L=Math.hypot(a-x,b-z)||1; for(const sd of [-1,1]) for(let q=0;q<3;q++) if(rr()<.75){const o=sd*(3.6+q*4.2+rr()*3); plant(x-(b-z)/L*o+(rr()-.5)*2,z+(a-x)/L*o+(rr()-.5)*2);}}   // a thick belt of trees along both sides of the farm road
   for(let x=-190;x<460;x+=6+rr()*9) for(const sd of [-1,1]) if(rr()<.8) plant(x,HZ+sd*(8+rr()*6));
   // a windbreak of niyog, mango and acacia just outside the lot fence, all the way round
   for(let k=0;k<FENCE.length;k+=1+((rr()*2)|0)){const [x,z]=FENCE[k], ox=x+35, oz=z-20, L=Math.hypot(ox,oz)||1, o=3+rr()*4; plant(x+ox/L*o,z+oz/L*o); if(rr()<.45) plant(x+ox/L*(o+5),z+oz/L*(o+5));}
@@ -2506,7 +2502,7 @@ const inRect=(R,x,z,m)=>x>R[0]-m&&x<R[1]+m&&z>R[2]-m&&z<R[3]+m;
   const blade=new THREE.ConeGeometry(.05,.5,3,1,true), tuft=mergeGeo([0,1,2,3].map(k=>[blade,Mx(Math.cos(k*1.6)*.08,.24,Math.sin(k*1.6)*.08,1,.8+(k%3)*.25,1,Math.sin(k*1.6)*.38,0,Math.cos(k*1.6)*.38),0xffffff]));
   const grass=[], flowers=[], GC=[0x6aa84a,0x7cb342,0x5f9e3f,0x8fbf4a,0xa3b35a,0x739e45];
   let g=0; tries=0;
-  const HOT=[[0,-8,60],[DX,-62,55],[20,HZ,70],[PX,HZ-10,45],[HWX,HZ-10,40],[-60,HZ,50]];   // denser near places you look at
+  const HOT=[[0,-8,60],[DX,-62,55],[DX,-80,30],[DX,-50,30],[20,HZ,70],[PX,HZ-10,45],[HWX,HZ-10,40],[-60,HZ,50]];   // denser near places you look at
   while(g<15000&&tries<60000){tries++; let x,z;
     if(rr()<.65){const h=HOT[(rr()*HOT.length)|0], a=rr()*6.28, r=Math.sqrt(rr())*h[2]; x=h[0]+Math.cos(a)*r; z=h[1]+Math.sin(a)*r;}
     else {x=-160+rr()*410; z=-230+rr()*280;}
@@ -2596,11 +2592,11 @@ function startCycle(i,quiet){ // each batch of eggs / broilers eats patuka from 
   if((S.mats[fk]||0)>=need){S.mats[fk]-=need; t.t=Date.now(); t.hungry=false; return true;}
   t.hungry=true; t.t=Date.now(); if(!quiet) toast(`${BLDS[t.b].icon} Gutom! Buy ${FEED_NAME[fk]} at the 🐣 Agrivet & Poultry Supply.`,3200); return false;
 }
-const tilePos=i=>i<NF?{x:fieldX(i%N), z:fieldZ((i/N)|0)}:{x:YX0+((i-NF)%YC+.5)*T, z:YZ0+(((i-NF)/YC)|0)*T+T/2};
+const tilePos=i=>i<NF?{x:fieldX(i%N), z:fieldZ((i/N)|0)}:slotOf(i)?{x:slotOf(i).x, z:slotOf(i).z}:{x:0, z:-900};   // unused old bakuran indexes sit far away, hidden
 for(let i=0;i<NT;i++){
   const p=tilePos(i), g=new THREE.Group(); g.position.set(p.x,0,p.z); g.userData.idx=i;
   const gr=new THREE.Mesh(G.tile,mat(C.grass)); gr.position.y=.1; gr.receiveShadow=true; g.add(gr);
-  const content=new THREE.Group(); g.add(content); tileRoot.add(g);
+  const content=new THREE.Group(); g.add(content); tileRoot.add(g); if(isYard(i)&&!slotOf(i)) g.visible=false;
   tiles.push({g,ground:gr,content,crop:null,bld:null,marker:null});
 }
 function setMarker(i,on,color){
@@ -2649,6 +2645,7 @@ function refreshTile(i,pop){
   o.ground.scale.y=(locked||isYard(i))?.5:1; o.ground.position.y=(locked||isYard(i))?.05:.1; groundLook(i);
   if(o.site){o.g.remove(o.site); o.site=null; constructing.delete(i);}
   if(t.s==='soil'||t.s==='crop') [-.6,0,.6].forEach(z=>o.content.add(mesh(G.furrow,C.furrow,0,.22,z)));
+  if(slotOf(i)&&t.s==='grass') o.content.add(emptySlotSign(slotOf(i)));   // an empty animal slot
   let target=null;
   if(t.s==='crop'){o.crop=CROPS[t.c].build(); o.crop.ripe=false; o.content.add(o.crop.g); target=o.crop.g;}
   if(t.s==='bld'){o.bld=BLDS[t.b].build(t,i); o.bld.ready=false; o.content.add(o.bld.g); target=o.bld.g; target.userData.sx=1; target.userData.sy=1;
@@ -2669,6 +2666,7 @@ let gridShown=false;
 const gridWanted=()=>!!S.tool||!!moving;
 function groundLook(i){
   const t=S.tiles[i], g=tiles[i].ground; if(!g) return; const bed=t.s==='soil'||t.s==='crop';
+  if(isYard(i)){g.visible=false; return;}   // animal slots draw their own pads (see the animal areas)
   g.visible=true; g.scale.x=g.scale.z=1;
   if(gridShown||bed) return;
   if(t.s==='locked'){g.visible=false; return;}
@@ -2755,15 +2753,39 @@ function updateTile(i,now){
     if(o.markerKind!==kind){removeMarker(i); o.markerKind=kind; if(kind) setMarker(i,true,kind==='hungry'?0xe74c3c:kind==='full'?0xff7f50:BLDS[t.b].mark);}
   }
 }
-// bakuran zones: walkways between them and a sign for each (each animal farm has its own fence now)
-(()=>{const L=[];
-  for(const c of [6,12]){const x=YX0+c*T; L.push([x,.11,YZ0+YR*T/2,.5,.04,YR*T+1,0xd7ccc8]);}
-  L.push([YX0+YC*T/2,.11,YZ0+YR*T+.5,YC*T+1,.04,.8,0xd7ccc8]);
-  scene.add(instR(G.tiny,L));
-  ['PASTULAN','BABUYAN · ISDA','MANUKAN'].forEach((txt,k)=>{const cv=document.createElement('canvas'); cv.width=256; cv.height=64; const cx=cv.getContext('2d'); cx.fillStyle=['#33691e','#5d4037','#e65100'][k]; cx.fillRect(0,0,256,64);
-    cx.fillStyle='#fff'; cx.font='900 32px "Arial Black", Arial, sans-serif'; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText(txt,128,34);
-    const x=YX0+(k*6+3)*T, z=YZ0+YR*T+1.3, sg=new THREE.Mesh(new THREE.PlaneGeometry(2.6,.65),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)})); sg.position.set(x,1.45,z+.06); scene.add(sg);
-    scene.add(part(2.8,.8,.08,0x6d4c41,x,1.45,z)); scene.add(part(.1,1.5,.1,0x6d4c41,x-1.2,.75,z)); scene.add(part(.1,1.5,.1,0x6d4c41,x+1.2,.75,z));});
+// ---- animal areas: each has its own irregular fence and gate, ground to suit the animal, pads under the houses, and its slots
+// an area's fence: the planning rectangle softened into an irregular closed curve (corners cut, sides gently bowed) — the same shape as on docs/farm-plan.svg
+function organic([x0,z0,x1,z1],seed){let a=seed; const r=()=>((a=(a*9301+49297)%233280)/233280-.5), c=Math.min(x1-x0,z1-z0)*.18;
+  return spline([[x0+c,z0+r()*1.5],[(x0+x1)/2+r()*3,z0-1.2+r()],[x1-c,z0+r()*1.5],[x1+r(),z0+c],[x1+1+r(),(z0+z1)/2+r()*3],[x1+r(),z1-c],[x1-c,z1+r()*1.5],[(x0+x1)/2+r()*3,z1+1.2+r()],[x0+c,z1+r()*1.5],[x0+r(),z1-c],[x0-1+r(),(z0+z1)/2+r()*3],[x0+r(),z0+c]],true,2.4);}
+const AREA_GROUND={coop:0xe4ead0,broiler:0xe4ead0,cows:0xd3e4b8,goat:0xdcd8b4,pig:0xd9c9a6,fish:0xd0c3a2,duck:0xd6cfae};
+const EMPTY_TEX={};
+function emptySlotSign(s){   // a dashed outline on the ground and a little board: what can be built here
+  const g=new THREE.Group(), b=[], B=BLDS[s.type];
+  for(const [x,z,w,d] of [[0,-s.d/2,s.w,.12],[0,s.d/2,s.w,.12],[-s.w/2,0,.12,s.d],[s.w/2,0,.12,s.d]]){const n=Math.max(2,Math.round((w>d?w:d)/1.2));
+    for(let k=0;k<n;k+=1){const t=(k+.5)/n-.5; if(k%2) continue; b.push(P('box',0xf2efe6,x+(w>d?t*w:0),.06,z+(w>d?0:t*d),w>d?w/n:.12,.03,w>d?.12:d/n));}}
+  b.push(P('box',0x6d4c41,0,.7,s.d/2-.3,.1,1.4,.1));
+  const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.receiveShadow=true; g.add(m);
+  if(!EMPTY_TEX[s.type]){const cv=document.createElement('canvas'); cv.width=256; cv.height=128; const c=cv.getContext('2d'); c.fillStyle='#f5ecd8'; c.fillRect(0,0,256,128); c.strokeStyle='#6d4c41'; c.lineWidth=8; c.strokeRect(4,4,248,120);
+    c.fillStyle='#6d4c41'; c.textAlign='center'; c.textBaseline='middle'; c.font='900 34px Arial, sans-serif'; c.fillText('BAKANTE',128,40); c.font='800 26px Arial, sans-serif'; c.fillText(`${B.icon} ${B.name}`,128,88,236);
+    EMPTY_TEX[s.type]=new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv),side:THREE.DoubleSide});}
+  const q=new THREE.Mesh(new THREE.PlaneGeometry(1.5,.75),EMPTY_TEX[s.type]); q.position.set(0,1.55,s.d/2-.3); g.add(q); return g;}
+(()=>{const posts=[], pads=[];
+  FARM.areas.forEach((a,ai)=>{const pts=organic(a.fence,ai*7+3), [gx,gz]=a.gate;
+    // ground inside the fence
+    const sh=new THREE.Shape(); pts.forEach(([x,z],k)=>k?sh.lineTo(x,-z):sh.moveTo(x,-z)); const geo=new THREE.ShapeGeometry(sh); geo.rotateX(-Math.PI/2);
+    const gm=new THREE.Mesh(geo,worldGrass(AREA_GROUND[a.type])); gm.position.y=.024; gm.receiveShadow=true; scene.add(gm);
+    // posts and two rails, with a gap at the gate
+    for(let k=0;k<pts.length-1;k++){const [x0,z0]=pts[k], [x1,z1]=pts[k+1]; if(Math.hypot((x0+x1)/2-gx,(z0+z1)/2-gz)<2.2) continue;
+      const len=Math.hypot(x1-x0,z1-z0), ry=Math.atan2(x1-x0,z1-z0); posts.push([x0,.6,z0,.14,1.2,.14,0x6d4c41,ry]);
+      for(const y of [.4,.9]) posts.push([(x0+x1)/2,y,(z0+z1)/2,.06,.07,len+.04,0x8d6e4b,ry]);}
+    // gate posts and a name board beside the gate
+    const k=nearestOn(pts,gx,gz), [ax,az]=pts[Math.max(0,k-1)], [bx,bz]=pts[Math.min(pts.length-1,k+1)], al=Math.atan2(bx-ax,bz-az);
+    for(const s of [-1,1]) posts.push([gx+Math.sin(al)*s*1.7,.8,gz+Math.cos(al)*s*1.7,.22,1.6,.22,0x5d4037,al]);
+    boardSign([a.name.toUpperCase(),BLDS[a.type].icon+' '+BLDS[a.type].name],'#5d4037','#ffe082',gx+Math.sin(al)*3.4,gz+Math.cos(al)*3.4,al+Math.PI/2,2.6,.8,1.1);
+    // concrete pads under poultry and pig houses
+    if(a.type==='coop'||a.type==='broiler'||a.type==='pig') a.slots.forEach(([x,z,w,d])=>pads.push(P('box',0xa39c8c,x,.05,z,w+.6,.1,d+.6)));});
+  const pm=instR(PG.box,posts); pm.castShadow=true; scene.add(pm);
+  if(pads.length){const m=new THREE.Mesh(mergeGeo(pads),VCMAT); m.receiveShadow=true; scene.add(m);}
 })();
 // one fence around the whole lot, following its irregular boundary, with the SUNFIELD FARM gate where the farm road comes in
 (()=>{const L=[], c=0x8d6e4b, G=FARM.gate, gi=nearestOn(FENCE,G.x,G.z);
@@ -2989,8 +3011,7 @@ function tileAt(x,y){
   const cell=(u)=>{const g=FLD.gap/2; if(Math.abs(u)<g) return -1; return Math.floor((u<0?u+g:u-g)/T+N/2);};   // the soil tracks between the beds are not plots
   const c=cell(hitV.x-FLD.x), r=cell(hitV.z-FLD.z);
   if(c>=0&&r>=0&&c<N&&r<N) return r*N+c;
-  const yc=Math.floor((hitV.x-YX0)/T), yr=Math.floor((hitV.z-YZ0)/T);
-  return (yc>=0&&yr>=0&&yc<YC&&yr<YR)?NF+yr*YC+yc:-1;
+  const s=SLOTS.find(s=>Math.abs(hitV.x-s.x)<s.w/2+.4&&Math.abs(hitV.z-s.z)<s.d/2+.4); return s?s.i:-1;   // an animal slot
 }
 function startStroke(x,y){stroke={x,y,done:new Set(),dirty:false,stop:false,n:0}; brushAt(x,y);}
 function brushLine(x1,y1){
@@ -3008,7 +3029,7 @@ function brush(i){
   i=anchorOf(i);
   const t=S.tiles[i], now=Date.now(), tool=S.tool;
   if(t.s==='locked'||hasWild(i)) return;
-  if(isYard(i)&&S.tool!=='harvest'&&!(S.tool==='build'&&S.bld==='fence')) return;
+  if(isYard(i)&&S.tool!=='harvest') return;
   const ready=(t.s==='crop'||(t.s==='bld'&&BLDS[t.b].period))&&progress(i,now)>=1;
   if(ready&&tool==='harvest'){
     if(queueJob('harvest',i)){stroke.n++; flash(i); buzz();} return;
@@ -3110,10 +3131,9 @@ function placeErr(id,i,ign){
   if(ign==null&&MAXL[id]&&countOf(id)>=allowedN(id)){const c=countOf(id), nl=MAXL[id][c]; return nl?`🔒 Your ${ORD(c+1)} ${BLDS[id].name} unlocks at level ${nl}.`:`You already have the most ${BLDS[id].name} you can build.`;}
   if(t.s==='locked') return 'Buy that land first.';
   if(hasWild(i)) return 'A tree is there. Cut it first with 🧹 Clear.';
-  if(YARD_B[id]&&!isYard(i)) return `The ${BLDS[id].name} goes in your bakuran beside the house, not on the crop field.`;
-  if(!YARD_B[id]&&isYard(i)&&id!=='fence') return 'The bakuran is only for animal farms (and fences).';
-  if(YARD_B[id]&&ZONE_OF[id]!=null){const f=foot(i,id); if(f&&f.some(k=>zoneOf(k)!==ZONE_OF[id])) return `${BLDS[id].icon} The ${BLDS[id].name} goes in the ${ZONE_NAME[ZONE_OF[id]]} area of your bakuran.`;}
-  if(BLDS[id].size>1&&!footFree(i,id,ign)) return 'Not enough room. Animal farms need 3×3 empty plots in the bakuran (not at the very edge).';
+  if(YARD_B[id]&&(!slotOf(i)||slotOf(i).type!==id)) return `${BLDS[id].icon} The ${BLDS[id].name} goes in its own area: ${FARM.areas[AREA_OF[id]].name}.`;
+  if(!YARD_B[id]&&isYard(i)) return 'Animal areas are only for their own animals.';
+  if(BLDS[id].size>1&&!footFree(i,id,ign)) return 'That slot is taken. Pick an empty one in the same area.';
   return '';
 }
 function newBuilding(id){const bt=BLDS[id].bt||0, now=Date.now(), o=bt?{s:'bld',b:id,t:now+bt*1000,bs:now,bd:bt}:{s:'bld',b:id,t:now}; if(BLDS[id].size>1) o.lvl=1; return o;}
@@ -3129,6 +3149,7 @@ function startHold(x,y){
       tileAt(holdXY[0],holdXY[1]); const px=moveCand==='house'?S.housePos.x:GX, pz=moveCand==='house'?S.housePos.z:G0;
       moving={obj:moveCand,ox:px-hitV.x,oz:pz-hitV.z}; moved=true; buzz(); toast(`${moveCand==='house'?'🏠 House':'🅿️ Garage'}: drag it to a new spot near your farm, then let go.`,2200); return;}
     if(moveCand<0) return;
+    if(isYard(moveCand)) return toast('🐓 Animal houses stay in their own fenced area.');
     moving={from:moveCand}; moved=true; tiles[moveCand].content.position.y=.6; flash(moveCand); buzz();
     toast(`${BLDS[S.tiles[moveCand].b].icon} Drag it to a new spot, then let go.`,1800);},450);
 }
@@ -3137,7 +3158,7 @@ function cancelHold(){if(holdT){clearTimeout(holdT); holdT=0;} const r=$('holdRi
 function lotRect(k,x,z){const gw=S.garage>=3?11.7:5.3; return k==='house'?[x-4.6,x+4.6,z-4.3,z+7.0]:[x-gw,x+gw,z-3.8,frontZ(x)];}
 function lotOK(k,x,z){
   const [x0,x1,z0,z1]=lotRect(k,x,z), hit=(a0,a1,b0,b1)=>x0<a1&&x1>a0&&z0<b1&&z1>b0;
-  if(hit(YX0-.6,YX0+YC*T+.6,YZ0-.6,YZ0+YR*T+.6)) return 'Your bakuran is there.';
+  if(FARM.areas.some(a=>hit(a.fence[0]-1,a.fence[2]+1,a.fence[1]-1,a.fence[3]+1))) return 'An animal area is there.';
   if(x0<-8.4||x1>30||z0<-34) return 'Too far. Keep it in the home lot near your farm.';
   if(k==='house'&&z1>frontZ(x)+.3) return 'That would block the farm road.';
   if(k==='garage'&&(x<11.5||z+3.8>frontZ(x)-2.5)) return 'The garage has to face the farm road, a little back from it.';
@@ -3250,7 +3271,7 @@ function queueJob(type,i,extra){
   const p=tilePos(i); pin.position.set(p.x,sz>1?.2:.24,p.z); scene.add(pin); jobPins.set(i,pin); return true;
 }
 function dropPin(i){const pin=jobPins.get(i); if(pin){scene.remove(pin); pin.geometry.dispose(); jobPins.delete(i);}}
-function jobSpot(i){const p=tilePos(i), t=S.tiles[i]; if(t.s==='bld'&&BLDS[t.b].size>1) return [p.x,p.z+3.5]; return [p.x+.15,p.z+.75];}
+function jobSpot(i){const p=tilePos(i), t=S.tiles[i], s=slotOf(i); if(s) return [s.x,s.z+s.d/2+.9]; return [p.x+.15,p.z+.75];}   // at an animal slot: just outside its door
 for(const v of Object.keys(VEH)){const V=VEH[v], m=bakePerson(FARMER_LOOK,poseSit), d=V.obj.userData.driver; m.position.copy(d.position); m.visible=false; V.obj.add(m); V.seat=m; V.doorZ=V.doorZ0!=null?V.doorZ0:v==='jeep'?.8:2.3; V.doorUntil=0;
   V.wf=V.wf||(v==='jeep'?1.95:2.15); V.wr=V.wr||(v==='jeep'?1.55:1.9); V.tw=V.tw||(v==='jeep'?.82:.92); V.obj.rotation.order='YXZ';}
 for(const v of Object.keys(VEH)){const tr=S.veh[v].trip; if(tr&&tr.driver==='farmer'&&tr.t0) farmer.riding=v;}
@@ -3552,6 +3573,9 @@ $('cats').addEventListener('click',e=>{const b=e.target.closest('[data-cat]'); i
 let barDrag=null, eatClick=false;
 function placeBuilding(id,i){
   const b=BLDS[id];
+  if(YARD_B[id]&&!(slotOf(i)&&slotOf(i).type===id&&S.tiles[i].s==='grass')){   // animal buildings go to the next free slot of their own area
+    if(MAXL[id]&&countOf(id)>=allowedN(id)) return toast(placeErr(id,findSpot(id)>=0?findSpot(id):i));
+    const k=findSpot(id); if(k<0) return toast(`All ${FARM.areas[AREA_OF[id]].name.toLowerCase()} slots are full.`); i=k; const s=slotOf(k); flyTo(s.x,s.z,30);}
   if(i<0) return toast('Drop it on your farm.');
   const t=S.tiles[i];
   if(t.s==='locked') return toast('Buy that land first, then build there.');
@@ -4666,7 +4690,7 @@ function frame(now){
   flashBox.material.opacity=Math.max(0,1-(now-flashT)/600);
   syncGrid(); updateRoofs(); updateCam(); followSun(); mountains.position.set(camera.position.x,0,camera.position.z); drawFrame();
 }
-if(/[?&]debug\b/.test(location.search)) window.SF={cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,routesFor,routePos,roadDist,VEH,walkOut,noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
+if(/[?&]debug\b/.test(location.search)) window.SF={cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
 renderHUD();
 requestAnimationFrame(frame);
 if(!S.seenHelp){S.seenHelp=true; save(); setTimeout(()=>toast('Open 🧰 Tools, pick a tool, and drag across the field. Sell your harvest at the 🏪 Palengke!',4800),600);}

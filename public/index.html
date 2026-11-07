@@ -524,7 +524,10 @@ if(!S.veh) S.veh={jeep:{trip:null},truck:{owned:false,trip:null}};
 for(const v of ['sedan','van']) if(!S.veh[v]) S.veh[v]={owned:false,trip:null};
 for(const v in (S.veh||{})){const tr=S.veh[v].trip; if(tr&&!tr.t0){tr.t0=Date.now(); tr.driver='hired';}}
 if(S.trip){if(!S.trip.paid) (S.trip.cargo||[]).forEach(c=>{S.coins+=c.coins||0;}); delete S.trip;}
-if(!S.mats) S.mats={}; if(!S.house) S.house=1; if(!S.garage) S.garage=1; if(S.build===undefined) S.build=null;
+if(!S.mats) S.mats={}; if(!S.garage) S.garage=1; if(S.build===undefined) S.build=null;
+// one farmhouse for everyone (a slow, simple life, no bigger houses to chase): the old house levels are retired. HOUSE_DONE counts as the
+// highest old level, so everything that used to wait for a bigger house (vehicles, helpers, the bagsakan deals) now only needs your level.
+const HOUSE_DONE=4; S.house=HOUSE_DONE; if(S.build&&S.build.what==='house') S.build=null;
 /* multi-plot buildings (3x3 manukan) in the bakuran */
 function foot(i,b){const B=BLDS[b]; if(!B||!(B.size>1)) return [i]; if(!isYard(i)) return null;
   const k=i-NF, c=k%YC, r=(k/YC)|0, out=[];
@@ -1077,13 +1080,13 @@ function disposePerson(p){p.root.traverse(o=>{if(o.isMesh) o.geometry.dispose();
 const lerpAng=(a,b,t)=>a+((((b-a+Math.PI)%(Math.PI*2))+Math.PI*2)%(Math.PI*2)-Math.PI)*t;
 const HOUSES=[];   // barangay houses (filled in later); many palengke shoppers walk from here
 /* shoppers: arrive on the sidewalk, browse the aisles, leave, and new ones come */
-const walkers=[], wr=rng(99), LANES=[-9.4,-1.4,1.4,9.4];
+const walkers=[], wr=rng(99), LANES=[-5.75,5.75];   // the dry-goods aisle and the wet-section aisle
 function walkerPlan(){
   const home=HOUSES.length&&wr()<.6?HOUSES[(wr()*HOUSES.length)|0]:null;
-  const s1=home?1:wr()<.5?-1:1, s2=home?1:wr()<.5?-1:1, a1=LANES[(wr()*4)|0], a2=LANES[(wr()*4)|0];
-  const face=a=>Math.abs(a)>5?(wr()<.5?Math.PI/2:-Math.PI/2):(a<0?-Math.PI/2:Math.PI/2);
-  return [[s1*40,SWZ],[s1*5,SWZ],[s1*3.5,21],[a1*.5,14.2],[a1,11.5],[a1,8-wr()*7,1.2+wr()*1.8,face(a1)],[a1,-2-wr()*7,1.2+wr()*1.8,face(a1)],[a1,-12.4],[a2,-12.4],
-    [a2,-4+wr()*10,1+wr()*1.5,face(a2)],[a2,11.5],[a2*.5,14.2],[s2*3.5,21],[s2*5,SWZ],[s2*40,SWZ]];
+  const s1=home?1:wr()<.5?-1:1, s2=home?1:wr()<.5?-1:1, a1=LANES[(wr()*LANES.length)|0], a2=LANES[(wr()*LANES.length)|0];
+  const face=()=>wr()<.5?Math.PI/2:-Math.PI/2;   // stalls on both sides of every aisle
+  return [[s1*40,SWZ],[s1*5,SWZ],[s1*3.5,21],[a1*.5,14.2],[a1,11.5],[a1,5+wr()*5,1.2+wr()*1.8,face()],[a1,wr()*4,1.2+wr()*1.8,face()],[a1,-2],[a2,-2],   // cross behind the stalls
+    [a2,1+wr()*8,1+wr()*1.5,face()],[a2,11.5],[a2*.5,14.2],[s2*3.5,21],[s2*5,SWZ],[s2*40,SWZ]];
 }
 function residentPlan(){ // from a barangay house up the side street to the palengke, then home again
   const plan=walkerPlan(); if(!HOUSES.length||plan[0][0]<0) return plan;
@@ -1118,36 +1121,39 @@ function updateWalkers(dt,t){
   }
 }
 (()=>{const g=market; g.position.set(PX,0,PZ);
-  const W=32, D=26, rnd=rng(77), boxes=[], balls=[], cyls=[], lights=[], vendors=[];
+  // a modest town market: hall x ±11, z -3…13 (its front edge, the apron, the TODA shed and the unloading area are where they always were).
+  // Dry goods (gulay, prutas) on the west side, the wet section (karne, isda) on tiled counters on the east, split by a low tiled wall.
+  const W=22, D=16, ZC=5, rnd=rng(77), boxes=[], balls=[], cyls=[], lights=[], vendors=[];
   const B=(x,y,z,sx,sy,sz,c,ry)=>boxes.push([x,y,z,sx,sy,sz,c,ry||0]);
   const Ball=(x,y,z,sx,sy,sz,c,ry)=>balls.push([x,y,z,sx,sy,sz,c,ry||0]);
   const Cyl=(x,y,z,r,h,c)=>cyls.push([x,y,z,r*2,h,r*2,c]);
   const pick=a=>a[(rnd()*a.length)|0];
-  const SKIN=[0xc68a5a,0xb07850,0xd9a57a,0x9c6b45], HAIR=[0x1c1410,0x2b2016,0x3a2a1c], SHIRT=[0x2e86de,0xe84393,0x27ae60,0xf1c40f,0xffffff,0xe74c3c,0x8e44ad,0x16a085];
   // wet concrete floor
   const floor=new THREE.Mesh(new THREE.BoxGeometry(W,.2,D),new THREE.MeshStandardMaterial({color:0x8b7b5c,roughness:.22,metalness:.3}));
-  floor.position.y=.1; floor.receiveShadow=true; g.add(floor);
-  B(0,.03,D/2+4.5,W+4,.06,9,0x8f8a80);                       // parking / unloading area
+  floor.position.set(0,.1,ZC); floor.receiveShadow=true; g.add(floor);
+  B(0,.03,17.5,36,.06,9,0x8f8a80);                                           // parking / unloading area
   B(0,.03,26.25,12,.06,8.5,0x8f8a80);                                         // driveway to the highway
   B(0,.08,SWZ,90,.16,1.3,0xc9c3b6);                                           // sidewalk along the highway
   B(11,2.5,16.2,8.4,.1,2.2,0x2e86de); for(const x of [7,15]) for(const z of [15.3,17.1]) B(x,1.25,z,.12,2.5,.12,0x7f8c8d); B(11,.45,15.8,6,.1,.5,0x8d6e4b); B(11,2.75,17.25,4,.5,.06,0xf1c40f);   // TODA waiting shed + bench
-  B(0,.8,-D/2,W,1.4,.3,0xd9d2b8); B(-W/2,.8,0,.3,1.4,D,0xd9d2b8); B(W/2,.8,0,.3,1.4,D,0xd9d2b8);   // low walls
-  for(const x of [-15.6,-8.6,8.6,15.6]) for(const z of [-12,-6,0,6,12]) B(x,3.5,z,.35,7,.35,0x2f6f4f);  // green steel posts
-  for(const z of [-12,-6,0,6,12]){B(0,6.9,z,W,.25,.25,0x8a3b2a); B(0,7.9,z,W*.55,.18,.18,0x8a3b2a);}  // rusty trusses
-  for(const x of [-8.6,0,8.6]) B(x,7.1,0,.2,.2,D,0x2f6f4f);
-  // stall rows: meat | vegetables | fruit | fish
-  const ROWS=[{x:-12,f:1,kind:'meat'},{x:-5,f:1,kind:'veg'},{x:5,f:-1,kind:'fruit'},{x:12,f:-1,kind:'fish'}];
+  B(0,.7,-3,W,1.2,.3,0xd9d2b8); B(-W/2,.7,ZC,.3,1.2,D,0xd9d2b8); B(W/2,.7,ZC,.3,1.2,D,0xd9d2b8);   // low walls
+  const PZS=[-2.8,2.4,7.6,12.8];
+  for(const x of [-10.8,0,10.8]) for(const z of PZS) B(x,2.6,z,.3,5.2,.3,0x2f6f4f);                 // green steel posts
+  for(const z of PZS){B(0,5.25,z,W+.6,.22,.22,0x8a3b2a); B(0,6.3,z,.16,2.0,.16,0x8a3b2a);}   // rusty tie beams and king posts
+  // the dividing wall between the dry and wet sections, white tiles
+  B(0,.65,4.6,.26,1.1,11.4,0xe8eef0); for(let k=0;k<4;k++) for(const s of [-1,1]) B(s*.14,.25+k*.27,4.6,.01,.02,11.4,0xc2cdd1);
+  const ROWS=[{x:-8.2,f:1,kind:'veg'},{x:-3.3,f:-1,kind:'fruit'},{x:3.3,f:1,kind:'meat'},{x:8.2,f:-1,kind:'fish'}];
   const GOODS={
     veg:[0x3e8e3a,0x5aa83c,0x2f7a34,0x6bbf4a,0xd63031,0x7d3c5a,0xe67e22,0xd8e8b0],
     fruit:[0xf1c40f,0xf2b23a,0xe67e22,0xc49a2c,0x2e7d32,0xe74c3c,0xf5d76e],
     meat:[0xd9827a,0xb5524a,0xe8a598,0xc0392b,0xf5e6da],
     fish:[0xaab4bc,0x8fa3b5,0x5b7c99,0xc9d3da,0xe8a598],
   };
-  ROWS.forEach(row=>{
-    for(let k=0;k<8;k++){
-      const zc=-10.5+k*3;
-      B(row.x,.85,zc,2.2,.12,2.6,0x3f7f5a); B(row.x,.42,zc,2.0,.75,2.4,0x35684b);
-      if(row.kind==='fish') B(row.x,.94,zc,2,.06,2.4,0xd6eef5);
+  ROWS.forEach(row=>{const wet=row.kind==='meat'||row.kind==='fish';
+    for(let k=0;k<4;k++){
+      const zc=.5+k*3;
+      if(wet){B(row.x,.86,zc,2.2,.1,2.6,0xf2f5f6); B(row.x,.42,zc,2.0,.76,2.4,0xd5dde0); for(let q=0;q<3;q++) B(row.x+row.f*1.005,.2+q*.22,zc,.01,.02,2.4,0xb9c4c8);}   // tiled counter
+      else {B(row.x,.85,zc,2.2,.1,2.6,0x9a7350); B(row.x,.42,zc,2.0,.75,2.4,0x6d4c35);}                                                          // wooden table
+      if(row.kind==='fish') B(row.x,.94,zc,2,.06,2.4,0xd6eef5);                                                                                  // ice
       for(let a=0;a<3;a++) for(let b=0;b<3;b++){
         const x=row.x+(a-1)*.62, z=zc+(b-1)*.78, c=pick(GOODS[row.kind]);
         if(row.kind==='veg'){ if(c===0xd63031||c===0x7d3c5a||c===0xe67e22) for(let q=0;q<4;q++) Ball(x+(q%2-.5)*.22,1.05+(q>1?.16:0),z+((q>>1)-.5)*.2,.24,.22,.24,c);
@@ -1156,30 +1162,39 @@ function updateWalkers(dt,t){
         else if(row.kind==='meat') B(x,1.0,z,.5,.16,.6,c,rnd()*.6);
         else for(let q=0;q<2;q++) Ball(x+(q-.5)*.26,1.02,z,.2,.12,.62,c,rnd()*.4-.2);
       }
-      // vendor sitting behind the table, facing the aisle
+      if(row.kind==='meat'){Cyl(row.x-row.f*.55,1.0,zc+.9,.32,.2,0x8d6e4b);                                                   // chopping block
+        B(row.x,2.35,zc,.06,.06,2.4,0x9e9e9e); for(let q=0;q<4;q++){const hz=zc-.9+q*.6; B(row.x,2.25,hz,.02,.25,.02,0x777777); B(row.x,1.85,hz,.28,.55,.18,pick([0xc0392b,0xd9827a,0xb5524a]),rnd()*.3);}   // meat on hooks
+        for(const s of [-1,1]) B(row.x,1.6,zc+s*1.2,.06,1.6,.06,0x9e9e9e);}
+      if(!wet) for(let q=0;q<2;q++) Cyl(row.x+(q-.5)*1.1,.98,zc+1.05,.3,.06,0xc9a96a);                                         // bilao (flat baskets)
+      B(row.x+row.f*1.12,1.25,zc,.04,.3,.5,0xffffff);                                                                        // price card
+      // vendor sitting behind the counter, facing the aisle
       const vx=row.x-row.f*1.85, vz=zc+(rnd()-.5)*.8;
       Cyl(vx,.43,vz,.2,.46,pick([0xc0392b,0x27ae60,0x2e86de])); vendors.push([vx,vz,row.f]);
-      if(rnd()<.6) Cyl(row.x+row.f*1.25,.3,zc+(rnd()-.5)*1.6,.22,.55,0x2e86de);       // blue tub
-      if(rnd()<.5) B(row.x+row.f*1.3,.25,zc+(rnd()-.5)*1.6,.5,.5,.4,0xc0392b);        // red crate
-      lights.push([row.x+row.f*.6,5.6,zc,.22,.22,.22,0xfff3c4]);
+      if(wet&&rnd()<.7) Cyl(row.x-row.f*1.1,.3,zc+1.15,.22,.55,0x2e86de);                                                    // blue tub beside the vendor
+      if(!wet&&rnd()<.6) B(row.x-row.f*1.1,.25,zc+1.15,.5,.5,.4,pick([0xc0392b,0xf1c40f,0x2e7d32]));                         // plastic crate
+      lights.push([row.x+row.f*.6,4.4,zc,.22,.22,.22,0xfff3c4]);
     }
   });
-  for(let z=-11;z<=11;z+=2.75) lights.push([0,6.2,z,.3,.3,.3,0xffffff]);
-  for(let k=0;k<26;k++) B((rnd()-.5)*22,6.5,(rnd()-.5)*22,.02,1.2,.02,0x333333);   // hanging wires
+  for(let k=0;k<20;k++) B((rnd()-.5)*20,4.9,ZC+(rnd()-.5)*14,.02,.9,.02,0x333333);   // hanging wires
   g.add(inst(UB,boxes)); g.add(inst(US,balls)); g.add(inst(UC,cyls)); g.add(inst(US,lights,true));
   vendors.forEach(([vx,vz,f])=>{const L=randLook(rnd); L.bag=null; L.h=Math.max(.9,L.h); const p=makeVendor(L); const h=new THREE.Group(); h.position.set(vx,.2,vz); h.rotation.y=f>0?Math.PI/2:-Math.PI/2; h.add(p.root); g.add(h); vendorsAnim.push({p,ph:rnd()*20,mode:(rnd()*4)|0,next:rnd()*6});});
+  // section boards hung over each aisle, facing the entrance
+  for(const [txt,bg,x] of [['GULAY · PRUTAS','#2e7d32',-5.75],['KARNE · ISDA','#b03a2e',5.75]]){const cv=document.createElement('canvas'); cv.width=512; cv.height=110; const c=cv.getContext('2d');
+    c.fillStyle=bg; c.fillRect(0,0,512,110); c.fillStyle='#fff'; c.font='900 58px Arial, sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(txt,256,58);
+    const m=new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv),side:THREE.DoubleSide}), q=new THREE.Mesh(new THREE.PlaneGeometry(3.6,.78),m); q.position.set(x,4.2,12.2); g.add(q);
+    for(const s of [-1,1]) g.add(part(.02,.5,.02,0x333333,x+s*1.6,4.85,12.2));}
   // roof (fades when you zoom in so you can see inside)
-  const rL=new THREE.Mesh(new THREE.BoxGeometry(17.2,.15,D+2),roofMat); rL.position.set(-8.5,8.1,0); rL.rotation.z=.117; g.add(rL);
-  const rR=new THREE.Mesh(new THREE.BoxGeometry(17.2,.15,D+2),roofMat); rR.position.set(8.5,8.1,0); rR.rotation.z=-.117; g.add(rR);
+  const rL=new THREE.Mesh(new THREE.BoxGeometry(12.4,.15,D+2.4),roofMat); rL.position.set(-6,6.25,ZC); rL.rotation.z=.2; g.add(rL);
+  const rR=new THREE.Mesh(new THREE.BoxGeometry(12.4,.15,D+2.4),roofMat); rR.position.set(6,6.25,ZC); rR.rotation.z=-.2; g.add(rR);
   // a raised clerestory along the ridge (lets the heat out, like a real pamilihang bayan), fascia boards along the eaves
-  for(const s of [-1,1]){const c=new THREE.Mesh(new THREE.BoxGeometry(3.0,.12,D+2.4),roofMat); c.position.set(s*1.35,10.35,0); c.rotation.z=-s*.26; g.add(c);
-    const lv=new THREE.Mesh(new THREE.BoxGeometry(.08,1.0,D+2),roofMat); lv.position.set(s*2.5,9.6,0); g.add(lv);
-    const fa=new THREE.Mesh(new THREE.BoxGeometry(.12,.35,D+2.1),roofMat); fa.position.set(s*17.05,7.08,0); g.add(fa);}
+  for(const s of [-1,1]){const c=new THREE.Mesh(new THREE.BoxGeometry(2.6,.12,D+2.6),roofMat); c.position.set(s*1.15,8.45,ZC); c.rotation.z=-s*.26; g.add(c);
+    const lv=new THREE.Mesh(new THREE.BoxGeometry(.08,1.1,D+2),roofMat); lv.position.set(s*2.1,7.6,ZC); g.add(lv);
+    const fa=new THREE.Mesh(new THREE.BoxGeometry(.12,.35,D+2.5),roofMat); fa.position.set(s*12.1,4.95,ZC); g.add(fa);}
   for(let k=0;k<22;k++){const w={}; walkers.push(w); spawnWalker(w,(wr()*12)|0);}
   // talipapa: umbrella stalls outside the hall (on the west apron and along both sides), with a seated tindera each, and
   // stacks of plastic crates at the unloading area. Kept clear of the entrance path, the TODA shed and where vehicles unload.
   {const ub=[], UMB=[0xc0392b,0x2e86de,0xf1c40f,0x27ae60,0xe67e22,0x8e44ad], GD=[0xd63031,0x3e8e3a,0xf1c40f,0xe67e22,0xf5e6da,0x6bbf4a];
-    const spots=[[-15,15.6,0],[-11,15.6,0],[-15,20,0],[-11,20,0],[-19.2,-8,1],[-19.2,-2,1],[-19.2,4,1],[19.2,-8,-1],[19.2,-2,-1],[19.2,4,-1]];
+    const spots=[[-15,15.6,0],[-11,15.6,0],[-15,20,0],[-11,20,0],[-14.2,1,1],[-14.2,6,1],[14.2,1,-1],[14.2,6,-1]];
     spots.forEach(([x,z,f],k)=>{ub.push(P('box',0x8d6e4b,x,.38,z,1.7,.08,1.1)); for(const dx of [-.75,.75]) for(const dz of [-.45,.45]) ub.push(P('box',0x6d4c41,x+dx,.18,z+dz,.06,.36,.06));
       for(let i=0;i<6;i++) ub.push(P('box',GD[(k+i)%GD.length],x-.6+(i%3)*.6,.52,z+((i/3|0)-.5)*.5,.45,.18,.4));
       ub.push(P('cyl',0x9e9e9e,x,1.2,z,.06,2.2,.06)); ub.push(P('dome',UMB[k%UMB.length],x,2.25,z,3.0,.9,3.0)); ub.push(P('sph',0xf5f5f5,x,2.72,z,.16,.12,.16));
@@ -1193,10 +1208,9 @@ function updateWalkers(dt,t){
   cx.fillStyle='#ffd23f'; cx.textAlign='center'; cx.textBaseline='middle';
   cx.font='800 54px "Arial Black", Arial, sans-serif'; cx.fillText('PAMILIHANG BAYAN',512,70);
   cx.fillStyle='#ffffff'; cx.font='900 104px "Arial Black", Arial, sans-serif'; cx.fillText('PALENGKE',512,170);
-  const sign=new THREE.Mesh(new THREE.PlaneGeometry(13,3.25),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)}));
-  sign.position.set(0,10.3,D/2+1.1); signG.add(sign);
-  signG.add(part(13.4,3.6,.15,0x163f2e,0,10.3,D/2+1)); g.add(signG);
-  B(-6.4,8.8,D/2+1,.2,2.2,.2,0x2f6f4f); B(6.4,8.8,D/2+1,.2,2.2,.2,0x2f6f4f);
+  const sign=new THREE.Mesh(new THREE.PlaneGeometry(9,2.25),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)}));
+  sign.position.set(0,7.6,14.1); signG.add(sign);
+  signG.add(part(9.3,2.5,.15,0x163f2e,0,7.6,14)); g.add(signG);
   marketMark.position.set(0,13.5,0); marketMark.scale.setScalar(3); marketMark.visible=false; g.add(marketMark);
   scene.add(g);
 })();
@@ -1427,47 +1441,44 @@ function updateKubo(t){
     c.fillStyle='#2d2d2d'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(txt,256,64); B.tx.needsUpdate=true;}
   const r=kubo.sitters.get(kubo.talker).r; B.sp.visible=now<kubo.next-500; B.sp.position.set(r.position.x,2.15,r.position.z);
 }
-function houseLv1(){ // bahay kubo
-  const b=[], bamboo=0xc9a96a, dark=0xa88a50, sawali=0xdcc48e, nipa=0xa8823f;
-  for(const x of [-2.2,0,2.2]) for(const z of [-1.6,0,1.6]) b.push(P('cyl',bamboo,x,.68,z,.22,1.36,.22));
-  b.push(P('box',0xb08d55,0,1.42,0,5.0,.16,3.8));
-  b.push(P('box',sawali,0,2.42,0,4.6,1.84,3.4));
-  for(let k=0;k<7;k++) b.push(P('box',0xc6aa70,0,1.62+k*.26,0,4.62,.03,3.42));
-  for(const x of [-2.3,0,2.3]) for(const z of [-1.7,1.7]) b.push(P('cyl',dark,x,2.42,z,.14,1.9,.14));
-  b.push(P('box',dark,0,3.36,0,4.75,.12,3.55)); b.push(P('box',dark,0,1.52,0,4.75,.1,3.55));
-  [-1.45,1.45].forEach(x=>{b.push(P('box',0x3a2c1c,x,2.55,1.71,1.0,.75,.04));
-    b.push(P('box',nipa,x,3.12,2.08,1.2,.06,.8,.95)); b.push(P('cyl',dark,x+.45,2.62,2.2,.04,.9,.04,.6));});
-  b.push(P('box',0x3a2c1c,0,2.25,1.71,.8,1.45,.04));
-  [-.4,.4].forEach(x=>b.push(P('box',bamboo,x,.72,2.45,.09,1.85,.09,-.42)));
-  for(let k=0;k<4;k++) b.push(P('box',bamboo,0,.22+k*.33,2.7-k*.15,.9,.07,.07));
-  b.push(P('pyr',0x9a7535,0,3.75,0,6.9,.9,5.9)); b.push(P('pyr',nipa,0,4.55,0,6.3,2.6,5.3)); b.push(P('box',0x6b4f2a,0,5.85,0,.3,.2,.3));
-  b.push(P('box',0xb08d55,3.2,1.1,.4,1.5,.12,2.0)); for(const z of [-.5,1.3]) b.push(P('cyl',bamboo,3.85,.55,z,.14,1.1,.14));
-  b.push(P('box',bamboo,3.95,1.5,.4,.06,.06,2.0)); b.push(P('sph',0x8a4b2a,3.2,1.42,.9,.5,.55,.5));
-  [[-1.6,2.6],[1.5,2.7],[2.6,2.4]].forEach(([x,z])=>{b.push(P('cyl',0x9a4a2a,x,.18,z,.36,.36,.36)); b.push(P('sph',0x3f8f3a,x,.55,z,.6,.55,.6));});
-  b.push(P('cyl',dark,-4.2,.9,-1.5,.08,1.8,.08)); b.push(P('cyl',dark,-4.2,.9,1.5,.08,1.8,.08)); b.push(P('box',0x444444,-4.2,1.75,0,.02,.02,3.0));
-  [[-1,0xe74c3c],[-.3,0xf1c40f],[.4,0x2e86de],[1,0xffffff]].forEach(([z,c])=>b.push(P('box',c,-4.2,1.45,z,.03,.55,.45)));
-  return b;
-}
-function houseLv2(){ // two-storey wooden house with capiz windows and a GI roof
-  const b=[], wood=0x9a6b3d, wood2=0xb5835a, trim=0xf3ead2, dark=0x4a3020;
-  b.push(P('box',0x8f8a80,0,.12,0,6.6,.24,5.0));
-  b.push(P('box',wood,0,1.45,0,6.0,2.4,4.4));
-  for(let k=0;k<8;k++) b.push(P('box',0x84592f,0,.4+k*.3,0,6.02,.03,4.42));
-  b.push(P('box',dark,0,2.66,.15,6.9,.12,5.1));
-  b.push(P('box',wood2,0,3.8,.15,6.8,2.2,5.0));
-  for(let k=0;k<7;k++) b.push(P('box',0xa3744b,0,2.85+k*.3,.15,6.82,.03,5.02));
-  [-2.2,0,2.2].forEach(x=>{b.push(P('box',trim,x,3.9,2.66,1.7,1.2,.06));
-    for(let i=0;i<4;i++) for(let j=0;j<3;j++) b.push(P('box',0xf7f0dc,x-.6+i*.4,3.56+j*.34,2.7,.34,.28,.02));
-    b.push(P('box',dark,x,3.15,2.68,1.6,.22,.05));});
-  [-1.3,1.3].forEach(z=>{b.push(P('box',trim,3.42,3.9,z,.06,1.1,1.3)); b.push(P('box',trim,-3.42,3.9,z,.06,1.1,1.3));});
-  b.push(P('box',dark,0,1.25,2.21,1.3,2.0,.06)); b.push(P('box',0x6b4423,-.33,1.25,2.25,.6,1.9,.04)); b.push(P('box',0x6b4423,.33,1.25,2.25,.6,1.9,.04));
-  [-2.1,2.1].forEach(x=>{b.push(P('box',0x3a2c1c,x,1.6,2.21,1.0,.9,.04)); b.push(P('box',0x7a5030,x-.62,1.6,2.25,.25,1.0,.04)); b.push(P('box',0x7a5030,x+.62,1.6,2.25,.25,1.0,.04));});
-  b.push(P('box',0xbdb6a6,0,.08,3.1,1.8,.16,.4)); b.push(P('box',0xbdb6a6,0,.16,2.75,1.8,.32,.4));
-  b.push(P('box',0x6d7b84,0,4.85,.15,7.9,.12,6.3)); b.push(P('pyr',0x8a9aa3,0,5.7,.15,7.8,1.7,6.2));
-  for(let k=-3;k<=3;k++) b.push(P('box',0x7d8b94,k*1.0,4.95,2.9,.05,.08,.7,-.5));
-  [[3.6,.7,2.6],[3.9,1.1,2.1],[3.5,1.4,2.9],[-3.7,.7,2.6]].forEach(([x,y,z])=>b.push(P('sph',0xe84393,x,y,z,.9,.8,.8)));
-  [[-1.6,3.0],[1.6,3.0]].forEach(([x,z])=>{b.push(P('cyl',0x9a4a2a,x,.2,z,.4,.4,.4)); b.push(P('sph',0x3f8f3a,x,.6,z,.65,.6,.65));});
-  return b;
+function farmHouse(){ // the farmhouse: a modest single-storey house with a veranda and a corrugated roof (one design, no upgrades)
+  const b=[], WALL=0xeee3c8, TRIM=0x8a5a3a, WOOD=0x9a6b45, BASE=0xb9b09c, ROOF=0xa24a3a, RIB=0xb5584a, FL=0xc9b48e;
+  const W=7.6, D=4.8, z0=-1.1, ht=2.7, by=.5, A=.36, hd=D/2+.6, top=by+ht, ry=top+hd*Math.tan(A), L=hd/Math.cos(A);
+  b.push(P('box',BASE,0,by/2,z0,W+.3,by,D+.3));                                                                  // raised concrete base
+  b.push(P('box',WALL,0,by+ht/2,z0,W,ht,D)); b.push(P('box',TRIM,0,by+.12,z0,W+.04,.24,D+.04));                  // walls, skirting board
+  for(const x of [-W/2,W/2]) for(const z of [z0-D/2,z0+D/2]) b.push(P('box',TRIM,x,by+ht/2,z,.18,ht,.18));     // corner boards
+  b.push(P('gable',WALL,0,top,z0,W+.02,ry-top,D+.02));
+  for(const s of [-1,1]){const zc=z0+s*hd/2, yc=(top+ry)/2+.06;                                                  // corrugated roof with ribs and fascia
+    b.push(P('box',ROOF,0,yc,zc,W+1.2,.09,L,s*A,0,0));
+    for(let i=0;i<Math.floor((W+1.2)/.5);i++) b.push(P('box',RIB,-(W+1.2)/2+.28+i*.5,yc+.055,zc,.07,.06,L,s*A,0,0));
+    b.push(P('box',0xd8cbb0,0,top+.02,z0+s*(hd+.03),W+1.2,.22,.07));}
+  b.push(P('box',0x7c3a2e,0,ry+.12,z0,W+1.3,.12,.45));                                                         // ridge cap
+  // veranda across the front: floor, posts, railing and a lean-to roof
+  const vz0=z0+D/2, vz1=vz0+2.2, vy=by+.02;
+  b.push(P('box',FL,0,vy-.06,(vz0+vz1)/2,W+.2,.12,vz1-vz0)); b.push(P('box',BASE,0,(vy-.12)/2,(vz0+vz1)/2,W+.2,vy-.12,vz1-vz0-.05));
+  for(const x of [-W/2,-1.1,1.1,W/2]) b.push(P('box',WOOD,x,vy+1.15,vz1-.12,.16,2.3,.16));
+  for(const [x0,x1] of [[-W/2,-1.1],[1.1,W/2]]){b.push(P('box',WOOD,(x0+x1)/2,vy+.85,vz1-.12,x1-x0,.08,.08)); b.push(P('box',WOOD,(x0+x1)/2,vy+.45,vz1-.12,x1-x0,.06,.06));
+    for(let x=x0+.3;x<x1-.1;x+=.3) b.push(P('box',WOOD,x,vy+.45,vz1-.12,.04,.8,.04));}
+  for(const s of [-1,1]) b.push(P('box',WOOD,s*W/2,vy+.85,(vz0+vz1)/2,.08,.08,vz1-vz0));
+  {const a0=by+ht-.15, a1=vy+2.3, ln=Math.hypot(vz1-vz0+.4,a0-a1), an=Math.atan2(a0-a1,vz1-vz0+.4);
+    b.push(P('box',ROOF,0,(a0+a1)/2,(vz0+vz1+.4)/2,W+.6,.08,ln,an,0,0));
+    for(let i=0;i<Math.floor((W+.6)/.5);i++) b.push(P('box',RIB,-(W+.6)/2+.28+i*.5,(a0+a1)/2+.05,(vz0+vz1+.4)/2,.07,.05,ln,an,0,0));}
+  for(let k=0;k<3;k++) b.push(P('box',BASE,0,(3-k)*.08,vz1+.15+k*.3,1.8,(3-k)*.16,.3));                       // steps down to the garden
+  // front: a panelled door and two windows with jalousie slats and wooden shutters; side windows
+  b.push(P('box',TRIM,0,by+1.05,vz0+.02,1.05,2.1,.06)); b.push(P('box',0x6b4423,0,by+1.03,vz0+.05,.9,1.98,.04)); b.push(P('sph',0xd4ac0d,.32,by+1.0,vz0+.09,.07,.07,.07));
+  const win=(x,y,z,f)=>{b.push(P('box',TRIM,x,y,z,1.3,1.15,.06)); b.push(P('box',0x506878,x,y,z+f*.02,1.1,.95,.03));
+    for(let k=0;k<6;k++) b.push(P('box',0xcfd8dc,x,y-.4+k*.16,z+f*.05,1.05,.05,.03,f*.5,0,0));
+    for(const s of [-1,1]) b.push(P('box',0x4f7a5a,x+s*.9,y,z+f*.03,.45,1.1,.04)); b.push(P('box',TRIM,x,y-.62,z+f*.06,1.45,.08,.14));};
+  for(const x of [-2.3,2.3]) win(x,by+1.5,vz0+.03,1);
+  for(const s of [-1,1]) for(const z of [z0-.9,z0+.9]){const x=s*(W/2+.03); b.push(P('box',TRIM,x,by+1.5,z,.06,1.1,1.15)); b.push(P('box',0x506878,x+s*.02,by+1.5,z,.03,.9,.95));
+    for(let k=0;k<5;k++) b.push(P('box',0xcfd8dc,x+s*.05,by+1.15+k*.18,z,.03,.05,.9,0,0,s*.5)); b.push(P('box',TRIM,x+s*.06,by+.93,z,.14,.08,1.3));}
+  // life around the house: potted plants on the veranda, a water drum and a sampayan (clothesline) at the side, a bench
+  for(const [x,c] of [[-3.3,0x3f7f3a],[-2.6,0x4a8a3c],[2.6,0x3a7434],[3.3,0x4a8a3c]]){b.push(P('cyl',0x9a4a2a,x,vy+.18,vz1-.5,.36,.36,.36)); b.push(P('sph',c,x,vy+.55,vz1-.5,.55,.5,.55));}
+  b.push(P('box',WOOD,-1.9,vy+.25,vz0+.45,1.5,.08,.4)); for(const dx of [-.6,.6]) b.push(P('box',WOOD,-1.9+dx,vy+.12,vz0+.45,.08,.25,.35));
+  b.push(P('cyl',0x2f6f9e,W/2+.65,.5,z0-1.2,.75,1.0,.75)); b.push(P('cyl',0x255a82,W/2+.65,1.02,z0-1.2,.78,.06,.78));
+  for(const z of [z0-1.8,z0+.6]) b.push(P('box',0x6d4c41,-W/2-1.1,1.0,z,.08,2.0,.08)); b.push(P('box',0x444444,-W/2-1.1,1.9,z0-.6,.02,.02,2.4));
+  [[0xe74c3c,-1.6],[0xf1c40f,-1.05],[0x2e86de,-.5],[0xffffff,.05],[0xe84393,.5]].forEach(([c,dz])=>b.push(P('box',c,-W/2-1.1,1.6,z0+dz,.03,.55,.45)));
+  return houseGarden(b);
 }
 // front garden for the concrete houses (moves with the house): stepping stones to the gate, a flower bed, a kalachuchi tree and a lamp;
 // the left side stays clear for the kubo-kubo
@@ -1481,59 +1492,10 @@ function houseGarden(b){
   for(let i=0;i<9;i++){const a=i*.7; b.push(P('sph',[0xfff6e8,0xf7c6d4][i%2],kx+Math.cos(a)*.75,2.9+(i%3)*.12,kz+Math.sin(a)*.6,.2,.12,.2));}
   b.push(P('cyl',0x2b2b2b,-1.1,.9,6.6,.08,1.8,.08)); b.push(P('box',0x2b2b2b,-1.1,1.85,6.6,.28,.28,.28)); b.push(P('box',0xfff3c4,-1.1,1.85,6.6,.22,.22,.3));   // lamp post
   return b;}
-function houseLv3(){ // concrete bungalow with tiled roof, grills, gate and water tank
-  const b=[], wall=0xf1e3c6, trim=0xffffff, base=0xbfae8e;
-  b.push(P('box',0xd6d0c4,0,.1,0,8.2,.2,6.4));
-  b.push(P('box',wall,0,1.6,-.2,7.2,2.8,5.2)); b.push(P('box',base,0,.35,-.2,7.25,.5,5.25));
-  [[-3.6,2.4],[3.6,2.4],[-3.6,-2.8],[3.6,-2.8]].forEach(([x,z])=>b.push(P('box',0xe6d5b3,x,1.6,z,.3,2.8,.3)));
-  [-2.2,2.2].forEach(x=>{b.push(P('box',trim,x,1.75,2.41,1.75,1.35,.03)); b.push(P('box',0x7fb3d5,x,1.75,2.43,1.6,1.2,.03));
-    for(let i=0;i<6;i++) b.push(P('box',0x2d3436,x-.67+i*.27,1.75,2.47,.03,1.2,.03)); b.push(P('box',0x2d3436,x,1.75,2.47,1.6,.03,.03));});
-  [-1.4,1.4].forEach(z=>b.push(P('box',0x7fb3d5,3.62,1.75,z-.2,.03,1.1,1.2)));
-  b.push(P('box',0x6b4423,0,1.15,2.42,1.0,2.1,.06)); b.push(P('sph',0xf1c40f,.35,1.1,2.47,.06,.06,.06));
-  b.push(P('box',0xd6d0c4,0,.25,3.1,3.0,.12,1.6));
-  [-1.3,1.3].forEach(x=>b.push(P('box',trim,x,1.45,3.7,.25,2.5,.25))); b.push(P('box',0xb3543a,0,2.78,3.25,3.4,.15,2.0));
-  b.push(P('box',trim,0,3.05,-.2,8.0,.18,6.2)); b.push(P('pyr',0xb3543a,0,4.0,-.2,8.4,1.9,6.6));
-  for(let k=-3;k<=3;k++) b.push(P('box',0x9c4530,k*1.05,3.25,3.05,.04,.06,.9,-.45));
-  b.push(P('box',0xf5f5f5,3.72,2.2,0,.35,.45,.7));
-  for(const dx of [-.5,.5]) for(const dz of [-.5,.5]) b.push(P('box',0x7f8c8d,2.8+dx,1.8,-3.9+dz,.08,3.6,.08));
-  b.push(P('box',0x7f8c8d,2.8,3.62,-3.9,1.3,.08,1.3)); b.push(P('cyl',0x2e86de,2.8,4.25,-3.9,1.1,1.2,1.1));
-  [-2.75,2.75].forEach(x=>b.push(P('box',wall,x,.5,4.3,3.3,1.0,.2)));
-  [-4.4,-1.15,1.15,4.4].forEach(x=>b.push(P('box',0xe6d5b3,x,.65,4.3,.35,1.3,.35)));
-  [-4.4,4.4].forEach(x=>b.push(P('box',wall,x,.5,.65,.2,1.0,7.3)));
-  for(let x=-.95;x<=.96;x+=.19) b.push(P('box',0x2d3436,x,.55,4.3,.04,1.0,.04));
-  b.push(P('box',0x2d3436,0,1.05,4.3,2.0,.05,.05)); b.push(P('box',0x2d3436,0,.12,4.3,2.0,.05,.05));
-  [[-3.4,3.7],[-2.4,3.7],[2.4,3.7],[3.4,3.7]].forEach(([x,z])=>b.push(P('sph',0x3f8f3a,x,.45,z,.8,.7,.6)));
-  [[-3.9,2.8],[3.9,2.8]].forEach(([x,z])=>b.push(P('sph',0xe84393,x,.9,z,.7,.7,.7)));
-  return houseGarden(b);
-}
 const HOUSE=[null,{name:'Bahay Kubo',desc:'Nipa hut on bamboo stilts with sawali walls and a nipa roof.'},{name:'Bahay na Kahoy',desc:'Two-storey wooden house with capiz windows and a yero roof.',coins:300,mats:{wood:30,nails:20,yero:10},dur:30},
   {name:'Bahay na Bato',desc:'Concrete house with a tiled roof, window grills, a gate and a water tank.',coins:900,mats:{hollow:80,cement:25,wood:20,nails:20,yero:16},dur:45},
   {name:'Dalawang-palapag na Bahay',desc:'Two-storey concrete house with a balcony, glass windows, a roof deck and aircon.',coins:6000,mats:{hollow:160,cement:60,wood:40,nails:40,yero:24},dur:60,lvl:10}];
 function clearGroup(g){[...g.children].forEach(c=>{g.remove(c); c.traverse(o=>{if(o.isMesh&&o.geometry&&!o.isInstancedMesh) o.geometry.dispose();});});}
-function houseLv4(){ // modern two-storey concrete house: balcony, big windows, terracotta roof, aircon and a roof-deck tank
-  const b=[], wall=0xf5efe2, wall2=0xd7ccc8, trim=0xffffff, glass=0x7fb3d5, roof=0x9c4530;
-  b.push(P('box',0xd6d0c4,0,.1,0,8.6,.2,6.6));
-  b.push(P('box',wall,0,1.6,-.3,7.6,2.8,5.4)); b.push(P('box',0xbfae8e,0,.35,-.3,7.65,.5,5.45));
-  b.push(P('box',trim,0,3.1,0,8.2,.22,6.2));                                                  // floor slab / balcony
-  b.push(P('box',wall2,0,4.5,-.5,7.4,2.6,5.0)); b.push(P('box',wall,-2.4,4.5,1.95,2.6,2.6,.12));
-  for(const x of [-2.4,2.2]) {b.push(P('box',trim,x,1.75,2.42,1.9,1.4,.04)); b.push(P('box',glass,x,1.75,2.45,1.7,1.2,.04));}
-  b.push(P('box',0x5d4037,0,1.15,2.42,1.0,2.1,.06));
-  for(const x of [.4,2.6]) {b.push(P('box',trim,x,4.5,2.0,1.6,1.7,.04)); b.push(P('box',glass,x,4.5,2.03,1.45,1.55,.04));}   // sliding doors to the balcony
-  b.push(P('box',0xb3e5fc,1.2,3.75,3.05,5.2,.9,.04)); b.push(P('box',0x9e9e9e,1.2,4.22,3.05,5.25,.06,.08));                // glass balcony rail
-  for(const x of [-3.9,3.9]) for(const z of [3.05]) b.push(P('box',trim,x,1.6,z,.3,3.0,.3));
-  b.push(P('box',trim,0,5.85,-.5,7.8,.18,5.4)); b.push(P('pyr',roof,0,6.8,-.5,8.2,1.8,6.0));
-  for(let k=-3;k<=3;k++) b.push(P('box',0x8a3b2a,k*1.05,6.0,2.1,.04,.06,.8,-.45));
-  b.push(P('box',0xeeeeee,3.95,4.4,-1.2,.3,.5,.8)); b.push(P('box',0xeeeeee,3.95,1.6,-1.2,.3,.5,.8));                          // aircon units
-  for(const dx of [-.5,.5]) for(const dz of [-.5,.5]) b.push(P('box',0x7f8c8d,-2.9+dx,6.6,-2.6+dz,.08,1.4,.08));
-  b.push(P('cyl',0x2e86de,-2.9,7.75,-2.6,1.1,1.2,1.1));                                                                      // water tank on the roof deck
-  [-2.75,2.75].forEach(x=>b.push(P('box',wall,x,.55,4.3,3.3,1.1,.2))); [-4.4,-1.15,1.15,4.4].forEach(x=>b.push(P('box',0xe6d5b3,x,.7,4.3,.35,1.4,.35)));
-  [-4.4,4.4].forEach(x=>b.push(P('box',wall,x,.55,.65,.2,1.1,7.3)));
-  for(let x=-.95;x<=.96;x+=.19) b.push(P('box',0xc9a227,x,.6,4.3,.04,1.1,.04)); b.push(P('box',0xc9a227,0,1.12,4.3,2.0,.05,.05));   // golden gate
-  [[-3.4,3.7],[-2.4,3.7],[2.4,3.7],[3.4,3.7]].forEach(([x,z])=>b.push(P('sph',0x3f8f3a,x,.45,z,.8,.7,.6)));
-  [[-3.9,2.8],[3.9,2.8]].forEach(([x,z])=>b.push(P('sph',0xe84393,x,.9,z,.7,.7,.7)));
-  return houseGarden(b);
-}
-// merged parts as one group: spheres and domes (shrubs, canopies, pots) get smooth shading, everything else stays crisp
 // hip roofs (pyr) get courses of tiles or thatch: the cone's v coordinate runs up the slope, so horizontal bands follow the eaves
 const ROOF_TILE=(()=>{const cv=document.createElement('canvas'); cv.width=4; cv.height=64; const c=cv.getContext('2d');
   for(let y=0;y<64;y++){const u=(y%16)/16, v=Math.round(255-(u<.18?70:u<.3?30:0)-u*22); c.fillStyle=`rgb(${v},${v},${v})`; c.fillRect(0,y,4,1);}
@@ -1543,7 +1505,7 @@ function mergeGeoUV(list){const g=mergeGeo(list), uv=[]; for(const [geo] of list
   g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); return g;}
 function vcGroup(list){const g=new THREE.Group(), kind=l=>l[0]===PG.sph||l[0]===PG.dome?1:l[0]===PG.pyr?2:0;
   [[VCMAT,mergeGeo],[VCSMOOTH,mergeGeo],[ROOF_TILE,mergeGeoUV]].forEach(([M,merge],k)=>{const L=list.filter(l=>kind(l)===k); if(L.length){const m=new THREE.Mesh(merge(L),M); m.castShadow=m.receiveShadow=true; g.add(m);}}); return g;}
-function buildHouse(){clearGroup(houseG); houseG.add(vcGroup([houseLv1,houseLv2,houseLv3,houseLv4][S.house-1]()));}
+function buildHouse(){clearGroup(houseG); houseG.add(vcGroup(farmHouse()));}
 // ---- garage / paradahan
 const garageG=new THREE.Group(), driveG=new THREE.Group(); scene.add(garageG,driveG);
 const GARAGE=[null,{name:'Dirt parking',desc:'Gravel spot with a bamboo shade. Fits your jeepney.'},{name:'Covered garage',desc:'Concrete floor, hollow-block wall and yero roof. Fits the jeepney and an Elf truck.',coins:250,mats:{wood:12,nails:10,yero:8,cement:6},dur:25},
@@ -3925,7 +3887,7 @@ function renderUp(){
       <div class="pay">Meat in your bodega: <b>${meatN}</b></div><button class="go" data-up="city" ${meatN&&vehFree('van')&&driverFree()?'':'disabled'}>${S.veh.van.trip?'🚐 On the road…':'🏙️ Deliver meat to the city'}</button></div>`
     :`<div class="ucard"><div class="who">🚐 Closed van</div><div class="pay">A Philippine aluminium closed van with a reefer unit. The only vehicle that can take chilled meat to the city, where it sells for 180% of the palengke price.</div>
       ${S.level<VAN_LV?`<div class="pay">🔒 Unlocks at level ${VAN_LV}.</div>`:''}${S.garage<3?'<div class="pay">Needs the big garage (garage level 3).</div>':''}${needHouse(3)}<button class="go" data-up="van" ${S.level>=VAN_LV&&S.garage>=3&&S.house>=3&&S.coins>=VAN_PRICE?'':'disabled'}>Buy for 🪙${VAN_PRICE.toLocaleString()}</button></div>`;
-  $('upCards').innerHTML=upCard('house','🏠',HOUSE,S.house)+upCard('garage','🅿️',GARAGE,S.garage)+jeepCard+truckCard+sedanCard+vanCard;
+  $('upCards').innerHTML=upCard('garage','🅿️',GARAGE,S.garage)+jeepCard+truckCard+sedanCard+vanCard;
   updateTravelHUD(Date.now());
 }
 $('upSheet').addEventListener('click',e=>{
@@ -4494,6 +4456,7 @@ function updateTransit(dt,t){
 if(S.pasa&&S.pasa.phase==='done-on-load'){const P=S.pasa; S.pasa=null; settlePasabay(P); if(P.mats) for(const k in P.mats) S.mats[k]=(S.mats[k]||0)+P.mats[k]; save();}
 /* ---------- 📰 news: what changed in each update ---------- */
 const NEWS=[
+  {v:14,date:'Nov 7, 2026',title:'A new look for the whole province',items:['🎨 Softer colours, ink outlines and painted grass everywhere. The plot grid only shows while you use a tool.','🏡 One farmhouse for a simple life: a single-storey house with a veranda. House upgrades are gone, and everything that used to need a bigger house now only needs your level.','🏪 A smaller palengke: vegetables and fruit on one side, meat and fish on tiled counters on the other, umbrella stalls outside.','🔨 The hardware, poultry and Binhi stores are modest roadside shops now, with motorsiklo and a tricycle parked out front.','🐔 Solid yero roofs on the animal houses (zoom in to see inside), natural ponds, an orchard and a utility yard on the farm.','🏭 Crates and a forklift at the bagsakan; silos and a loading conveyor at Mega Foods. A hillside barangay and mountains in the distance.']},
   {v:13,date:'Nov 7, 2026',title:'New animals, missions and a fenced farm',items:['🦆 Itikan (level 4): itik that lay the eggs for balut. 🐐 Kambingan (level 5): goats for milk and meat. 🐟 Palaisdaan (level 6): a tilapia pond with paddle-wheel aerators.','📋 Missions: Mang Ben the balut maker, the sari-sari store, the kapitan’s fiesta, the karinderya, city restaurants and more ask for your goods. Deliver with your own vehicle; missions pay more than the palengke.','The bakuran is bigger and split into areas: Pastulan (cows, goats), Babuyan at palaisdaan (pigs, fish) and Manukan (chickens, ducks). Its old fence is gone; every farm has its own.','One big fence now goes around your whole lot, with a SUNFIELD FARM gate where the dirt road comes in.','🪵 Build your own fences: pick Bakod in Build and drag. Pieces join up, and you can clear them any time.']},
   {v:12,date:'Nov 7, 2026',title:'Busier bagsakan, real PH rides and a nicer farm',items:['🚛 Other traders’ trucks deliver to the bagsakan too. There is one unloading bay, so sometimes your vehicle waits at the gate for its turn.','🥖 The pandesal vendor now rides a padyak (bicycle with a sidecar bread box), and the balut vendor walks with his basket and gas lamp.','🚗 Cars now look like the ones on Philippine roads: sedans, MPVs, SUVs, pickups and the FB van.','🛣️ The barangay road now joins the highway at both ends.','🌾 An irrigation canal with a footbridge in front of the field, a panakot (scarecrow), a tagak riding the carabao, and greener, patchy grass.']},
   {v:11,date:'Nov 7, 2026',title:'Your house matters',items:['A new house level 4: a two-storey concrete house with a balcony, big windows, a roof deck and aircon (level 10).','Bigger unlocks now need a better house: Elf truck, sedan, big garage and bagsakan permit need house level 2; the closed van and your 3rd helper need house level 3; the Mega Foods deal needs house level 4. Your 2nd helper needs house level 2.']},
@@ -4563,7 +4526,6 @@ const ACH=[
   ['brl','🐔','Manukan','Build a Manukan-Karne',()=>[countOf('broiler'),1],200,40],
   ['coop','🥚','Itlogan','Build a Manukan-Itlog',()=>[countOf('coop'),1],300,50],
   ['egg','🥚','Isang daang itlog','Collect 100 eggs',()=>[st().egg,100],300,60],
-  ['house2','🏠','Bahay na Kahoy','Upgrade your house to Bahay na Kahoy',()=>[S.house>=2?1:0,1],300,60],
   ['allc','🥗','Pinakbet','Plant every kind of crop',()=>[Object.keys(st().crops).length,Object.keys(CROPS).length],2000,250],
   ['lv5','⭐','Level 5','Reach level 5',()=>[S.level,5],400,0],
   ['help','👷','May katuwang','Hire your first trabahador',()=>[S.helpers.length,1],500,60],
@@ -4579,12 +4541,10 @@ const ACH=[
   ['h300','🏆','Batikang magsasaka','Harvest 300 crops',()=>[st().harvest,300],1000,150],
   ['land2','🌄','Malawak na lupa','Own 80 plots of land',()=>[owned(),80],800,120],
   ['permit','🏬','Trader’s permit','Get a trader’s permit for the bagsakan',()=>[S.wh.owned?1:0,1],2000,250],
-  ['house3','🏡','Bahay na Bato','Upgrade your house to Bahay na Bato',()=>[S.house>=3?1:0,1],1500,200],
   ['duck','🦆','Itikan','Build an Itikan',()=>[countOf('duck'),1],400,60],
   ['goat','🐐','Kambingan','Build a Kambingan',()=>[countOf('goat'),1],600,80],
   ['fish','🐟','Palaisdaan','Build a Palaisdaan',()=>[countOf('fish'),1],800,100],
   ['mis10','📋','Maaasahan','Finish 10 delivery missions',()=>[S.stats.missions||0,10],2000,250],
-  ['house4','🏘️','Dalawang palapag','Build the two-storey concrete house',()=>[S.house>=4?1:0,1],4000,400],
   ['lv10','⭐','Level 10','Reach level 10',()=>[S.level,10],3000,0],
   ['crew','👨‍👩‍👦','Buong tropa','Have 3 trabahador',()=>[S.helpers.length,3],3000,300],
   ['bulk','📦','Pakyawan','Sell 500 items at the bagsakan',()=>[st().bulk,500],4000,400],

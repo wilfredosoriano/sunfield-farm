@@ -592,6 +592,7 @@ const GLOW_MATS=[], glowMat=(color,k)=>{const m=new THREE.SpriteMaterial({map:GL
 const GM={warm:glowMat(0xffc46b,.95), white:glowMat(0xfff3d6,.85), head:glowMat(0xfff6d0,1), tail:glowMat(0xff3b30,.75)};
 function glow(parent,x,y,z,size,m=GM.warm){const sp=new THREE.Sprite(m); sp.position.set(x,y,z); sp.scale.set(size,size,1); sp.renderOrder=5; parent.add(sp); return sp;}
 const LAMP_MAT=new THREE.MeshBasicMaterial({color:0x8a8a80});
+const MTN_MAT=new THREE.MeshBasicMaterial({vertexColors:true,fog:false}), MTN_NIGHT=new THREE.Color(0x26314d);   // the distant mountains (see bundok)
 const C_DAY=new THREE.Color(SKY), C_NIGHT=new THREE.Color(0x0f1b38), C_DUSK=new THREE.Color(0xf2a36b), _sky=new THREE.Color();
 const H_DAY=new THREE.Color(0xeaf6ff), H_NIGHT=new THREE.Color(0x7f97d6), S_DAY=new THREE.Color(0xfff0d2), S_NIGHT=new THREE.Color(0x8ea4ff), S_DUSK=new THREE.Color(0xffa860), L_OFF=new THREE.Color(0x8a8a80), L_ON=new THREE.Color(0xfff1b8);
 let NK=0, wasWork=null, clockTxt='';
@@ -601,7 +602,7 @@ function updateDayNight(){
   hemi.intensity=.78-.42*NK; hemi.color.copy(H_DAY).lerp(H_NIGHT,NK);
   sun.intensity=.95-.68*NK; sun.color.copy(S_DAY).lerp(S_NIGHT,NK).lerp(S_DUSK,.5*dusk*(1-NK*.6));
   for(const m of GLOW_MATS){m.opacity=NK*m.userData.k; m.visible=NK>.02;}
-  LAMP_MAT.color.copy(L_OFF).lerp(L_ON,NK);
+  LAMP_MAT.color.copy(L_OFF).lerp(L_ON,NK); MTN_MAT.color.setRGB(1,1,1).lerp(MTN_NIGHT,NK*.85);
   const hh=Math.floor(h), mm=Math.floor((h-hh)*60/10)*10, txt=`${NK>.5?'🌙':(h>=5&&h<7.5)||(h>=16.5&&h<19)?'🌅':'☀️'} ${((hh+11)%12)+1}:${String(mm).padStart(2,'0')} ${hh<12?'AM':'PM'}`;
   if(txt!==clockTxt){clockTxt=txt; const el=document.getElementById('clockTxt'); if(el) el.textContent=txt;}
   const w=h>=6&&h<18; if(wasWork!==null&&w!==wasWork&&S.helpers&&S.helpers.length) toast(w?'🌅 Magandang umaga! Your trabahador are taking the bus back to work.':'🌇 Alas-sais na! Your trabahador are going home to rest.',3200); wasWork=w;
@@ -1176,12 +1177,24 @@ const LE=HZ+1.75, LW=HZ-1.75, DX=34, RZ=-14.5, HWX=-60;
 if(!S.housePos) S.housePos={x:0,z:-20}; if(!S.garagePos) S.garagePos={x:12,z:-19.5};
 let GX=S.garagePos.x, G0=S.garagePos.z;                         // garage centre (movable)   // lanes (east/westbound), dirt road, garage line
 const SPD={dirt:7,hwy:16,slow:3.5};
+// instanced scenery, split into 48 m map cells so the camera (and the sun's shadow pass) skip the cells that are out of view.
+// Each cell gets its own bounding sphere around its instances; the cells share the geometry's buffers.
+const CELL=48;
 function instR(geo,list,material){
   const m=material||new THREE.MeshStandardMaterial({color:0xffffff,roughness:.9,flatShading:true});
-  const im=new THREE.InstancedMesh(geo,m,list.length), o=new THREE.Object3D(), c=new THREE.Color(); o.rotation.order='YZX';
-  list.forEach((p,k)=>{o.position.set(p[0],p[1],p[2]); o.rotation.set(p[8]||0,p[7]||0,p[9]||0); o.scale.set(p[3],p[4],p[5]); o.updateMatrix();
-    im.setMatrixAt(k,o.matrix); im.setColorAt(k,c.setHex(p[6]));});
-  im.instanceMatrix.needsUpdate=true; if(im.instanceColor) im.instanceColor.needsUpdate=true; im.receiveShadow=true; im.frustumCulled=false; return im;
+  if(!geo.boundingSphere) geo.computeBoundingSphere(); const gr=geo.boundingSphere.center.length()+geo.boundingSphere.radius;
+  const cells=new Map(); for(const p of list){const k=Math.floor(p[0]/CELL)+','+Math.floor(p[2]/CELL); if(!cells.has(k)) cells.set(k,[]); cells.get(k).push(p);}
+  const out=new THREE.Group(), o=new THREE.Object3D(), c=new THREE.Color(); o.rotation.order='YZX';
+  for(const cl of cells.values()){
+    const g=new THREE.BufferGeometry(); for(const a in geo.attributes) g.setAttribute(a,geo.attributes[a]); if(geo.index) g.setIndex(geo.index);
+    const im=new THREE.InstancedMesh(g,m,cl.length), ctr=new THREE.Vector3();
+    cl.forEach((p,k)=>{o.position.set(p[0],p[1],p[2]); o.rotation.set(p[8]||0,p[7]||0,p[9]||0); o.scale.set(p[3],p[4],p[5]); o.updateMatrix();
+      im.setMatrixAt(k,o.matrix); im.setColorAt(k,c.setHex(p[6])); ctr.x+=p[0]/cl.length; ctr.y+=p[1]/cl.length; ctr.z+=p[2]/cl.length;});
+    let r=0; for(const p of cl) r=Math.max(r,Math.hypot(p[0]-ctr.x,p[1]-ctr.y,p[2]-ctr.z)+gr*Math.max(Math.abs(p[3]),Math.abs(p[4]),Math.abs(p[5])));
+    g.boundingSphere=new THREE.Sphere(ctr,r); im.frustumCulled=true;   // (r128 instanced meshes turn culling off by default)
+    im.instanceMatrix.needsUpdate=true; if(im.instanceColor) im.instanceColor.needsUpdate=true; im.receiveShadow=true; out.add(im);}
+  for(const k of ['castShadow','receiveShadow']) Object.defineProperty(out,k,{get:()=>out.children.length?out.children[0][k]:false,set:v=>out.children.forEach(ch=>ch[k]=v)});
+  return out;
 }
 PG.pyr=new THREE.ConeGeometry(Math.SQRT1_2,1,4); PG.pyr.rotateY(Math.PI/4);
 // a coconut frond: a curved midrib (rises, then droops) with rows of narrow leaflets hanging on both sides
@@ -2226,13 +2239,17 @@ const ducks=[];
     const bk=mesh(G.beak,0xf0a530,.27,.29,0); bk.rotation.z=-Math.PI/2; d.add(bk);
     d.scale.setScalar(1.6); scene.add(d); ducks.push({d,px,pz,ph:k*Math.PI});}
 })();
+// inside the lot fence: the halamanan (orchard) east of the field and the talyer / utility yard west of the kamalig
+const ORCH=[15.5,31.5,-11.2,4.2], UTIL=[-47,-29.5,-12.4,4], SARI=[16.5,28,-104.8,-96.5];   // [x0,x1,z0,z1]; SARI: sari-sari store where the dirt road meets the highway
+const inRect=(R,x,z,m)=>x>R[0]-m&&x<R[1]+m&&z>R[2]-m&&z<R[3]+m;
 // countryside: acacia, mango, niyog, saging and kawayan trees, wild grass and flowers (all instanced, all cast shadows)
 (()=>{const rr=rng(42);
   const onRoad=(x,z,m)=>(z>RZ-1.6-m&&z<RZ+1.6+m&&x>4-m&&x<DX+1.6+m)||(x>DX-1.6-m&&x<DX+1.6+m&&z<RZ+1.6+m&&z>HZ-m)||(z>HZ-5.4-m&&z<HZ+5.4+m);
   const busy=(x,z,m)=>(x>-H-3-m&&x<H+3+m&&z>-H-3-m&&z<H+3+m)||(x>-9-m&&x<31+m&&z>-35-m&&z<-11+m)||(x>YX0-2-m&&x<YX0+YC*T+2+m&&z>YZ0-2-m&&z<YZ0+YR*T+2+m)
     ||(x<-(H+2)+m&&x>-(H+16)-m&&z>-14-m&&z<6+m)||Math.hypot(x-(H+9),z-(H-2))<7.5+m||Math.hypot(x+(H+6),z-(H+5))<4+m
     ||(x>DX-14&&x<DX+14&&z<RZ-17.4&&z>HZ+7.4)
-    ||(x>PX-25-m&&x<PX+25+m&&z>PZ-19-m&&z<HZ-4)||(x>HWX-14-m&&x<HWX+14+m&&z>HZ-25-m&&z<HZ-4)||(x>PSX-14-m&&x<PSX+14+m&&z>HZ-25-m&&z<HZ-4)||(x>SSX-12-m&&x<SSX+12+m&&z>HZ-25-m&&z<HZ-4)||(x>DX+1-m&&x<DX+32+m&&z>HZ+3-m&&z<HZ+12+m)||(x>34-m&&x<336+m&&z>-218-m&&z<-164+m)||(x>34-m&&x<46+m&&z>-190&&z<HZ-4)||(x>324-m&&x<336+m&&z>-190&&z<HZ-4)||(x>PX+38-m&&x<PX+46+m&&z>-190-m&&z<HZ-4)||(x>WHX-14-m&&x<WHX+30+m&&z>HZ-32-m&&z<HZ-4)||(x>FX-30-m&&x<FX+30+m&&z>HZ-64-m&&z<HZ-4);   // sakayan, warehouse, factory
+    ||(x>PX-25-m&&x<PX+25+m&&z>PZ-19-m&&z<HZ-4)||(x>HWX-14-m&&x<HWX+14+m&&z>HZ-25-m&&z<HZ-4)||(x>PSX-14-m&&x<PSX+14+m&&z>HZ-25-m&&z<HZ-4)||(x>SSX-12-m&&x<SSX+12+m&&z>HZ-25-m&&z<HZ-4)||(x>DX+1-m&&x<DX+32+m&&z>HZ+3-m&&z<HZ+12+m)||(x>34-m&&x<336+m&&z>-218-m&&z<-164+m)||(x>34-m&&x<46+m&&z>-190&&z<HZ-4)||(x>324-m&&x<336+m&&z>-190&&z<HZ-4)||(x>PX+38-m&&x<PX+46+m&&z>-190-m&&z<HZ-4)||(x>WHX-14-m&&x<WHX+30+m&&z>HZ-32-m&&z<HZ-4)||(x>FX-30-m&&x<FX+30+m&&z>HZ-64-m&&z<HZ-4)   // sakayan, warehouse, factory
+    ||inRect(ORCH,x,z,m)||inRect(UTIL,x,z,m)||inRect(SARI,x,z,m);
   const trunks=[],blobs=[],segs=[],fronds=[],nuts=[],bleaves=[],culms=[],bananaL=[];
   const GREENS=[0x3f8f3a,0x4f9d3f,0x5fae4a,0x2f6b2a,0x3a7a32,0x6aa84a];
   const acacia=(x,z,s)=>{ // wide umbrella canopy (rain tree), common along Philippine roads
@@ -2277,10 +2294,14 @@ const ducks=[];
   const plant=(x,z)=>{if(onRoad(x,z,1.2)||busy(x,z,1)) return false; pickTree(rr())(x,z,.8+rr()*.6); return true;};
   let placed=0,tries=0;
   while(placed<520&&tries<12000){tries++; if(plant(-170+rr()*430,-235+rr()*290)) placed++;}
+  for(placed=0,tries=0;placed<190&&tries<6000;tries++) if(plant(260+rr()*200,-235+rr()*290)) placed++;   // out east by the factory too
   // roadside trees: along the dirt road and both sides of the highway
   for(let x=6;x<DX-3;x+=4+rr()*5) for(const sd of [-1,1]) if(rr()<.75) plant(x+(rr()-.5)*2,RZ+sd*(3.5+rr()*3));
   for(let z=RZ-4;z>HZ+6;z-=4+rr()*5) for(const sd of [-1,1]) if(rr()<.5) plant(DX+sd*(15+rr()*4),z);
-  for(let x=-190;x<300;x+=6+rr()*9) for(const sd of [-1,1]) if(rr()<.8) plant(x,HZ+sd*(8+rr()*6));
+  for(let x=-190;x<460;x+=6+rr()*9) for(const sd of [-1,1]) if(rr()<.8) plant(x,HZ+sd*(8+rr()*6));
+  // a windbreak of niyog, mango and acacia just outside the lot fence (south and west sides)
+  for(let x=-52;x<36;x+=3.2+rr()*2.4){plant(x,22.5+rr()*3.5); if(rr()<.6) plant(x+1.5,28+rr()*4);}
+  for(let z=-36;z<22;z+=3.2+rr()*2.4){plant(-52+rr()*-3.5,z); if(rr()<.6) plant(-58-rr()*4,z+1.5);}
   const shade=l=>{const m=instR(l[0],l[1]); m.castShadow=true; scene.add(m);};
   const BLOB=new THREE.IcosahedronGeometry(1,1), CYL=new THREE.CylinderGeometry(.42,.5,1,7), LEAF=new THREE.BoxGeometry(1,1,1);
   [[CYL,trunks],[BLOB,blobs],[G.palmSeg,segs],[G.nut,nuts],[LEAF,bleaves],[new THREE.CylinderGeometry(.5,.5,1,6),culms]].forEach(shade);
@@ -2305,12 +2326,31 @@ const ducks=[];
   const gm=instR(tuft,grass,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,flatShading:true})); scene.add(gm);
   scene.add(instR(new THREE.SphereGeometry(1,5,4),flowers));
 })();
+// gentle hills (burol) beyond the farm, the town and the factory, where nothing is built
+(()=>{const r=rng(606), b=[], CL=[0x7fb352,0x86b85a,0x78ab4e,0x8fbf5e];
+  const hill=(x,z)=>{const w=24+r()*36; b.push(P('dome',CL[(r()*4)|0],x,-.4,z,w,4+r()*7,w*(.6+r()*.5),0,r()*3,0));};
+  for(let k=0;k<26;k++) hill(-190+r()*660,70+r()*110);          // south, past the farm
+  for(let k=0;k<26;k++) hill(-190+r()*660,-262-r()*110);        // north, past the barangay
+  for(let k=0;k<10;k++){hill(-205-r()*80,-200+r()*260); hill(470+r()*80,-200+r()*260);}   // west and east ends
+  const m=new THREE.Mesh(mergeGeo(b),new THREE.MeshStandardMaterial({vertexColors:true,flatShading:true,roughness:1})); m.receiveShadow=true; scene.add(m);
+})();
 // clouds
 const clouds=[];
 (()=>{const rr=rng(7); const cm=new THREE.MeshStandardMaterial({color:0xffffff,emissive:0xffffff,emissiveIntensity:.3,flatShading:true});
   for(let k=0;k<9;k++){const g=new THREE.Group(); const n=3+((rr()*3)|0);
     for(let j=0;j<n;j++){const p=new THREE.Mesh(new THREE.IcosahedronGeometry(1.6+rr()*1.4,1),cm); p.position.set(j*1.9-n,rr()*.8,rr()*1.5); g.add(p);}
     g.position.set(-80+rr()*160,18+rr()*8,-60+rr()*120); scene.add(g); clouds.push({g,v:.5+rr()*.8});}
+})();
+// bundok: layers of hazy mountains on the horizon (with a Mayon-like volcano to the north). It moves with the camera like a backdrop,
+// so it never gets closer; it ignores the fog and is drawn as flat haze-coloured silhouettes that darken with the evening (updateDayNight).
+const mountains=new THREE.Group();
+(()=>{const b=[], r=rng(2024), R=372, cone=new THREE.ConeGeometry(1,1,10,1,true);
+  [[0,56,22,20,0x9fc4cf],[24,44,14,14,0x8fb6b6],[44,40,8,8,0x80a896]].forEach(([back,n,h0,hv,col],L)=>{
+    for(let k=0;k<n;k++){const a=k/n*Math.PI*2+r()*.1+L, rad=R-back, h=h0+r()*hv, w=h*(1.4+r()*.8);
+      b.push([cone,Mx(Math.sin(a)*rad,h/2-4,-Math.cos(a)*rad,w,h,w,0,0,0),col]);}});
+  b.push([cone,Mx(-60,27,-R+6,75,62,75,0,0,0),0x93b6c2]);                                              // the volcano: a near-perfect cone…
+  b.push([cone,Mx(-60,53.6,-R+6,11.6,9,11.6,0,0,0),0xc3d5da]);                                         // …with a paler, ashy summit
+  const m=new THREE.Mesh(mergeGeo(b),MTN_MAT); m.frustumCulled=false; mountains.add(m); scene.add(mountains);
 })();
 
 /* ---------- Farm tiles ---------- */
@@ -2496,6 +2536,103 @@ function updateTile(i,now){
   for(const sd of [-1,1]){const sg=new THREE.Mesh(new THREE.PlaneGeometry(4.6,.85),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)})); sg.position.set(X1+sd*.2,3.6,RZ); sg.rotation.y=sd*Math.PI/2; scene.add(sg);}
   scene.add(part(.3,1.0,4.8,0x4e342e,X1,3.6,RZ));
 })();
+// a painted board on two posts (both faces readable, or the front only when two=false: arrows only make sense one way)
+function boardSign(lines,bg,fg,x,z,ry,w=3.2,h=1,y=1.6,post=0x6d4c41,two=true){
+  const cv=document.createElement('canvas'); cv.width=512; cv.height=Math.round(512*h/w); const c=cv.getContext('2d'), n=lines.length;
+  c.fillStyle=bg; c.fillRect(0,0,cv.width,cv.height); c.strokeStyle=fg; c.lineWidth=8; c.strokeRect(10,10,cv.width-20,cv.height-20); c.fillStyle=fg; c.textAlign='center'; c.textBaseline='middle';
+  lines.forEach((s,k)=>{let px=Math.round(cv.height*(k?.26:.4)/Math.max(1,n*.7)); do{c.font=`${k?'800':'900'} ${px}px Arial, sans-serif`;}while(c.measureText(s).width>470&&--px>8); c.fillText(s,256,cv.height*(k+.5)/n);});
+  const m=new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)}), g=new THREE.Group();
+  for(const sd of two?[0,Math.PI]:[0]){const q=new THREE.Mesh(new THREE.PlaneGeometry(w,h),m); q.rotation.y=sd; q.position.z=sd?-.04:.04; g.add(q);}
+  g.add(part(w+.1,h+.1,.06,post,0,0,0)); for(const sx of [-1,1]) g.add(part(.12,y+h/2,.12,post,sx*(w/2+.11),h/2-(y+h/2)/2,0));
+  g.position.set(x,y,z); g.rotation.y=ry; scene.add(g); return g;}
+// ---- halamanan (orchard): mangga, kalamansi and bayabas in rows, saging by the fence, a dirt path and a kubol where the fruit is sorted
+(()=>{const b=[], banana=[], r=rng(314), [x0,x1,z0,z1]=ORCH, cz=(z0+z1)/2;
+  b.push(P('box',0x78a04a,(x0+x1)/2,.014,cz,x1-x0,.028,z1-z0));                                       // mowed floor
+  b.push(P('box',0xb08a5a,(x0+x1)/2,.032,-3.6,x1-x0,.02,1.5));                                         // dirt path
+  const fruitRing=(x,y,z,R,n,cols,sz)=>{for(let k=0;k<n;k++){const a=r()*6.28, e=(r()-.6)*1.1; b.push(P('sph',cols[k%cols.length],x+Math.cos(a)*Math.cos(e)*R,y+Math.sin(e)*R*.8,z+Math.sin(a)*Math.cos(e)*R,sz,sz*1.25,sz));}};
+  const mango=(x,z,s)=>{b.push(P('cyl',0x6b4a2a,x,.9*s,z,.36*s,1.8*s,.36*s)); b.push(P('sph',0x2f6b2a,x,2.6*s,z,3*s,2.3*s,3*s));
+    for(let k=0;k<5;k++){const a=k*1.26+r(); b.push(P('sph',[0x356f2e,0x3a7a32,0x2a5f26][k%3],x+Math.cos(a)*.95*s,(2.2+r()*.5)*s,z+Math.sin(a)*.95*s,1.7*s,1.4*s,1.7*s));}
+    fruitRing(x,1.95*s,z,1.45*s,9,[0xf2b23a,0x9ccc3a,0xe6a12a],.2*s);};
+  const kalamansi=(x,z,s)=>{b.push(P('cyl',0x5d4630,x,.35*s,z,.14*s,.7*s,.14*s)); b.push(P('sph',0x2e6b2e,x,1.15*s,z,1.6*s,1.45*s,1.6*s)); b.push(P('sph',0x3a7a32,x+.25*s,1.45*s,z-.15*s,1*s,.9*s,1*s));
+    fruitRing(x,1.15*s,z,.78*s,14,[0x9ccc3a,0x8bc34a,0xf0a030],.1*s);};
+  const bayabas=(x,z,s)=>{for(const a of [-.25,.3]) b.push(P('cyl',0x9a7b5a,x+a*.6*s,.85*s,z,.2*s,1.8*s,.2*s,0,0,a)); b.push(P('sph',0x5fae4a,x-.3*s,2.05*s,z,2*s,1.5*s,2*s)); b.push(P('sph',0x6aa84a,x+.5*s,2.2*s,z+.2*s,1.6*s,1.3*s,1.6*s));
+    fruitRing(x,1.85*s,z,1.05*s,8,[0xc5e17a,0xd4e98a],.17*s);};
+  for(const x of [18.2,22,25.8]){mango(x,-9.1,.62+r()*.08); mango(x+1.9,-6.1,.55+r()*.08);}                     // mangga along the dirt-road side
+  for(const x of [17.6,21,24.4]){kalamansi(x,-.9,.8+r()*.15); bayabas(x+1.7,2.2,.62+r()*.1);}
+  for(const z of [-10,-7.2,1.2,3.4]){const bx=30.4+(r()-.5)*.6, bz=z+(r()-.5)*.6;                               // saging by the east fence
+    for(let q=0;q<2;q++){const x=bx+(r()-.5)*.9, zz=bz+(r()-.5)*.9, h=1.4+r()*.5; b.push(P('cyl',0x7d9a3a,x,h/2,zz,.24,h,.24));
+      for(let k=0;k<6;k++){const L=1.05+r()*.35; banana.push([x,h-.08,zz,L,L,L,k?0xffffff:0xb8a070,k/6*6.28+r(),0,.35+r()*.45]);}}}
+  // kubol: bamboo posts, nipa roof, a sorting table with crates of mangga and kalamansi
+  const kx=29, kz=-1.3; for(const dx of [-1.3,1.3]) for(const dz of [-1,1]) b.push(P('cyl',0xc9a96a,kx+dx,1.1,kz+dz,.12,2.2,.12));
+  b.push(P('pyr',0xb8945a,kx,2.65,kz,3.6,1.1,2.9)); b.push(P('box',0xa98a52,kx,.78,kz,2.2,.08,1.2)); for(const dx of [-.95,.95]) b.push(P('box',0x8d6e4b,kx+dx,.39,kz,.08,.78,1.1));
+  [[-.6,0xf2b23a],[0,0x9ccc3a],[.6,0xf2b23a]].forEach(([dx,c])=>{b.push(P('box',0x8d6e4b,kx+dx,.94,kz,.5,.22,.42)); for(let k=0;k<4;k++) b.push(P('sph',c,kx+dx+(k%2-.5)*.18,1.07,kz+((k>>1)-.5)*.16,.15,.17,.15));});
+  for(let i=0;i<5;i++) b.push(P('box',[0x8d6e4b,0x7a5a3a][i%2],kx-1.2+(i%3)*.55,.2+(i>2?.4:0),kz+1.7,.5,.38,.42));      // empty kaing (crates)
+  b.push(P('box',0x8d6e4b,21.5,1.4,-7.6,.08,2.8,.08,.25,0,.12)); b.push(P('box',0x8d6e4b,22.1,1.4,-7.6,.08,2.8,.08,.25,0,.12));   // a bamboo ladder against a mango tree
+  for(let i=0;i<6;i++) b.push(P('box',0x8d6e4b,21.8,.3+i*.45,-7.6+(.3+i*.45)*.25,.62,.05,.05));
+  const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.castShadow=m.receiveShadow=true; scene.add(m);
+  const bl=instR(BLEAF,banana,LEAFMAT); bl.castShadow=true; scene.add(bl);
+  boardSign(['HALAMANAN','mangga · kalamansi · bayabas · saging'],'#33691e','#fff',16.2,-5,-Math.PI/2,2.8,.8,1.2);
+})();
+// ---- talyer at imbakan (utility yard): water tower, workshop, feed bodega, and a shed for the kuliglig
+(()=>{const b=[], [x0,x1,z0,z1]=UTIL, cx=(x0+x1)/2, cz=(z0+z1)/2, CHB=0xcfc8b8, GI=0x9aa3a8, r=rng(57);
+  b.push(P('box',0xb9b19f,cx,.016,cz,x1-x0,.03,z1-z0));                                               // gravel pad
+  for(let k=0;k<160;k++) b.push(P('box',[0x9e9686,0xc8c0ae,0x8f8879][k%3],x0+r()*(x1-x0),.035,z0+r()*(z1-z0),.1+r()*.12,.02,.1+r()*.12,0,r()*3,0));
+  b.push(P('box',0xb9b19f,-22,.016,-9.6,15,.03,1.4));                                                  // path past the kamalig to the field
+  // water tower: steel legs, braces, a platform and a big blue tangke
+  const wx=-43.4, wz=-8.6; for(const dx of [-1.4,1.4]) for(const dz of [-1.4,1.4]) b.push(P('box',0x78858c,wx+dx,3.6,wz+dz,.22,7.2,.22));
+  for(const y of [2.2,4.6]){b.push(P('box',0x78858c,wx,y,wz-1.4,2.8,.1,.1)); b.push(P('box',0x78858c,wx,y,wz+1.4,2.8,.1,.1)); b.push(P('box',0x78858c,wx-1.4,y,wz,.1,.1,2.8)); b.push(P('box',0x78858c,wx+1.4,y,wz,.1,.1,2.8));}
+  b.push(P('box',0x6b767c,wx,7.25,wz,3.4,.2,3.4)); b.push(P('cyl',0x1e6fbf,wx,8.65,wz,2.8,2.6,2.8)); b.push(P('dome',0x1e6fbf,wx,9.95,wz,2.8,.7,2.8)); b.push(P('cyl',0x1a5ea3,wx,8.65,wz,2.84,.12,2.84));
+  b.push(P('cyl',0x9e9e9e,wx+1.1,3.6,wz+1.1,.12,7.2,.12)); b.push(P('box',0x9e9e9e,wx+3,.25,wz+1.1,3.8,.12,.12));   // down pipe to the field
+  // talyer (workshop): CHB walls, open front, GI roof, workbench, tool board, oil drums
+  const tx=-36, tz=-9.3; b.push(P('box',CHB,tx,1.5,tz-1.9,6.2,3,.25)); for(const sx of [-1,1]) b.push(P('box',CHB,tx+sx*3,1.4,tz,.25,2.8,4));
+  b.push(P('box',GI,tx,3.15,tz+.1,6.8,.1,4.8,-.08,0,0)); for(let i=0;i<9;i++) b.push(P('box',0x8a939a,tx-3.2+i*.8,3.2,tz+.1,.05,.06,4.8,-.08,0,0));
+  b.push(P('box',0x8d6e4b,tx-1,1,tz-1.3,3.2,.12,1)); for(const sx of [-1,1]) b.push(P('box',0x6d4c41,tx-1+sx*1.45,.5,tz-1.3,.12,1,.9));   // workbench
+  b.push(P('box',0x546e7a,tx-1.8,1.2,tz-1.3,.5,.3,.4)); b.push(P('box',0x6d4c41,tx-1,2,tz-1.74,3,1.1,.06));                              // vise, tool board
+  [[-2.2,0x9e9e9e,.06,.6],[-1.6,0xc62828,.1,.45],[-1,0x9e9e9e,.05,.7],[-.4,0xf9a825,.12,.35],[.2,0x9e9e9e,.07,.55]].forEach(([dx,c,w,h])=>b.push(P('box',c,tx+dx,2.05,tz-1.69,w,h,.04)));
+  for(const [dx,c] of [[1.8,0x1565c0],[2.4,0xc62828],[2.1,0x2e7d32]]) b.push(P('cyl',c,tx+dx,.48,tz-1.1+(dx>2.2?.65:0),.62,.96,.62));
+  b.push(P('box',0x37474f,tx+1.6,.45,tz+1.1,1,.9,.7)); b.push(P('cyl',0x263238,tx+1.6,1,tz+1.1,.12,.3,.12));                          // generator
+  // bodega ng patuka (feed store): small concrete house, steel door, sacks stacked outside on pallets
+  const fx=-43, fz=-1.2; b.push(P('box',CHB,fx,1.4,fz,4.6,2.8,3.8)); b.push(P('box',GI,fx,2.95,fz,5,.12,4.3,.12,0,0)); b.push(P('box',0x546e7a,fx+2.31,1.05,fz,.05,2.1,1.5));
+  for(let i=0;i<12;i++){const px=fx+3.5+(i%3)*.62, pz=fz-1.2+((i/3|0)%2)*.85, py=.32+(i>5?.3:0); b.push(P('box',[0xece3cf,0xdfd2b6][i%2],px,py,pz,.56,.28,.8));}
+  b.push(P('box',0x8d6e4b,fx+4.12,.08,fz-.78,2,.12,1.8));
+  // kuliglig shed: four posts, a GI roof, the hand tractor and its trailer
+  const kx=-34.5, kz=.4; for(const dx of [-2.4,2.4]) for(const dz of [-1.6,1.6]) b.push(P('box',0x6d4c41,kx+dx,1.3,kz+dz,.18,2.6,.18));
+  b.push(P('box',GI,kx,2.68,kz,5.4,.1,3.8,.06,0,0));
+  b.push(P('box',0xc62828,kx-1.6,.75,kz,1,.6,.7)); b.push(P('cyl',0x37474f,kx-1.6,1.15,kz,.2,.3,.2)); for(const sd of [-1,1]) b.push(P('cyl',0x212121,kx-1.3,.45,kz+sd*.55,.9,.22,.9,Math.PI/2,0,0));
+  for(const sd of [-1,1]) b.push(P('box',0x424242,kx-2.6,1,kz+sd*.3,1.3,.07,.07,0,0,-.4));                                                    // handlebars
+  b.push(P('box',0x8d6e4b,kx+.8,.75,kz,2.6,.12,1.6)); for(const sd of [-1,1]) b.push(P('box',0x8d6e4b,kx+.8,.95,kz+sd*.78,2.6,.35,.06)); b.push(P('box',0x6d4c41,kx-.6,.65,kz,.9,.08,.08));
+  for(const sd of [-1,1]) b.push(P('cyl',0x212121,kx+.8,.38,kz+sd*.85,.7,.18,.7,Math.PI/2,0,0));
+  const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.castShadow=m.receiveShadow=true; scene.add(m);
+  boardSign(['TALYER AT IMBAKAN','tangke · talyer · patuka · kuliglig'],'#37474f','#ffd23f',-31,-6.6,Math.PI/2,2.8,.8,1.2);
+})();
+// ---- sari-sari store where the farm road meets the highway: CHB house, grilled window, tin awning, a bench and a tindera
+(()=>{const b=[], sx=22, sz=-100.2, CHB=0xe8dcc6, r=rng(91);
+  b.push(P('box',0xbdb6a6,sx,.03,sz-2.6,10,.06,4.4));                                                   // concrete apron to the shoulder
+  b.push(P('box',CHB,sx,1.4,sz+.6,6.2,2.8,4)); b.push(P('box',0x2e7d32,sx,.2,sz+.6,6.24,.4,4.04));       // walls, green skirting
+  b.push(P('box',0x9aa3a8,sx,2.95,sz+.6,6.8,.12,4.6,.1,0,0)); b.push(P('box',0x8a939a,sx,2.35,sz-2.05,6.8,.08,1.6,-.25,0,0));   // roof and front awning
+  for(const dx of [-3.1,3.1]) b.push(P('box',0x6d4c41,sx+dx,1.15,sz-2.7,.12,2.3,.12));
+  b.push(P('box',0x3b2a1e,sx-.8,1.45,sz-1.42,3,1.4,.05)); for(let i=0;i<9;i++) b.push(P('box',0x263238,sx-2.2+i*.35,1.45,sz-1.47,.04,1.4,.04));   // grilled window
+  b.push(P('box',0x8d6e4b,sx-.8,.78,sz-1.6,3.2,.08,.45));                                                // counter
+  for(let i=0;i<14;i++) b.push(P('box',[0xe53935,0xfdd835,0x1e88e5,0x43a047,0xff7043][i%5],sx-2.1+(i%7)*.4,1.95-(i/7|0)*.3,sz-1.5,.12,.26,.02));   // hanging snack strips
+  b.push(P('box',0x6d4c41,sx+2.05,1.05,sz-1.42,.95,2.1,.05));                                             // door
+  b.push(P('box',0x1565c0,sx+2.6,.45,sz-2.4,.9,.9,.6)); b.push(P('box',0xffffff,sx+2.6,.92,sz-2.4,.92,.06,.62));   // ice cooler
+  b.push(P('box',0x8d6e4b,sx-1.2,.42,sz-3.6,2.4,.08,.42)); for(const dx of [-1,1]) b.push(P('box',0x6d4c41,sx-1.2+dx,.2,sz-3.6,.08,.4,.38));   // bench
+  for(const [dx,c] of [[1,0xd32f2f],[1.7,0x1565c0]]){b.push(P('box',c,sx+dx,.42,sz-3.9,.45,.05,.45)); b.push(P('box',c,sx+dx,.7,sz-4.1,.45,.5,.05)); for(const q of [-.18,.18]) for(const w of [-.18,.18]) b.push(P('box',c,sx+dx+q,.2,sz-3.9+w,.04,.4,.04));}
+  // a parked motorsiklo
+  const mx=sx-4.3, mz=sz-3.2; b.push(P('cyl',0x212121,mx,.32,mz-.65,.64,.12,.64,Math.PI/2,Math.PI/2,0)); b.push(P('cyl',0x212121,mx,.32,mz+.65,.64,.12,.64,Math.PI/2,Math.PI/2,0));
+  b.push(P('box',0xc62828,mx,.62,mz,.32,.32,1)); b.push(P('box',0x212121,mx,.82,mz+.25,.3,.12,.6)); b.push(P('box',0x9e9e9e,mx,1.02,mz-.65,.7,.05,.05)); b.push(P('box',0x9e9e9e,mx,.7,mz-.6,.05,.65,.05,.3,0,0));
+  const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.castShadow=m.receiveShadow=true; scene.add(m);
+  const L=randLook(r); L.f=true; L.style='bun'; L.bag=null; const tindera=bakePerson(L,p=>poseStand(p,.3)); tindera.position.set(sx+1.2,.08,sz-2.3); tindera.rotation.y=Math.PI; scene.add(tindera);
+  const cv=document.createElement('canvas'); cv.width=512; cv.height=96; const c=cv.getContext('2d'); c.fillStyle='#fdd835'; c.fillRect(0,0,512,96); c.fillStyle='#c62828'; c.font='900 40px Arial, sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillText("NENA'S SARI-SARI STORE",256,50,490);
+  const sg=new THREE.Mesh(new THREE.PlaneGeometry(5.4,1),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)})); sg.position.set(sx,3.45,sz-1.5); sg.rotation.y=Math.PI; scene.add(sg);
+  scene.add(part(5.6,1.1,.08,0xfdd835,sx,3.45,sz-1.44));
+})();
+// ---- road signs: where the farm road meets the highway, and kilometre posts along the highway
+boardSign(['↓ SUNFIELD FARM','farm road · 1 km'],'#2e7d32','#fff',DX-3.4,HZ+7.2,Math.PI,2.8,1,2.2,0x8a939a,false);
+boardSign(['← Binhi · Hardware','Bagsakan · Palengke · Mega Foods →'],'#1b5e20','#fff',DX+3.4,HZ+7.6,0,3.6,1.1,2.4,0x8a939a,false);
+(()=>{const b=[]; for(let x=-160;x<=440;x+=50) for(const sd of [-1,1]) if(Math.abs(x-DX)>8&&Math.abs(x-PX)>30&&Math.abs(x-FX)>32&&Math.abs(x-WHX)>20){
+    const z=HZ+sd*5.9; b.push(P('box',0xf5f5f5,x,.35,z,.3,.7,.14)); b.push(P('box',0x2e7d32,x,.64,z,.32,.14,.15));}
+  const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.castShadow=true; scene.add(m);})();
 for(let i=0;i<NT;i++) refreshTile(i,false);
 
 // tap highlight
@@ -2553,7 +2690,7 @@ canvas.addEventListener('pointermove',e=>{
     if(!moved) return;
     if(moving){dragBuilding(e.clientX,e.clientY); return;}
     if(stroke){brushLine(e.clientX,e.clientY); return;}
-    if(btn===2||e.shiftKey){cam.yaw-=dx*.008; cam.pitch=Math.max(.45,Math.min(1.35,cam.pitch+dy*.005));}
+    if(btn===2||e.shiftKey){cam.yaw-=dx*.008; cam.pitch=Math.max(.28,Math.min(1.35,cam.pitch+dy*.005));}
     else pan(dx,dy);
   }else if(ptrs.size===2&&pinch){
     const q=pinchInfo(); zoom(pinch.d/q.d); cam.yaw+=(q.ang-pinch.ang); pan(q.mx-pinch.mx,q.my-pinch.my); pinch=q;
@@ -2952,12 +3089,15 @@ if(!Array.isArray(S.helpers)) S.helpers=[];
 S.helpers.forEach(h=>{h.paidUntil=Math.max(h.paidUntil||0,Date.now()); h.unpaid=false;});   // no sweldo while the game is closed
 const helperHome=k=>seatWorld(k+1).slice(0,2);
 function spawnHelper(h){
-  const r=rng(h.seed), L=randLook(r); L.f=h.f; L.bag=null; L.skirt=false; L.shorts=!h.f&&r()<.5; L.style=h.f?'long':'cap'; L.capC=[0xf1c40f,0x27ae60,0xe67e22][h.seed%3]; L.h=.96+r()*.06;
+  const r=rng(h.seed), L=randLook(r); L.f=h.f; L.bag=null; L.skirt=false; L.shorts=!h.f&&r()<.5; L.h=.96+r()*.06;
+  const slot=[0,1,2].filter(k=>!helpers.some(H=>H.slot===k)).concat(0)[0];   // each of the three trabahador gets their own work clothes, so you can tell them apart
+  L.style=[h.f?'long':'cap','salakot',h.f?'bun':'short'][slot]; L.capC=[0xf1c40f,0x27ae60,0xe67e22][slot];
+  L.top=[0xc0392b,0x2e86de,0x27ae60][slot]; L.bottom=[0x34495e,0x5d4037,0x3b5b8c][slot];
   const p=makePerson(L), basket=new THREE.Group();
   basket.add(mesh(new THREE.CylinderGeometry(.24,.18,.26,8),0xb08850,0,0,0)); basket.add(mesh(new THREE.SphereGeometry(.18,6,4),0xe9c24b,0,.12,0));
   basket.position.set(0,1.08,.36); basket.visible=false; p.root.add(basket);
   const home=helperHome(helpers.length); p.root.position.set(home[0],.08,home[1]); scene.add(p.root);
-  const H={h,p,basket,state:'idle',cur:null,timer:.5+helpers.length*.3,ph:0,carry:false,riding:null,skip:new Map(),tick:0,msg:'',path:[]}; helpers.push(H);
+  const H={h,p,slot,basket,state:'idle',cur:null,timer:.5+helpers.length*.3,ph:0,carry:false,riding:null,skip:new Map(),tick:0,msg:'',path:[]}; helpers.push(H);
   if(!isWork()){H.state='gone'; p.root.visible=false;}   // hired or loaded at night: they start in the morning
   return H;
 }
@@ -3662,6 +3802,7 @@ let whDoorsOpen, whDoorsShut, gateArm, guard, convBoxes, smoke=[], facWorkers=[]
   const sm=new THREE.MeshStandardMaterial({color:0xe0e0e0,transparent:true,opacity:.55,depthWrite:false,roughness:1});
   for(let k=0;k<6;k++){const o=new THREE.Mesh(new THREE.SphereGeometry(1,8,6),sm); o.userData.ph=k/6; scene.add(o); smoke.push(o);}
 })();
+boardSign(['LOADING · CONVEYOR','runs while your goods are processed'],'#0d47a1','#fff',FX-24.2,HZ-20.2,0,3,.9,1.4,0x9aa0a6);
 glow(scene,WHX-6,4.6,HZ-14.6,3.2); glow(scene,WHX+6,4.6,HZ-14.6,3.2); glow(scene,FX,3.6,HZ-8.6,3.4,GM.white); glow(scene,FX-15,3.6,HZ-24,4,GM.white); glow(scene,FX+6,8,HZ-31.6,4.5);
 function makeVan(){const b=[], D=0x1b1b1b, GL=0x2b3a48;
   b.push(P('box',0x2a2a2a,0,.55,0,1.7,.2,6.2)); b.push(P('box',0xf5f5f5,0,1.45,2.35,2.0,1.6,1.5)); b.push(P('box',GL,0,1.75,3.12,1.8,.6,.04)); [-1,1].forEach(sd=>b.push(P('box',GL,sd*1.01,1.75,2.4,.03,.5,.8)));
@@ -3708,7 +3849,7 @@ function updateTraders(dt,t){
     else if(T.state==='out'){if(move(TR_OUT)){T.state='away'; T.timer=40+Math.random()*45;}}
   });
 }
-let bizT=0;
+let bizT=0, facRun=0, convT=0;   // the conveyor runs while a van unloads your goods, then a while longer to process them
 function updateBiz(dt,t){
   updateTraders(dt,t);
   const own=S.wh.owned;
@@ -3723,7 +3864,7 @@ function updateBiz(dt,t){
     else if(V.state==='load'){V.timer-=dt; if(V.timer<=0){ // fill the van from the warehouse
         let n=0; V.load={}; for(const id of Object.keys(S.wh.stock)){const q=Math.min(S.wh.stock[id]||0,VAN_CAP-n); if(q>0){V.load[id]=q; S.wh.stock[id]-=q; n+=q;} if(S.wh.stock[id]<=0) delete S.wh.stock[id];}
         V.state='back'; V.e=0; save(); if(bizOpen()) renderBiz();}}
-    else if(V.state==='unload'){V.timer-=dt; if(V.timer<=0){
+    else if(V.state==='unload'){V.timer-=dt; facRun=Math.max(facRun,24); if(V.timer<=0){
         V.load={}; V.state='home'; V.timer=4;   // the factory's business: your money came when you sold to the warehouse
         if(bizOpen()) renderBiz();}}
   }
@@ -3731,10 +3872,10 @@ function updateBiz(dt,t){
   const near=vans.some(v=>Math.hypot(v.g.position.x-FX,v.g.position.z-(HZ-10))<9&&v.state!=='home');
   gateArm.rotation.z+=((near?1.35:0)-gateArm.rotation.z)*Math.min(1,dt*3);
   poseStand(guard,t); if(near) guard.aR.rotation.x=-2.6+Math.sin(t*8)*.3;
-  // conveyor boxes roll into the canning machine; workers pack them
-  const cx=FX-15, cz=HZ-24, _m=new THREE.Matrix4();
-  for(let i=0;i<9;i++){const u=((t*.6+i/9)%1); _m.makeTranslation(cx-6.3+u*13,1.24,cz); convBoxes.setMatrixAt(i,_m);} convBoxes.instanceMatrix.needsUpdate=true;
-  facWorkers.forEach(w=>{poseStand(w.p,t); w.p.aR.rotation.x=-1.1+Math.sin(t*4+w.ph)*.35; w.p.aL.rotation.x=-1.0+Math.cos(t*4+w.ph)*.3;});
+  // conveyor boxes roll into the canning machine while there is something of yours to process; otherwise the line stands empty and the workers wait
+  const cx=FX-15, cz=HZ-24, _m=new THREE.Matrix4(), run=facRun>0; facRun=Math.max(0,facRun-dt); if(run) convT+=dt;
+  convBoxes.count=run?9:0; for(let i=0;i<9;i++){const u=((convT*.6+i/9)%1); _m.makeTranslation(cx-6.3+u*13,1.24,cz); convBoxes.setMatrixAt(i,_m);} convBoxes.instanceMatrix.needsUpdate=true;
+  facWorkers.forEach(w=>{poseStand(w.p,t+w.ph); if(run){w.p.aR.rotation.x=-1.1+Math.sin(t*4+w.ph)*.35; w.p.aL.rotation.x=-1.0+Math.cos(t*4+w.ph)*.3;}});
   smoke.forEach(o=>{const u=(t*.12+o.userData.ph)%1; o.position.set(FX+19+u*3,16+u*7,HZ-48-u*1.5); o.scale.setScalar(.8+u*2.2); o.material.opacity=.5*(1-u);});
   // warehouse kargador carry boxes into a loading van
   const lv=vans.find(v=>v.state==='load'), tu=traders.find(T=>T.state==='unload');
@@ -4225,8 +4366,9 @@ function frame(now){
     if(p>=1){constructing.delete(i); if(t.up){t.lvl=t.up; delete t.up;} if(BLDS[t.b].feed) startCycle(i,true); refreshTile(i,true); flash(i); const b=BLDS[t.b]; toast(`${b.icon} ${b.name}${lvlOf(t)>1?' level '+lvlOf(t):''} is finished!`); buzz(); changed(); if(bldOpen()&&bldIdx===i) renderBld(); continue;}
     o.bld.g.scale.set(1,.08+.92*p,1); o.barFill.scale.x=Math.max(.02,p); o.barFill.position.x=-.8+.8*p;}}
   flashBox.material.opacity=Math.max(0,1-(now-flashT)/600);
-  updateCam(); followSun(); renderer.render(scene,camera);
+  updateCam(); followSun(); mountains.position.set(camera.position.x,0,camera.position.z); renderer.render(scene,camera);
 }
+if(/[?&]debug\b/.test(location.search)) window.SF={cam,camera,scene,renderer,S,flyTo,noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
 renderHUD();
 requestAnimationFrame(frame);
 if(!S.seenHelp){S.seenHelp=true; save(); setTimeout(()=>toast('Open 🧰 Tools, pick a tool, and drag across the field. Sell your harvest at the 🏪 Palengke!',4800),600);}

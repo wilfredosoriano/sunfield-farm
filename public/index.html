@@ -947,7 +947,10 @@ const PX=170, PZ=-144, HZ=-110;                       // palengke hall center, h
 const SWZ=HZ-4.6-PZ;                                 // highway sidewalk (palengke-local z)
 const market=new THREE.Group();
 const marketMark=new THREE.Mesh(G.mark,new THREE.MeshStandardMaterial({color:0xffb52e,emissive:0xffb52e,emissiveIntensity:.5,flatShading:true}));
-const roofMat=new THREE.MeshStandardMaterial({color:0x9fb8a8,roughness:.8,flatShading:true,transparent:true,opacity:1,side:THREE.DoubleSide});
+const roofMat=(()=>{const cv=document.createElement('canvas'); cv.width=8; cv.height=64; const c=cv.getContext('2d');   // corrugated sheets, ribs running down the slope
+  for(let y=0;y<64;y++){const v=Math.round(190+40*Math.cos(y/64*Math.PI*2*4)); c.fillStyle=`rgb(${v},${v},${v})`; c.fillRect(0,y,8,1);}
+  const t=new THREE.CanvasTexture(cv); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(1,9); t.anisotropy=4;
+  return new THREE.MeshStandardMaterial({color:0x8fa69b,map:t,roughness:.7,metalness:.15,flatShading:true,transparent:true,opacity:1,side:THREE.DoubleSide});})();
 const shoppers=[], signG=new THREE.Group();
 const UB=G.tiny, US=new THREE.SphereGeometry(.5,7,5), UC=new THREE.CylinderGeometry(.5,.5,1,8);
 function inst(geo,list,basic){
@@ -1168,6 +1171,10 @@ function updateWalkers(dt,t){
   // roof (fades when you zoom in so you can see inside)
   const rL=new THREE.Mesh(new THREE.BoxGeometry(17.2,.15,D+2),roofMat); rL.position.set(-8.5,8.1,0); rL.rotation.z=.117; g.add(rL);
   const rR=new THREE.Mesh(new THREE.BoxGeometry(17.2,.15,D+2),roofMat); rR.position.set(8.5,8.1,0); rR.rotation.z=-.117; g.add(rR);
+  // a raised clerestory along the ridge (lets the heat out, like a real pamilihang bayan), fascia boards along the eaves
+  for(const s of [-1,1]){const c=new THREE.Mesh(new THREE.BoxGeometry(3.0,.12,D+2.4),roofMat); c.position.set(s*1.35,10.35,0); c.rotation.z=-s*.26; g.add(c);
+    const lv=new THREE.Mesh(new THREE.BoxGeometry(.08,1.0,D+2),roofMat); lv.position.set(s*2.5,9.6,0); g.add(lv);
+    const fa=new THREE.Mesh(new THREE.BoxGeometry(.12,.35,D+2.1),roofMat); fa.position.set(s*17.05,7.08,0); g.add(fa);}
   for(let k=0;k<22;k++){const w={}; walkers.push(w); spawnWalker(w,(wr()*12)|0);}
   // sign
   const cv=document.createElement('canvas'); cv.width=1024; cv.height=256; const cx=cv.getContext('2d');
@@ -1287,6 +1294,8 @@ const LEAFMAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.85,fl
   R(0,.02,HZ,1700,.04,10.4,0xa8a090); R(0,.04,HZ,1700,.05,7.2,0x45474b);                            // highway + shoulders
   R(0,.068,HZ+3.35,1700,.01,.15,0xf2f2f2); R(0,.068,HZ-3.35,1700,.01,.15,0xf2f2f2);
   for(let x=-850;x<=850;x+=6) R(x,.069,HZ,3,.01,.15,0xf1c40f);
+  for(const s of [-1,1]){R(0,.06,HZ+s*3.7,1700,.08,.22,0xcfcac0); R(0,.045,HZ+s*4.5,1700,.05,1.4,0xbdb8ad);}       // low curbs and a concrete footpath on both sides (Binhi x -18, poultry x 92)
+  for(const x of [PX,PX+42,DX,-18,HWX,92]) for(let k=0;k<7;k++) R(x+(k-3)*.9,.071,HZ,.5,.01,6.6,0xf2f2f2);       // zebra crossings at the stores, palengke and junctions
   for(let x=-420;x<=560;x+=30){R(x,3.5,HZ+6.2,.26,7,.26,0x9a9a9a); R(x,6.7,HZ+6.2,.12,.12,2.0,0x6b6b6b);}  // electric posts
   // rice paddies (palayan): muddy water with rows of palay
   const RICE=[], TONES=[0x7cb342,0x8bc34a,0x9ccc65,0xc5b358];
@@ -1631,6 +1640,30 @@ function updateWorkers(dt,t){
     }
   }
 }
+// ---- shared storefront dressing for the stores along the highway: plinth, pilasters, cornice and parapet, side windows with sills,
+// shelves seen through the shop opening, downspouts, and a roof with a membrane, a water tank, aircon units and a hatch.
+// w x d is the building box (front face at +d/2), h its wall height, top the roof-slab top; op = the shop opening {w,h}; sign = keep the
+// front of the roof clear for the billboard.
+function storeDress(g,{w,d,h,top,trim=0xe9e3d6,plinth=0x9b9385,op,seed=1}){
+  const b=[], r=rng(seed), fz=d/2;
+  b.push(P('box',plinth,0,.25,0,w+.08,.5,d+.08));                                                              // plinth
+  for(const x of [-w/2,w/2]) b.push(P('box',trim,x,h/2,fz,.42,h,.16)); for(const x of [-w/2,w/2]) for(const z of [-fz,fz]) b.push(P('box',trim,x,h/2,z,.42,h,.42));   // corner pilasters
+  b.push(P('box',trim,0,h-.18,fz+.04,w+.2,.36,.12)); for(const s of [-1,1]) b.push(P('box',trim,s*(w/2+.04),h-.18,0,.12,.36,d+.2));   // cornice band
+  for(const [x,z,ww,dd] of [[0,fz,w,.18],[0,-fz,w,.18],[w/2,0,.18,d],[-w/2,0,.18,d]]) b.push(P('box',trim,x,top+.28,z,ww,.56,dd));   // parapet
+  b.push(P('box',0x8f8f88,0,top+.03,0,w-.3,.04,d-.3));                                                            // roof membrane
+  const tx=-w/2+1.6, tz=-fz+1.6; for(const dx of [-.45,.45]) for(const dz of [-.45,.45]) b.push(P('box',0x6f7a80,tx+dx,top+.6,tz+dz,.08,1.2,.08));
+  b.push(P('cyl',0x3f6f9e,tx,top+1.75,tz,1.1,1.1,1.1)); b.push(P('cyl',0x355f88,tx,top+2.33,tz,1.12,.06,1.12));   // water tank on a stand
+  for(let k=0;k<2;k++){const x=w/2-1.4-k*1.3, z=-fz+1.2; b.push(P('box',0xdedad2,x,top+.4,z,1,.7,.6)); b.push(P('cyl',0x6f6f6f,x,top+.4,z+.31,.5,.02,.5,Math.PI/2,0,0));}   // aircon condensers
+  b.push(P('box',0xcfc8ba,.6,top+.35,-.4,1.2,.6,1.2));                                                            // roof hatch
+  for(const s of [-1,1]){const x=s*(w/2+.12); b.push(P('cyl',0x8a9096,x,h/2,fz-.25,.12,h,.12)); }                  // downspouts
+  const nw=Math.max(1,Math.floor((d-2)/2.6));                                                                    // side windows
+  for(const s of [-1,1]) for(let i=0;i<nw;i++){const z=-fz+1.6+i*(d-3.2)/Math.max(1,nw-1||1), x=s*(w/2+.03), wy=Math.min(h-1.4,2.6);
+    b.push(P('box',trim,x,wy,z,.06,1.3,1.3)); b.push(P('box',0x6c8a99,x+s*.02,wy,z,.04,1.1,1.1)); b.push(P('box',0x2d3436,x+s*.04,wy,z,.02,1.1,.04));
+    b.push(P('box',trim,x+s*.06,wy-.7,z,.14,.08,1.45));}
+  if(op){const oy=.5, ow=op.w-.3, oh=op.h-.5;                                                                     // shelves of goods behind the opening
+    for(let row=0;row<3;row++){const y=oy+.35+row*oh/3; b.push(P('box',0x6d5a48,0,y,fz+.035,ow,.05,.02));
+      for(let i=0;i<Math.floor(ow/.42);i++) if(r()<.8) b.push(P('box',[0xc0392b,0xf1c40f,0x2e86de,0x27ae60,0xecf0f1,0xe67e22][(r()*6)|0],-ow/2+.25+i*.42,y+.17,fz+.04,.3,.28+r()*.06,.02));}}
+  const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.castShadow=m.receiveShadow=true; g.add(m);}
 // ---- hardware store beside the highway
 const hwG=new THREE.Group(); hwG.position.set(HWX,0,HZ-14); scene.add(hwG);
 (()=>{const b=[];
@@ -1652,6 +1685,7 @@ const hwG=new THREE.Group(); hwG.position.set(HWX,0,HZ-14); scene.add(hwG);
   cx.font='900 92px "Arial Black", Arial, sans-serif'; cx.fillText('MABUHAY HARDWARE',512,82);
   cx.fillStyle='#ffffff'; cx.font='800 40px Arial, sans-serif'; cx.fillText('CONSTRUCTION SUPPLY · KAHOY · PAKO · YERO · SEMENTO',512,160);
   const s=new THREE.Mesh(new THREE.PlaneGeometry(10,1.95),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)})); s.position.set(0,7.6,5.24); hwG.add(s);
+  storeDress(hwG,{w:12,d:10,h:6.4,top:6.65,op:{w:9,h:3.1},seed:4});
 })();
 // loader boys at the hardware
 const boys=[];
@@ -2108,6 +2142,7 @@ const psG=new THREE.Group(); psG.position.set(PSX,0,HZ-17); scene.add(psG);
   cx.fillStyle='#fff'; cx.font='800 40px Arial, sans-serif'; cx.fillText('PATUKA · SISIW · BITAMINA · GAMOT',512,160);
   const s=new THREE.Mesh(new THREE.PlaneGeometry(10,1.95),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)})); s.position.set(0,5.75,5.18); psG.add(s);
   psG.add(part(10.4,2.05,.1,0x14532d,0,5.75,5.1));
+  storeDress(psG,{w:11,d:10,h:4.4,top:4.7,op:{w:8,h:2.8},seed:5});
 })();
 const psBoys=[];
 (()=>{const r=rng(66);
@@ -2134,6 +2169,7 @@ const ssG=new THREE.Group(); ssG.position.set(SSX,0,HZ-17); scene.add(ssG);
   cx.fillStyle='#fff'; cx.font='800 40px Arial, sans-serif'; cx.fillText('PALAY · MAIS · GULAY · ABONO',512,160);
   const sg=new THREE.Mesh(new THREE.PlaneGeometry(9,1.75),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)})); sg.position.set(0,5.25,4.68); ssG.add(sg);
   ssG.add(part(9.4,1.85,.1,0x1b5e20,0,5.25,4.6)); ssG.add(part(.15,1.2,.15,0x1b5e20,-3,4.6,4.6)); ssG.add(part(.15,1.2,.15,0x1b5e20,3,4.6,4.6));
+  storeDress(ssG,{w:10,d:9,h:4.0,top:4.3,op:{w:7,h:2.7},seed:6});
 })();
 const ssBoys=[];
 (()=>{const r=rng(88);
@@ -2376,11 +2412,11 @@ const inRect=(R,x,z,m)=>x>R[0]-m&&x<R[1]+m&&z>R[2]-m&&z<R[3]+m;
     ||(x>PX-25-m&&x<PX+25+m&&z>PZ-19-m&&z<HZ-4)||(x>HWX-14-m&&x<HWX+14+m&&z>HZ-25-m&&z<HZ-4)||(x>PSX-14-m&&x<PSX+14+m&&z>HZ-25-m&&z<HZ-4)||(x>SSX-12-m&&x<SSX+12+m&&z>HZ-25-m&&z<HZ-4)||(x>DX+1-m&&x<DX+32+m&&z>HZ+3-m&&z<HZ+12+m)||(x>34-m&&x<336+m&&z>-218-m&&z<-164+m)||(x>34-m&&x<46+m&&z>-190&&z<HZ-4)||(x>324-m&&x<336+m&&z>-190&&z<HZ-4)||(x>PX+38-m&&x<PX+46+m&&z>-190-m&&z<HZ-4)||(x>WHX-14-m&&x<WHX+30+m&&z>HZ-32-m&&z<HZ-4)||(x>FX-30-m&&x<FX+30+m&&z>HZ-64-m&&z<HZ-4)   // sakayan, warehouse, factory
     ||inRect(ORCH,x,z,m)||inRect(UTIL,x,z,m)||inRect(SARI,x,z,m);
   const trunks=[],blobs=[],segs=[],fronds=[],nuts=[],bleaves=[],culms=[],bananaL=[];
-  const GREENS=[0x3f8f3a,0x4f9d3f,0x5fae4a,0x2f6b2a,0x3a7a32,0x6aa84a];
+  const GREENS=[0x4a7f3c,0x568a42,0x62944a,0x3a6630,0x46733a,0x6c9a4e];
   const acacia=(x,z,s)=>{ // wide umbrella canopy (rain tree), common along Philippine roads
     trunks.push([x,1.1*s,z,.55*s,2.2*s,.55*s,0x5d4630,rr()*3]);
     for(let k=0;k<3;k++){const a=k*2.1+rr(); trunks.push([x+Math.cos(a)*.6*s,2.6*s,z-Math.sin(a)*.6*s,.28*s,1.7*s,.28*s,0x5d4630,a,0,-.85]);}
-    blobs.push([x,3.9*s,z,2.3*s,.85*s,2.3*s,0x4f8f36]);
+    blobs.push([x,3.9*s,z,2.3*s,.85*s,2.3*s,0x547f3c]);
     for(let k=0;k<6;k++){const a=k/6*Math.PI*2+rr()*.5, r=(1.6+rr()*.6)*s; blobs.push([x+Math.cos(a)*r,(3.5+rr()*.4)*s,z-Math.sin(a)*r,(1.5+rr()*.4)*s,.75*s,(1.5+rr()*.4)*s,GREENS[(rr()*3)|0]]);}
   };
   const mango=(x,z,s)=>{ // dense dark dome
@@ -3882,9 +3918,25 @@ function paintSigns(){
   facSign.map=signTex(['MEGA FOODS CORP.',S.wh.factory?'SUPPLIED BY SUNFIELD FARM':'BUYS FROM THE BAGSAKAN ONLY'],'#0d47a1','#fff'); facSign.needsUpdate=true;
   whDoorsOpen.visible=S.wh.owned; whDoorsShut.visible=!S.wh.owned;}
 let whDoorsOpen, whDoorsShut, gateArm, guard, convBoxes, smoke=[], facWorkers=[], whBoys=[];
+// vertical ribs of steel wall cladding on a box face: along x (front/back at z) or along z (sides at x)
+function cladding(b,c,x0,x1,z0,z1,y0,y1,step=.6){const alongX=Math.abs(x1-x0)>Math.abs(z1-z0), L=alongX?x1-x0:z1-z0, n=Math.floor(Math.abs(L)/step);
+  for(let i=1;i<n;i++){const t=i/n, x=x0+(x1-x0)*t, z=z0+(z1-z0)*t; b.push(P('box',c,x,(y0+y1)/2,z,alongX?.06:.05,y1-y0,alongX?.05:.06));}}
+// a ribbed two-slope steel roof over a w x d box (ridge along x), with a ridge cap, fascia and turbine vents
+function steelRoof(b,cx,cz,w,d,y,col,rib,vents){const A=.2, hd=d/2+.4, L=hd/Math.cos(A), ry=y+hd*Math.tan(A);
+  for(const s of [-1,1]){const zc=cz+s*hd/2, yc=(y+ry)/2+.06; b.push(P('box',col,cx,yc,zc,w+.8,.1,L,s*A,0,0));
+    for(let i=0;i<Math.floor((w+.8)/.7);i++) b.push(P('box',rib,cx-w/2-.35+.35+i*.7,yc+.06,zc,.08,.07,L,s*A,0,0));
+    b.push(P('box',0xd8d0c0,cx,y+.02,cz+s*(hd+.02),w+.8,.26,.08));}
+  b.push(P('box',rib,cx,ry+.16,cz,w+.9,.14,.6));
+  for(let i=0;i<vents;i++){const x=cx-w/2+w*(i+.5)/vents; b.push(P('cyl',0xb7bec2,x,ry+.5,cz,.5,.5,.5)); b.push(P('dome',0xc9cfd2,x,ry+.75,cz,.62,.4,.62));}}
 (()=>{ // warehouse: a long steel shed with three roll-up doors and a loading dock
   const b=[], W=0xb0bec5, R=0x607d8b, z0=HZ-21;
-  b.push(P('box',W,WHX,3.4,z0,18,6.8,12)); b.push(P('box',R,WHX,7.0,z0,18.6,.4,12.6)); b.push(P('pyr',R,WHX,7.9,z0,13.5,1.6,9.2));
+  b.push(P('box',W,WHX,3.4,z0,18,6.8,12)); b.push(P('box',R,WHX,7.0,z0,18.6,.4,12.6)); steelRoof(b,WHX,z0,18,12,7.2,0x6e858f,0x84999f,3);
+  cladding(b,0x9fb0b8,WHX-9.02,WHX+9.02,HZ-14.98,HZ-14.98,4.35,6.8); for(const s of [-1,1]) cladding(b,0x9fb0b8,WHX+s*9.02,WHX+s*9.02,z0-6,z0+6,.3,6.8);
+  b.push(P('box',0x8a9a9f,WHX,1.0,z0,18.06,.5,12.06));                                         // wainscot band
+  b.push(P('box',0x78909c,WHX,4.95,HZ-13.5,18.6,.12,3.0,.08,0,0)); for(const x of [-8.8,0,8.8]) b.push(P('box',0x546e7a,WHX+x,4.6,HZ-14.3,.1,.7,1.4));   // dock canopy on brackets
+  for(const x of [-6,0,6]) for(const s of [-1,1]) b.push(P('box',0x1f1f1f,WHX+x+s*2.0,.55,HZ-13.65,.35,.7,.12));   // dock bumpers
+  for(const s of [-1,1]) b.push(P('cyl',0x8a9096,WHX+s*9.15,3.4,HZ-15.2,.14,6.8,.14));                                // downspouts
+  b.push(P('box',0x546e7a,WHX+9.03,1.1,z0+2.5,.05,2.2,1.0));                                                          // side door
   b.push(P('box',0x9e9e9e,WHX,.55,HZ-14.4,18,1.1,1.4));                                    // loading dock
   b.push(P('box',0xbdb6a6,WHX+8,.04,HZ-9.5,40,.08,10));                                    // yard (with room for trucks waiting their turn)
   for(const x of [-6,0,6]) b.push(P('box',0xffd23f,WHX+x,.12,HZ-11.5,.12,.02,6.5));        // bay lines
@@ -3906,7 +3958,14 @@ let whDoorsOpen, whDoorsShut, gateArm, guard, convBoxes, smoke=[], facWorkers=[]
   for(const x of [-4,4]) b.push(P('box',0xd7ccc8,FX+x,1.6,HZ-9,.8,3.2,.8));                // gate pillars
   b.push(P('box',0xeeeeee,FX+6.5,1.3,HZ-11,2.4,2.6,2.2)); b.push(P('box',0x2b3a48,FX+6.5,1.7,HZ-9.88,1.8,.8,.04)); b.push(P('box',B,FX+6.5,2.7,HZ-11,2.8,.2,2.6));   // guard house
   b.push(P('box',C,FX+6,4.6,z0,34,9.2,20));                                                // the plant
-  for(let i=0;i<6;i++) b.push(P('box',[0x90caf9,0xb0bec5][i%2],FX-8+i*5.6,9.9,z0,5.4,1.4,20.4,0,0,-.35));   // sawtooth roof
+  cladding(b,0xcfd3d6,FX-11,FX+23,HZ-31.99,HZ-31.99,2.0,9.2,.7); for(const s of [-1,1]) cladding(b,0xcfd3d6,FX+6+s*17.01,FX+6+s*17.01,z0-10,z0+10,.4,9.2,.7);
+  b.push(P('box',0x6d8fa8,FX+6,7.6,HZ-31.96,33,1.0,.05)); for(let i=0;i<22;i++) b.push(P('box',0xd6dbde,FX-10.4+i*1.55,7.6,HZ-31.93,.08,1.0,.04));   // window band
+  for(const x of [-11,-5.4,3.4,12.4,23]) b.push(P('box',0xbfc4c8,FX+x,4.6,HZ-31.9,.5,9.2,.25));                                   // pilasters
+  for(let i=0;i<6;i++) b.push(P('cyl',0xb7bec2,FX-8+i*5.6,10.9,z0-5,.5,.6,.5));                                                  // roof turbine vents
+  for(const y of [3.2,3.6]) b.push(P('cyl',0x9e9e9e,FX+23.2,y,z0,.18,20,.18,Math.PI/2,0,0)); b.push(P('cyl',0xc62828,FX+23.25,4.0,z0,.14,20,.14,Math.PI/2,0,0));   // pipes along the side wall
+  for(let k=0;k<10;k++) b.push(P('box',0x9aa0a6,FX+21.5-k*.45,.2+k*.42,HZ-31.3,.45,.06,.9)); b.push(P('box',0x9aa0a6,FX+17,4.4,HZ-31.3,1.4,.08,1.0));   // steel stair to a landing
+  for(const s of [-1,1]){b.push(P('box',0x7d858b,FX+19.5,2.15,HZ-31.3+s*.47,5.6,.14,.06,0,0,-.75)); b.push(P('box',0x7d858b,FX+16.4,2.2,HZ-31.3+s*.47,.1,4.4,.1));}   // stringers, landing posts
+  for(let i=0;i<6;i++) b.push(P('box',[0x9db3c2,0xb3bcc2][i%2],FX-8+i*5.6,9.9,z0,5.4,1.4,20.4,0,0,-.35));   // sawtooth roof
   b.push(P('box',B,FX+6,1.6,HZ-31.95,34,.5,.06));                                          // blue band
   for(const x of [-6,4,14]) b.push(P('box',0x37474f,FX+x,2.2,HZ-31.96,4,4.4,.05));        // dock doors
   b.push(P('cyl',0xa1887f,FX+19,8,HZ-48,1.6,16,1.6)); b.push(P('cyl',0xd32f2f,FX+19,15.2,HZ-48,1.7,.6,1.7));   // chimney

@@ -1692,17 +1692,30 @@ function updateKubo(t){
   const r=kubo.sitters.get(kubo.talker).r; B.sp.visible=now<kubo.next-500; B.sp.position.set(r.position.x,2.15,r.position.z);
 }
 function farmHouse(){ // the farmhouse: a modest single-storey house with a veranda and a corrugated roof (one design, no upgrades)
-  const b=[], WALL=0xeee3c8, TRIM=0x8a5a3a, WOOD=0x9a6b45, BASE=0xb9b09c, ROOF=0xa24a3a, RIB=0xb5584a, FL=0xc9b48e;
+  const b=[], cut=[], WALL=0xeee3c8, TRIM=0x8a5a3a, WOOD=0x9a6b45, BASE=0xb9b09c, ROOF=0xa24a3a, RIB=0xb5584a, FL=0xc9b48e;   // cut: the roof, hidden while you look inside
   const W=7.6, D=4.8, z0=-1.1, ht=2.7, by=.5, A=.36, hd=D/2+.6, top=by+ht, ry=top+hd*Math.tan(A), L=hd/Math.cos(A);
   b.push(P('box',BASE,0,by/2,z0,W+.3,by,D+.3));                                                                  // raised concrete base
-  b.push(P('box',WALL,0,by+ht/2,z0,W,ht,D)); b.push(P('box',TRIM,0,by+.12,z0,W+.04,.24,D+.04));                  // walls, skirting board
+  {const T=.16, zf=z0+D/2-T/2, zb=z0-D/2+T/2;                                                                   // four thin walls with a doorway, so the house has an inside
+    b.push(P('box',WALL,0,by+ht/2,zb,W,ht,T)); for(const s of [-1,1]) b.push(P('box',WALL,s*(W/2-T/2),by+ht/2,z0,T,ht,D));
+    for(const s of [-1,1]) b.push(P('box',WALL,s*(W/4+.275),by+ht/2,zf,W/2-.55,ht,T)); b.push(P('box',WALL,0,by+2.1+(ht-2.1)/2,zf,1.1,ht-2.1,T));
+    for(const s of [-1,1]) b.push(P('box',TRIM,s*(W/4+.275),by+.12,zf+.01,W/2-.55,.24,T+.04)); b.push(P('box',TRIM,0,by+.12,zb-.01,W,.24,T+.04)); for(const s of [-1,1]) b.push(P('box',TRIM,s*(W/2-T/2+.01),by+.12,z0,T+.04,.24,D));
+    // inside: tiled floor, a kitchen counter with a two-burner stove, a dining table and benches, a bamboo papag (bed), a cabinet and a wall calendar
+    b.push(P('box',0xd9cfbd,0,by+.012,z0,W-.3,.02,D-.3)); for(let i=0;i<7;i++) b.push(P('box',0xcbbfa8,-W/2+.6+i*1.08,by+.025,z0,.03,.01,D-.4));
+    b.push(P('box',0xa0785a,2.2,by+.45,z0-D/2+.5,2.8,.9,.62)); b.push(P('box',0xe8e2d6,2.2,by+.91,z0-D/2+.5,2.85,.04,.66));
+    b.push(P('box',0x2e2e2e,2.5,by+.97,z0-D/2+.5,.95,.08,.5)); for(const x of [2.28,2.72]) b.push(P('cyl',0x111111,x,by+1.02,z0-D/2+.5,.24,.02,.24));
+    b.push(P('cyl',0x2e86de,1.35,by+1.03,z0-D/2+.45,.26,.2,.26)); b.push(P('box',0xd0d0d0,1.1,by+1.25,z0-D/2+.18,.5,.6,.05));   // water jug, dish rack
+    b.push(P('box',WOOD,-.4,by+.74,z0-.2,1.5,.07,.9)); for(const dx of [-.62,.62]) for(const dz of [-.36,.36]) b.push(P('box',WOOD,-.4+dx,by+.37,z0-.2+dz,.07,.74,.07));
+    for(const s of [-1,1]) b.push(P('box',WOOD,-.4,by+.42,z0-.2+s*.75,1.4,.06,.32));
+    b.push(P('box',0xc8a26a,-2.6,by+.42,z0-1.3,1.9,.1,1.05)); for(const dx of [-.85,.85]) for(const dz of [-.45,.45]) b.push(P('box',0x8d6e4b,-2.6+dx,by+.2,z0-1.3+dz,.08,.4,.08));
+    b.push(P('box',0xf5f0e6,-3.25,by+.52,z0-1.3,.4,.1,.8)); b.push(P('box',0x7fa7c9,-2.45,by+.5,z0-1.3,1.2,.04,.95));            // pillow, kumot
+    b.push(P('box',0x7a5233,-1.2,by+.9,z0-D/2+.35,1.0,1.8,.45)); b.push(P('box',0xf5f5f5,1.0,by+1.7,z0-D/2+.17,.4,.55,.02));}
   for(const x of [-W/2,W/2]) for(const z of [z0-D/2,z0+D/2]) b.push(P('box',TRIM,x,by+ht/2,z,.18,ht,.18));     // corner boards
-  b.push(P('gable',WALL,0,top,z0,W+.02,ry-top,D+.02));
+  cut.push(P('gable',WALL,0,top,z0,W+.02,ry-top,D+.02));
   for(const s of [-1,1]){const zc=z0+s*hd/2, yc=(top+ry)/2+.06;                                                  // corrugated roof with ribs and fascia
-    b.push(P('box',ROOF,0,yc,zc,W+1.2,.09,L,s*A,0,0));
-    for(let i=0;i<Math.floor((W+1.2)/.5);i++) b.push(P('box',RIB,-(W+1.2)/2+.28+i*.5,yc+.055,zc,.07,.06,L,s*A,0,0));
-    b.push(P('box',0xd8cbb0,0,top+.02,z0+s*(hd+.03),W+1.2,.22,.07));}
-  b.push(P('box',0x7c3a2e,0,ry+.12,z0,W+1.3,.12,.45));                                                         // ridge cap
+    cut.push(P('box',ROOF,0,yc,zc,W+1.2,.09,L,s*A,0,0));
+    for(let i=0;i<Math.floor((W+1.2)/.5);i++) cut.push(P('box',RIB,-(W+1.2)/2+.28+i*.5,yc+.055,zc,.07,.06,L,s*A,0,0));
+    cut.push(P('box',0xd8cbb0,0,top+.02,z0+s*(hd+.03),W+1.2,.22,.07));}
+  cut.push(P('box',0x7c3a2e,0,ry+.12,z0,W+1.3,.12,.45));                                                         // ridge cap
   // veranda across the front: floor, posts, railing and a lean-to roof
   const vz0=z0+D/2, vz1=vz0+2.2, vy=by+.02;
   b.push(P('box',FL,0,vy-.06,(vz0+vz1)/2,W+.2,.12,vz1-vz0)); b.push(P('box',BASE,0,(vy-.12)/2,(vz0+vz1)/2,W+.2,vy-.12,vz1-vz0-.05));
@@ -1711,11 +1724,11 @@ function farmHouse(){ // the farmhouse: a modest single-storey house with a vera
     for(let x=x0+.3;x<x1-.1;x+=.3) b.push(P('box',WOOD,x,vy+.45,vz1-.12,.04,.8,.04));}
   for(const s of [-1,1]) b.push(P('box',WOOD,s*W/2,vy+.85,(vz0+vz1)/2,.08,.08,vz1-vz0));
   {const a0=by+ht-.15, a1=vy+2.3, ln=Math.hypot(vz1-vz0+.4,a0-a1), an=Math.atan2(a0-a1,vz1-vz0+.4);
-    b.push(P('box',ROOF,0,(a0+a1)/2,(vz0+vz1+.4)/2,W+.6,.08,ln,an,0,0));
-    for(let i=0;i<Math.floor((W+.6)/.5);i++) b.push(P('box',RIB,-(W+.6)/2+.28+i*.5,(a0+a1)/2+.05,(vz0+vz1+.4)/2,.07,.05,ln,an,0,0));}
+    cut.push(P('box',ROOF,0,(a0+a1)/2,(vz0+vz1+.4)/2,W+.6,.08,ln,an,0,0));
+    for(let i=0;i<Math.floor((W+.6)/.5);i++) cut.push(P('box',RIB,-(W+.6)/2+.28+i*.5,(a0+a1)/2+.05,(vz0+vz1+.4)/2,.07,.05,ln,an,0,0));}
   for(let k=0;k<3;k++) b.push(P('box',BASE,0,(3-k)*.08,vz1+.15+k*.3,1.8,(3-k)*.16,.3));                       // steps down to the garden
   // front: a panelled door and two windows with jalousie slats and wooden shutters; side windows
-  b.push(P('box',TRIM,0,by+1.05,vz0+.02,1.05,2.1,.06)); b.push(P('box',0x6b4423,0,by+1.03,vz0+.05,.9,1.98,.04)); b.push(P('sph',0xd4ac0d,.32,by+1.0,vz0+.09,.07,.07,.07));
+  for(const s of [-1,1]) b.push(P('box',TRIM,s*.52,by+1.05,vz0-.06,.08,2.1,.2)); b.push(P('box',TRIM,0,by+2.12,vz0-.06,1.12,.08,.2));   // door frame (the door itself swings: see buildHouse)
   const win=(x,y,z,f)=>{b.push(P('box',TRIM,x,y,z,1.3,1.15,.06)); b.push(P('box',0x506878,x,y,z+f*.02,1.1,.95,.03));
     for(let k=0;k<6;k++) b.push(P('box',0xcfd8dc,x,y-.4+k*.16,z+f*.05,1.05,.05,.03,f*.5,0,0));
     for(const s of [-1,1]) b.push(P('box',0x4f7a5a,x+s*.9,y,z+f*.03,.45,1.1,.04)); b.push(P('box',TRIM,x,y-.62,z+f*.06,1.45,.08,.14));};
@@ -1728,7 +1741,7 @@ function farmHouse(){ // the farmhouse: a modest single-storey house with a vera
   b.push(P('cyl',0x2f6f9e,W/2+.65,.5,z0-1.2,.75,1.0,.75)); b.push(P('cyl',0x255a82,W/2+.65,1.02,z0-1.2,.78,.06,.78));
   for(const z of [z0-1.8,z0+.6]) b.push(P('box',0x6d4c41,-W/2-1.1,1.0,z,.08,2.0,.08)); b.push(P('box',0x444444,-W/2-1.1,1.9,z0-.6,.02,.02,2.4));
   [[0xe74c3c,-1.6],[0xf1c40f,-1.05],[0x2e86de,-.5],[0xffffff,.05],[0xe84393,.5]].forEach(([c,dz])=>b.push(P('box',c,-W/2-1.1,1.6,z0+dz,.03,.55,.45)));
-  return houseGarden(b);
+  const all=houseGarden(b); all.cut=cut; return all;
 }
 // front garden for the concrete houses (moves with the house): stepping stones to the gate, a flower bed, a kalachuchi tree and a lamp;
 // the left side stays clear for the kubo-kubo
@@ -1755,7 +1768,12 @@ function mergeGeoUV(list){const g=mergeGeo(list), uv=[]; for(const [geo] of list
   g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); return g;}
 function vcGroup(list){const g=new THREE.Group(), kind=l=>l[0]===PG.sph||l[0]===PG.dome?1:l[0]===PG.pyr?2:0;
   [[VCMAT,mergeGeo],[VCSMOOTH,mergeGeo],[ROOF_TILE,mergeGeoUV]].forEach(([M,merge],k)=>{const L=list.filter(l=>kind(l)===k); if(L.length){const m=new THREE.Mesh(merge(L),M); m.castShadow=m.receiveShadow=true; g.add(m);}}); return g;}
-function buildHouse(){clearGroup(houseG); houseG.add(vcGroup(farmHouse()));}
+function buildHouse(){clearGroup(houseG); const L=farmHouse(); houseG.add(vcGroup(L)); const roof=vcGroup(L.cut); houseG.add(roof); houseG.userData.roof=roof;
+  const door=new THREE.Group(); door.position.set(-.45,.5,1.25); const pn=new THREE.Mesh(mergeGeo([P('box',0x6b4423,.45,1.0,0,.9,1.98,.05),P('box',0x5a3a1e,.45,1.45,.03,.6,.6,.02),P('box',0x5a3a1e,.45,.6,.03,.6,.6,.02),P('sph',0xd4ac0d,.78,1.0,.06,.07,.07,.07)]),VCMAT);
+  pn.castShadow=true; door.add(pn); houseG.add(door); houseG.userData.door=door;
+  const pan=new THREE.Group(); pan.add(new THREE.Mesh(mergeGeo([P('cyl',0x2b2b2b,0,0,0,.42,.08,.42),P('box',0x3a2a1e,.32,.02,0,.3,.03,.05)]),VCMAT)); pan.position.set(2.28,1.56,-3.1); houseG.add(pan); houseG.userData.pan=pan;
+  const flame=new THREE.Mesh(new THREE.CylinderGeometry(.13,.13,.04,10),new THREE.MeshBasicMaterial({color:0x4aa3ff,transparent:true,opacity:.85})); flame.position.set(2.28,1.53,-3.1); flame.visible=false; houseG.add(flame); houseG.userData.flame=flame;
+  const steam=[]; for(let k=0;k<5;k++){const s=new THREE.Mesh(new THREE.SphereGeometry(.09,6,4),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.5,depthWrite:false})); s.visible=false; houseG.add(s); steam.push(s);} houseG.userData.steam=steam;}
 // ---- garage / paradahan
 const garageG=new THREE.Group(), driveG=new THREE.Group(); scene.add(garageG,driveG);
 const GARAGE=[null,{name:'Dirt parking',desc:'Gravel spot with a bamboo shade. Fits your jeepney.'},{name:'Covered garage',desc:'Concrete floor, hollow-block wall and yero roof. Fits the jeepney and an Elf truck.',coins:250,mats:{wood:12,nails:10,yero:8,cement:6},dur:25},
@@ -1973,7 +1991,7 @@ for(let i=0;i<3;i++) jeepMats.add(part(.8,.04,2.6,0x9aa6ad,.42,1.99+i*.05,-.8));
 [[-.4,.55],[.42,.55]].forEach(([x,z])=>jeepMats.add(part(.5,.22,.72,0xd9d4c7,x,2.08,z)));
 jeepMats.visible=false; jeep.add(jeepMats);
 const VEH={
-  jeep:{obj:jeep,goods:jeepCargo,mats:jeepMats,wheels:jeepWheels,slot:GX-3,cap:25,r:.38,icon:'🚙',name:'Jeepney',rear:2.9,prev:null},
+  jeep:{obj:jeep,goods:jeepCargo,mats:jeepMats,wheels:jeepWheels,slot:GX-3,cap:60,r:.38,icon:'🚙',name:'Jeepney',rear:2.9,prev:null},
   truck:{obj:truck,goods:truckGoods,mats:truckMats,wheels:truckWheels,slot:GX+3,cap:150,r:.4,icon:'🚚',name:'Elf truck',rear:3.4,prev:null},
 };
 // a family sedan, and a Philippine-style aluminium closed van with a reefer unit for meat
@@ -2076,7 +2094,7 @@ function buildStock(){
   return {obj:g,goods,mats,feed,wheels,r:wr,ramp,z0,z1,H0,mid};
 }
 const BAYS={sedan:-8.25,jeep:-2.75,truck:2.75,van:8.25,stock:14.7};
-function setSlots(){for(const v in VEH) VEH[v].slot=GX+(S.garage>=3||v==='sedan'||v==='van'||v==='stock'?BAYS[v]:v==='jeep'?-3:3); for(const r in ROUTES) delete ROUTES[r];}
+function setSlots(){for(const v in VEH) VEH[v].slot=GX+(S.garage<3&&v==='sedan'?8.25:S.garage>=3||v==='sedan'||v==='van'||v==='stock'?BAYS[v]:v==='jeep'?-3:3); for(const r in ROUTES) delete ROUTES[r];}
 function widenGarage(){ // four bays need more room: slide the garage away from the house if it would overlap
   const hx=S.housePos.x; let nx=GX; if(nx-11.7<hx+4.9&&nx+11.7>hx-4.9) nx=Math.min(18.2,hx+4.9+11.8);
   S.garagePos={x:nx,z:G0}; GX=nx; setSlots();}
@@ -3857,14 +3875,12 @@ function updateFarmer(dt,t){
     p.aL.rotation.z=.06; p.aR.rotation.z=-.06; r.position.y=farmerY(r.position.x,r.position.z)+Math.abs(c)*.05; return false;};
   const stand=()=>{p.lL.g.rotation.x=p.lR.g.rotation.x=p.lL.k.rotation.x=p.lR.k.rotation.x=0; r.position.y=farmerY(r.position.x,r.position.z);};
   if(S.pasa){pasabayStep(F,dt,t,goTo); return;}
-  if(F.state==='go'){const s=jobSpotJ(F.cur); if(goTo(s[0],s[1],4.6*needSpd())){F.state='work'; F.timer=jobTime(F.cur);
+  if(F.state==='go'){const s=jobSpotJ(F.cur); if(goTo(s[0],s[1],(F.cur.type==='home'&&Math.hypot(s[0]-r.position.x,s[1]-r.position.z)<9?1.6:4.6)*needSpd())){F.state='work'; F.timer=jobTime(F.cur);
     if(F.cur.type==='home'){r.rotation.y=Math.PI; sfx('door',s[0],s[1]);} else if(F.cur.type==='hose'){r.rotation.y=Math.atan2(REEL[0]-r.position.x,REEL[1]-r.position.z);} else if(F.cur.type==='fish'){const tp=tilePos(F.cur.pi); r.rotation.y=Math.atan2(tp.x-r.position.x,tp.z-r.position.z); fishStart(F.cur.pi);} else
     if(F.cur.type==='board'){r.rotation.y=-Math.PI/2; VEH[F.cur.vid].doorUntil=Date.now()+1500; {const V=VEH[F.cur.vid]; sfx('door',V.slot,G0+V.doorZ);}} else {const tp=tilePos(F.cur.i); r.rotation.y=Math.atan2(tp.x-r.position.x,tp.z-r.position.z);}}}
   else if(F.state==='work'&&F.cur.type==='board'){stand(); poseStand(p,t); F.timer-=dt; if(F.timer<.55) r.visible=false;
     if(F.timer<=0){const st=S.veh[F.cur.vid]; if(st.trip&&!st.trip.t0){st.trip.t0=departAt(F.cur.vid); st.trip.driver='farmer'; save();} F.riding=F.cur.vid; F.cur=null; F.state='riding'; if(F.hose) hoseToggle(F,'drop'); showCarry(null); F.carry=null;}}
-  else if(F.state==='work'&&F.cur.type==='home'){stand(); r.visible=false; F.timer-=dt; const j=F.cur;   // inside the house: resting, sleeping or cooking
-    if(j.sub==='sleep'){S.me.energy=Math.min(100,S.me.energy+dt*1.4); const h=gameHour(); if(h>=5&&h<21||F.jobs.some(q=>q.type==='board')) F.timer=0;} else if(j.sub==='rest') S.me.energy=Math.min(100,S.me.energy+dt*2.6);
-    if(F.timer<=0){r.visible=true; finishHome(j); F.cur=null; F.state=F.jobs.length?'idle':'home';}}
+  else if(F.state==='work'&&F.cur.type==='home'){homeStep(F,dt,t);}   // walking in, cooking or resting inside, walking out
   else if(F.state==='work'&&F.cur.type==='hose'){stand(); p.aL.rotation.x=p.aR.rotation.x=-1.2+Math.sin(t*8)*.3; F.timer-=dt; if(F.timer<=0){hoseToggle(F,F.cur.sub); F.cur=null; F.state=F.jobs.length?'idle':'home';}}
   else if(F.state==='work'&&F.cur.type==='fish'){stand(); p.aR.rotation.x=-1.1+(FISH.st==='bite'?Math.sin(t*20)*.15:0); p.aL.rotation.x=-.9; p.aR.rotation.z=-.15;
     if(!FISH.on){fishRod(false); F.cur=null; F.state=F.jobs.length?'idle':'home';}}
@@ -4359,12 +4375,14 @@ function updateVehicles(now){
       toast(`${VEH[vid].icon} Arrived at the ${PLACE[tr.dest]}! ${tr.cargo.map(c=>c.label).join(', ')} · +₱${coins.toLocaleString()}`,3400); changed();
     }
     if(tr.dest==='pickup'&&!tr.loaded&&(ph.ph==='back'||ph.ph==='done')){tr.loaded=true; const t=S.tiles[tr.i], L=t&&LIFE[t.b];   // the animals are in the truck
-      if(L&&(L.live||L.cull)&&t.n>0&&(t.gp||0)>=1){const k=L.live||L.cull, take=L.live?t.n:Math.min(t.n,tr.cnt||1); tr.got={[k]:take}; tr.word=take===1&&L.one?L.one:L.word;
+      if(tr.eggs&&t&&isFarm(t)&&(t.stored||0)>0){const B=BLDS[t.b], n=t.stored, wasFull=isFull(t), g={}; for(const k in B.gives) g[k]=perBatch(t,k)*n;   // egg trays from the itlogan or itikan
+        t.stored=0; if(g.egg) S.stats.egg+=g.egg; gainXP(B.xp*lvlOf(t)*n); if(wasFull||t.hungry) startCycle(tr.i,true); tr.got=g; tr.word='itlog'; updateTile(tr.i,Date.now());}
+      else if(L&&(L.live||L.cull)&&t.n>0&&(t.gp||0)>=1){const k=L.live||L.cull, take=L.live?t.n:Math.min(t.n,tr.cnt||1); tr.got={[k]:take}; tr.word=take===1&&L.one?L.one:L.word;
         gainXP(Math.round(BLDS[t.b].xp*lvlOf(t)*capOf(t)*take/maxN(t))); t.n-=take; if(!t.n){t.gp=0; t.hungry=false; t.ng=0; t.sick=false;} t.t=Date.now(); updateTile(tr.i,Date.now());}
       else tr.got={}; changed();}
     if(ph.ph==='done'){
       if(tr.dest==='pickup'&&tr.got){let m=0; for(const k in tr.got){S.inv[k]=(S.inv[k]||0)+tr.got[k]; m+=tr.got[k];}
-        if(m) toast(`${VEH[vid].icon} Back with ${m} live ${tr.word}! Sell them live at the palengke, or turn them into meat at the 🔪 Katayan.`,4000);}
+        if(m) toast(tr.eggs?`${VEH[vid].icon} Back with ${m} ${Object.keys(tr.got).map(k=>ITEMS[k].icon).join(' ')} in egg trays. They are in your bodega.`:`${VEH[vid].icon} Back with ${m} live ${tr.word}! Sell them live at the palengke, or turn them into meat at the 🔪 Katayan.`,4000);}
       if(tr.mats){for(const k in tr.mats) S.mats[k]=(S.mats[k]||0)+tr.mats[k];
         toast(`${VEH[vid].icon} Back from the ${PLACE[tr.dest]}! ${matsLabel(tr.mats)} ${tr.dest==='poultry'?'are in your bodega.':tr.dest==='seeds'?'are ready to plant.':tr.dest==='sari'?'are in your kusina: cook them at 🏠 Bahay.':'are ready for building.'}`,3600);}
       const wasFarmer=tr.driver==='farmer'; st.trip=null; if(wasFarmer) farmerExit(vid); else {const H=helpers.find(H=>'h'+H.h.id===tr.driver); if(H) helperExit(vid,H);}
@@ -4404,6 +4422,8 @@ function placeVehicles(now,dt){
     const gn=V.goods.children.length, gshow=goods===true?gn:Math.ceil((+goods||0)*gn); V.goods.visible=gshow>0; V.goods.children.forEach((c,i)=>c.visible=i<gshow);
     const useFeed=!!(st.trip&&(st.trip.dest==='poultry'||st.trip.dest==='seeds')), MG=useFeed?V.feed:V.mats; (useFeed?V.mats:V.feed).visible=false;
     const n=MG.children.length, show=Math.round(mats*n); MG.visible=show>0; MG.children.forEach((c,i)=>c.visible=i<show);
+    {const tr=st.trip, on=tr&&tr.dest==='pickup'&&tr.eggs; if(on||V.eggSet){if(!V.eggSet) V.eggSet=makeEggSet(V); let f=0;   // egg trays stacking up in the jeepney or truck
+      if(on){const P5=vehPhase(vid,now); f=P5.ph==='stop'?Math.min(1,P5.e/(tr.stopT||12)):P5.ph==='back'?1:0;} const n=V.eggSet.children.length, sh=Math.ceil(f*n); V.eggSet.visible=sh>0; V.eggSet.children.forEach((c,k)=>c.visible=k<sh);}}
     if(V.liveSets){let kind=null, lf=0; const tr=st.trip;   // live animals in the cages: loading at a pen, riding home, or going to the palengke
       if(V.ramp){let open=0; if(tr&&tr.dest==='pickup'){const P3=vehPhase(vid,now); if(P3.ph==='stop') open=Math.max(0,Math.min(1,P3.e/1.2,(STOP.pickup-P3.e)/1.2));} V.ramp.rotation.x+=(-2.2*open-V.ramp.rotation.x)*Math.min(1,dt*6);}
       if(tr&&tr.dest==='pickup'){const P2=vehPhase(vid,now), set=V.liveSets[AREA_LIVE[tr.area]]; kind=AREA_LIVE[tr.area]; const fr=set?Math.min(1,(tr.cnt||99)/set.children.length):1;
@@ -4423,6 +4443,7 @@ function errandPerson(V,tr){const key=tr.driver;
     const L={...(tr.driver==='farmer'?FARMER_LOOK:H&&H.look?H.look:randLook(Math.random)),bag:null}; const p=makePerson(L);
     const crate=new THREE.Group(); crate.add(new THREE.Mesh(mergeGeo([P('box',0xe74c3c,0,0,0,.62,.32,.42),P('box',0x2b2b2b,0,.02,0,.64,.1,.3)]),VCMAT));
     for(const x of [-.14,.14]){const c=miniAnimal('live_chicken'); c.scale.setScalar(.5); c.position.set(x,.1,0); crate.add(c);} crate.position.set(0,1.0,.38); crate.visible=false; p.root.add(crate); p.crate=crate;
+    const tray=new THREE.Mesh(eggTrayGeo(4),VCMAT); tray.position.set(0,.95,.4); tray.visible=false; p.root.add(tray); p.tray=tray;
     const bag=new THREE.Mesh(new THREE.BoxGeometry(.26,.3,.12),new THREE.MeshStandardMaterial({color:0xf5f5f5})); bag.position.set(.34,.6,0); bag.visible=false; p.root.add(bag); p.bag=bag;
     scene.add(p.root); V.er=p; V.erKey=key;} return V.er;}
 function walkAlong(p,pts,u,now){let L=0; const seg=[]; for(let k=0;k<pts.length-1;k++){const d=Math.hypot(pts[k+1][0]-pts[k][0],pts[k+1][1]-pts[k][1]); seg.push(d); L+=d;}
@@ -4432,20 +4453,30 @@ const pathLen=pts=>{let L=0; for(let k=0;k<pts.length-1;k++) L+=Math.hypot(pts[k
 function errandStep(V,vid,tr,now){V.out=false; const hide=()=>{if(V.er) V.er.root.visible=false;};
   const P=tr&&tr.t0?vehPhase(vid,now):null; if(!P||P.ph!=='stop'){hide(); return;}
   const sd=tr.stopT||STOP[tr.dest]||8, e=P.e, o=V.obj, ry=o.rotation.y, door=[o.position.x+Math.cos(ry)*1.5+Math.sin(ry)*1.6, o.position.z-Math.sin(ry)*1.5+Math.cos(ry)*1.6];
-  const chick=tr.dest==='pickup'&&AREA_LIVE[tr.area]==='live_chicken', shop=ERRAND_AT[tr.dest];
+  const chick=tr.dest==='pickup'&&(tr.eggs||AREA_LIVE[tr.area]==='live_chicken'), shop=ERRAND_AT[tr.dest];
   if(!chick&&!shop){hide(); return;} if(e<.9||e>sd-.7){hide(); return;}   // still opening the door / already back in the seat
   const p=errandPerson(V,tr); p.root.visible=true; V.out=true; const t=e-.9, T=sd-1.6, sp=chick?3.2:1.6;
   if(chick){const rear=[o.position.x-Math.sin(ry)*(V.rear+.7),o.position.z-Math.cos(ry)*(V.rear+.7)], A=FARM.areas.find(a=>a.type===tr.area), h=jobSpot(tr.i), loop=[rear,A.gate,h,A.gate,rear];
     const d0=Math.hypot(rear[0]-door[0],rear[1]-door[1])/sp, L=pathLen(loop), back=d0;
     if(t<d0){walkAlong(p,[door,rear],t/d0,now); p.crate.visible=false;}
     else if(t>T-back){walkAlong(p,[rear,door],(t-(T-back))/back,now); p.crate.visible=false;}
-    else {const u=((t-d0)*sp%L)/L; walkAlong(p,loop,u,now); p.crate.visible=u>.5; if(p.crate.visible){p.aL.rotation.x=p.aR.rotation.x=-1.2;}}
+    else {const u=((t-d0)*sp%L)/L; walkAlong(p,loop,u,now); const c=u>.5; p.crate.visible=c&&!tr.eggs; p.tray.visible=c&&!!tr.eggs; if(c){p.aL.rotation.x=p.aR.rotation.x=-1.2;}}
+    if(!(t>=d0&&t<=T-back)) p.tray.visible=false;
     p.bag.visible=false; return;}
   const d=Math.hypot(shop[0]-door[0],shop[1]-door[1]), wt=Math.min(T/2.4,d/sp);
   if(t<wt){walkAlong(p,[door,shop],t/wt,now); p.bag.visible=false;}
   else if(t>T-wt){walkAlong(p,[shop,door],(t-(T-wt))/wt,now); p.bag.visible=true;}
   else p.root.visible=false;   // inside the store, buying
   p.crate.visible=false;}
+// a stack of cardboard egg trays full of eggs (n trays high)
+const ETG={}; function eggTrayGeo(n){if(ETG[n]) return ETG[n]; const b=[]; for(let h=0;h<n;h++){b.push(P('box',0xd9c7a3,0,h*.07,0,.5,.03,.5)); for(let i=0;i<4;i++) for(let j=0;j<4;j++) b.push(P('sph',0xf6eedc,-.18+i*.12,h*.07+.04,-.18+j*.12,.09,.1,.09));} return ETG[n]=mergeGeo(b);}
+function makeEggSet(V){const g=new THREE.Group(), bb=new THREE.Box3(); V.goods.children.forEach(c=>bb.expandByPoint(c.position)); const gp=V.goods.position;
+  const jp=V===VEH.jeep, cx=jp?0:gp.x+(bb.min.x+bb.max.x)/2, cz=jp?-1.05:gp.z+(bb.min.z+bb.max.z)/2, y=jp?.5:gp.y+bb.min.y-.1, hl=jp?.75:Math.max(.6,(bb.max.z-bb.min.z)/2);   // in the jeepney: on the floor between the benches
+  for(let k=0;k<8;k++){const m=new THREE.Mesh(eggTrayGeo(3),VCMAT); m.position.set(cx+((k%2)-.5)*.6,y+((k/4)|0)*.24,cz-hl*.6+((k>>1)%2)*hl*1.2); g.add(m);} g.visible=false; V.obj.add(g); return g;}
+const eggVeh=()=>['jeep','truck'].filter(v=>OWN(v));
+function startEggRun(i){const t=S.tiles[i], vs=eggVeh(), v=vs.find(vehFree); if(!v||pickupPending(i)) return false;
+  if(!beginTrip(v,{dest:'pickup',i,area:t.b,eggs:true,paid:true,stopT:20})) return true;
+  toast(`${VEH[v].icon} The ${vname(v)} goes to the ${FARM.areas.find(a=>a.type===t.b).name.toLowerCase()} gate; the driver carries the egg trays out to it.`,3400); buzz(); changed(); return true;}
 function loadWalkers(V,tr,P,now){const kind=AREA_LIVE[tr.area]||'live_chicken';
   if(kind==='live_chicken'){if(V.walk) for(const k in V.walk) V.walk[k].visible=false; return;}   // chickens are carried in crates by the driver (errandStep) if(!V.walk) V.walk={};
   if(!V.walk[kind]){const g=new THREE.Group(); for(let k=0;k<5;k++) g.add(miniAnimal(kind)); g.visible=false; scene.add(g); V.walk[kind]=g;}
@@ -4674,6 +4705,7 @@ $('bldSheet').addEventListener('click',e=>{
     else if(act==='inc-take'){const c=I.egg/12, d=I.duckegg/12; S.mats.chick=(S.mats.chick||0)+c; S.mats.duckling=(S.mats.duckling||0)+d; t.inc={egg:0,duckegg:0,t0:0}; floatAt(bldIdx,`+${c+d} 🐣`); sfx('hen'); toast(`🐣 ${c?c+' box'+(c>1?'es':'')+' of sisiw':''}${c&&d?' and ':''}${d?d+' box'+(d>1?'es':'')+' of bibi':''} are in your bodega. Restock a house with them.`,3400);}
     buzz(); changed(); return renderBld();}
   const a=e.target.closest('[data-act]'); if(!a) return;
+  if(a.dataset.act==='collect'&&(S.tiles[bldIdx].b==='coop'||S.tiles[bldIdx].b==='duck')&&S.tiles[bldIdx].stored>0&&eggVeh().some(vehFree)){$('bldSheet').classList.remove('open'); if(startEggRun(bldIdx)) return;}   // by jeepney or truck
   if(a.dataset.act==='collect'){const t=S.tiles[bldIdx], L=LIFE[t.b]; if(L&&L.live&&t.n>0&&(t.gp||0)>=1&&!t.stored&&pickupVeh(t).length){$('bldSheet').classList.remove('open'); return startPickup(bldIdx);}}
   if(a.dataset.act==='collect'){if(queueJob('harvest',bldIdx)){buzz(); toast('👨‍🌾 Your farmer is going to collect it and bring it to the bodega.',2600);} $('bldSheet').classList.remove('open'); return;}
   if(a.dataset.act==='buyfeed'){$('bldSheet').classList.remove('open'); return openHW('poultry');}
@@ -5463,7 +5495,31 @@ setInterval(()=>{const want=rainOn()&&AC&&SND.amb&&AC.state==='running';
     if(Math.random()<.035) noise(BUS.amb,{d:3.8,a:.5,v:.2,f:110,f2:45,q:.7,type:'lowpass'});}},1000);
 // the farmer gets hungry and tired: slower when low, refuses work when exhausted; rest, sleep or eat at home
 const HOME_T={rest:20,cook:10,sleep:1e9}, COST={plow:1.4,plant:.6,harvest:.7,chop:3,water:.4,care:.6};
-const homeDoor=()=>[S.housePos.x,S.housePos.z+5.8];
+const homeDoor=()=>[S.housePos.x,S.housePos.z+4.75];   // the foot of the front steps
+// inside the house: up the three steps, across the veranda, through the door, to the stove or the papag
+function homePath(sub){const hx=S.housePos.x, hz=S.housePos.z, p=(x,z,y)=>[hx+x,hz+z,y];
+  const base=[p(0,4.75,.08),p(0,4.25,.2),p(0,3.95,.32),p(0,3.6,.52),p(0,1.75,.52),p(0,.9,.52),p(0,0,.52)];
+  return base.concat(sub==='cook'?[p(1.6,-1.0,.52),p(2.4,-2.45,.52)]:[p(-1.4,-.4,.52),p(-2.0,-1.6,.52),p(-2.45,-2.3,.52)]);}
+let homeLast=performance.now();
+function homeStep(F,dt,t){const j=F.cur, r=F.p.root, p=F.p, now=Date.now();
+  if(!j.seq){j.seq={stage:'in',u:0,pts:homePath(j.sub)}; r.visible=true;}
+  const q=j.seq, walk=(pts)=>{let L=0; const seg=[]; for(let k=0;k<pts.length-1;k++){const d=Math.hypot(pts[k+1][0]-pts[k][0],pts[k+1][1]-pts[k][1]); seg.push(d); L+=d;}
+    q.u=Math.min(L,q.u+dt*1.25); let s=q.u, k=0; while(k<seg.length-1&&s>seg[k]){s-=seg[k]; k++;} const a=pts[k], b=pts[k+1], f=seg[k]?Math.min(1,s/seg[k]):1;
+    r.position.set(a[0]+(b[0]-a[0])*f,a[2]+(b[2]-a[2])*f,a[1]+(b[1]-a[1])*f); r.rotation.y=lerpAng(r.rotation.y,Math.atan2(b[0]-a[0],b[1]-a[1]),.25); F.ph+=dt*7; poseWalk(p,F.ph);
+    const dz=r.position.z-S.housePos.z; if(Math.abs(dz-1.25)<1.3&&Math.abs(r.position.x-S.housePos.x)<1) houseDoorT=now+1200; return q.u>=L;};
+  if(q.stage==='in'){if(walk(q.pts)){q.stage='act'; q.u=0; F.timer=jobTime(j);}}
+  else if(q.stage==='act'){F.timer-=dt; const h=gameHour();
+    if(j.sub==='cook'){r.rotation.y=Math.PI; poseStand(p,t); p.aR.rotation.x=-1.2+Math.sin(t*7)*.35; p.aL.rotation.x=-.8; cookingT=now+300;}
+    else {r.rotation.y=Math.PI/2; poseSit(p); r.position.y=.55; if(j.sub==='sleep'){r.rotation.y=-Math.PI/2; r.rotation.z=Math.PI/2; r.position.y=1.05;}}
+    if(j.sub==='sleep'){S.me.energy=Math.min(100,S.me.energy+dt*1.4); if(h>=5&&h<21||F.jobs.some(q2=>q2.type==='board')) F.timer=0;} else if(j.sub==='rest') S.me.energy=Math.min(100,S.me.energy+dt*2.6);
+    if(F.timer<=0){r.rotation.z=0; finishHome(j); q.stage='out'; q.u=0; q.pts=q.pts.slice().reverse();}}
+  else if(q.stage==='out'){r.rotation.z=0; if(walk(q.pts)){r.position.y=farmerY(r.position.x,r.position.z); F.cur=null; F.state=F.jobs.length?'idle':'home';}}}
+let houseDoorT=0, cookingT=0;
+(function houseLoop(){requestAnimationFrame(houseLoop); const n=performance.now(), dt=Math.min(.05,(n-homeLast)/1000), t=n/1000; homeLast=n; const U=houseG.userData, now=Date.now(); if(!U.door) return;
+  U.door.rotation.y+=((now<houseDoorT?1.5:0)-U.door.rotation.y)*Math.min(1,dt*5);
+  const r=farmer.p.root, inside=Math.abs(r.position.x-S.housePos.x)<3.9&&r.position.z>S.housePos.z-3.6&&r.position.z<S.housePos.z+1.35&&r.visible; U.roof.visible=!(inside&&cam.dist<30&&Math.hypot(cam.target.x-S.housePos.x,cam.target.z-S.housePos.z)<20);   // look inside while he is in
+  const cook=now<cookingT; U.flame.visible=cook; U.flame.scale.setScalar(.9+Math.sin(t*20)*.1);
+  U.steam.forEach((s,k)=>{s.visible=cook; if(cook){const u=(t*.6+k/5)%1; s.position.set(2.28+Math.sin(k*2+t)*.08,1.6+u*.9,-3.1); s.scale.setScalar(.6+u*1.4); s.material.opacity=.5*(1-u);}});})();
 const needSpd=()=>S.me.energy<=0?.5:(S.me.energy<20||S.me.hunger<15)?.72:1;
 function spendNeeds(type){const c=COST[type]||.5; S.me.energy=Math.max(0,S.me.energy-c*(S.me.hunger<=0?2:1)); S.me.hunger=Math.max(0,S.me.hunger-c*.5); renderNeeds();}
 let needWarn={};

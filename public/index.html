@@ -301,6 +301,11 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 #tools,#cats{gap:5px!important;padding:7px!important}
 .badge{border:2px solid var(--paper)}
 .ucard,.order,.good{background:var(--paper2)!important;border:2px solid rgba(59,46,36,.25);color:var(--ink2)}
+/* sound switches in the menu */
+.sndrow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sndrow button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px!important;font-size:13px}
+.sndrow button small{font-size:10.5px;font-weight:900;opacity:.6}
+.sndrow button.on small{opacity:1;color:#2e7d32}
 /* the three-button pop-ups */
 #bldSheet .sheet,#drvSheet .sheet{width:min(440px,100%)!important}
 #upCards{display:block}
@@ -461,6 +466,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
     <p>Open Tools and pick the hoe, seeds or sickle, then drag one finger across the field to work many plots at once. Tap the tool again to put it away. Deliver your harvest at the Palengke. Use two fingers to move, pinch to zoom, twist to rotate. On a computer, scroll to zoom, right-drag to rotate.</p>
     <button id="newsBtn">📰 News &amp; updates</button>
     <button id="achMenuBtn">🏆 Achievements</button>
+    <div class="sndrow"><button id="sndMusic"></button><button id="sndAmb"></button><button id="sndSfx"></button></div>
     <button id="recenter">Recenter the view</button>
     <button id="reset" class="warn">Start a new farm</button>
     <button id="closeMenu">Back to the farm</button>
@@ -3128,7 +3134,147 @@ function brushAt(x,y){
   const i=tileAt(x,y); if(i<0||stroke.done.has(i)) return;
   stroke.done.add(i); brush(i);
 }
-function buzz(){try{navigator.vibrate&&navigator.vibrate(8)}catch(e){}}
+function buzz(){sfx('tap'); try{navigator.vibrate&&navigator.vibrate(8)}catch(e){}}
+/* ---------- Sound: everything is made in the browser with WebAudio (no sound files to download) ---------- */
+const SND_KEY='sunfield-sound-v1';
+const SND=(()=>{let o={}; try{o=JSON.parse(localStorage.getItem(SND_KEY))||{};}catch(e){} return {sfx:o.sfx!==false,music:o.music!==false,amb:o.amb!==false};})();
+function saveSnd(){try{localStorage.setItem(SND_KEY,JSON.stringify(SND));}catch(e){}}
+let AC=null, BUS=null, NOISE=null;
+function audioInit(){ // browsers only allow sound after the first tap
+  if(AC){if(AC.state==='suspended'&&!document.hidden) AC.resume(); return;}
+  const C=window.AudioContext||window.webkitAudioContext; if(!C) return;
+  try{AC=new C();}catch(e){return;}
+  const comp=AC.createDynamicsCompressor(); comp.threshold.value=-14; comp.ratio.value=4; comp.connect(AC.destination);
+  const master=AC.createGain(); master.gain.value=.9; master.connect(comp);
+  const mk=v=>{const g=AC.createGain(); g.gain.value=v; g.connect(master); return g;};
+  BUS={sfx:mk(SND.sfx?.7:0), music:mk(SND.music?.32:0), amb:mk(SND.amb?.45:0)};
+  NOISE=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate); const d=NOISE.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
+  // a little room so the guitar and birds don't sound dry
+  const dl=AC.createDelay(); dl.delayTime.value=.23; const fb=AC.createGain(); fb.gain.value=.28; const wet=AC.createGain(); wet.gain.value=.22; const lp=AC.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=2200;
+  dl.connect(lp); lp.connect(fb); fb.connect(dl); lp.connect(wet); wet.connect(master); BUS.echo=dl;
+  BUS.music.connect(dl);
+  musicStart(); ambStart();
+}
+['pointerdown','keydown','touchstart'].forEach(ev=>addEventListener(ev,audioInit,{passive:true}));
+document.addEventListener('visibilitychange',()=>{if(!AC) return; document.hidden?AC.suspend():AC.resume();});
+function setSnd(k,on){SND[k]=on; saveSnd(); if(!BUS) return; const v={sfx:.7,music:.32,amb:.45}[k]; BUS[k].gain.setTargetAtTime(on?v:0,AC.currentTime,.15);}
+
+// building blocks
+function tone(bus,{f=440,f2=null,type='sine',a=.005,d=.15,v=.3,t=0,q=null,lp=null,glide=null}){
+  if(!AC) return; const t0=AC.currentTime+t, o=AC.createOscillator(), g=AC.createGain(); o.type=type; o.frequency.setValueAtTime(f,t0);
+  if(f2) o.frequency.exponentialRampToValueAtTime(f2,t0+(glide||d));
+  g.gain.setValueAtTime(0,t0); g.gain.linearRampToValueAtTime(v,t0+a); g.gain.exponentialRampToValueAtTime(.0008,t0+a+d);
+  let out=o; if(lp){const fl=AC.createBiquadFilter(); fl.type='lowpass'; fl.frequency.value=lp; if(q) fl.Q.value=q; o.connect(fl); out=fl;}
+  out.connect(g); g.connect(bus); o.start(t0); o.stop(t0+a+d+.05); return o;}
+function noise(bus,{t=0,d=.1,v=.3,a=.003,type='bandpass',f=1000,q=1,f2=null}){
+  if(!AC) return; const t0=AC.currentTime+t, s=AC.createBufferSource(), fl=AC.createBiquadFilter(), g=AC.createGain(); s.buffer=NOISE; s.loop=true;
+  fl.type=type; fl.frequency.setValueAtTime(f,t0); if(f2) fl.frequency.exponentialRampToValueAtTime(f2,t0+d); fl.Q.value=q;
+  g.gain.setValueAtTime(0,t0); g.gain.linearRampToValueAtTime(v,t0+a); g.gain.exponentialRampToValueAtTime(.0008,t0+a+d);
+  s.connect(fl); fl.connect(g); g.connect(bus); s.start(t0,Math.random()*1.5); s.stop(t0+a+d+.05);}
+function pluck(bus,f,t,v=.18,d=1.2){ // a soft nylon-guitar note
+  tone(bus,{f,type:'triangle',a:.004,d,v,t,lp:f*5}); tone(bus,{f:f*2,type:'sine',a:.003,d:d*.4,v:v*.25,t});}
+
+// sounds closer to the middle of the screen are louder; far away or zoomed out they fade
+function near(x,z){const T=cam.target, dd=Math.hypot(x-T.x,z-T.z), r=cam.dist*.9+14; return Math.max(0,Math.min(1,1.15-dd/r))*Math.max(.35,Math.min(1,40/cam.dist));}
+let sfxLast={};
+function sfx(name,x,z){
+  if(!AC||!SND.sfx||AC.state!=='running') return;
+  const now=performance.now(), gap={harvest:70,plow:70,plant:60,coin:90,tap:35,pop:60}[name]||0;
+  if(gap&&now-(sfxLast[name]||0)<gap) return; sfxLast[name]=now;
+  const k=x===undefined?1:near(x,z); if(k<.04) return; const B=BUS.sfx, r=.94+Math.random()*.12;
+  switch(name){
+    case 'tap': tone(B,{f:720*r,f2:520,type:'triangle',d:.05,v:.16*k}); break;
+    case 'pop': tone(B,{f:420,f2:880,type:'sine',d:.09,v:.14*k,glide:.06}); tone(B,{f:1300,type:'sine',d:.05,v:.05*k,t:.04}); break;
+    case 'close': tone(B,{f:700,f2:380,type:'sine',d:.08,v:.11*k,glide:.07}); break;
+    case 'coin': tone(B,{f:1567,type:'square',d:.08,v:.05*k,lp:5000}); tone(B,{f:2093,type:'square',d:.35,v:.05*k,t:.07,lp:5000}); tone(B,{f:2093,type:'sine',d:.4,v:.08*k,t:.07}); break;
+    case 'cash': [1318,1567,2093,2637].forEach((f,i)=>tone(B,{f,type:'sine',d:.35,v:.09*k,t:i*.06})); noise(B,{d:.18,v:.05*k,f:6000,q:.6,t:.02}); break;
+    case 'harvest': noise(B,{d:.07,v:.16*k,f:2600*r,q:.8}); tone(B,{f:520*r,f2:700,type:'triangle',d:.08,v:.07*k,t:.02}); break;
+    case 'collect': [660,880,990].forEach((f,i)=>tone(B,{f:f*r,type:'triangle',d:.14,v:.09*k,t:i*.05})); noise(B,{d:.12,v:.06*k,f:1800,q:.7}); break;
+    case 'plow': noise(B,{d:.13,v:.26*k,f:380*r,q:1.2,type:'lowpass'}); noise(B,{d:.06,v:.1*k,f:1500,q:2,t:.02}); break;
+    case 'plant': tone(B,{f:300*r,f2:200,type:'sine',d:.09,v:.14*k}); noise(B,{d:.05,v:.06*k,f:900,q:1}); break;
+    case 'chop': for(let i=0;i<3;i++){noise(B,{d:.07,v:.25*k,f:900,q:3,t:i*.32}); tone(B,{f:180,f2:120,type:'sine',d:.08,v:.18*k,t:i*.32});} break;
+    case 'hammer': for(let i=0;i<4;i++){noise(B,{d:.05,v:.2*k,f:2400,q:4,t:i*.22}); tone(B,{f:230,f2:140,type:'sine',d:.07,v:.18*k,t:i*.22});} break;
+    case 'level': [523,659,784,1046,1318].forEach((f,i)=>{tone(B,{f,type:'triangle',d:.5,v:.14,t:i*.09}); tone(B,{f:f*2,type:'sine',d:.3,v:.04,t:i*.09});}); break;
+    case 'nope': tone(B,{f:220,type:'square',d:.09,v:.05*k,lp:900}); tone(B,{f:165,type:'square',d:.14,v:.05*k,t:.1,lp:900}); break;
+    case 'door': noise(B,{d:.05,v:.18*k,f:700,q:2}); tone(B,{f:110,f2:70,type:'sine',d:.1,v:.25*k,t:.01}); break;
+    case 'horn': [0,.24].forEach(t=>{tone(B,{f:392,type:'sawtooth',d:.16,v:.07*k,t,lp:1800,a:.01}); tone(B,{f:494,type:'sawtooth',d:.16,v:.06*k,t,lp:1800,a:.01});}); break;
+    case 'engine': {const t0=AC.currentTime, o=AC.createOscillator(), g=AC.createGain(), fl=AC.createBiquadFilter(); o.type='sawtooth';
+      o.frequency.setValueAtTime(38,t0); o.frequency.linearRampToValueAtTime(62,t0+.5); o.frequency.linearRampToValueAtTime(48,t0+1.4);
+      fl.type='lowpass'; fl.frequency.value=420; g.gain.setValueAtTime(0,t0); g.gain.linearRampToValueAtTime(.16*k,t0+.15); g.gain.linearRampToValueAtTime(.0008,t0+1.6);
+      o.connect(fl); fl.connect(g); g.connect(B); o.start(t0); o.stop(t0+1.7); break;}
+    case 'hen': animal('hen',k); break; case 'pig': animal('pig',k); break; case 'cow': animal('cow',k); break;
+    case 'duck': animal('duck',k); break; case 'goat': animal('goat',k); break; case 'rooster': animal('rooster',k); break;
+    case 'splash': noise(B,{d:.25,v:.12*k,f:1200,f2:500,q:.7}); break;
+  }
+}
+function animal(kind,k,bus){
+  const B=bus||BUS.sfx, r=.92+Math.random()*.16;
+  if(kind==='hen') for(let i=0,n=2+(Math.random()*3|0);i<n;i++) tone(B,{f:700*r,f2:1100*r,type:'square',d:.06,v:.035*k,t:i*.13,lp:2400,glide:.04});
+  else if(kind==='rooster'){tone(B,{f:520,f2:780,type:'sawtooth',d:.18,v:.05*k,lp:2200,glide:.12}); tone(B,{f:780,f2:900,type:'sawtooth',d:.5,v:.06*k,t:.2,lp:2400,glide:.3}); tone(B,{f:880,f2:560,type:'sawtooth',d:.35,v:.05*k,t:.72,lp:2200});}
+  else if(kind==='pig') for(let i=0,n=1+(Math.random()*2|0);i<n;i++){tone(B,{f:150*r,f2:105*r,type:'sawtooth',d:.12,v:.1*k,t:i*.2,lp:700,q:6}); noise(B,{d:.1,v:.05*k,f:500,q:3,t:i*.2});}
+  else if(kind==='cow'){const t0=AC.currentTime, o=AC.createOscillator(), g=AC.createGain(), fl=AC.createBiquadFilter(); o.type='sawtooth';
+    o.frequency.setValueAtTime(95*r,t0); o.frequency.linearRampToValueAtTime(130*r,t0+.35); o.frequency.linearRampToValueAtTime(100*r,t0+1.2);
+    fl.type='lowpass'; fl.Q.value=5; fl.frequency.setValueAtTime(300,t0); fl.frequency.linearRampToValueAtTime(900,t0+.4); fl.frequency.linearRampToValueAtTime(350,t0+1.2);
+    g.gain.setValueAtTime(0,t0); g.gain.linearRampToValueAtTime(.12*k,t0+.2); g.gain.linearRampToValueAtTime(.0008,t0+1.3); o.connect(fl); fl.connect(g); g.connect(B); o.start(t0); o.stop(t0+1.4);}
+  else if(kind==='duck') for(let i=0,n=2+(Math.random()*2|0);i<n;i++) tone(B,{f:340*r,f2:300*r,type:'sawtooth',d:.09,v:.06*k,t:i*.16,lp:1600,q:8});
+  else if(kind==='goat') for(let i=0;i<5;i++) tone(B,{f:330*r*(1+(i%2)*.04),type:'sawtooth',a:.01,d:.09,v:.06*k,t:i*.08,lp:1400,q:4});
+}
+const ANIMAL_OF={coop:'hen',broiler:'hen',pig:'pig',cows:'cow',duck:'duck',goat:'goat'};
+
+/* ---------- music: a slow, sunny acoustic loop (guitar strums, a bass and a simple melody), quieter and sparser at night ---------- */
+const MUS={next:0,beat:0,timer:null};
+const PROG_DAY=[[0,4,7],[9,12,16],[5,9,12],[7,11,14]], PROG_NIGHT=[[9,12,16],[5,9,12],[0,4,7],[7,11,14]];  // I vi IV V  /  vi IV I V (in C)
+const SCALE=[0,2,4,7,9,12,14,16];  // pentatonic: always sounds sweet
+const midi=n=>440*Math.pow(2,(n-69)/12);
+let melNote=4;
+function musicStart(){if(MUS.timer) return; MUS.next=AC.currentTime+.4; MUS.timer=setInterval(musicTick,120);}
+function musicTick(){
+  if(!AC||AC.state!=='running') return;
+  if(!SND.music){MUS.next=AC.currentTime+.2; return;}
+  const night=!isWork(), spb=night?.82:.68;           // seconds per beat
+  while(MUS.next<AC.currentTime+.6){
+    const t=MUS.next-AC.currentTime, b=MUS.beat, bar=Math.floor(b/4)%16, inBar=b%4, P=night?PROG_NIGHT:PROG_DAY, ch=P[bar%4], root=48+(night?-2:0), B=BUS.music;
+    if(inBar===0) pluck(B,midi(root-12+ch[0]),t,.2,1.8);                                   // bass
+    if(inBar===2) pluck(B,midi(root-12+ch[(bar%2)?2:0]),t,.13,1.2);
+    if(!night||inBar!==1){ // strum: notes a few ms apart, down on the beat, lighter on the off-beats
+      const v=inBar===0?.07:.045; ch.forEach((n,i)=>pluck(B,midi(root+12+n),t+i*.018,v,inBar===0?1.4:.7));
+      if(!night&&inBar===3) ch.forEach((n,i)=>pluck(B,midi(root+12+n),t+spb/2+(2-i)*.015,.03,.4));}
+    // melody: phrases in bars 4-7 and 12-15, resting the rest of the time
+    const mb=bar%8; if(mb>=4&&Math.random()<(night?.4:.62)){
+      melNote=Math.max(0,Math.min(SCALE.length-1,melNote+[-2,-1,-1,0,1,1,2][Math.random()*7|0]));
+      if(inBar===0) melNote=SCALE.indexOf(ch[0]%12)>=0?SCALE.indexOf(ch[0]%12):melNote;
+      const f=midi(root+24+SCALE[melNote]); tone(B,{f,type:'triangle',a:.01,d:.9,v:.075,t,lp:2600}); tone(B,{f:f*2,type:'sine',a:.01,d:.4,v:.015,t});
+      if(Math.random()<.3) tone(B,{f:midi(root+24+SCALE[Math.min(SCALE.length-1,melNote+1)]),type:'triangle',a:.01,d:.5,v:.05,t:t+spb/2,lp:2600});}
+    MUS.next+=spb; MUS.beat++;
+  }
+}
+
+/* ---------- ambience: birds and a soft breeze by day, kuliglig (crickets) and frogs at night, and the farm animals now and then ---------- */
+let ambT=0, lastHour=-1;
+function ambStart(){setInterval(ambTick,500);}
+function ambTick(){
+  if(!AC||AC.state!=='running'||!SND.amb) return;
+  const B=BUS.amb, h=gameHour(), day=isWork(), zoom=Math.max(.3,Math.min(1,45/cam.dist));
+  if(Math.floor(h)===5&&lastHour!==5&&S.tiles.some(t=>t.s==='bld'&&(t.b==='coop'||t.b==='broiler'))) animal('rooster',.8,B);   // the rooster at dawn
+  lastHour=Math.floor(h);
+  if(day){
+    if(Math.random()<.22){const f=2400+Math.random()*1800, n=2+(Math.random()*4|0), v=.035*zoom; for(let i=0;i<n;i++) tone(B,{f:f*(1+Math.random()*.15),f2:f*(1.25+Math.random()*.3),type:'sine',d:.07,v,t:i*.11,glide:.06});}
+    if(Math.random()<.05) noise(B,{d:2.5,a:1.2,v:.05,f:500,q:.4,type:'lowpass'});
+  }else{
+    if(Math.random()<.7){const f=4200+Math.random()*600; for(let i=0;i<6;i++) tone(B,{f,type:'sine',a:.002,d:.025,v:.012*zoom,t:i*.045+Math.random()*.01});}
+    if(Math.random()<.12) for(let i=0,n=2+(Math.random()*3|0);i<n;i++) tone(B,{f:180+Math.random()*40,f2:120,type:'square',d:.06,v:.02*zoom,t:i*.22,lp:600});
+  }
+  // a farm animal makes a sound now and then, louder when you are looking at it
+  ambT-=.5; if(ambT<=0){ambT=5+Math.random()*9;
+    const own=[]; for(let i=0;i<S.tiles.length;i++){const t=S.tiles[i]; if(t.s==='bld'&&ANIMAL_OF[t.b]&&!underConstruction(t,Date.now())) own.push(i);}
+    if(own.length){const i=own[Math.random()*own.length|0], p=tilePos(i), k=near(p.x,p.z); if(k>.05&&(day||Math.random()<.3)) animal(ANIMAL_OF[S.tiles[i].b],k*.9,B);}}
+}
+// every pop-up sheet makes a soft pop when it opens
+['market','hwSheet','upSheet','bldSheet','drvSheet','helpSheet','bizSheet','newsSheet','achSheet','misSheet','menu'].forEach(id=>{const el=document.getElementById(id); if(!el) return;
+  new MutationObserver(()=>{const o=el.classList.contains('open'); if(o!==!!el._o){el._o=o; sfx(o?'pop':'close');}}).observe(el,{attributes:true,attributeFilter:['class']});});
+function renderSnd(){[['music','sndMusic','🎵 Music'],['amb','sndAmb','🐦 Farm sounds'],['sfx','sndSfx','🔔 Effects']].forEach(([k,id,l])=>{const b=document.getElementById(id); if(b){b.innerHTML=`${l}<small>${SND[k]?'ON':'OFF'}</small>`; b.classList.toggle('on',SND[k]);}});}
+['sndMusic','sndAmb','sndSfx'].forEach((id,n)=>document.getElementById(id).addEventListener('click',()=>{audioInit(); const k=['music','amb','sfx'][n]; setSnd(k,!SND[k]); renderSnd(); sfx('tap');}));
+renderSnd();
 function brush(i){
   i=anchorOf(i);
   const t=S.tiles[i], now=Date.now(), tool=S.tool;
@@ -3335,7 +3481,7 @@ function collect(i){
 function gainXP(x){
   S.xp+=x;
   while(S.xp>=need(S.level)){
-    S.xp-=need(S.level); S.level++;
+    S.xp-=need(S.level); S.level++; sfx('level');
     const unlocks=[...Object.values(CROPS),...Object.values(BLDS)].filter(o=>o.lvl===S.level).map(o=>`${o.icon} ${o.name}`);
     toast(`Level ${S.level}!${unlocks.length?' Unlocked '+unlocks.join(', '):''}`,3200);
   }
@@ -3395,16 +3541,18 @@ function doJob(j){
   const i=j.i, t=S.tiles[i], now=Date.now();
   if(j.type==='harvest'){
     const ok=(t.s==='crop'||(t.s==='bld'&&BLDS[t.b].period))&&progress(i,now)>=1&&!underConstruction(t,now); if(!ok) return null;
-    const kind=t.s==='crop'?'basket':CARRY[t.b]||'basket'; t.s==='crop'?harvest(i):collect(i); flash(i); return kind;
+    const kind=t.s==='crop'?'basket':CARRY[t.b]||'basket', p=tilePos(i);
+    if(t.s==='crop') sfx('harvest',p.x,p.z); else {sfx('collect',p.x,p.z); if(ANIMAL_OF[t.b]) sfx(ANIMAL_OF[t.b],p.x,p.z);}
+    t.s==='crop'?harvest(i):collect(i); flash(i); return kind;
   }
-  if(j.type==='chop'){ if(!hasWild(i)) return null; S.wild=S.wild.filter(k=>k!==i); S.mats.wood=(S.mats.wood||0)+2; syncWild(i); flash(i); floatAt(i,'+2 🪵'); changed(); return '';}
+  if(j.type==='chop'){ if(!hasWild(i)) return null; {const p=tilePos(i); sfx('chop',p.x,p.z);} S.wild=S.wild.filter(k=>k!==i); S.mats.wood=(S.mats.wood||0)+2; syncWild(i); flash(i); floatAt(i,'+2 🪵'); changed(); return '';}
   if(hasWild(i)) return null;
   if(j.type==='plow'){ if(t.s!=='grass'||isYard(i)) return null; if(S.coins<PLOW){toast('Out of coins for plowing. Harvest something first.'); return null;}
-    spend(PLOW,i); S.tiles[i]={s:'soil'}; refreshTile(i,false); changed(); return '';}
+    spend(PLOW,i); S.tiles[i]={s:'soil'}; refreshTile(i,false); {const p=tilePos(i); sfx('plow',p.x,p.z);} changed(); return '';}
   if(j.type==='plant'){ if((t.s!=='soil'&&t.s!=='grass')||isYard(i)) return null; const cost=t.s==='grass'?PLOW:0;
     if(seedsOf(j.crop)<1){noSeeds(j.crop); return null;}
     if(S.coins<cost){toast(`You need ₱${cost} to plow.`); return null;}
-    spend(cost,i); S.mats['seed_'+j.crop]--; S.stats.plant++; S.stats.crops[j.crop]=1; S.tiles[i]={s:'crop',c:j.crop,t:now}; refreshTile(i,true); changed(); return '';}
+    spend(cost,i); S.mats['seed_'+j.crop]--; S.stats.plant++; S.stats.crops[j.crop]=1; S.tiles[i]={s:'crop',c:j.crop,t:now}; refreshTile(i,true); {const p=tilePos(i); sfx('plant',p.x,p.z);} changed(); return '';}
   return null;
 }
 function showCarry(k){for(const n in farmer.props) farmer.props[n].visible=(n===k);}
@@ -3427,7 +3575,7 @@ function updateFarmer(dt,t){
   const stand=()=>{p.lL.g.rotation.x=p.lR.g.rotation.x=p.lL.k.rotation.x=p.lR.k.rotation.x=0; r.position.y=farmerY(r.position.x,r.position.z);};
   if(S.pasa){pasabayStep(F,dt,t,goTo); return;}
   if(F.state==='go'){const s=jobSpotJ(F.cur); if(goTo(s[0],s[1],4.6)){F.state='work'; F.timer=jobTime(F.cur);
-    if(F.cur.type==='board'){r.rotation.y=-Math.PI/2; VEH[F.cur.vid].doorUntil=Date.now()+1500;} else {const tp=tilePos(F.cur.i); r.rotation.y=Math.atan2(tp.x-r.position.x,tp.z-r.position.z);}}}
+    if(F.cur.type==='board'){r.rotation.y=-Math.PI/2; VEH[F.cur.vid].doorUntil=Date.now()+1500; {const V=VEH[F.cur.vid]; sfx('door',V.slot,G0+V.doorZ);}} else {const tp=tilePos(F.cur.i); r.rotation.y=Math.atan2(tp.x-r.position.x,tp.z-r.position.z);}}}
   else if(F.state==='work'&&F.cur.type==='board'){stand(); poseStand(p,t); F.timer-=dt; if(F.timer<.55) r.visible=false;
     if(F.timer<=0){const st=S.veh[F.cur.vid]; if(st.trip&&!st.trip.t0){st.trip.t0=departAt(F.cur.vid); st.trip.driver='farmer'; save();} F.riding=F.cur.vid; F.cur=null; F.state='riding'; showCarry(null); F.carry=null;}}
   else if(F.state==='work'){
@@ -3453,7 +3601,7 @@ const $=id=>document.getElementById(id);
 function startPasabay(o){const F=farmer; if(F.cur){F.jobs.unshift(F.cur); F.cur=null;} F.state='idle';
   S.pasa={...o,phase:'walk',path:walkOut(),t0:0,done:false}; save();}
 function settlePasabay(P){ // pay at the palengke, or bring the things you bought home
-  if(P.dest==='palengke'&&!P.done){let coins=0,xp=0; (P.cargo||[]).forEach(c=>{coins+=c.coins; xp+=c.xp||0; if(c.order) S.stats.orders++;}); S.stats.pasabay++; S.coins+=coins; if(xp) gainXP(xp); P.done=true;
+  if(P.dest==='palengke'&&!P.done){let coins=0,xp=0; (P.cargo||[]).forEach(c=>{coins+=c.coins; xp+=c.xp||0; if(c.order) S.stats.orders++;}); S.stats.pasabay++; S.coins+=coins; if(coins) sfx('cash'); if(xp) gainXP(xp); P.done=true;
     toast(`🚌 Your farmer reached the palengke by bus! ${(P.cargo||[]).map(c=>c.label).join(', ')} · +₱${coins}`,3400);}
   if(P.dest!=='palengke'&&!P.done){P.done=true; toast(`🚌 Your farmer bought ${matsLabel(P.mats)} at ${STORE[P.dest].name}.`,3000);}
   changed();}
@@ -3563,7 +3711,7 @@ function updateHelpers(dt,t){
         const hm=helperHome(k); if(Math.hypot(hm[0]-r.position.x,hm[1]-r.position.z)>.6) H.state='home';}}
     else if(H.state==='go'){const j=H.cur; if(!j){H.state='idle'; return;}
       const sp=jobSpotJ(j); if(goTo(sp[0],sp[1],3.9)){H.state='work'; H.timer=j.type==='board'?1.1:jobTime(j)*1.3;
-        if(j.type==='board'){r.rotation.y=-Math.PI/2; VEH[j.vid].doorUntil=Date.now()+1500;} else {const tp=tilePos(j.i); r.rotation.y=Math.atan2(tp.x-r.position.x,tp.z-r.position.z);}}}
+        if(j.type==='board'){r.rotation.y=-Math.PI/2; VEH[j.vid].doorUntil=Date.now()+1500; {const V=VEH[j.vid]; sfx('door',V.slot,G0+V.doorZ);}} else {const tp=tilePos(j.i); r.rotation.y=Math.atan2(tp.x-r.position.x,tp.z-r.position.z);}}}
     else if(H.state==='work'){const j=H.cur; stand(); H.timer-=dt; if(!j){H.state='idle'; return;}
       if(j.type==='board'){poseStand(p,t); if(H.timer<.55) r.visible=false;
         if(H.timer<=0){const st=S.veh[j.vid]; if(st.trip&&!st.trip.t0&&st.trip.driver==='h'+h.id){st.trip.t0=departAt(j.vid); save(); H.riding=j.vid; H.state='riding';} else r.visible=true; H.cur=null; if(!H.riding) H.state='home';}
@@ -3699,7 +3847,7 @@ function placeBuilding(id,i){
   const err=placeErr(id,i); if(err) return toast(err);
   if(t.s!=='grass'&&t.s!=='soil') return toast('That plot is busy. Drop it on an empty plot.');
   if(!spend(b.cost,i)) return;
-  setBld(i,newBuilding(id)).forEach(k=>refreshTile(k,k===i)); refreshNeighbors(i); buzz();
+  setBld(i,newBuilding(id)).forEach(k=>refreshTile(k,k===i)); refreshNeighbors(i); buzz(); if(b.bt){const p=tilePos(i); sfx('hammer',p.x,p.z);}
   toast(b.bt?`🔨 Building the ${b.name}… ready in ${b.bt}s`:`${b.icon} ${b.name} built!`); changed();
 }
 $('tools').addEventListener('pointerdown',e=>{
@@ -3828,7 +3976,7 @@ const TRUCK_PRICE=15000, PLACE={brgy:'barangay',city:'city',palengke:'palengke',
 const matsLabel=m=>Object.entries(m).filter(([,n])=>n>0).map(([k,n])=>`${n} ${MATS[k].name}`).join(', ');
 const farmerBusyDriving=()=>{const F=farmer; return !!(S.pasa||F.riding||F.jobs.some(j=>j.type==='board')||(F.cur&&F.cur.type==='board'));};
 const driverFree=()=>!!freeDriver()||!farmerBusyDriving();   // every vehicle needs someone to drive it
-function noDriver(){toast(`🚫 No one to drive: your farmer is already on the road. Hire a 🚚 Biyahero trabahador to drive the other vehicle.`,3400);}
+function noDriver(){sfx('nope'); toast(`🚫 No one to drive: your farmer is already on the road. Hire a 🚚 Biyahero trabahador to drive the other vehicle.`,3400);}
 // who can drive right now: you, and every Biyahero trabahador (busy people are listed too, greyed out, so you can see why)
 function driverChoices(){const F=farmer, out=[{id:'farmer',icon:'👨‍🌾',name:'You',free:!farmerBusyDriving(),note:farmerBusyDriving()?'Already driving':F.cur?'Will pause the current task':'Free'}];
   helpers.filter(H=>H.h.role==='biyahe').forEach(H=>{const free=isWork()&&!H.h.unpaid&&!H.riding&&!OFF_DUTY.includes(H.state)&&!(H.cur&&H.cur.type==='board');
@@ -3853,7 +4001,7 @@ function beginTrip(vid,tr,by){ // you choose who drives when more than one perso
   if(free.length===1){assignDriver(vid,free[0].id); return true;}
   tr.driver='pending'; setTimeout(()=>openDriverPick(vid),0); return true;
 }
-function departAt(vid){const tr=S.veh[vid].trip; let t0=Date.now();
+function departAt(vid){const tr=S.veh[vid].trip, V=VEH[vid]; let t0=Date.now(); sfx('engine',V.slot,G0+V.doorZ); setTimeout(()=>sfx('horn',V.slot,G0+V.doorZ),700);
   for(const o in S.veh){const ot=S.veh[o].trip; if(o!==vid&&ot&&ot.t0&&ot.dest===tr.dest&&t0-ot.t0<7000) t0=Math.max(t0,ot.t0+7000);} return t0;}
 function vehPhase(vid,now){
   const tr=S.veh[vid].trip, R=routesFor(vid,tr.dest); if(!tr.t0) return {ph:'board',R};
@@ -3877,15 +4025,15 @@ function updateVehicles(now){
     const ph=vehPhase(vid,now);
     if(tr.dest==='city'&&!tr.paid&&ph.ph!=='out'&&ph.ph!=='board'){tr.paid=true; let n=0, coins=0;
       for(const k in (tr.goods||{})){n+=tr.goods[k]; coins+=tr.goods[k]*ITEMS[k].price*CITY_RATE;} let xpB=0; for(const c of (tr.cargo||[])){coins+=c.coins; xpB+=c.xp||0; n+=c.n||0; if(c.mission) S.stats.missions=(S.stats.missions||0)+1;}
-      coins=Math.round(coins); S.coins+=coins; gainXP(Math.max(2,Math.round(coins/50))+xpB);
+      coins=Math.round(coins); S.coins+=coins; sfx('cash'); gainXP(Math.max(2,Math.round(coins/50))+xpB);
       toast(`🏙️ ${VEH[vid].name} delivered ${n} items in the city · +₱${coins.toLocaleString()}`,3600); changed();}
     if(tr.dest==='warehouse'&&!tr.paid&&ph.ph!=='out'&&ph.ph!=='board'){tr.paid=true; let n=0, coins=0;
       for(const k in (tr.goods||{})){S.wh.stock[k]=(S.wh.stock[k]||0)+tr.goods[k]; n+=tr.goods[k]; coins+=tr.goods[k]*ITEMS[k].price*whRate(k);}
-      coins=Math.round(coins); S.coins+=coins; gainXP(Math.max(1,Math.round(coins/60))); S.stats.bulk+=n;
+      coins=Math.round(coins); S.coins+=coins; sfx('cash'); gainXP(Math.max(1,Math.round(coins/60))); S.stats.bulk+=n;
       toast(`🏬 The bagsakan bought ${n} items · +₱${coins.toLocaleString()}. Their vans will take them to the factory.`,3400); changed();}
     if((tr.dest==='palengke'||tr.dest==='brgy')&&!tr.paid&&ph.ph!=='out'&&ph.ph!=='board'){
       tr.paid=true; let coins=0,xp=0; tr.cargo.forEach(c=>{coins+=c.coins; xp+=c.xp; if(c.order) S.stats.orders++; if(c.mission) S.stats.missions=(S.stats.missions||0)+1;});
-      S.coins+=coins; if(xp) gainXP(xp);
+      S.coins+=coins; if(coins) sfx('cash'); if(xp) gainXP(xp);
       toast(`${VEH[vid].icon} Arrived at the ${PLACE[tr.dest]}! ${tr.cargo.map(c=>c.label).join(', ')} · +₱${coins.toLocaleString()}`,3400); changed();
     }
     if(ph.ph==='done'){
@@ -4082,7 +4230,7 @@ $('bldSheet').addEventListener('click',e=>{
     if(!next||!canAfford(next)||underConstruction(t,now)) return;
     S.coins-=next.coins; for(const k in next.mats) S.mats[k]-=next.mats[k];
     t.up=lv+1; t.bs=now; t.bd=next.dur; t.t=now+next.dur*1000; t.hungry=false;
-    refreshTile(bldIdx,false); toast(`🔨 Upgrading to ${next.name}… ${next.dur}s`,2600); buzz(); changed(); renderBld();
+    refreshTile(bldIdx,false); toast(`🔨 Upgrading to ${next.name}… ${next.dur}s`,2600); buzz(); {const p=tilePos(bldIdx); sfx('hammer',p.x,p.z);} changed(); renderBld();
   }
 });
 /* ---------- Upgrades sheet ---------- */
@@ -4739,6 +4887,7 @@ function updateTransit(dt,t){
 if(S.pasa&&S.pasa.phase==='done-on-load'){const P=S.pasa; S.pasa=null; settlePasabay(P); if(P.mats) for(const k in P.mats) S.mats[k]=(S.mats[k]||0)+P.mats[k]; save();}
 /* ---------- 📰 news: what changed in each update ---------- */
 const NEWS=[
+  {v:15,date:'Nov 8, 2026',title:'Game buttons, sound and more helpers',items:['🔊 The farm has sound now: a slow acoustic guitar tune, birds by day, kuliglig and frogs at night, clucks, oinks and moos from your animals, plus sounds for planting, harvesting, coins, building and your vehicles. Switch Music, Farm sounds or Effects on or off in the ⋯ menu.','🧱 Tap a building for three big buttons: Collect, Upgrade and Info. The details fold out right under the button you tap.','🚚 When more than one driver is free, you choose who drives. The garage now has one button per vehicle.','👷 Hire up to six trabahador as you level up (levels 5, 8, 12, 15, 18 and 21).']},
   {v:14,date:'Nov 7, 2026',title:'A new look for the whole province',items:['🎨 Softer colours, ink outlines and painted grass everywhere. The plot grid only shows while you use a tool.','🏡 One farmhouse for a simple life: a single-storey house with a veranda. House upgrades are gone, and everything that used to need a bigger house now only needs your level.','🏪 A smaller palengke: vegetables and fruit on one side, meat and fish on tiled counters on the other, umbrella stalls outside.','🔨 The hardware, poultry and Binhi stores are modest roadside shops now, with motorsiklo and a tricycle parked out front.','🐄 A bigger farm laid out like a real one: every animal now has its own fenced area with a gate and up to 3 houses, each at its own size. Your animal houses moved there by themselves, with their levels, feed and goods. New ones go straight to the next free spot.','🛣️ Curved dirt roads: a tree-lined farm road from the highway, a service road round the farm, tracks to every area. Your farmer and helpers follow the paths and use the gates.','🌾 The crop field is four beds with walkable tracks, and the plot grid only shows while you use a tool. An orchard, a bodega and a utility yard sit beside the service road.','🏭 Crates and a forklift at the bagsakan; silos and a loading conveyor at Mega Foods. A small town block round the palengke, a mountain barangay with terraces, and mountains in the distance.']},
   {v:13,date:'Nov 7, 2026',title:'New animals, missions and a fenced farm',items:['🦆 Itikan (level 4): itik that lay the eggs for balut. 🐐 Kambingan (level 5): goats for milk and meat. 🐟 Palaisdaan (level 6): a tilapia pond with paddle-wheel aerators.','📋 Missions: Mang Ben the balut maker, the sari-sari store, the kapitan’s fiesta, the karinderya, city restaurants and more ask for your goods. Deliver with your own vehicle; missions pay more than the palengke.','The bakuran is bigger and split into areas: Pastulan (cows, goats), Babuyan at palaisdaan (pigs, fish) and Manukan (chickens, ducks). Its old fence is gone; every farm has its own.','One big fence now goes around your whole lot, with a SUNFIELD FARM gate where the dirt road comes in.','🪵 Build your own fences: pick Bakod in Build and drag. Pieces join up, and you can clear them any time.']},
   {v:12,date:'Nov 7, 2026',title:'Busier bagsakan, real PH rides and a nicer farm',items:['🚛 Other traders’ trucks deliver to the bagsakan too. There is one unloading bay, so sometimes your vehicle waits at the gate for its turn.','🥖 The pandesal vendor now rides a padyak (bicycle with a sidecar bread box), and the balut vendor walks with his basket and gas lamp.','🚗 Cars now look like the ones on Philippine roads: sedans, MPVs, SUVs, pickups and the FB van.','🛣️ The barangay road now joins the highway at both ends.','🌾 An irrigation canal with a footbridge in front of the field, a panakot (scarecrow), a tagak riding the carabao, and greener, patchy grass.']},
@@ -4849,7 +4998,7 @@ $('achMenuBtn').addEventListener('click',()=>{$('menu').classList.remove('open')
 $('achSheet').addEventListener('click',e=>{
   if(e.target.id==='achSheet'||e.target.closest('#closeAch')) return $('achSheet').classList.remove('open');
   const b=e.target.closest('[data-ach]'); if(!b) return; const a=ACH.find(a=>a[0]===b.dataset.ach); if(!a||!achReady(a)) return;
-  S.ach[a[0]]=1; S.coins+=a[5]; if(a[6]) gainXP(a[6]); toast(`🏆 ${a[2]}! +₱${a[5].toLocaleString()}${a[6]?` · +${a[6]} XP`:''}`,2600); buzz(); changed(); renderAch();});
+  S.ach[a[0]]=1; S.coins+=a[5]; sfx('cash'); if(a[6]) gainXP(a[6]); toast(`🏆 ${a[2]}! +₱${a[5].toLocaleString()}${a[6]?` · +${a[6]} XP`:''}`,2600); buzz(); changed(); renderAch();});
 let achSeen=0; setInterval(()=>{updateAchBadge(); updateMisBadge(); if(misOpen()) renderMissions(); const n=ACH.filter(achReady).length; if(n>achSeen) toast('🏆 Goal reached! Tap the trophy at the top to collect your reward.',2600); achSeen=n;},3000);
 updateAchBadge(); achSeen=ACH.filter(achReady).length;
 /* ---------- Loop ---------- */
@@ -4886,7 +5035,7 @@ function frame(now){
   flashBox.material.opacity=Math.max(0,1-(now-flashT)/600);
   syncGrid(); updateRoofs(); updateCam(); followSun(); mountains.position.set(camera.position.x,0,camera.position.z); drawFrame();
 }
-if(/[?&]debug\b/.test(location.search)) window.SF={cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
+if(/[?&]debug\b/.test(location.search)) window.SF={cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
 renderHUD();
 requestAnimationFrame(frame);
 if(!S.seenHelp){S.seenHelp=true; save(); setTimeout(()=>toast('Open 🧰 Tools, pick a tool, and drag across the field. Sell your harvest at the 🏪 Palengke!',4800),600);}

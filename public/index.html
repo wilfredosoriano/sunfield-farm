@@ -5549,8 +5549,15 @@ function spray(W,i,t){if(!W.spr){W.spr=new THREE.Group(); for(let k=0;k<10;k++) 
   W.sprT=performance.now(); const r=W.p.root, tp=tilePos(i), hx=r.position.x+Math.sin(r.rotation.y)*.45, hz=r.position.z+Math.cos(r.rotation.y)*.45;
   W.spr.visible=true; W.spr.children.forEach((s,k)=>{const u=(t*1.6+k/10)%1, x=hx+(tp.x-hx)*u, z=hz+(tp.z-hz)*u; s.position.set(x+Math.sin(k*7)*.15*u,.9+u*.6-u*u*1.3,z+Math.cos(k*5)*.15*u); s.scale.setScalar(.6+u*.9);});}
 (function hoseLoop(){requestAnimationFrame(hoseLoop); const now=performance.now();
-  for(const W of [farmer,...helpers]){if(W.hose){const r=W.p.root, tr=W.trail, l=tr[tr.length-1]; if(Math.hypot(r.position.x-l[0],r.position.z-l[1])>1.1&&tr.length<139) tr.push([r.position.x,r.position.z]); hoseDraw(W);}
+  for(const W of [farmer,...helpers]){const ret=!!(W.cur&&W.cur.type==='hose'&&W.cur.sub==='put');
+    if(W.hose){const r=W.p.root, tr=W.trail, px=r.position.x, pz=r.position.z;
+      if(ret){W.maxT=Math.max(W.maxT||0,tr.length);   // walking back: pull the hose in behind you as you go, winding it into a coil
+        while(tr.length>1){const a=tr[tr.length-1], b=tr[tr.length-2]; if(Math.hypot(b[0]-px,b[1]-pz)<Math.hypot(a[0]-px,a[1]-pz)+.4||Math.hypot(a[0]-px,a[1]-pz)<.8) tr.pop(); else break;}}
+      else {W.maxT=0; const l=tr[tr.length-1]; if(Math.hypot(px-l[0],pz-l[1])>1.1&&tr.length<139) tr.push([px,pz]);}
+      hoseDraw(W);}
     else if(W.hoseM&&W.hoseM.count) hoseDraw(W);
+    if(!W.coil){W.coil=new THREE.Mesh(new THREE.TorusGeometry(.22,.06,6,14),HOSE_MAT); W.coil.position.set(0,.95,.32); W.coil.visible=false; W.p.root.add(W.coil);}
+    W.coil.visible=W.hose&&ret; if(W.coil.visible) W.coil.scale.setScalar(.6+.9*Math.min(1,1-W.trail.length/Math.max(2,W.maxT||2)));
     if(W.spr&&W.spr.visible&&now-(W.sprT||0)>120) W.spr.visible=false;}
   if(REEL.g) REEL.g.userData.coil.scale.setScalar([farmer,...helpers].some(W=>W.hose)?.55:1);})();
 /* ---------- Stage G: town life. Sinag Liner buses and their terminal, a stop up in the mountain barangay with people walking its roads,

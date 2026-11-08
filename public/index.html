@@ -856,6 +856,11 @@ const GLOW_TEX=(()=>{const c=document.createElement('canvas'); c.width=c.height=
   r.addColorStop(0,'rgba(255,255,255,1)'); r.addColorStop(.22,'rgba(255,255,255,.6)'); r.addColorStop(1,'rgba(255,255,255,0)'); g.fillStyle=r; g.fillRect(0,0,64,64); return new THREE.CanvasTexture(c);})();
 const GLOW_MATS=[], glowMat=(color,k)=>{const m=new THREE.SpriteMaterial({map:GLOW_TEX,color,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,opacity:0}); m.userData.k=k; m.visible=false; GLOW_MATS.push(m); return m;};
 const GM={warm:glowMat(0xffc46b,.95), white:glowMat(0xfff3d6,.85), head:glowMat(0xfff6d0,1), tail:glowMat(0xff3b30,.75)};
+// lamps inside the animal houses: they glow through the open sides at night; chicks and other young poultry get red-orange heat lamps (brooders)
+const LIT=glowMat(0xffd98a,.6), HEAT=glowMat(0xff7a2e,.85); LIT.depthTest=false; HEAT.depthTest=false;
+function houseLights(g,t,i){const s=slotOf(i); if(!s||!(t.n>0)) return; const heat=POULTRY_B.includes(t.b)&&(t.gp||0)<1, n=Math.max(2,Math.round(s.w/3.2));
+  const y={fish:1.2,cows:2.3,goat:2.0,pig:1.8,duck:1.4}[t.b]||2.0, z=t.b==='cows'||t.b==='pig'?-s.d/4:0;
+  for(let k=0;k<n;k++) glow(g,(k-(n-1)/2)*s.w*.8/n,y,z,heat?2.8:2.2,heat?HEAT:LIT);}
 function glow(parent,x,y,z,size,m=GM.warm){const sp=new THREE.Sprite(m); sp.position.set(x,y,z); sp.scale.set(size,size,1); sp.renderOrder=5; parent.add(sp); return sp;}
 const LAMP_MAT=new THREE.MeshBasicMaterial({color:0x8a8a80});
 const MTN_MAT=new THREE.MeshBasicMaterial({vertexColors:true,fog:false}), MTN_NIGHT=new THREE.Color(0x26314d);   // the distant mountains (see bundok)
@@ -1075,7 +1080,8 @@ function buildIncubator(){   // a little nipa hut over a wooden incubator cabine
   b.push(P('box',0x8d6e4b,0,.58,-.15,1.1,.9,.75)); b.push(P('box',0x5d4037,0,.58,.235,.92,.72,.02)); b.push(P('box',0x6d4c41,0,.1,-.15,1.2,.1,.85));
   for(let k=0;k<3;k++) b.push(P('box',0xd7ccc8,.75,.18+k*.1,.55,.36,.06,.28));   // egg trays stacked outside
   g.add(vcGroup(b));
-  const glow=new THREE.Mesh(new THREE.PlaneGeometry(.72,.45),new THREE.MeshBasicMaterial({color:0xffb74d})); glow.position.set(0,.64,.25); g.add(glow);
+  const lamp=new THREE.Mesh(new THREE.PlaneGeometry(.72,.45),new THREE.MeshBasicMaterial({color:0xffb74d})); lamp.position.set(0,.64,.25); g.add(lamp);
+  glow(g,0,.7,.5,1.8,HEAT); glow(g,0,1.4,0,2.4,LIT);   // the egg lamp shows at night
   return {g};
 }
 function buildWell(){
@@ -1935,18 +1941,27 @@ const VEH={
 function buildExtraVeh(kind){
   const g=new THREE.Group(), b=[], D=0x1b1b1b, GL=0x2b3a48, wheels=[], goods=new THREE.Group(), mats=new THREE.Group(), feed=new THREE.Group(), live=new THREE.Group();
   let wpos, wr;
-  if(kind==='sedan'){const C=0xf4f4f0, R=0xc0392b; wr=.36;   // the trak ng manok: a small truck with stacked plastic chicken crates on a wooden bed
-    b.push(P('box',0x262626,0,.52,-.2,1.5,.16,4.9));
-    b.push(P('box',C,0,1.08,1.7,1.72,1.12,1.3)); b.push(P('box',R,0,.72,1.7,1.74,.26,1.32)); b.push(P('box',C,0,.75,2.42,1.72,.5,.3));
-    b.push(P('box',GL,0,1.35,2.36,1.56,.5,.04)); [-1,1].forEach(sd=>b.push(P('box',GL,sd*.87,1.35,1.75,.03,.45,.75)));
-    b.push(P('box',0x333333,0,.5,2.6,1.7,.16,.08));
-    b.push(P('box',0x8a6a48,0,.7,-.85,1.76,.12,3.2)); for(const sd of [-1,1]) b.push(P('box',0x7a5a3e,sd*.86,.95,-.85,.06,.4,3.2)); b.push(P('box',0x7a5a3e,0,.95,-2.43,1.76,.4,.06));
-    const CR=[0xe74c3c,0xf1c40f,0x2e86de];
-    for(let r=0;r<3;r++) for(let c=0;c<2;c++) for(let h=0;h<2;h++){const x=(c-.5)*.8, z=-.1-r*1.0, y=.98+h*.4; b.push(P('box',CR[(r+c+h)%3],x,y,z,.76,.36,.94)); b.push(P('box',0x2b2b2b,x,y,z,.78,.14,.7));}
-    [-1,1].forEach(sd=>{b.push(P('box',0xfff6d0,sd*.6,.8,2.58,.3,.14,.04)); b.push(P('box',0xd63031,sd*.7,.72,-2.47,.24,.12,.04));});
-    wpos=[[-.8,1.55],[.8,1.55],[-.8,-1.55],[.8,-1.55]];
-    for(let r=0;r<3;r++) for(let c=0;c<2;c++) for(let h=0;h<2;h++){const m=miniAnimal('live_chicken'); m.scale.setScalar(.5); m.position.set((c-.5)*.8+(c?.36:-.36),.88+h*.4,-.1-r*1.0); m.rotation.y=c?Math.PI/2:-Math.PI/2; m.userData.y0=m.position.y; live.add(m);}   // heads poking out through the crate slats
-    for(let i=0;i<3;i++) goods.add(part(.5,.3,.45,[0xe8dcc0,0xc79a5b,0x2e86de][i],-.5+i*.5,1.95,-.6)); for(let i=0;i<2;i++) mats.add(part(1.2,.2,.5,0xd9d4c7,0,1.9+i*.21,-.6)); for(let i=0;i<2;i++) feed.add(part(.55,.24,.8,0xf2f2f2,-.3+i*.6,1.92,-.6));
+  if(kind==='sedan'){const C=0xf2f2ee, Y=0xf2c230, MESH=0x9aa3a6, F=0x6d7275; wr=.42;   // the trak ng manok: an Isuzu-type cab with tall tiered wire cages on yellow posts, like the poultry trucks on PH highways
+    b.push(P('box',0x262626,0,.55,-.3,1.4,.2,6.2));                                                     // chassis
+    b.push(P('box',C,0,1.25,2.55,1.9,1.5,1.35)); b.push(P('box',C,0,.78,3.3,1.9,.56,.3));               // cab and nose
+    b.push(P('box',GL,0,1.55,3.23,1.7,.62,.04)); [-1,1].forEach(sd=>b.push(P('box',GL,sd*.96,1.55,2.6,.03,.55,.85)));
+    b.push(P('box',0x2b2b2b,0,.6,3.46,1.92,.2,.08)); b.push(P('box',0x1f5fa8,0,1.02,3.46,1.2,.18,.04));  // bumper, blue grille stripe
+    b.push(P('box',0x3a3a3a,0,2.08,2.55,1.7,.12,1.1));                                                   // roof deflector
+    b.push(P('box',0x8a8f92,0,.8,-.85,2.0,.12,5.4));                                                     // steel deck
+    for(const sd of [-1,1]) b.push(P('box',0x50565a,sd*1.0,.64,-.85,.08,.22,5.4));                       // side rails
+    const z0=1.8, z1=-3.5, H0=.86, H=2.25, TIERS=5;
+    for(let k=0;k<=6;k++){const z=z0+(z1-z0)*k/6; for(const sd of [-1,1]) b.push(P('box',Y,sd*.98,H0+H/2,z,.08,H,.08));}            // yellow posts
+    for(let q=0;q<=TIERS;q++){const y=H0+q*H/TIERS; b.push(P('box',F,0,y,(z0+z1)/2,1.94,.04,z0-z1)); for(const sd of [-1,1]) b.push(P('box',Y,sd*.99,y,(z0+z1)/2,.05,.05,z0-z1));}   // tier floors, rails
+    for(let k=0;k<=30;k++){const z=z0+(z1-z0)*k/30; for(const sd of [-1,1]) b.push(P('box',MESH,sd*.985,H0+H/2,z,.015,H,.015));}  // wire mesh along the sides
+    for(let k=0;k<=10;k++) for(const z of [z0,z1]) b.push(P('box',MESH,-.98+k*.196,H0+H/2,z,.015,H,.015));                        // and front and back
+    b.push(P('box',0x6b6f72,0,H0+H+.02,(z0+z1)/2,1.96,.04,z0-z1));                                                                  // top
+    [-1,1].forEach(sd=>{b.push(P('box',0xfff6d0,sd*.65,.85,3.47,.3,.16,.04)); b.push(P('box',0xd63031,sd*.8,.7,-3.57,.24,.12,.04));});
+    wpos=[[-.85,2.35],[.85,2.35],[-.85,-1.9],[.85,-1.9]];
+    // chickens: rows of white birds on every tier along both sides, one merged mesh per tier and side (they fill from the bottom tier up)
+    for(let q=0;q<TIERS;q++) for(const sd of [-1,1]){const cb=[]; for(let k=0;k<14;k++){const z=z0-.2+(z1-z0+.4)*k/13, y=H0+q*H/TIERS+.03, x=sd*(.72+((k*7)%3)*.05);
+        cb.push(P('sph',0xf7f3ea,x,y+.13,z,.24,.2,.28)); cb.push(P('sph',0xf7f3ea,x+sd*.04,y+.27,z+.08,.12,.13,.12)); cb.push(P('box',0xd63031,x+sd*.04,y+.35,z+.08,.03,.06,.08));}
+      const m=new THREE.Mesh(mergeGeo(cb),VCMAT); m.userData.y0=0; live.add(m);}
+    for(let i=0;i<3;i++) goods.add(part(.5,.3,.45,[0xe8dcc0,0xc79a5b,0x2e86de][i],-.5+i*.5,1.07,-.6)); for(let i=0;i<2;i++) mats.add(part(1.2,.2,.5,0xd9d4c7,0,1.0+i*.21,-.6)); for(let i=0;i<2;i++) feed.add(part(.55,.24,.8,0xf2f2f2,-.3+i*.6,1.02,-.6));
   }else{wr=.42;
     b.push(P('box',0x2a2a2a,0,.55,-.2,1.7,.2,6.6)); b.push(P('box',0xf5f5f5,0,1.45,2.3,2.0,1.6,1.5)); b.push(P('box',GL,0,1.75,3.06,1.8,.6,.04)); [-1,1].forEach(sd=>b.push(P('box',GL,sd*1.01,1.75,2.4,.03,.5,.8)));
     b.push(P('box',0xd9dee2,0,1.95,-1.05,2.3,2.6,5.0));                                                               // aluminium box
@@ -1963,8 +1978,8 @@ function buildExtraVeh(kind){
   }
   const body=new THREE.Mesh(mergeGeo(b),PAINT); body.castShadow=true; g.add(body);
   wpos.forEach(([x,z])=>{const w=new THREE.Mesh(mergeGeo([P('cyl',0x1b1b1b,0,0,0,wr*2,.24,wr*2),P('cyl',0xd9dee2,0,0,0,wr,.26,wr)]),VCMAT); const h=new THREE.Group(); h.position.set(x,wr,z); h.rotation.z=Math.PI/2; h.add(w); g.add(h); wheels.push(w);});
-  const L=randLook(rng(kind==='van'?44:45)); L.f=false; L.bag=null; L.h=1; const d=bakePerson(L,poseSit); d.position.set(.42,kind==='van'?.92:.62,kind==='van'?2.35:1.75); g.add(d); g.userData.driver=d; d.visible=false;
-  [-.62,.62].forEach(xx=>{glow(g,xx*(kind==='van'?1.15:1),kind==='van'?1.0:.72,kind==='van'?3.15:2.3,1.2,GM.head); glow(g,xx*(kind==='van'?1.35:1),.85,kind==='van'?-3.65:-2.25,.7,GM.tail);});
+  const L=randLook(rng(kind==='van'?44:45)); L.f=false; L.bag=null; L.h=1; const d=bakePerson(L,poseSit); d.position.set(.42,kind==='van'?.92:.95,kind==='van'?2.35:2.55); g.add(d); g.userData.driver=d; d.visible=false;
+  [-.62,.62].forEach(xx=>{glow(g,xx*(kind==='van'?1.15:1.05),kind==='van'?1.0:.85,kind==='van'?3.15:3.5,1.2,GM.head); glow(g,xx*(kind==='van'?1.35:1.3),.75,kind==='van'?-3.65:-3.62,.7,GM.tail);});
   goods.visible=mats.visible=feed.visible=live.visible=false; g.add(goods,mats,feed,live); g.visible=false; scene.add(g);
   return {obj:g,goods,mats,feed,live,wheels,r:wr};
 }
@@ -1976,7 +1991,7 @@ function miniAnimal(kind){if(!MINI[kind]){const b=[];
     MINI[kind]=mergeGeo(b);}
   const m=new THREE.Mesh(MINI[kind],VCMAT); m.castShadow=true; return m;}
 {const sd=buildExtraVeh('sedan'), vn=buildExtraVeh('van');
-  VEH.sedan={...sd,slot:GX-8.25,cap:30,icon:'🛻',name:'Chicken truck',rear:2.5,prev:null,len:5.2,doorZ0:1.7,wf:1.55,wr:1.55,tw:.8};   // (saved as 'sedan': the chicken truck took the sedan's bay)
+  VEH.sedan={...sd,slot:GX-8.25,cap:30,icon:'🛻',name:'Chicken truck',rear:3.6,prev:null,len:7.2,doorZ0:2.55,wf:2.35,wr:1.9,tw:.85};   // (saved as 'sedan': the chicken truck took the sedan's bay)
   VEH.van={...vn,slot:GX+8.25,cap:60,icon:'🚐',name:'Closed van',rear:3.7,prev:null,len:7.4,doorZ0:2.4,wf:2.2,wr:2.4,tw:.95};
   VEH.jeep.len=5.5; VEH.truck.len=6.4;
   // pigs or chickens standing in the Elf truck's bed when it brings animals out of their pens
@@ -2850,7 +2865,7 @@ function refreshTile(i,pop){
   if(slotOf(i)&&t.s==='grass') o.content.add(emptySlotSign(slotOf(i)));   // an empty animal slot
   let target=null;
   if(t.s==='crop'){o.crop=CROPS[t.c].build(); o.crop.ripe=false; o.content.add(o.crop.g); target=o.crop.g;}
-  if(t.s==='bld'){o.bld=BLDS[t.b].build(t,i); o.bld.ready=false; o.content.add(o.bld.g); target=o.bld.g; target.userData.sx=1; target.userData.sy=1;
+  if(t.s==='bld'){o.bld=BLDS[t.b].build(t,i); o.bld.ready=false; o.content.add(o.bld.g); if(LIFE[t.b]) houseLights(o.bld.g,t,i); target=o.bld.g; target.userData.sx=1; target.userData.sy=1;
     if(underConstruction(t,Date.now())){ // bamboo scaffolding + progress bar while it is being built
       const site=new THREE.Group(), c=0xc9a96a;
       [[-.85,-.85],[.85,-.85],[-.85,.85],[.85,.85]].forEach(([x,z])=>site.add(part(.07,2.3,.07,c,x,1.15,z)));
@@ -5341,7 +5356,7 @@ function frame(now){
   flashBox.material.opacity=Math.max(0,1-(now-flashT)/600);
   syncGrid(); updateRoofs(); updateCam(); followSun(); mountains.position.set(camera.position.x,0,camera.position.z); drawFrame();
 }
-if(/[?&]debug\b/.test(location.search)) window.SF={cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,loadWalkers,STOP,step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
+if(/[?&]debug\b/.test(location.search)) window.SF={cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,loadWalkers,STOP,dayAt:f=>{const g=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((f-g+1)%1)*DAY_MS;},step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
 renderHUD();
 requestAnimationFrame(frame);
 if(!S.seenHelp){S.seenHelp=true; save(); setTimeout(()=>toast('Open 🧰 Tools, pick a tool, and drag across the field. Sell your harvest at the 🏪 Palengke!',4800),600);}

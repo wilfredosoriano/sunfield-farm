@@ -22,3 +22,11 @@ From the request list of Nov 8, 2026. Each stage is built, play-tested in the br
 | G | **Transport and town life** | A provincial bus line with a bus terminal and a stop up in the mountain barangay, with people living and walking there. A jeepney terminal with a queue of idling jeepneys taking riders to the palengke and the factory gate. A police station with patrols day and night. Fiesta days with a parade in the barangay. |
 | H | **Bigger map and the bay** | A larger world with the sea in one corner and a port. An unlockable bay business ships products for extra income. The camera can pan out to the mountains and the mountain barangay. |
 | I | **Better cows and pigs** | Rounder, more realistic cattle and pig models, with smoother walking. |
+
+## Stage D split
+
+- **D1 (done):** live broilers and pigs, the katayan, the chicken truck (replaces the sedan), truck pickups that reverse to the area gate, live vs meat at the palengke, bagsakan meat only, night lights in the animal houses and the Pisaan.
+  The chicken truck follows the PH poultry trucks: white Isuzu-type cab, a long bed with five tiers of wire cages on yellow posts, rows of white chickens on every tier.
+- **D2 (next):** a dedicated livestock truck for pigs, cows and goats with its own garage bay, and deliveries to city houses, mountain houses and small home businesses.
+  Reference (photos from the player): a white Isuzu-type cab with a two-deck livestock body; checker-plate steel panels on the lower half of each deck and horizontal steel pipe bars above;
+  a rear tailgate that folds down into a loading ramp the animals walk up. An older orange variant has open pipe-bar sides and rust. Pigs visible packed on both decks.

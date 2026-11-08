@@ -1287,6 +1287,27 @@ function makePerson(L){
   root.add(aL,aR,lL.g,lR.g); root.scale.setScalar(L.h); root.traverse(o=>{if(o.isMesh) o.castShadow=true;});
   return {root,aL,aR,lL,lR,L};
 }
+// things people carry sit in their hands: trays rest on the palms, crates and sacks are gripped at the sides, pails and baskets hang from one hand by the handle
+const HOLD={tray:'palms',crate:'grip',sack:'grip',eggs:'grip',basket:'hang',pail:'hang'};
+function makeCarry(p,kinds){const o={};
+  for(const k of kinds){const g=new THREE.Group();
+    if(k==='tray'){g.add(part(.56,.04,.42,0xc8b38a,0,0,0)); const eg=new THREE.SphereGeometry(.05,6,5); for(let i=0;i<3;i++) for(let j=0;j<2;j++){const e=mesh(eg,0xd9a066,-.18+i*.18,.05,-.1+j*.2); e.scale.y=1.25; g.add(e);} g.position.set(0,1.3,.47);}
+    else if(k==='crate'){g.add(new THREE.Mesh(mergeGeo([P('box',0xe74c3c,0,0,0,.44,.32,.4),P('box',0x2b2b2b,0,.03,0,.46,.08,.26)]),VCMAT)); for(const x of [-.1,.1]){const c=miniAnimal('live_chicken'); c.scale.setScalar(.45); c.position.set(x,.12,0); g.add(c);} g.position.set(0,1.02,.47);}
+    else if(k==='sack'){g.add(new THREE.Mesh(mergeGeo([P('box',0xe8dcc0,0,0,0,.44,.34,.34),P('sph',0xd9cba8,0,.19,0,.14,.1,.14)]),VCMAT)); g.position.set(0,1.02,.45);}
+    else if(k==='eggs'){const m=new THREE.Mesh(eggTrayGeo(4),VCMAT); m.scale.x=.88; g.add(m); g.position.set(0,.88,.47);}
+    else if(k==='pail'||k==='basket'){const pail=k==='pail', r=pail?.15:.22;
+      const arc=mesh(new THREE.TorusGeometry(r,.014,4,12,Math.PI),pail?0x8a8f94:0x8a6a3a,0,-r,0); g.add(arc);
+      if(pail){g.add(mesh(new THREE.CylinderGeometry(.16,.13,.32,10),0xcfd6dc,0,-.3,0)); g.add(mesh(new THREE.CylinderGeometry(.14,.14,.02,10),0xffffff,0,-.15,0));}
+      else {g.add(mesh(new THREE.CylinderGeometry(.24,.18,.26,8),0xb08850,0,-.32,0)); g.add(mesh(new THREE.SphereGeometry(.18,6,4),0xe9c24b,0,-.21,0));}
+      g.rotation.order='ZYX'; g.position.set(0,-.62,.03); g.visible=false; p.aR.add(g); o[k]=g; continue;}
+    g.visible=false; p.root.add(g); o[k]=g;}
+  return o;}
+function showProps(o,k){for(const n in o) o[n].visible=(n===k);}
+function holdPose(p,k,o){const m=k&&HOLD[k];
+  if(m==='palms'){p.aL.rotation.x=p.aR.rotation.x=-1.25; p.aL.rotation.z=.06; p.aR.rotation.z=-.06;}
+  else if(m==='grip'){p.aL.rotation.x=p.aR.rotation.x=-.85; p.aL.rotation.z=.06; p.aR.rotation.z=-.06;}
+  else if(m==='hang'){p.aR.rotation.x=-.06; p.aR.rotation.z=-.2; const h=o&&o[k]; if(h){h.rotation.x=-p.aR.rotation.x; h.rotation.z=-p.aR.rotation.z;}}   // the pail stays upright under the hand
+  else {p.aL.rotation.z=.06; p.aR.rotation.z=-.06;}}
 function poseWalk(p,ph){
   const s=Math.sin(ph), c=Math.cos(ph);
   p.lL.g.rotation.x=-s*.5; p.lR.g.rotation.x=s*.5;
@@ -1838,7 +1859,7 @@ function setupBuildSite(){
   site={c,A,B,len:4*A+4*B,pileU:2*A+B-1};
   for(let k=0;k<3;k++){const L2=randLook(r); L2.f=false; L2.style=k===2?'salakot':'cap'; L2.capC=[0xf1c40f,0xff7f50,0xffffff][k]; L2.bag=null; L2.h=1; L2.skirt=false; const p=makePerson(L2);
     const ham=new THREE.Mesh(mergeGeo([P('box',0x8b5a2b,0,-.74,.03,.035,.3,.035),P('box',0x4a4f55,0,-.88,.07,.06,.06,.2)]),VCMAT); ham.castShadow=true; p.aR.add(ham);
-    const plank=new THREE.Mesh(mergeGeo([P('box',0xc79a5e,0,1.05,.32,1.9,.07,.26)]),VCMAT); plank.castShadow=true; plank.visible=false; p.root.add(plank);
+    const plank=new THREE.Mesh(mergeGeo([P('box',0xc79a5e,0,1.12,.5,1.9,.07,.26)]),VCMAT); plank.castShadow=true; plank.visible=false; p.root.add(plank);
     const w={p,ham,plank,u:site.len*(k/3+.08),tu:0,st:'work',timer:1+k*1.4,mode:k===1?'kneel':'stand',carry:false,fetch:false,ph:k*1.3,step:0,r:rng(31+k)};
     scene.add(p.root); placeWorker(w); workers.push(w);}
 }
@@ -1867,7 +1888,7 @@ function updateWorkers(dt,t){
       w.step+=st*4.4; const sn=Math.sin(w.step), cs=Math.cos(w.step);
       p.lL.g.rotation.x=-sn*.6; p.lR.g.rotation.x=sn*.6; p.lL.k.rotation.x=Math.max(0,cs)*.8; p.lR.k.rotation.x=Math.max(0,-cs)*.8;
       r.position.y=.08+Math.abs(cs)*.04;
-      if(w.carry){p.aL.rotation.x=p.aR.rotation.x=-1.2;} else {p.aL.rotation.x=sn*.5; p.aR.rotation.x=-sn*.5;}
+      if(w.carry){p.aL.rotation.x=p.aR.rotation.x=-.95;} else {p.aL.rotation.x=sn*.5; p.aR.rotation.x=-sn*.5;}   // plank resting on both palms
       if(Math.abs(d)<.02){
         if(w.fetch){w.st='pick'; w.timer=.9;}   // at the lumber pile
         else {w.st='work'; w.mode=w.r()<.45?'kneel':'stand'; w.timer=3+w.r()*4; r.rotation.y=sitePos(w.u)[2]; if(w.carry){w.carry=false; w.plank.visible=false;}}
@@ -3788,14 +3809,7 @@ const FARMER_LOOK={f:false,skin:0xb07850,hair:0x1c1c1c,top:0x3b6e8f,bottom:0x5d4
 const farmer=(()=>{
   const L=FARMER_LOOK;
   const p=makePerson(L); p.root.position.set(FARM_HOME[0],.08,FARM_HOME[1]); scene.add(p.root);
-  const props={tray:new THREE.Group(),basket:new THREE.Group(),pail:new THREE.Group(),sack:new THREE.Group(),crate:new THREE.Group()};
-  props.crate.add(new THREE.Mesh(mergeGeo([P('box',0xe74c3c,0,0,0,.62,.32,.42),P('box',0x2b2b2b,0,.02,0,.64,.1,.3)]),VCMAT)); for(const x of [-.14,.14]){const c=miniAnimal('live_chicken'); c.scale.setScalar(.5); c.position.set(x,.1,0); props.crate.add(c);}
-  props.tray.add(part(.58,.04,.42,0xc8b38a,0,0,0)); const eg=new THREE.SphereGeometry(.05,6,5);
-  for(let i=0;i<3;i++) for(let j=0;j<2;j++){const e=mesh(eg,0xd9a066,-.18+i*.18,.05,-.1+j*.2); e.scale.y=1.25; props.tray.add(e);}
-  props.basket.add(mesh(new THREE.CylinderGeometry(.24,.18,.26,8),0xb08850,0,0,0)); props.basket.add(mesh(new THREE.SphereGeometry(.18,6,4),0xe9c24b,0,.12,0));
-  props.pail.add(mesh(new THREE.CylinderGeometry(.16,.13,.32,10),0xcfd6dc,0,0,0)); props.pail.add(mesh(new THREE.CylinderGeometry(.14,.14,.02,10),0xffffff,0,.15,0));
-  props.sack.add(part(.42,.32,.32,0xe8dcc0,0,0,0));
-  for(const k in props){const o=props[k]; o.position.set(0,1.08,.36); o.visible=false; p.root.add(o);}
+  const props=makeCarry(p,['tray','basket','pail','sack','crate']);
   return {p,props,jobs:[],cur:null,state:'idle',timer:0,carry:null,ph:0};
 })();
 const helpers=[];   // hired trabahador (runtime bodies); their saved data lives in S.helpers
@@ -3868,7 +3882,7 @@ let leadLast=performance.now();
     L.pigs.forEach((m,k)=>{const back=4+k*3, i=Math.max(0,tr.length-1-back), [x,z,y0]=tr[i], [px,pz]=tr[Math.min(tr.length-1,i+1)];
       m.position.x+=(x-m.position.x)*.15; m.position.z+=(z-m.position.z)*.15; if(Math.hypot(px-x,pz-z)>.01) m.rotation.y=lerpAng(m.rotation.y,Math.atan2(px-x,pz-z),.2);
       m.position.y=(y0||0)+Math.abs(Math.sin(t*9+k*1.3))*.05;});}})();
-function showCarry(k){for(const n in farmer.props) farmer.props[n].visible=(n===k);}
+function showCarry(k){showProps(farmer.props,k);}
 function farmerY(x,z){return inField(x,z)?.2:.08;}
 function updateFarmer(dt,t){
   const F=farmer, r=F.p.root, p=F.p;
@@ -3886,7 +3900,7 @@ function updateFarmer(dt,t){
     const st=Math.min(d,speed*dt); r.position.x+=dx/d*st; r.position.z+=dz/d*st; r.rotation.y=lerpAng(r.rotation.y,Math.atan2(dx,dz),.25);
     F.ph+=st*4.2; const s=Math.sin(F.ph), c=Math.cos(F.ph);
     p.lL.g.rotation.x=-s*.8; p.lR.g.rotation.x=s*.8; p.lL.k.rotation.x=Math.max(0,c)*1.0; p.lR.k.rotation.x=Math.max(0,-c)*1.0;
-    if(F.carry&&F.carry!=='lead'){p.aL.rotation.x=p.aR.rotation.x=-1.25;} else {p.aL.rotation.x=s*.8; p.aR.rotation.x=-s*.8;}
+    p.aL.rotation.x=s*.8; p.aR.rotation.x=-s*.8; holdPose(p,F.carry==='lead'?null:F.carry,F.props);
     p.aL.rotation.z=.06; p.aR.rotation.z=-.06; r.position.y=farmerY(r.position.x,r.position.z)+Math.abs(c)*.05; return false;};
   const stand=()=>{p.lL.g.rotation.x=p.lR.g.rotation.x=p.lL.k.rotation.x=p.lR.k.rotation.x=0; r.position.y=farmerY(r.position.x,r.position.z);};
   if(S.pasa){pasabayStep(F,dt,t,goTo); return;}
@@ -3904,12 +3918,12 @@ function updateFarmer(dt,t){
     if(j.type==='plow'||j.type==='chop'){p.aL.rotation.x=p.aR.rotation.x=-2.5+Math.abs(Math.sin(t*(j.type==='chop'?7:9)))*2.1; p.aL.rotation.z=.06; p.aR.rotation.z=-.06;}
     else if(j.type==='plant'){p.aR.rotation.x=-1.0+Math.sin(t*12)*.6; p.aL.rotation.x=-.6;}
     else if(j.type==='water'){p.aR.rotation.x=-1.15+Math.sin(t*5)*.12; p.aL.rotation.x=-.9; spray(F,j.i,t);}
-    else if(tile.s==='bld'){p.aL.rotation.x=p.aR.rotation.x=-1.3+Math.sin(t*6)*.25; const k=CARRY[tile.b]||'basket'; if(F.timer<jobTime(j)*.6) showCarry(k);}
+    else if(tile.s==='bld'){p.aL.rotation.x=p.aR.rotation.x=-1.3+Math.sin(t*6)*.25; const k=CARRY[tile.b]||'basket'; if(F.timer<jobTime(j)*.6&&k!=='lead'){showCarry(k); holdPose(p,k,F.props);}}
     else {p.aR.rotation.x=-1.4; p.aR.rotation.z=-.4+Math.sin(t*14)*.7; p.aL.rotation.x=-.5;}
     if(F.timer<=0){const got=doJob(j); dropPin(j.i); spendNeeds(j.type); if(got) {F.carry=got; showCarry(got); buzz(); if(got==='lead') startLead(F,lastLeadN);} else if(!F.carry) showCarry(null); F.cur=null; F.state=F.jobs.length?'idle':(F.carry?'deposit':'home');}
   }
   else if(F.state==='deposit'){if(goTo(BODEGA[0],BODEGA[1],F.carry==='lead'?1.9:4.2)){F.state='drop'; F.timer=.6; r.rotation.y=-Math.PI/2;}}
-  else if(F.state==='drop'){stand(); p.aL.rotation.x=p.aR.rotation.x=-.6; F.timer-=dt; if(F.timer<=0){F.carry=null; showCarry(null); F.state='home';}}
+  else if(F.state==='drop'){stand(); holdPose(p,F.carry==='lead'?null:F.carry,F.props); F.timer-=dt; if(F.timer<=0){F.carry=null; showCarry(null); holdPose(p,null); F.state='home';}}
   else if(F.state==='home'){if(goTo(FARM_HOME[0],FARM_HOME[1],2.6)){F.state='idle'; r.rotation.y=seatWorld(0)[2];}}
   else {if(!F.carry&&Math.hypot(r.position.x-FARM_HOME[0],r.position.z-FARM_HOME[1])<.25) sitChat(p,r,0,t); else {stand(); poseStand(p,t);} if(F.carry&&!F.jobs.length) F.state='deposit';}
   const pill=$('farmPill'); const busy=F.jobs.length+(F.cur?1:0);
@@ -3955,11 +3969,9 @@ function spawnHelper(h){
   const slot=[0,1,2,3,4,5].filter(k=>!helpers.some(H=>H.slot===k)).concat(0)[0];   // each of the three trabahador gets their own work clothes, so you can tell them apart
   L.style=[h.f?'long':'cap','salakot',h.f?'bun':'short','cap',h.f?'long':'salakot','short'][slot]; L.capC=[0xf1c40f,0x27ae60,0xe67e22,0x8e44ad,0x2e86de,0xc0392b][slot];
   L.top=[0xc0392b,0x2e86de,0x27ae60,0xf39c12,0x8e44ad,0x16a085][slot]; L.bottom=[0x34495e,0x5d4037,0x3b5b8c,0x2c3e50,0x6d4c41,0x34495e][slot];
-  const p=makePerson(L), basket=new THREE.Group();
-  basket.add(mesh(new THREE.CylinderGeometry(.24,.18,.26,8),0xb08850,0,0,0)); basket.add(mesh(new THREE.SphereGeometry(.18,6,4),0xe9c24b,0,.12,0));
-  basket.position.set(0,1.08,.36); basket.visible=false; p.root.add(basket);
+  const p=makePerson(L), props=makeCarry(p,['tray','basket','pail','sack','crate']);
   const home=helperHome(helpers.length); p.root.position.set(home[0],.08,home[1]); scene.add(p.root);
-  const H={h,p,look:L,slot,basket,state:'idle',cur:null,timer:.5+helpers.length*.3,ph:0,carry:false,riding:null,skip:new Map(),tick:0,msg:'',path:[]}; helpers.push(H);
+  const H={h,p,look:L,slot,props,carryK:null,state:'idle',cur:null,timer:.5+helpers.length*.3,ph:0,carry:false,riding:null,skip:new Map(),tick:0,msg:'',path:[]}; helpers.push(H);
   if(!isWork()){H.state='gone'; p.root.visible=false;}   // hired or loaded at night: they start in the morning
   return H;
 }
@@ -4018,12 +4030,12 @@ function updateHelpers(dt,t){
       const st=Math.min(d,speed*dt); r.position.x+=dx/d*st; r.position.z+=dz/d*st; r.rotation.y=lerpAng(r.rotation.y,Math.atan2(dx,dz),.25);
       H.ph+=st*4.2; const sn=Math.sin(H.ph), c=Math.cos(H.ph);
       p.lL.g.rotation.x=-sn*.8; p.lR.g.rotation.x=sn*.8; p.lL.k.rotation.x=Math.max(0,c); p.lR.k.rotation.x=Math.max(0,-c);
-      if(H.carry){p.aL.rotation.x=p.aR.rotation.x=-1.25;} else {p.aL.rotation.x=sn*.8; p.aR.rotation.x=-sn*.8;}
+      p.aL.rotation.x=sn*.8; p.aR.rotation.x=-sn*.8; holdPose(p,H.carry?H.carryK:null,H.props);
       r.position.y=farmerY(r.position.x,r.position.z)+Math.abs(c)*.05; return false;};
     const stand=()=>{p.lL.g.rotation.x=p.lR.g.rotation.x=p.lL.k.rotation.x=p.lR.k.rotation.x=0; r.position.y=farmerY(r.position.x,r.position.z);};
     if(H.state==='gone'||H.state==='wait') return;            // home asleep, or at the bus stop (the commuter code moves them)
     if(!isWork()&&H.state!=='leave'){if(H.hose) hoseToggle(H,'drop');                          // quitting time: drop the task and walk to the sakayan
-      if(H.cur&&H.cur.type==='board') releaseTrip(H); r.visible=true; H.cur=null; H.carry=false; H.basket.visible=false; H.msg='';
+      if(H.cur&&H.cur.type==='board') releaseTrip(H); r.visible=true; H.cur=null; H.carry=false; showProps(H.props,null); H.msg='';
       H.state='leave'; H.path=walkOut();}
     if(H.state==='leave'||H.state==='arrive'){const q=H.path[0];
       if(!q){ if(H.state==='leave'){H.state='wait'; riders.push({kind:'helper',H,p,state:'walkin',ph:0});} else {H.state='idle'; H.timer=.3; r.rotation.y=seatWorld(k+1)[2];} return;}
@@ -4048,9 +4060,9 @@ function updateHelpers(dt,t){
       if(H.timer<=0&&j.type==='hose'){hoseToggle(H,j.sub); H.cur=null; H.state='idle'; H.timer=.15; return;}
       if(H.timer<=0){const got=doJob(j); H.cur=null;
         if(got===null) H.skip.set(j.i,Date.now()+8000);
-        if(got){H.carry=true; H.basket.visible=got!=='lead'; H.leadOn=got==='lead'; if(H.leadOn) startLead(H,lastLeadN); H.state='deposit';} else {H.state='idle'; H.timer=.15;}}}
+        if(got){H.carry=true; H.carryK=got==='lead'?null:got; showProps(H.props,H.carryK); H.leadOn=got==='lead'; if(H.leadOn) startLead(H,lastLeadN); H.state='deposit';} else {H.state='idle'; H.timer=.15;}}}
     else if(H.state==='deposit'){if(goTo(BODEGA[0]+1.2,BODEGA[1]+.4,H.leadOn?1.9:3.9)){H.state='drop'; H.timer=.5;}}
-    else if(H.state==='drop'){stand(); p.aL.rotation.x=p.aR.rotation.x=-.6; H.timer-=dt; if(H.timer<=0){H.carry=false; H.basket.visible=false; H.state='idle'; H.timer=.1;}}
+    else if(H.state==='drop'){stand(); holdPose(p,H.carryK,H.props); H.timer-=dt; if(H.timer<=0){H.carry=false; showProps(H.props,null); holdPose(p,null); H.carryK=null; H.state='idle'; H.timer=.1;}}
     else if(H.state==='home'){const hm=helperHome(k); if(goTo(hm[0],hm[1],2.8)){H.state='idle'; r.rotation.y=seatWorld(k+1)[2]; H.timer=.4;}}
     else {H.state='idle';}
   });
@@ -4456,9 +4468,7 @@ const ERRAND_AT={sari:[22,-102.8],hardware:[HWX,HZ-8.8],poultry:[PSX,HZ-12.2],se
 function errandPerson(V,tr){const key=tr.driver;
   if(V.erKey!==key||!V.er){if(V.er){scene.remove(V.er.root); disposePerson(V.er);} const H=helpers.find(H=>'h'+H.h.id===tr.driver);
     const L={...(tr.driver==='farmer'?FARMER_LOOK:H&&H.look?H.look:randLook(Math.random)),bag:null}; const p=makePerson(L);
-    const crate=new THREE.Group(); crate.add(new THREE.Mesh(mergeGeo([P('box',0xe74c3c,0,0,0,.62,.32,.42),P('box',0x2b2b2b,0,.02,0,.64,.1,.3)]),VCMAT));
-    for(const x of [-.14,.14]){const c=miniAnimal('live_chicken'); c.scale.setScalar(.5); c.position.set(x,.1,0); crate.add(c);} crate.position.set(0,1.0,.38); crate.visible=false; p.root.add(crate); p.crate=crate;
-    const tray=new THREE.Mesh(eggTrayGeo(4),VCMAT); tray.position.set(0,.95,.4); tray.visible=false; p.root.add(tray); p.tray=tray;
+    const cp=makeCarry(p,['crate','eggs']); p.crate=cp.crate; p.tray=cp.eggs;
     const bag=new THREE.Mesh(new THREE.BoxGeometry(.26,.3,.12),new THREE.MeshStandardMaterial({color:0xf5f5f5})); bag.position.set(.34,.6,0); bag.visible=false; p.root.add(bag); p.bag=bag;
     scene.add(p.root); V.er=p; V.erKey=key;} return V.er;}
 function walkAlong(p,pts,u,now){let L=0; const seg=[]; for(let k=0;k<pts.length-1;k++){const d=Math.hypot(pts[k+1][0]-pts[k][0],pts[k+1][1]-pts[k][1]); seg.push(d); L+=d;}
@@ -4475,7 +4485,7 @@ function errandStep(V,vid,tr,now){V.out=false; const hide=()=>{if(V.er) V.er.roo
     const d0=Math.hypot(rear[0]-door[0],rear[1]-door[1])/sp, L=pathLen(loop), back=d0;
     if(t<d0){walkAlong(p,[door,rear],t/d0,now); p.crate.visible=false;}
     else if(t>T-back){walkAlong(p,[rear,door],(t-(T-back))/back,now); p.crate.visible=false;}
-    else {const u=((t-d0)*sp%L)/L; walkAlong(p,loop,u,now); const c=u>.5; p.crate.visible=c&&!tr.eggs; p.tray.visible=c&&!!tr.eggs; if(c){p.aL.rotation.x=p.aR.rotation.x=-1.2;}}
+    else {const u=((t-d0)*sp%L)/L; walkAlong(p,loop,u,now); const c=u>.5; p.crate.visible=c&&!tr.eggs; p.tray.visible=c&&!!tr.eggs; holdPose(p,c?(tr.eggs?'eggs':'crate'):null);}
     if(!(t>=d0&&t<=T-back)) p.tray.visible=false;
     p.bag.visible=false; return;}
   const d=Math.hypot(shop[0]-door[0],shop[1]-door[1]), wt=Math.min(T/2.4,d/sp);
@@ -6000,7 +6010,7 @@ function frame(now){
   flashBox.material.opacity=Math.max(0,1-(now-flashT)/600);
   syncGrid(); updateRoofs(); updateCam(); followSun(); mountains.position.set(camera.position.x,0,camera.position.z); drawFrame();
 }
-if(/[?&]debug\b/.test(location.search)) window.SF={cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,vans,traffic,shiftDays:n=>{TIME_SHIFT+=n*DAY_MS;},LINERS:()=>LINERS,PATROL:()=>PATROL,FIESTA:()=>FIESTA,loadWalkers,STOP,homeAct:(a,r)=>homeAct(a,{dataset:{r}}),openHome,FISH,startRain,dayAt:f=>{const g=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((f-g+1)%1)*DAY_MS;},step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
+if(/[?&]debug\b/.test(location.search)) window.SF={cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,holdPose,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,vans,traffic,shiftDays:n=>{TIME_SHIFT+=n*DAY_MS;},LINERS:()=>LINERS,PATROL:()=>PATROL,FIESTA:()=>FIESTA,loadWalkers,STOP,homeAct:(a,r)=>homeAct(a,{dataset:{r}}),openHome,FISH,startRain,dayAt:f=>{const g=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((f-g+1)%1)*DAY_MS;},step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
 renderHUD();
 requestAnimationFrame(frame);
 if(!S.seenHelp){S.seenHelp=true; save(); setTimeout(()=>toast('Open 🧰 Tools, pick a tool, and drag across the field. Sell your harvest at the 🏪 Palengke!',4800),600);}

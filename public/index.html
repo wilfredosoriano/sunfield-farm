@@ -2774,6 +2774,10 @@ const ORCH=[21,36,-5,44], UTIL=[-45,-31,-7,5], SARI=[16.5,28,-104.8,-96.5];   //
 const shoreZ=x=>-78+160*Math.exp(-(x-250)/22)+2.5*Math.sin(x/13)+1.5*Math.sin(x/5.3);
 const nearSea=(x,z,m=0)=>x>196-m&&z>shoreZ(x)-14-m;
 const inRect=(R,x,z,m)=>x>R[0]-m&&x<R[1]+m&&z>R[2]-m&&z<R[3]+m;
+// the waterways' centre lines and half widths (see WWAYS): trees and bushes keep clear of them
+const WW_CLEAR=[[3.8,[268,-252],[276,-236],[290,-218],[307,-202],[315,-191],[315,-181],[309,-169],[307.6,-152],[307.6,-110],[309,-97],[315,-82],[321,-66],[325,-56]],
+  [1.4,[45,-191.3],[312.5,-191.3]],[1.4,[147,-116.4],[305.2,-116.4]],[1.4,[217.3,-180.6],[217.3,-116.6]],[1.4,[305.4,-103.8],[29.6,-103.8],[29.8,-100],[27,-88],[31.8,-70],[37.8,-54],[37.8,-44],[36,-44.5],[14,-45.2],[-10,-48],[-36,-49.5],[-36,-40.4]],[1.2,[-46,-19.4],[-46,-15.6],[-16.4,-15.6],[-16.4,20.95]]];
+function wwNear(x,z,m){for(const [w,...P] of WW_CLEAR) for(let i=0;i<P.length-1;i++){const [ax,az]=P[i], [bx,bz]=P[i+1], dx=bx-ax, dz=bz-az, L=dx*dx+dz*dz||1, t=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/L)); if(Math.hypot(x-ax-dx*t,z-az-dz*t)<w+m) return true;} return false;}
 // countryside: acacia, mango, niyog, saging and kawayan trees, wild grass and flowers (all instanced, all cast shadows)
 (()=>{const rr=rng(42);
   const onRoad=(x,z,m)=>roadDist(x,z)<m||(z>HZ-5.4-m&&z<HZ+5.4+m);
@@ -2785,7 +2789,7 @@ const inRect=(R,x,z,m)=>x>R[0]-m&&x<R[1]+m&&z>R[2]-m&&z<R[3]+m;
     ||(x>226-m&&x<330+m&&z>-162-m&&z<-113+m)   // the bus terminal, the jeepney terminal and the police station
     ||nearSea(x,z,m+2)||(x>366-m&&x<444+m&&z>-102-m&&z<-76+m)   // the beach, the sea and the port yard
     ||(x>PX-25-m&&x<PX+25+m&&z>PZ-19-m&&z<HZ-4)||(x>HWX-14-m&&x<HWX+14+m&&z>HZ-25-m&&z<HZ-4)||(x>PSX-14-m&&x<PSX+14+m&&z>HZ-25-m&&z<HZ-4)||(x>SSX-12-m&&x<SSX+12+m&&z>HZ-25-m&&z<HZ-4)||(x>DX+1-m&&x<DX+32+m&&z>HZ+3-m&&z<HZ+12+m)||(x>34-m&&x<336+m&&z>-218-m&&z<-164+m)||(x>34-m&&x<46+m&&z>-190&&z<HZ-4)||(x>324-m&&x<336+m&&z>-190&&z<HZ-4)||(x>PX+38-m&&x<PX+46+m&&z>-190-m&&z<HZ-4)||(x>WHX-14-m&&x<WHX+30+m&&z>HZ-32-m&&z<HZ-4)||(x>FX-30-m&&x<FX+30+m&&z>HZ-64-m&&z<HZ-4)   // sakayan, warehouse, factory
-    ||inRect(ORCH,x,z,m)||inRect(UTIL,x,z,m)||inRect(SARI,x,z,m);
+    ||inRect(ORCH,x,z,m)||inRect(UTIL,x,z,m)||inRect(SARI,x,z,m)||wwNear(x,z,Math.max(.6,m));
   const trunks=[],blobs=[],segs=[],fronds=[],nuts=[],bleaves=[],culms=[],bananaL=[];
   const GREENS=[0x4a7f3c,0x568a42,0x62944a,0x3a6630,0x46733a,0x6c9a4e];
   const acacia=(x,z,s)=>{ // wide umbrella canopy (rain tree), common along Philippine roads
@@ -2924,11 +2928,11 @@ const hroadDist=(x,z)=>{let b=99; for(const r of HROADS) for(const [a,c] of r.s)
   // rice terraces: strips along the contour lines, each a green paddy edged with a soil riser, stepping down the hill
   const terr=[];
   for(const [x0,x1,z0,z1] of [[118,176,-262,-300],[254,296,-306,-338]]) for(let L=2;L<=16;L+=1.4) for(let x=x0;x<=x1;x+=1.6) for(let z=z1;z<=z0;z+=1.6){
-    const h=at(x,z); if(Math.abs(h-L)>.4||hroadDist(x,z)<3.5||homes.some(([a,c,q])=>Math.hypot(a-x,c-z)<q+2)) continue;
+    const h=at(x,z); if(Math.abs(h-L)>.4||hroadDist(x,z)<3.5||wwNear(x,z,2)||homes.some(([a,c,q])=>Math.hypot(a-x,c-z)<q+2)) continue;
     const gx=at(x+1,z)-at(x-1,z), gz=at(x,z+1)-at(x,z-1); if(Math.hypot(gx,gz)<.08) continue; const yaw=Math.atan2(-gz,gx);   // the strip runs across the slope
     b.push(PY('box',0x8a7456,x,L-.5,z,1.9,1.1,1.6,0,yaw)); b.push(PY('box',[0x8fb35a,0x9cc068,0x7fa64e][((L*5)|0)%3],x,L+.07,z,1.9,.06,1.5,0,yaw)); terr.push([x,z]);}
   // trees, leaving gaps round the houses, roads and terraces
-  for(let k=0;k<170;k++){const x=HILL.x+(r()-.5)*HILL.rx*1.8, z=HILL.z+(r()-.5)*HILL.rz*1.8, y=at(x,z); if(y<.5||hroadDist(x,z)<4||homes.some(([a,c,q])=>Math.hypot(a-x,c-z)<q+3)||terr.some(([a,c])=>Math.hypot(a-x,c-z)<3)) continue;
+  for(let k=0;k<170;k++){const x=HILL.x+(r()-.5)*HILL.rx*1.8, z=HILL.z+(r()-.5)*HILL.rz*1.8, y=at(x,z); if(y<.5||hroadDist(x,z)<4||wwNear(x,z,2)||homes.some(([a,c,q])=>Math.hypot(a-x,c-z)<q+3)||terr.some(([a,c])=>Math.hypot(a-x,c-z)<3)) continue;
     const s=.7+r()*.6; b.push(P('cyl',0x6b4a2a,x,y+1.2*s,z,.4*s,2.4*s,.4*s)); lv.push(P('sph',[0x46733a,0x527f40,0x3a6630][k%3],x,y+3*s,z,3.2*s,2.6*s,3.2*s));}
   const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.castShadow=m.receiveShadow=true; scene.add(m);
   const t=new THREE.Mesh(mergeGeo(lv),VCSMOOTH); t.castShadow=true; scene.add(t);
@@ -5183,7 +5187,7 @@ const RES_ROUTE=mkRoute([[420,LW,12],[336,LW,5],[331.75,HZ-8,8],[331.75,STZ+5,4]
 const resCars=[0,1].map(k=>{const g=makeCar(k?'l300':'innova',CAR_COLS[(k*5+3)%CAR_COLS.length]); g.visible=false; return {g,e:-6-k*30,blk:0};});
 (()=>{const b=[];
   // irrigation canal along the front of the field, with a small wooden footbridge
-  {const cz=FLD.z+FHALF+3.2, w=2*FHALF+4; b.push(P('box',0x8d6e4b,FLD.x,.05,cz,w,.1,2.2)); b.push(P('box',0x4f8a90,FLD.x,.09,cz,w-.6,.06,1.4)); for(const sd of [-1,1]) b.push(P('box',0x6f8a5c,FLD.x,.14,cz+sd*.95,w,.1,.25));
+  {const cz=FLD.z+FHALF+3.2, w=2*FHALF+4; b.push(P('box',0x8d6e4b,FLD.x,.05,cz,w,.1,2.2)); for(const sd of [-1,1]) b.push(P('box',0x6f8a5c,FLD.x,.14,cz+sd*.95,w,.1,.25));
    b.push(P('box',0x8d6e4b,FLD.x,.28,cz,1.4,.08,2.6)); for(const x of [-.6,.6]) b.push(P('box',0x6d4c41,FLD.x+x,.45,cz,.06,.4,2.6));}
   // panakot (scarecrow) by the field corner
   const sx=FLD.x-FHALF-1.6, sz=FLD.z+FHALF+1.2; b.push(P('box',0x8d6e4b,sx,1.1,sz,.1,2.2,.1)); b.push(P('box',0x8d6e4b,sx,1.6,sz,1.4,.08,.08)); b.push(P('box',0x3949ab,sx,1.45,sz,.6,.6,.3)); b.push(P('sph',0xe8d5a3,sx,2.05,sz,.36,.36,.36)); b.push(P('cone',0xd4b06a,sx,2.3,sz,.8,.25,.8));
@@ -5795,6 +5799,68 @@ let townLast=performance.now();
       if(M.p.lL){poseWalk(M.p,t*6+M.off); if(M.kind==='dancer'){M.p.aL.rotation.z=1.4+Math.sin(t*5+M.off)*.6; M.p.aR.rotation.z=-1.4-Math.sin(t*5+M.off)*.6;} else {M.p.aR.rotation.x=-1.2+Math.abs(Math.sin(t*8))*.5;}}}
     if(AC&&SND.sfx&&AC.state==='running'){const k=near(F.x,lz); F.beat+=dt; if(F.beat>=.42){F.beat-=.42; const B=BUS.sfx, bt=(F.bt=(F.bt||0)+1);
       if(k>.05){noise(B,{d:.08,v:.18*k,f:bt%2?1800:200,q:bt%2?.8:.5,type:bt%2?'bandpass':'lowpass'}); if(bt%8===0) [523,659,784,659].forEach((f,i)=>tone(B,{f,type:'sawtooth',d:.18,v:.05*k,t:i*.21,lp:2200}));}}}}
+})();
+/* ---------- Waterways: one connected system that flows all the time and runs strong and muddy in the rain ----------
+   ilog: a big concrete canal from a spring on the mountain, east of the barangay, under the barangay road and the highway, into the sea.
+   barangay and palengke kanal: concrete roadside drains that empty into the ilog.
+   patubig: the irrigation canal that takes water from the ilog along the highway and the farm road round the fence to the fish ponds,
+   and the farm canal from the ponds past the bodega to the field canal. Where a road crosses, the water goes under covers or a bridge. */
+const WWAYS=(()=>{
+  const off=(pts,d)=>pts.map((p,i)=>{const a=pts[Math.max(0,i-1)], b=pts[Math.min(pts.length-1,i+1)], dx=b[0]-a[0], dz=b[1]-a[1], L=Math.hypot(dx,dz)||1; return [p[0]-dz/L*d,p[1]+dx/L*d];});
+  const acc=(()=>{const a=off(ACCESS,4.3); return (a[0][0]<ACCESS[0][0]?a:off(ACCESS,-4.3)).filter(([x,z])=>z>-100&&z<-43);})();   // west side of the farm road
+  const list=[
+    {id:'ilog',kind:'creek',w:3.6,sp:.32,pts:spline([[268,-252],[276,-236],[290,-218],[307,-202],[315,-191],[315,-181],[309,-169],[307.6,-152],[307.6,-122],[307.6,-110],[309,-97],[315,-82],[321,-66],[325,-56]],false,.9)},
+    {id:'brgy',kind:'kanal',w:1.1,sp:.2,pts:straight([[45,-191.3],[312.5,-191.3]],.9)},
+    {id:'palengke',kind:'kanal',w:1.1,sp:.2,pts:straight([[147,-116.4],[305.2,-116.4]],.9)},
+    {id:'gilid',kind:'kanal',w:1.1,sp:.2,pts:straight([[217.3,-180.6],[217.3,-116.6]],.9)},
+    {id:'patubig',kind:'kanal',w:1.2,sp:.18,pts:straight([[305.4,-103.8],[29.6,-103.8],...acc,[36,-44.5],[14,-45.2],[-10,-48],[-36,-49.5],[-36,-40.4]],.9)},
+    {id:'bukid',kind:'kanal',w:1.0,sp:.16,pts:straight([[-46,-19.4],[-46,-15.6],[-16.4,-15.6],[-16.4,20.95],[-14.6,20.95]],.8)},
+    {id:'tubigan',kind:'bare',w:1.4,sp:.14,pts:straight([[-14.6,20.95],[14.6,20.95]],.8)},   // the field canal (its banks are already built)
+  ];
+  const hr=(x,z,m)=>{for(const r of HROADS) for(const [a,c] of r.s) if(Math.hypot(x-a,z-c)<r.w/2+m) return true; return false;};
+  const turn=(x,z,m)=>FARM.turning.some(t=>Math.hypot(x-t.x,z-t.z)<t.r+m);
+  const covered=(x,z,m)=>(Math.abs(z-HZ)<5.2+m)||(Math.abs(z-STZ)<4.3+m&&x>35-m&&x<335+m)||(Math.abs(x-SRX)<4.3+m&&z>STZ&&z<HZ)||((Math.abs(x-40)<4.3+m||Math.abs(x-330)<4.3+m)&&z>STZ-4.3&&z<HZ)
+    ||(Math.abs(x-TWN.wx)<TWN.w/2+1.3+m&&z>TWN.bz&&z<HZ)||(Math.abs(z-TWN.bz)<TWN.w/2+1.3+m&&x>TWN.wx&&x<SRX)||hr(x,z,m)||roadDist(x,z)<m||turn(x,z,m-.5);
+  const gy=(x,z)=>{const h=hillH(x,z); return h>0?h+.08:0;};
+  const tex=(rough)=>{const cv=document.createElement('canvas'); cv.width=64; cv.height=256; const c=cv.getContext('2d'); c.fillStyle=rough?'#e6e6e6':'#d4d4d4'; c.fillRect(0,0,64,256); const r=rng(rough?5:3);
+    for(let k=0;k<(rough?150:60);k++){const x=r()*64, y=r()*256, l=8+r()*(rough?40:30); c.fillStyle=r()<(rough?.75:.55)?`rgba(255,255,255,${rough?.9:.6})`:'rgba(150,150,150,.45)'; c.fillRect(x,y,1+r()*(rough?3:2),l); if(y+l>256) c.fillRect(x,y-256,2,l);}
+    const t=new THREE.CanvasTexture(cv); t.wrapS=t.wrapT=THREE.RepeatWrapping; return t;};
+  const CALM=tex(false), ROUGH=tex(true);
+  const PROF={creek:[[-.4,.02,0xa9a59a],[-.4,.95,0xd2cec3],[0,.95,0xb8b4a9],[0,.06,0x6a665c],[1,.06,0x6a665c],[1,.95,0xb8b4a9],[1.4,.95,0xd2cec3],[1.4,.02,0xa9a59a]],   // offsets past the edges, height, colour: the big concrete canal
+              kanal:[[-.18,.02,0xb3afa4],[-.18,.32,0xc9c5ba],[0,.32,0xb3afa4],[0,.03,0x6f6a5e],[1,.03,0x6f6a5e],[1,.32,0xb3afa4],[1.18,.32,0xc9c5ba],[1.18,.02,0xb3afa4]]};
+  const all=[], col=new THREE.Color(), WWMAT=VCMAT.clone(); WWMAT.side=THREE.DoubleSide;
+  for(const W of list){const hw=W.w/2, pts=W.pts, n=pts.length, cov=[], nor=[], dist=[0];
+    for(let i=0;i<n;i++){const a=pts[Math.max(0,i-1)], b=pts[Math.min(n-1,i+1)], dx=b[0]-a[0], dz=b[1]-a[1], L=Math.hypot(dx,dz)||1; nor.push([-dz/L,dx/L]); if(i) dist.push(dist[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]));
+      cov.push(W.kind!=='bare'&&covered(pts[i][0],pts[i][1],hw+.25));}
+    const bp=[], bc=[], wp=[], wu=[], parts=[];
+    const at=(i,o,h)=>{const [x,z]=pts[i], [nx,nz]=nor[i]; return [x+nx*o,gy(x+nx*o,z+nz*o)+h,z+nz*o];};
+    const prof=PROF[W.kind]?PROF[W.kind].map(([o,h,c])=>[o<=0?-hw+o:o>=1?hw+(o-1):0,h,c]):null;
+    for(let i=0;i<n-1;i++){if(cov[i]||cov[i+1]){if(W.kind==='kanal'&&cov[i]&&cov[i+1]){const e=hw+.2, A=at(i,-e,.07), B=at(i,e,.07), C=at(i+1,-e,.07), D=at(i+1,e,.07); bp.push(...A,...C,...B,...B,...C,...D); col.setHex(i%3?0xa6a297:0x8f8b80); for(let q=0;q<6;q++) bc.push(col.r,col.g,col.b);} continue;}   // concrete covers where a road runs over a kanal
+      if(prof) for(let k=0;k<prof.length-1;k++){const [o1,h1]=prof[k], [o2,h2,c]=prof[k+1], A=at(i,o1,h1), B=at(i,o2,h2), C=at(i+1,o1,h1), D=at(i+1,o2,h2); bp.push(...A,...C,...B,...B,...C,...D); col.setHex(prof[k][1]>h2?prof[k][2]:c); for(let q=0;q<6;q++) bc.push(col.r,col.g,col.b);}
+      const A=at(i,-hw+.03,0), B=at(i,hw-.03,0), C=at(i+1,-hw+.03,0), D=at(i+1,hw-.03,0), v1=dist[i]/4, v2=dist[i+1]/4; wp.push(...A,...C,...B,...B,...C,...D); wu.push(0,v1,0,v2,1,v1,1,v1,0,v2,1,v2);}
+    // where the water goes under a road: concrete headwalls for a kanal, a bridge parapet with a railing for the ilog
+    for(let i=1;i<n;i++) if(cov[i]!==cov[i-1]){const j=cov[i]?i-1:i, [x,z]=pts[j], g=gy(x,z), ry=Math.atan2(-nor[j][1],nor[j][0]);
+      if(W.kind==='creek'){parts.push(P('box',0xb9b4a8,x,g+.45,z,W.w+3.4,.9,.45,0,ry,0)); parts.push(P('box',0xd8d3c6,x,g+.95,z,W.w+3.6,.12,.55,0,ry,0)); for(const s of [-1,1]) parts.push(P('box',0xa39e92,x+nor[j][0]*s*(hw+1.9),g+.55,z+nor[j][1]*s*(hw+1.9),.5,1.1,.6,0,ry,0));}
+      else parts.push(P('box',0xb3afa4,x,g+.2,z,W.w+.7,.4,.28,0,ry,0));}
+    if(W.kind==='creek') for(let i=0;i<n;i+=3){if(cov[i]) continue; for(const s of [-1,1]){const o=s*(hw+.2), [x,z]=pts[i], px=x+nor[i][0]*o, pz=z+nor[i][1]*o; parts.push(P('box',0x8a8f94,px,gy(px,pz)+1.35,pz,.07,.8,.07));   // railing posts on the canal walls
+        if(i+3<n&&!cov[i+3]){const [x2,z2]=pts[i+3], qx=x2+nor[i+3][0]*o, qz=z2+nor[i+3][1]*o, L=Math.hypot(qx-px,qz-pz); parts.push(P('box',0x9aa0a6,(px+qx)/2,(gy(px,pz)+gy(qx,qz))/2+1.72,(pz+qz)/2,.06,.06,L,0,Math.atan2(qx-px,qz-pz),0));}}}
+    if(bp.length){const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(bp,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(bc,3)); g.computeVertexNormals(); const m=new THREE.Mesh(g,WWMAT); m.receiveShadow=true; scene.add(m);}
+    if(parts.length){const m=new THREE.Mesh(mergeGeo(parts),VCMAT); m.castShadow=m.receiveShadow=true; scene.add(m);}
+    const wg=new THREE.BufferGeometry(); wg.setAttribute('position',new THREE.Float32BufferAttribute(wp,3)); wg.setAttribute('uv',new THREE.Float32BufferAttribute(wu,2)); wg.computeVertexNormals();
+    const calm=W.kind==='creek'?0x5b9fae:W.kind==='bare'?0x5d9da0:0x6aa2a0, mat=new THREE.MeshLambertMaterial({map:CALM.clone(),color:calm,transparent:true,opacity:.93,side:THREE.DoubleSide}); mat.map.needsUpdate=true;
+    const wm=new THREE.Mesh(wg,mat); wm.receiveShadow=true; scene.add(wm);
+    const lv=W.kind==='creek'?[.22,.72]:W.kind==='bare'?[.11,.17]:[.1,.27]; wm.position.y=lv[0];
+    all.push({W,wm,mat,calm:new THREE.Color(calm),lv,samp:pts.filter((p,i)=>i%4===0&&!cov[i])});}
+  return {all,CALM,ROUGH};
+})();
+let wwLast=performance.now(), wwRain=0, wwSnd=0;
+(function wwLoop(){requestAnimationFrame(wwLoop); const n=performance.now(), dt=Math.min(.1,(n-wwLast)/1000); wwLast=n; if(document.hidden) return;
+  wwRain+=((rainOn()?1:0)-wwRain)*Math.min(1,dt*.25);   // the water rises and quickens slowly after the rain starts, and settles slowly after
+  const mud=new THREE.Color(0xae9a6e), rough=wwRain>.45;
+  for(const A of WWAYS.all){const m=A.mat; m.map.offset.y-=A.W.sp*(1+wwRain*3.2)*dt; if((m.map.image===WWAYS.ROUGH.image)!==rough){const o=m.map.offset.y; m.map=(rough?WWAYS.ROUGH:WWAYS.CALM).clone(); m.map.needsUpdate=true; m.map.offset.y=o; m.needsUpdate=true;}
+    m.color.copy(A.calm).lerp(mud,wwRain*.78); A.wm.position.y=A.lv[0]+(A.lv[1]-A.lv[0])*wwRain+Math.sin(n/700)*.008;}
+  if(AC&&SND.amb&&AC.state==='running'){wwSnd-=dt; if(wwSnd<=0){wwSnd=.7+Math.random()*.4; let best=0; for(const A of WWAYS.all) for(const [x,z] of A.samp){const k=near(x,z)*(A.W.kind==='creek'?1:.55); if(k>best) best=k;}
+    if(best>.05) noise(BUS.amb,{d:1.4,a:.5,v:best*(.035+wwRain*.11),f:700+wwRain*500,f2:1300+wwRain*900,q:.6,type:'bandpass'});}}   // babbling water, a rush in the rain
 })();
 /* ---------- Stage H: the sea, the port (pantalan) and the bay trading business ---------- */
 if(!S.bay) S.bay={owned:false,stock:{},ship:null};

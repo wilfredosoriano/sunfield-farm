@@ -103,8 +103,10 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 
 #bottom{position:fixed;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;gap:8px;
   padding:0 10px calc(env(safe-area-inset-bottom,0px) + 10px);pointer-events:none}
-#hint{pointer-events:none;background:var(--panel);border-radius:14px;padding:6px 12px;font-size:13px;font-weight:700;
-  color:var(--muted);max-width:min(560px,100%);text-align:center;box-shadow:0 4px 14px rgba(20,40,20,.14)}
+#hint{pointer-events:none;background:var(--panel);border-radius:12px;padding:4px 10px;font-size:11.5px;font-weight:700;
+  color:var(--muted);max-width:min(380px,100%);text-align:center;box-shadow:0 3px 10px rgba(20,40,20,.12);opacity:0;transition:opacity .5s}
+#hint.show{opacity:.92}
+.pill .peso{width:20px;height:20px;flex:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.25))}
 #picker{pointer-events:auto;display:flex;gap:6px;overflow-x:auto;max-width:min(560px,100%);padding:4px;
   scrollbar-width:none;background:var(--panel);border-radius:18px;box-shadow:0 4px 14px rgba(20,40,20,.14)}
 #picker:empty{display:none}
@@ -265,7 +267,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
   .pill{padding:5px 12px}
   #menuBtn{width:38px;height:38px}
   #bottom{padding:0 calc(env(safe-area-inset-right,0px) + 10px) calc(env(safe-area-inset-bottom,0px) + 8px) calc(env(safe-area-inset-left,0px) + 10px)}
-  #hint{font-size:12px;padding:5px 10px;max-width:min(460px,calc(100% - 220px))}
+  #hint{font-size:11px;padding:4px 9px;max-width:min(340px,calc(100% - 220px))}
   #bottom{gap:6px}
   #cats{left:calc(env(safe-area-inset-left,0px) + 8px);padding:5px;border-radius:20px;margin-top:14px}
   #tools{padding:5px;border-radius:20px;max-width:calc(100% - 180px)}
@@ -286,7 +288,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 <canvas id="c" aria-label="Your farm"></canvas>
 
 <div id="hud">
-  <div class="pill"><span aria-hidden="true">🪙</span><span id="coins">0</span></div>
+  <div class="pill"><svg class="peso" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14.5" fill="#c9a227" stroke="#8a6d12" stroke-width="2"/><circle cx="16" cy="16" r="10.5" fill="#e8c547" stroke="#b08a1c" stroke-width="1.2"/><text x="16" y="21.5" text-anchor="middle" font-size="15" font-weight="900" font-family="Arial, sans-serif" fill="#7a5a0c">₱</text></svg><span id="coins">0</span></div>
   <div class="pill"><span class="lvl" id="lvl">Level 1</span><div class="bar"><i id="xp"></i></div></div>
   <div class="pill" id="clockPill"><span id="clockTxt">☀️ 6:00 AM</span></div>
   <button class="pill" id="helpBtn" aria-label="Trabahador (helpers)">👷</button>
@@ -711,22 +713,26 @@ const STYLE={
 const POST=(()=>{
   const gl2=renderer.capabilities.isWebGL2, ok=gl2||renderer.extensions.has('WEBGL_depth_texture');
   if(!ok) return null;   // very old browsers: draw straight to the screen as before
-  const dt=new THREE.DepthTexture(1,1); dt.type=THREE.UnsignedIntType;
+  // depth precision matters: with 16-bit depth (many Android GPUs give that for the default type) flat ground is drawn in steps and the
+  // edge finder inks every step, filling the screen with horizontal lines. WebGL2 gets 32-bit float depth; anything else, or ?depth16 for
+  // testing, gets a noise floor in the shader sized to one depth step, so the steps are ignored.
+  const low=!gl2||/depth16/.test(location.search), dt=new THREE.DepthTexture(1,1); dt.type=low?(gl2?THREE.UnsignedShortType:THREE.UnsignedIntType):THREE.FloatType;
   const rt=new THREE.WebGLRenderTarget(1,1,{depthTexture:dt,depthBuffer:true,stencilBuffer:false});
   const mat=new THREE.ShaderMaterial({depthTest:false,depthWrite:false,
-    uniforms:{tColor:{value:rt.texture},tDepth:{value:dt},px:{value:new THREE.Vector2()},near:{value:camera.near},far:{value:camera.far},
+    uniforms:{qEps:{value:low?1/65535:0},tColor:{value:rt.texture},tDepth:{value:dt},px:{value:new THREE.Vector2()},near:{value:camera.near},far:{value:camera.far},
       ink:{value:new THREE.Color(STYLE.ink)},inkAmt:{value:STYLE.inkAmt},inkNear:{value:STYLE.inkNear},inkFull:{value:STYLE.inkFull},inkFar:{value:STYLE.inkFar},
       sat:{value:STYLE.sat},warm:{value:new THREE.Vector3(...STYLE.warm)},lift:{value:STYLE.lift},night:{value:0}},
     vertexShader:'varying vec2 vUv; void main(){vUv=uv; gl_Position=vec4(position.xy,0.,1.);}',
     fragmentShader:`precision highp float; varying vec2 vUv;
-      uniform sampler2D tColor, tDepth; uniform vec2 px; uniform float near, far, inkAmt, inkNear, inkFull, inkFar, sat, lift, night; uniform vec3 ink, warm;
+      uniform sampler2D tColor, tDepth; uniform vec2 px; uniform float near, far, inkAmt, inkNear, inkFull, inkFar, sat, lift, night, qEps; uniform vec3 ink, warm;
       float W(vec2 uv){float d=texture2D(tDepth,uv).x; return (far-d*(far-near))/(near*far);}          // 1/z: changes linearly across any flat face
       void main(){
         vec3 c=texture2D(tColor,vUv).rgb;
         float l=dot(c,vec3(.299,.587,.114)); c=mix(vec3(l),c,sat)*warm; c=c*(1.-lift)+lift*(1.-night*.7);
         float w=W(vUv), z=1./w;
         float lap=(abs(W(vUv-vec2(px.x,0.))+W(vUv+vec2(px.x,0.))-2.*w)+abs(W(vUv-vec2(0.,px.y))+W(vUv+vec2(0.,px.y))-2.*w))/w;
-        float e=smoothstep(inkNear,inkFull,lap)*(1.-smoothstep(inkFar*.45,inkFar,z))*inkAmt;
+        float d0=texture2D(tDepth,vUv).x, q=qEps>0.?abs((far-min(1.,d0+qEps)*(far-near))/(near*far)-w)/w*4.:0.;   // one depth step, relative
+        float e=smoothstep(inkNear+q,inkFull+q*1.5,lap)*(1.-smoothstep(inkFar*.45,inkFar,z))*inkAmt;
         gl_FragColor=vec4(mix(c,ink*(1.-night*.5),e),1.);
       }`});
   const quad=new THREE.Mesh(new THREE.PlaneGeometry(2,2),mat); quad.frustumCulled=false;
@@ -2812,7 +2818,7 @@ function emptySlotSign(s){   // a dashed outline on the ground and a little boar
     const sh=new THREE.Shape(); pts.forEach(([x,z],k)=>k?sh.lineTo(x,-z):sh.moveTo(x,-z)); const geo=new THREE.ShapeGeometry(sh); geo.rotateX(-Math.PI/2);
     const gm=new THREE.Mesh(geo,worldGrass(AREA_GROUND[a.type])); gm.position.y=.024; gm.receiveShadow=true; scene.add(gm);
     // posts and two rails, with a gap at the gate
-    for(let k=0;k<pts.length-1;k++){const [x0,z0]=pts[k], [x1,z1]=pts[k+1]; if(Math.hypot((x0+x1)/2-gx,(z0+z1)/2-gz)<2.2) continue;
+    for(let k=0;k<pts.length-1;k++){const [x0,z0]=pts[k], [x1,z1]=pts[k+1]; if(Math.hypot((x0+x1)/2-gx,(z0+z1)/2-gz)<2.2||roadDist((x0+x1)/2,(z0+z1)/2)<.3) continue;
       const len=Math.hypot(x1-x0,z1-z0), ry=Math.atan2(x1-x0,z1-z0); posts.push([x0,.6,z0,.14,1.2,.14,0x6d4c41,ry]);
       for(const y of [.4,.9]) posts.push([(x0+x1)/2,y,(z0+z1)/2,.06,.07,len+.04,0x8d6e4b,ry]);}
     // gate posts and a name board beside the gate
@@ -2825,15 +2831,18 @@ function emptySlotSign(s){   // a dashed outline on the ground and a little boar
   if(pads.length){const m=new THREE.Mesh(mergeGeo(pads),VCMAT); m.receiveShadow=true; scene.add(m);}
 })();
 // one fence around the whole lot, following its irregular boundary, with the SUNFIELD FARM gate where the farm road comes in
-(()=>{const L=[], c=0x8d6e4b, G=FARM.gate, gi=nearestOn(FENCE,G.x,G.z);
-  const nearGate=(x,z)=>Math.hypot(x-G.x,z-G.z)<G.w/2;
-  for(let k=0;k<FENCE.length-1;k++){const [x0,z0]=FENCE[k], [x1,z1]=FENCE[k+1]; if(nearGate(x0,z0)||nearGate(x1,z1)) continue;
+(()=>{const L=[], c=0x8d6e4b, G=FARM.gate;
+  // the gate stands exactly where the farm road crosses the fence line, square to the road; no post or rail ever sits on a road
+  let ci=0, cd=1e9; ACCESS.forEach(([x,z],k)=>{const d=Math.hypot(x-FENCE[nearestOn(FENCE,x,z)][0],z-FENCE[nearestOn(FENCE,x,z)][1]); if(d<cd){cd=d; ci=k;}});
+  const [gx,gz]=ACCESS[ci], [hx,hz]=ACCESS[Math.min(ACCESS.length-1,ci+1)], roadA=Math.atan2(hx-gx,hz-gz);
+  const onRoad=(x,z)=>roadDist(x,z)<.7;
+  for(let k=0;k<FENCE.length-1;k++){const [x0,z0]=FENCE[k], [x1,z1]=FENCE[k+1]; if(onRoad(x0,z0)||onRoad(x1,z1)||onRoad((x0+x1)/2,(z0+z1)/2)) continue;
     const len=Math.hypot(x1-x0,z1-z0), ry=Math.atan2(x1-x0,z1-z0);
     L.push([x0,.7,z0,.16,1.4,.16,0x6d4c41,ry]); for(const y of [.45,1.0]) L.push([(x0+x1)/2,y,(z0+z1)/2,.07,.08,len+.05,c,ry]);}
   const m=instR(PG.box,L); m.castShadow=true; scene.add(m);
-  // gate: two tall posts across the opening, a beam and the sign, square to the fence there
-  const [ax,az]=FENCE[Math.max(0,gi-1)], [bx,bz]=FENCE[Math.min(FENCE.length-1,gi+1)], along=Math.atan2(bx-ax,bz-az), ux=Math.sin(along), uz=Math.cos(along);
-  const g=new THREE.Group(); g.position.set(G.x,0,G.z); g.rotation.y=along; scene.add(g);
+  // gate: two tall posts either side of the road, a beam across it and the sign facing the traffic
+  const along=roadA+Math.PI/2;
+  const g=new THREE.Group(); g.position.set(gx,0,gz); g.rotation.y=along; scene.add(g);
   const b=[]; for(const s of [-1,1]) b.push(P('box',0x5d4037,0,1.6,s*G.w/2,.35,3.2,.35)); b.push(P('box',0x5d4037,0,3.1,0,.3,.35,G.w+.6));
   const gm=new THREE.Mesh(mergeGeo(b),VCMAT); gm.castShadow=true; g.add(gm);
   const cv=document.createElement('canvas'); cv.width=512; cv.height=96; const cx=cv.getContext('2d'); cx.fillStyle='#4e342e'; cx.fillRect(0,0,512,96); cx.fillStyle='#ffe082'; cx.font='900 54px "Arial Black", Arial, sans-serif'; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText('SUNFIELD FARM',256,50);
@@ -3084,7 +3093,7 @@ function brush(i){
     if(S.level<c.lvl){toast(`${c.icon} ${c.name}: unlocks at level ${c.lvl}`); stroke.stop=true; return;}
     if(seedsFree(S.crop)<1){noSeeds(S.crop); stroke.stop=true; return;}
     const cost=t.s==='grass'?PLOW:0;
-    if(S.coins-reservedCoins()<cost){toast(`You need 🪙${cost} to plow and plant. Harvest something first.`); stroke.stop=true; return;}
+    if(S.coins-reservedCoins()<cost){toast(`You need ₱${cost} to plow and plant. Harvest something first.`); stroke.stop=true; return;}
     if(queueJob('plant',i,{cost,crop:S.crop})){flash(i); buzz();}
   }
 }
@@ -3113,7 +3122,7 @@ const owned=()=>S.tiles.slice(0,NF).filter(t=>t.s!=='locked').length;
 const landPrice=()=>40+(owned()-36)*15;
 function nextToFarm(i){const c=i%N,r=(i/N)|0;
   return [[1,0],[-1,0],[0,1],[0,-1]].some(([dc,dr])=>{const cc=c+dc,rr2=r+dr; return cc>=0&&rr2>=0&&cc<N&&rr2<N&&S.tiles[rr2*N+cc].s!=='locked';});}
-function spend(n,i){if(S.coins<n){toast(`You need 🪙${n} for that. Harvest something first.`); return false;} S.coins-=n; if(n>0) floatAt(i,`−${n} 🪙`,'spend'); return true;}
+function spend(n,i){if(S.coins<n){toast(`You need ₱${n} for that. Harvest something first.`); return false;} S.coins-=n; if(n>0) floatAt(i,`−${n} ₱`,'spend'); return true;}
 function fmt(s){s=Math.ceil(s); return s<60?`${s}s`:`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;}
 
 function onTap(i){
@@ -3123,7 +3132,7 @@ function onTap(i){
     if(!nextToFarm(i)){toast('Buy land next to your farm first'); pendingBuy=-1; return;}
     const price=landPrice();
     if(pendingBuy===i){ if(!spend(price,i)) return; S.tiles[i]={s:'grass'}; pendingBuy=-1; refreshTile(i,true); toast('New land is yours'); changed(); }
-    else {pendingBuy=i; toast(`Tap again to buy this plot for 🪙${price}`);}
+    else {pendingBuy=i; toast(`Tap again to buy this plot for ₱${price}`);}
     return;
   }
   pendingBuy=-1;
@@ -3138,14 +3147,14 @@ function onTap(i){
   const tool=S.tool;
   if((tool==='plow'||tool==='plant')&&isYard(i)&&t.s!=='bld') return toast('This is your bakuran, for the Manukan and Bakahan. Plant on the crop field.');
   if(tool==='plow'){
-    if(t.s==='grass'){ if(S.coins-reservedCoins()<PLOW) return toast(`You need 🪙${PLOW} to plow.`); queueJob('plow',i,{cost:PLOW}); }
+    if(t.s==='grass'){ if(S.coins-reservedCoins()<PLOW) return toast(`You need ₱${PLOW} to plow.`); queueJob('plow',i,{cost:PLOW}); }
     else if(t.s==='soil') toast('Already plowed. Use Plant to sow seeds.');
     else status(i,now);
   }else if(tool==='plant'){
     if(t.s==='soil'||t.s==='grass'){
       const c=CROPS[S.crop]; if(S.level<c.lvl) return toast(`${c.icon} ${c.name}: unlocks at level ${c.lvl}`);
       if(seedsFree(S.crop)<1) return noSeeds(S.crop);
-      const cost=t.s==='grass'?PLOW:0; if(S.coins-reservedCoins()<cost) return toast(`You need 🪙${cost} to plow and plant.`);
+      const cost=t.s==='grass'?PLOW:0; if(S.coins-reservedCoins()<cost) return toast(`You need ₱${cost} to plow and plant.`);
       queueJob('plant',i,{cost,crop:S.crop});
     }else status(i,now);
   }else if(tool==='build'){
@@ -3160,7 +3169,7 @@ function onTap(i){
     let refund=0; if(t.s==='bld'){refund=Math.floor(BLDS[t.b].cost/2); S.coins+=refund;}
     const wasWell=t.s==='bld'&&t.b==='well';
     const wasFence=t.s==='bld'&&t.b==='fence'; clearBld(i).forEach(k=>refreshTile(k,false)); if(wasWell) refreshNeighbors(i); if(wasFence) refreshFenceAround(i);
-    if(refund) floatAt(i,`+${refund} 🪙`); changed();
+    if(refund) floatAt(i,`+${refund} ₱`); changed();
   }else status(i,now);
 }
 function placeErr(id,i,ign){
@@ -3336,7 +3345,7 @@ function doJob(j){
     spend(PLOW,i); S.tiles[i]={s:'soil'}; refreshTile(i,false); changed(); return '';}
   if(j.type==='plant'){ if((t.s!=='soil'&&t.s!=='grass')||isYard(i)) return null; const cost=t.s==='grass'?PLOW:0;
     if(seedsOf(j.crop)<1){noSeeds(j.crop); return null;}
-    if(S.coins<cost){toast(`You need 🪙${cost} to plow.`); return null;}
+    if(S.coins<cost){toast(`You need ₱${cost} to plow.`); return null;}
     spend(cost,i); S.mats['seed_'+j.crop]--; S.stats.plant++; S.stats.crops[j.crop]=1; S.tiles[i]={s:'crop',c:j.crop,t:now}; refreshTile(i,true); changed(); return '';}
   return null;
 }
@@ -3387,7 +3396,7 @@ function startPasabay(o){const F=farmer; if(F.cur){F.jobs.unshift(F.cur); F.cur=
   S.pasa={...o,phase:'walk',path:walkOut(),t0:0,done:false}; save();}
 function settlePasabay(P){ // pay at the palengke, or bring the things you bought home
   if(P.dest==='palengke'&&!P.done){let coins=0,xp=0; (P.cargo||[]).forEach(c=>{coins+=c.coins; xp+=c.xp||0; if(c.order) S.stats.orders++;}); S.stats.pasabay++; S.coins+=coins; if(xp) gainXP(xp); P.done=true;
-    toast(`🚌 Your farmer reached the palengke by bus! ${(P.cargo||[]).map(c=>c.label).join(', ')} · +🪙${coins}`,3400);}
+    toast(`🚌 Your farmer reached the palengke by bus! ${(P.cargo||[]).map(c=>c.label).join(', ')} · +₱${coins}`,3400);}
   if(P.dest!=='palengke'&&!P.done){P.done=true; toast(`🚌 Your farmer bought ${matsLabel(P.mats)} at ${STORE[P.dest].name}.`,3000);}
   changed();}
 function pasabayStep(F,dt,t,goTo){const P=S.pasa, r=F.p.root, now=Date.now();
@@ -3465,7 +3474,7 @@ function payWages(){ // sweldo every 5 minutes of work time; no sweldo at night 
   const now=Date.now(); let paid=0, short=[];
   for(const h of S.helpers){ if(now<h.paidUntil) continue;
     if(S.coins>=WAGE){S.coins-=WAGE; paid+=WAGE; h.paidUntil=now+PAY_MS; h.unpaid=false;} else {if(!h.unpaid) short.push(h.name); h.unpaid=true; h.paidUntil=now+10000;}}
-  if(paid){toast(`💸 Sweldo: 🪙${paid} paid to your trabahador.`,2400); changed();}
+  if(paid){toast(`💸 Sweldo: ₱${paid} paid to your trabahador.`,2400); changed();}
   if(short.length){toast(`😴 Not enough coins for ${short.join(', ')}'s sweldo. They will rest until you can pay.`,3200); helpers.forEach(H=>{if(H.h.unpaid&&H.cur&&H.cur.type!=='board'){H.cur=null; H.state='home';}}); save();}
 }
 function updateHelpers(dt,t){
@@ -3528,7 +3537,7 @@ let fireAsk=null;
 function openHelp(){fireAsk=null; renderHelp(); $('helpSheet').classList.add('open');}
 function renderHelp(){
   const slots=helperSlots(), n=S.helpers.length, fee=HIRE_FEE[n];
-  $('helpInfo').innerHTML=`${n} hired · up to ${slots} at level ${S.level} · sweldo 🪙${WAGE} each every 5 minutes. Your farmer still does everything you tap; trabahador only do their own job.`;
+  $('helpInfo').innerHTML=`${n} hired · up to ${slots} at level ${S.level} · sweldo ₱${WAGE} each every 5 minutes. Your farmer still does everything you tap; trabahador only do their own job.`;
   const crops=Object.entries(CROPS).filter(([,c])=>S.level>=c.lvl).sort((a,b)=>a[1].lvl-b[1].lvl);
   $('helpCards').innerHTML=helpers.map(H=>{const h=H.h, R=ROLES[h.role];
     return `<div class="ucard"><div class="who">👷 ${h.name} · ${R.icon} ${R.name}</div>
@@ -3540,7 +3549,7 @@ function renderHelp(){
       <div class="hacts"><button data-hcancel="${h.id}">✋ Cancel task</button><button data-hfind="${h.id}">📍 Find</button><button class="${fireAsk===h.id?'warn':''}" data-hfire="${h.id}">${fireAsk===h.id?'Tap again to let go':'👋 Let go'}</button></div></div>`;}).join('')
     +`<div class="ucard"><div class="who">➕ Hire a trabahador</div>`+(n>=3?'<div class="pay">You have the most helpers you can hire.</div>'
       :n>=slots?`<div class="pay">Your next helper unlocks at level ${SLOT_LV[n]}.</div>`
-      :`<div class="pay">Hiring fee 🪙${fee.toLocaleString()} (includes the first sweldo).</div>${needHouse([1,2,3][n])}<button class="hire" data-hire="1" ${S.coins>=fee&&S.house>=[1,2,3][n]?'':'disabled'}>👷 Hire for 🪙${fee.toLocaleString()}</button>`)+`</div>`;
+      :`<div class="pay">Hiring fee ₱${fee.toLocaleString()} (includes the first sweldo).</div>${needHouse([1,2,3][n])}<button class="hire" data-hire="1" ${S.coins>=fee&&S.house>=[1,2,3][n]?'':'disabled'}>👷 Hire for ₱${fee.toLocaleString()}</button>`)+`</div>`;
 }
 function refreshHelpStatus(){helpers.forEach(H=>{const el=document.getElementById('hst-'+H.h.id); if(el){const s=helperStatus(H); if(el.textContent!==s) el.textContent=s;}});}
 function cancelHelper(H){ if(H.cur&&H.cur.type==='board'){releaseTrip(H); H.p.root.visible=true;} H.cur=null; H.state=H.carry?'deposit':'home'; H.skip.clear(); }
@@ -3585,6 +3594,9 @@ function renderStats(){
 const CATS=[{id:'tools',icon:'🧰',label:'Tools'},{id:'build',icon:'🏗️',label:'Build'},{id:'market',icon:'🏪',label:'Palengke'},{id:'hardware',icon:'🔨',label:'Hardware'},{id:'poultry',icon:'🐣',label:'Poultry'},{id:'seeds',icon:'🌱',label:'Binhi'},{id:'upgrade',icon:'🏠',label:'Upgrade'}];
 let openCat=null;
 function iconOf(t){return t.svg?`<span class="ti svg" aria-hidden="true">${t.svg}</span>`:`<span class="ti" aria-hidden="true">${t.icon}</span>`;}
+// the hint under the screen is small and fades a few seconds after it changes, so it never sits over the game
+let hintT=0, hintLast='';
+function showHint(){const h=$('hint'); if(!h||h.textContent===hintLast) return; hintLast=h.textContent; h.classList.add('show'); clearTimeout(hintT); hintT=setTimeout(()=>h.classList.remove('show'),4000);}
 function renderHUD(){
   const curTool=TOOLS.find(t=>t.id===S.tool), curBld=S.tool==='build'?BLDS[S.bld]:null;
   $('cats').innerHTML=CATS.map(c=>{
@@ -3598,18 +3610,19 @@ function renderHUD(){
   let bar='';
   if(openCat==='tools') bar=TOOLS.map(t=>`<button class="tool ${S.tool===t.id?'on':''}" data-tool="${t.id}" aria-pressed="${S.tool===t.id}">${iconOf(t)}<span class="tl">${t.label}</span></button>`).join('');
   if(openCat==='build') bar=Object.entries(BLDS).map(([id,b])=>{const full=MAXL[id]&&countOf(id)>=allowedN(id), nl=full?MAXL[id][countOf(id)]:b.lvl, lock=S.level<b.lvl||full, on=S.tool==='build'&&S.bld===id;
-    return `<button class="tool ${on?'on':''} ${lock?'locked':''}" data-bld="${id}" aria-pressed="${on}">${iconOf(b)}<span class="tl">${b.name}</span><span class="tc">${lock?(nl?'🔒 Lvl '+nl:'Max'):'🪙'+b.cost}</span></button>`;}).join('');
+    return `<button class="tool ${on?'on':''} ${lock?'locked':''}" data-bld="${id}" aria-pressed="${on}">${iconOf(b)}<span class="tl">${b.name}</span><span class="tc">${lock?(nl?'🔒 Lvl '+nl:'Max'):'₱'+b.cost}</span></button>`;}).join('');
   $('tools').innerHTML=bar;
   $('picker').innerHTML=S.tool==='plant'?Object.entries(CROPS).sort((a,b)=>a[1].lvl-b[1].lvl).map(([id,o])=>{const lock=S.level<o.lvl;
     return `<button class="chip ${id===S.crop?'on':''} ${lock?'locked':''}" data-pick="${id}"><span class="ci" aria-hidden="true">${o.icon}</span><span class="cn">${o.name}</span><span class="cc">${lock?'Level '+o.lvl:'🌱 '+seedsOf(id)+' binhi'}</span></button>`;}).join('')+`<button class="chip" data-buyseeds="1"><span class="ci" aria-hidden="true">🛒</span><span class="cn">Buy</span><span class="cc">Binhi store</span></button>`:'';
   const c=CROPS[S.crop], b=BLDS[S.bld];
   $('hint').textContent=({
-    plow:`Drag across grass to dig soil (🪙${PLOW} each). Two fingers move the map.`,
+    plow:`Drag across grass to dig soil (₱${PLOW} each). Two fingers move the map.`,
     plant:`Drag across soil to plant ${c.name.toLowerCase()} (1 🌱 binhi each, you have ${seedsOf(S.crop)}; ready in ${fmt(c.time)}). Two fingers move the map.`,
     harvest:'Drag across ripe crops and animal farms. Your farmer runs over, collects, and brings it to the bodega.',
-    build:S.bld==='road'?`Drag across land to pave a kalsada (🪙${b.cost} each). Two fingers move the map.`:`Drag the ${b.name} from the bar onto ${YARD_B[S.bld]?'your bakuran beside the house':'your farm'} (or tap a plot). It ${b.what}.`,
+    build:S.bld==='road'?`Drag across land to pave a kalsada (₱${b.cost} each). Two fingers move the map.`:`Drag the ${b.name} from the bar onto ${YARD_B[S.bld]?'your bakuran beside the house':'your farm'} (or tap a plot). It ${b.what}.`,
     clear:'Tap a plot to clear it back to grass. Buildings refund half. Tap a tree and your farmer cuts it for 🪵 kahoy.',
-  })[S.tool]||'Tap a farm to collect eggs, milk or meat. Press and hold any building, even your house or garage, to move it.';
+  })[S.tool]||'Tap a farm to collect. Hold your house or garage to move it.';
+  showHint();
   renderStats();
 }
 $('cats').addEventListener('click',e=>{const b=e.target.closest('[data-cat]'); if(!b) return;
@@ -3644,7 +3657,7 @@ $('tools').addEventListener('pointermove',e=>{
     if(Math.abs(dx)>Math.abs(dy)){d.scroll=true; eatClick=true; d.lx=e.clientX; return;}              // only dragging up out of the bar picks a building up
     const o=BLDS[d.id]; if(S.level<o.lvl){barDrag=null; return toast(`${o.icon} ${o.name}: unlocks at level ${o.lvl}`);}
     d.active=true; d.ghost=o.build().g; d.ghost.traverse(c=>{if(c.isMesh) c.castShadow=true;}); scene.add(d.ghost);
-    $('hint').textContent=`Drop the ${o.name} on an empty plot (🪙${o.cost})`;
+    $('hint').textContent=`Drop the ${o.name} on an empty plot (₱${o.cost})`; showHint();
   }
   const i=tileAt(e.clientX,e.clientY);
   flashBox.scale.set(BLDS[d.id].size||1,1,BLDS[d.id].size||1);
@@ -3699,19 +3712,19 @@ function pickMktVeh(){if(mktVeh==='pasabay'||(mktVeh&&vehFree(mktVeh))) return m
 const capLeft=()=>capV(pickMktVeh())-loadN();
 function renderLoad(){
   const v=pickMktVeh(), pasa=v==='pasabay', cap=capV(v), icon=pasa?'🚌':VEH[v].icon, n=loadN(), coins=S.load.reduce((a,c)=>a+c.coins,0), drv=pasa?pasabayOK():driverFree(), ok=(pasa||vehFree(v))&&n>0&&n<=cap&&drv&&(!pasa||S.coins>=PASA_FARE);
-  $('mktVehs').innerHTML=`<button class="vchip ${pasa?'on':''}" data-mveh="pasabay" ${pasabayOK()?'':'disabled'}>🚌 Pasabay<small>${S.pasa?'Your farmer is out':`Ride the bus · ${PASA_CAP} items · 🪙${PASA_FARE}`}</small></button>`+Object.keys(VEH).map(id=>{const own=OWN(id), busy=own&&!!S.veh[id].trip;
+  $('mktVehs').innerHTML=`<button class="vchip ${pasa?'on':''}" data-mveh="pasabay" ${pasabayOK()?'':'disabled'}>🚌 Pasabay<small>${S.pasa?'Your farmer is out':`Ride the bus · ${PASA_CAP} items · ₱${PASA_FARE}`}</small></button>`+Object.keys(VEH).map(id=>{const own=OWN(id), busy=own&&!!S.veh[id].trip;
     return `<button class="vchip ${v===id&&vehFree(id)?'on':''}" data-mveh="${id}" ${vehFree(id)?'':'disabled'}>${VEH[id].icon} ${VEH[id].name}<small>${!own?'Not owned yet':busy?'On the road':'Carries '+VEH[id].cap}</small></button>`;}).join('');
   $('mktFill').style.width=Math.min(100,n/cap*100)+'%';
-  $('mktLoad').innerHTML=n?`${icon} Loaded <b>${n}/${cap}</b> · worth 🪙${coins}<br>${S.load.map(c=>c.label).join(', ')}`+(n>cap?' · <span class="warn">too much for this ride</span>':'')+(drv?'':pasa?' · <span class="warn">your farmer is already out</span>':' · <span class="warn">no driver free: your farmer is on the road</span>')
+  $('mktLoad').innerHTML=n?`${icon} Loaded <b>${n}/${cap}</b> · worth ₱${coins}<br>${S.load.map(c=>c.label).join(', ')}`+(n>cap?' · <span class="warn">too much for this ride</span>':'')+(drv?'':pasa?' · <span class="warn">your farmer is already out</span>':' · <span class="warn">no driver free: your farmer is on the road</span>')
     :`${icon} Empty. Tap 📦 Load on a buyer's order below${pasa?'. With no vehicle of your own, your farmer rides the bus with up to '+PASA_CAP+' items.':', then drive them all in one trip.'}`;
-  $('mktGo').disabled=!ok; $('mktGo').textContent=pasa?`🚌 Ride the bus to the palengke (fare 🪙${PASA_FARE})`:`${icon} Drive to the palengke`; $('mktUnload').disabled=!n;
+  $('mktGo').disabled=!ok; $('mktGo').textContent=pasa?`🚌 Ride the bus to the palengke (fare ₱${PASA_FARE})`:`${icon} Drive to the palengke`; $('mktUnload').disabled=!n;
 }
 function loadCargo(c){S.load.push(c); buzz(); changed(); renderMarket();}
 function renderMarket(){
   updateTravelHUD(Date.now()); renderLoad();
   $('orders').innerHTML=S.orders.map((o,k)=>`<div class="order"><div class="who">${o.who}</div>
     <div class="need">${Object.entries(o.items).map(([id,n])=>{const have=S.inv[id]||0; return `<span class="${have>=n?'got':''}" title="${ITEMS[id].name}">${ITEMS[id].icon} ${Math.min(have,n)}/${n}</span>`;}).join('')}</div>
-    <div class="pay">🪙${o.reward} · ⭐${o.xp} XP</div>
+    <div class="pay">₱${o.reward} · ⭐${o.xp} XP</div>
     <div class="oacts"><button class="go" data-deliver="${k}" ${hasAll(o)?'':'disabled'}>📦 Load</button><button class="skip" data-skip="${k}" aria-label="Replace this order">↻</button></div></div>`).join('');
   const goods=Object.entries(S.inv).filter(([,n])=>n>0);
   $('goods').innerHTML=goods.length?goods.map(([id,n])=>`<div class="good"><span class="gi" aria-hidden="true">${ITEMS[id].icon}</span><span class="gn">${ITEMS[id].name}<b>×${n}</b></span></div>`).join('')+`<p class="empty">🙅 Palengke buyers only take what they ordered. ${S.wh&&S.wh.owned?'Sell extra goods in bulk at the 🏬 bagsakan.':'Get a trader’s permit for the 🏬 bagsakan (level 9) to sell extra goods in bulk.'}</p>`
@@ -3791,15 +3804,15 @@ function updateVehicles(now){
     if(tr.dest==='city'&&!tr.paid&&ph.ph!=='out'&&ph.ph!=='board'){tr.paid=true; let n=0, coins=0;
       for(const k in (tr.goods||{})){n+=tr.goods[k]; coins+=tr.goods[k]*ITEMS[k].price*CITY_RATE;} let xpB=0; for(const c of (tr.cargo||[])){coins+=c.coins; xpB+=c.xp||0; n+=c.n||0; if(c.mission) S.stats.missions=(S.stats.missions||0)+1;}
       coins=Math.round(coins); S.coins+=coins; gainXP(Math.max(2,Math.round(coins/50))+xpB);
-      toast(`🏙️ ${VEH[vid].name} delivered ${n} items in the city · +🪙${coins.toLocaleString()}`,3600); changed();}
+      toast(`🏙️ ${VEH[vid].name} delivered ${n} items in the city · +₱${coins.toLocaleString()}`,3600); changed();}
     if(tr.dest==='warehouse'&&!tr.paid&&ph.ph!=='out'&&ph.ph!=='board'){tr.paid=true; let n=0, coins=0;
       for(const k in (tr.goods||{})){S.wh.stock[k]=(S.wh.stock[k]||0)+tr.goods[k]; n+=tr.goods[k]; coins+=tr.goods[k]*ITEMS[k].price*whRate(k);}
       coins=Math.round(coins); S.coins+=coins; gainXP(Math.max(1,Math.round(coins/60))); S.stats.bulk+=n;
-      toast(`🏬 The bagsakan bought ${n} items · +🪙${coins.toLocaleString()}. Their vans will take them to the factory.`,3400); changed();}
+      toast(`🏬 The bagsakan bought ${n} items · +₱${coins.toLocaleString()}. Their vans will take them to the factory.`,3400); changed();}
     if((tr.dest==='palengke'||tr.dest==='brgy')&&!tr.paid&&ph.ph!=='out'&&ph.ph!=='board'){
       tr.paid=true; let coins=0,xp=0; tr.cargo.forEach(c=>{coins+=c.coins; xp+=c.xp; if(c.order) S.stats.orders++; if(c.mission) S.stats.missions=(S.stats.missions||0)+1;});
       S.coins+=coins; if(xp) gainXP(xp);
-      toast(`${VEH[vid].icon} Arrived at the ${PLACE[tr.dest]}! ${tr.cargo.map(c=>c.label).join(', ')} · +🪙${coins.toLocaleString()}`,3400); changed();
+      toast(`${VEH[vid].icon} Arrived at the ${PLACE[tr.dest]}! ${tr.cargo.map(c=>c.label).join(', ')} · +₱${coins.toLocaleString()}`,3400); changed();
     }
     if(ph.ph==='done'){
       if(tr.mats){for(const k in tr.mats) S.mats[k]=(S.mats[k]||0)+tr.mats[k];
@@ -3924,11 +3937,11 @@ function renderHW(){
   const pasa=hwVeh==='pasabay';
   $('hwVehs').innerHTML=Object.keys(VEH).map(v=>{const own=OWN(v), busy=own&&!!S.veh[v].trip;
     return `<button class="vchip ${hwVeh===v&&avail(v)?'on':''}" data-veh="${v}" ${avail(v)?'':'disabled'}>${VEH[v].icon} ${VEH[v].name}<small>${!own?'Not owned yet':busy?'On the road':'Carries '+VEH[v].cap+' items'}</small></button>`;}).join('')
-    +`<button class="vchip ${pasa?'on':''}" data-veh="pasabay" ${pasabayOK()?'':'disabled'}>🚌 Pasabay<small>${S.pasa?'Your farmer is out':`Ride the bus · ${PASA_CAP} items · 🪙${PASA_FARE}`}</small></button>`;
-  $('hwRows').innerHTML=Object.entries(MATS).filter(([,m])=>m.store===curStore).map(([id,m])=>`<div class="mrow"><span class="gi" aria-hidden="true">${m.icon}</span><span class="gn">${m.name}<small>${m.sub} · 🪙${m.price}</small></span>
+    +`<button class="vchip ${pasa?'on':''}" data-veh="pasabay" ${pasabayOK()?'':'disabled'}>🚌 Pasabay<small>${S.pasa?'Your farmer is out':`Ride the bus · ${PASA_CAP} items · ₱${PASA_FARE}`}</small></button>`;
+  $('hwRows').innerHTML=Object.entries(MATS).filter(([,m])=>m.store===curStore).map(([id,m])=>`<div class="mrow"><span class="gi" aria-hidden="true">${m.icon}</span><span class="gn">${m.name}<small>${m.sub} · ₱${m.price}</small></span>
     <span class="qty"><button data-q="${id}" data-d="-1" aria-label="Less ${m.name}">−</button><b>${hwQty[id]||0}</b><button data-q="${id}" data-d="1" aria-label="More ${m.name}">+</button><button data-q="${id}" data-d="10">+10</button></span><span class="have">have ${S.mats[id]||0}</span></div>`).join('');
   const total=Object.entries(hwQty).reduce((s,[k,n])=>s+n*MATS[k].price,0), load=Object.values(hwQty).reduce((a,b)=>a+b,0), cap=capV(hwVeh), fare=pasa?PASA_FARE:0, ok=(pasa?pasabayOK():avail(hwVeh))&&load>0&&load<=cap&&S.coins>=total+fare;
-  $('hwTotal').innerHTML=`Load ${load}/${cap} · Total 🪙${total}${fare?` + 🪙${fare} fare`:''}`+(load>cap?' · <span class="warn">too much for this ride</span>':'')+(S.coins<total+fare?' · <span class="warn">not enough coins</span>':'');
+  $('hwTotal').innerHTML=`Load ${load}/${cap} · Total ₱${total}${fare?` + ₱${fare} fare`:''}`+(load>cap?' · <span class="warn">too much for this ride</span>':'')+(S.coins<total+fare?' · <span class="warn">not enough coins</span>':'');
   $('hwBuy').disabled=!ok; $('hwBuy').textContent=pasa?'🚌 Ride the bus & buy':`${VEH[hwVeh].icon} Drive there & buy`;
   updateTravelHUD(Date.now());
 }
@@ -3994,7 +4007,7 @@ $('bldSheet').addEventListener('click',e=>{
 /* ---------- Upgrades sheet ---------- */
 let upFocus=null;
 function openUp(f){upFocus=typeof f==='string'?f:null; renderUp(); $('upSheet').classList.add('open'); setTimeout(()=>{const c=document.querySelector('.ucard.focus'); if(c) c.scrollIntoView({block:'nearest',behavior:'smooth'});},60);}
-function needHTML(o){return Object.entries(o.mats).map(([k,n])=>{const h=S.mats[k]||0; return `<span class="${h>=n?'got':''}">${MATS[k].icon} ${Math.min(h,n)}/${n}</span>`;}).join('')+`<span class="${S.coins>=o.coins?'got':''}">🪙${o.coins}</span>`;}
+function needHTML(o){return Object.entries(o.mats).map(([k,n])=>{const h=S.mats[k]||0; return `<span class="${h>=n?'got':''}">${MATS[k].icon} ${Math.min(h,n)}/${n}</span>`;}).join('')+`<span class="${S.coins>=o.coins?'got':''}">₱${o.coins}</span>`;}
 const canAfford=o=>S.coins>=o.coins&&Object.entries(o.mats).every(([k,n])=>(S.mats[k]||0)>=n);
 function upCard(what,icon,list,lvl){
   const cur=list[lvl], next=list[lvl+1], building=S.build&&S.build.what===what;
@@ -4009,19 +4022,19 @@ function renderUp(){
   const stock=Object.entries(MATS).map(([k,m])=>`<span>${m.icon} ${m.name} <b>${S.mats[k]||0}</b></span>`).join('');
   const jeepCard=OWN('jeep')?`<div class="ucard"><div class="who">🚙 Jeepney</div><div class="pay">✅ Parked in your garage. Carries ${VEH.jeep.cap} items.</div></div>`
     :`<div class="ucard"><div class="who">🚙 Jeepney</div><div class="pay">Your own ride: carries ${VEH.jeep.cap} items, no bus fare, no waiting at the sakayan.</div>
-      ${S.level<JEEP_LV?`<div class="pay">🔒 Unlocks at level ${JEEP_LV}.</div>`:''}<button class="go" data-up="jeep" ${S.level>=JEEP_LV&&S.coins>=JEEP_PRICE?'':'disabled'}>Buy for 🪙${JEEP_PRICE.toLocaleString()}</button></div>`;
+      ${S.level<JEEP_LV?`<div class="pay">🔒 Unlocks at level ${JEEP_LV}.</div>`:''}<button class="go" data-up="jeep" ${S.level>=JEEP_LV&&S.coins>=JEEP_PRICE?'':'disabled'}>Buy for ₱${JEEP_PRICE.toLocaleString()}</button></div>`;
   const truckCard=S.veh.truck.owned?`<div class="ucard"><div class="who">🚚 Elf truck</div><div class="pay">✅ Parked in your garage. Carries ${VEH.truck.cap} items.</div></div>`
     :`<div class="ucard"><div class="who">🚚 Elf truck</div><div class="pay">Carries ${VEH.truck.cap} items, more than 3× the jeepney.</div>
-      ${S.level<TRUCK_LV?`<div class="pay">🔒 Unlocks at level ${TRUCK_LV}.</div>`:''}${S.garage<2?'<div class="pay">Needs the covered garage first.</div>':''}${needHouse(2)}<button class="go" data-up="truck" ${S.level>=TRUCK_LV&&S.garage>=2&&S.house>=2&&S.coins>=TRUCK_PRICE?'':'disabled'}>Buy for 🪙${TRUCK_PRICE.toLocaleString()}</button></div>`;
+      ${S.level<TRUCK_LV?`<div class="pay">🔒 Unlocks at level ${TRUCK_LV}.</div>`:''}${S.garage<2?'<div class="pay">Needs the covered garage first.</div>':''}${needHouse(2)}<button class="go" data-up="truck" ${S.level>=TRUCK_LV&&S.garage>=2&&S.house>=2&&S.coins>=TRUCK_PRICE?'':'disabled'}>Buy for ₱${TRUCK_PRICE.toLocaleString()}</button></div>`;
   $('upStock').innerHTML=stock;
   const meatN=MEATS.reduce((a,k)=>a+(S.inv[k]||0),0);
   const sedanCard=OWN('sedan')?`<div class="ucard"><div class="who">🚗 Sedan</div><div class="pay">✅ In your garage. Quick errands: carries ${VEH.sedan.cap} items.</div></div>`
     :`<div class="ucard"><div class="who">🚗 Sedan</div><div class="pay">A family car for quick trips to the stores and small palengke orders (${VEH.sedan.cap} items).</div>
-      ${S.level<SEDAN_LV?`<div class="pay">🔒 Unlocks at level ${SEDAN_LV}.</div>`:''}${S.garage<3?'<div class="pay">Needs the big garage (garage level 3).</div>':''}${needHouse(2)}<button class="go" data-up="sedan" ${S.level>=SEDAN_LV&&S.garage>=3&&S.house>=2&&S.coins>=SEDAN_PRICE?'':'disabled'}>Buy for 🪙${SEDAN_PRICE.toLocaleString()}</button></div>`;
+      ${S.level<SEDAN_LV?`<div class="pay">🔒 Unlocks at level ${SEDAN_LV}.</div>`:''}${S.garage<3?'<div class="pay">Needs the big garage (garage level 3).</div>':''}${needHouse(2)}<button class="go" data-up="sedan" ${S.level>=SEDAN_LV&&S.garage>=3&&S.house>=2&&S.coins>=SEDAN_PRICE?'':'disabled'}>Buy for ₱${SEDAN_PRICE.toLocaleString()}</button></div>`;
   const vanCard=OWN('van')?`<div class="ucard"><div class="who">🚐 Closed van</div><div class="pay">Chilled aluminium van, ${VEH.van.cap} items. Take 🍗🥩🥓 meat to the city: they pay <b>180%</b> of the palengke price.</div>
       <div class="pay">Meat in your bodega: <b>${meatN}</b></div><button class="go" data-up="city" ${meatN&&vehFree('van')&&driverFree()?'':'disabled'}>${S.veh.van.trip?'🚐 On the road…':'🏙️ Deliver meat to the city'}</button></div>`
     :`<div class="ucard"><div class="who">🚐 Closed van</div><div class="pay">A Philippine aluminium closed van with a reefer unit. The only vehicle that can take chilled meat to the city, where it sells for 180% of the palengke price.</div>
-      ${S.level<VAN_LV?`<div class="pay">🔒 Unlocks at level ${VAN_LV}.</div>`:''}${S.garage<3?'<div class="pay">Needs the big garage (garage level 3).</div>':''}${needHouse(3)}<button class="go" data-up="van" ${S.level>=VAN_LV&&S.garage>=3&&S.house>=3&&S.coins>=VAN_PRICE?'':'disabled'}>Buy for 🪙${VAN_PRICE.toLocaleString()}</button></div>`;
+      ${S.level<VAN_LV?`<div class="pay">🔒 Unlocks at level ${VAN_LV}.</div>`:''}${S.garage<3?'<div class="pay">Needs the big garage (garage level 3).</div>':''}${needHouse(3)}<button class="go" data-up="van" ${S.level>=VAN_LV&&S.garage>=3&&S.house>=3&&S.coins>=VAN_PRICE?'':'disabled'}>Buy for ₱${VAN_PRICE.toLocaleString()}</button></div>`;
   $('upCards').innerHTML=upCard('garage','🅿️',GARAGE,S.garage)+jeepCard+truckCard+sedanCard+vanCard;
   updateTravelHUD(Date.now());
 }
@@ -4271,10 +4284,10 @@ function renderBiz(){
       <div class="hacts">${free.length?free.map(v=>`<button class="go" data-whsend="${v}" ${bodegaN()&&driverFree()?'':'disabled'}>${VEH[v].icon} Haul up to ${VEH[v].cap} with the ${vname(v)}</button>`).join(''):'<div class="pay">You need your own jeepney or Elf truck (free, at home) to haul goods here.</div>'}</div>
       <div class="pay">${vanTxt}</div></div>`
     :`<div class="ucard"><div class="who">🏬 Bagsakan (warehouse)</div><div class="pay">Sell any goods in bulk, not only what palengke buyers order. You are paid when you unload. Their closed vans then take everything to the Mega Foods factory.</div>
-      <div class="pay">${S.level<WH_LV?`🔒 Unlocks at level ${WH_LV}.`:'✅ Your level is high enough.'}</div>${needHouse(2)}<button class="go" data-biz="wh" ${S.level>=WH_LV&&S.house>=2&&S.coins>=WH_PRICE?'':'disabled'}>Get a trader's permit for 🪙${WH_PRICE.toLocaleString()}</button></div>`;
+      <div class="pay">${S.level<WH_LV?`🔒 Unlocks at level ${WH_LV}.`:'✅ Your level is high enough.'}</div>${needHouse(2)}<button class="go" data-biz="wh" ${S.level>=WH_LV&&S.house>=2&&S.coins>=WH_PRICE?'':'disabled'}>Get a trader's permit for ₱${WH_PRICE.toLocaleString()}</button></div>`;
   const facCard=fac?`<div class="ucard"><div class="who">🏭 Mega Foods supply deal ✅</div><div class="pay">The factory buys only from the bagsakan. With your deal, the bagsakan pays you 130% for ${good}. You still deliver to the bagsakan, never to the factory.</div></div>`
     :`<div class="ucard"><div class="who">🏭 Mega Foods Corp. · supply deal</div><div class="pay">The factory never buys from farmers directly; it only buys from the bagsakan. A supply deal makes the bagsakan pay you 130% (instead of 70%) for ${good}.</div>
-      <div class="pay">${!own?'Needs the trader\'s permit first. ':''}${S.level<FAC_LV?`🔒 Unlocks at level ${FAC_LV}.`:''}</div>${needHouse(4)}<button class="go" data-biz="fac" ${own&&S.level>=FAC_LV&&S.house>=4&&S.coins>=FAC_PRICE?'':'disabled'}>Sign the supply deal for 🪙${FAC_PRICE.toLocaleString()}</button></div>`;
+      <div class="pay">${!own?'Needs the trader\'s permit first. ':''}${S.level<FAC_LV?`🔒 Unlocks at level ${FAC_LV}.`:''}</div>${needHouse(4)}<button class="go" data-biz="fac" ${own&&S.level>=FAC_LV&&S.house>=4&&S.coins>=FAC_PRICE?'':'disabled'}>Sign the supply deal for ₱${FAC_PRICE.toLocaleString()}</button></div>`;
   $('bizCards').innerHTML=whCard+facCard;
 }
 $('bizBtn').addEventListener('click',()=>{closeMarket(); openBiz();});
@@ -4679,7 +4692,7 @@ function renderMissions(){fillMissions();
   $('misList').innerHTML=S.missions.length?S.missions.map((m,k)=>{const n=Object.values(m.items).reduce((a,b)=>a+b,0);
     return `<div class="order"><div class="who">${m.icon} ${m.giver}</div><div class="dest">${DEST_LABEL[m.dest]} · ${n} items</div>
       <div class="need">${Object.entries(m.items).map(([id,q])=>{const h=S.inv[id]||0; return `<span class="${h>=q?'got':''}" title="${ITEMS[id].name}">${ITEMS[id].icon} ${Math.min(h,q)}/${q}</span>`;}).join('')}</div>
-      <div class="pay">🪙${m.reward.toLocaleString()} · ⭐${m.xp} XP</div>
+      <div class="pay">₱${m.reward.toLocaleString()} · ⭐${m.xp} XP</div>
       <div class="oacts"><button class="go" data-mis="${k}" ${hasAll(m)?'':'disabled'}>🚚 Deliver</button><button class="skip" data-misskip="${k}" aria-label="Replace this mission">↻</button></div></div>`;}).join('')
     :'<p class="empty">Build more farms to get missions: people ask for what you can produce.</p>';}
 function updateMisBadge(){const b=$('misBadge'); if(!b) return; fillMissions(); const n=S.missions.filter(hasAll).length; b.hidden=!n; b.textContent=n;}
@@ -4733,7 +4746,7 @@ const ACH=[
   ['crew','👨‍👩‍👦','Buong tropa','Have 3 trabahador',()=>[S.helpers.length,3],3000,300],
   ['bulk','📦','Pakyawan','Sell 500 items at the bagsakan',()=>[st().bulk,500],4000,400],
   ['deal','🏭','Supply deal','Sign the Mega Foods supply deal',()=>[S.wh.factory?1:0,1],10000,800],
-  ['rich','💰','Mayaman na!','Have 🪙100,000 at once',()=>[S.coins,100000],5000,500],
+  ['rich','💰','Mayaman na!','Have ₱100,000 at once',()=>[S.coins,100000],5000,500],
   ['lv14','⭐','Level 14','Reach level 14',()=>[S.level,14],8000,0]];
 const achReady=a=>{const [c,m]=a[4](); return !S.ach[a[0]]&&c>=m;};
 function updateAchBadge(){const n=ACH.filter(achReady).length, b=$('achBadge'); if(!b) return; b.hidden=!n; b.textContent=n;}
@@ -4743,14 +4756,14 @@ function renderAch(){
   $('achInfo').textContent=`${done} of ${ACH.length} collected. Reach a goal, then tap Collect for the coins and XP.`;
   $('achList').innerHTML=ACH.map((a,i)=>[a,i]).sort((x,y)=>rank(x[0])-rank(y[0])||x[1]-y[1]).map(([a])=>{const [c,m]=a[4](), got=S.ach[a[0]], ok=achReady(a), pc=Math.min(100,c/m*100);
     return `<div class="ach ${got?'done':''}"><div class="ai">${a[1]}</div><div class="ab"><div class="an">${a[2]}</div><div class="ad">${a[3]} · ${Math.min(c,m).toLocaleString()}/${m.toLocaleString()}</div><div class="ap"><i style="width:${pc}%"></i></div></div>
-      <div class="ar">🪙${a[5].toLocaleString()}${a[6]?`<br>⭐${a[6]} XP`:''}${got?'<br>✅':ok?`<br><button data-ach="${a[0]}">Collect</button>`:''}</div></div>`;}).join('');
+      <div class="ar">₱${a[5].toLocaleString()}${a[6]?`<br>⭐${a[6]} XP`:''}${got?'<br>✅':ok?`<br><button data-ach="${a[0]}">Collect</button>`:''}</div></div>`;}).join('');
 }
 $('achBtn').addEventListener('click',openAch);
 $('achMenuBtn').addEventListener('click',()=>{$('menu').classList.remove('open'); openAch();});
 $('achSheet').addEventListener('click',e=>{
   if(e.target.id==='achSheet'||e.target.closest('#closeAch')) return $('achSheet').classList.remove('open');
   const b=e.target.closest('[data-ach]'); if(!b) return; const a=ACH.find(a=>a[0]===b.dataset.ach); if(!a||!achReady(a)) return;
-  S.ach[a[0]]=1; S.coins+=a[5]; if(a[6]) gainXP(a[6]); toast(`🏆 ${a[2]}! +🪙${a[5].toLocaleString()}${a[6]?` · +${a[6]} XP`:''}`,2600); buzz(); changed(); renderAch();});
+  S.ach[a[0]]=1; S.coins+=a[5]; if(a[6]) gainXP(a[6]); toast(`🏆 ${a[2]}! +₱${a[5].toLocaleString()}${a[6]?` · +${a[6]} XP`:''}`,2600); buzz(); changed(); renderAch();});
 let achSeen=0; setInterval(()=>{updateAchBadge(); updateMisBadge(); if(misOpen()) renderMissions(); const n=ACH.filter(achReady).length; if(n>achSeen) toast('🏆 Goal reached! Tap the trophy at the top to collect your reward.',2600); achSeen=n;},3000);
 updateAchBadge(); achSeen=ACH.filter(achReady).length;
 /* ---------- Loop ---------- */

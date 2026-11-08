@@ -2583,71 +2583,86 @@ for(let i=0;i<2;i++) for(let j=0;j<4;j++) for(let k=0;k<2;k++) truckFeed.add(par
 jeepFeed.visible=truckFeed.visible=false; jeep.add(jeepFeed); truck.add(truckFeed);
 VEH.jeep.feed=jeepFeed; VEH.truck.feed=truckFeed;
 /* ================= Livestock: bakahan (cows) and babuyan (pigs), each 3x3 and upgradable ================= */
-const PIVC=new THREE.Matrix4().makeTranslation(0,1.22,.98), PIVP=new THREE.Matrix4().makeTranslation(0,.56,.52);
+const PIVC=new THREE.Matrix4().makeTranslation(0,1.18,1.3), PIVP=new THREE.Matrix4().makeTranslation(0,.54,.66);
 const ANIMAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.88,metalness:0});   // smooth shading for livestock
 PG.sphHi=new THREE.SphereGeometry(.5,16,12); PG.cylHi=new THREE.CylinderGeometry(.5,.5,1,12);
+// smooth turned shapes for the livestock bodies (a profile spun round the long axis), and tapering legs
+const lathe=(pts,seg=20)=>{const g=new THREE.LatheGeometry(pts.map(([r,y])=>new THREE.Vector2(Math.max(r,.001),y)),seg); g.rotateX(Math.PI/2); g.computeVertexNormals(); return g;};
+PG.cowBody=lathe([[0,-1],[.22,-.98],[.38,-.91],[.45,-.74],[.47,-.48],[.48,-.18],[.49,.12],[.48,.42],[.45,.68],[.37,.86],[.2,.97],[0,1]]);
+PG.pigBody=lathe([[0,-1],[.3,-.96],[.45,-.84],[.51,-.6],[.52,-.25],[.52,.2],[.5,.55],[.43,.8],[.3,.95],[0,1]]);
+PG.neck=lathe([[0,-.5],[.5,-.46],[.47,-.1],[.42,.3],[.36,.48],[0,.5]],16);
+PG.taper=new THREE.CylinderGeometry(.5,.32,1,12); PG.curl=new THREE.TorusGeometry(.5,.2,6,14,Math.PI*1.7);
 let COW=null, PIG=null;
-function cowGeo(){ // dairy Holstein, tan native (Brahman-type) and brown cattle, with separate legs and tail for walking
+function cowGeo(){ // dairy Holstein, tan native (Brahman-type) and brown cattle: one smooth barrel with a topline (withers, hip bones, tailhead), a neck and dewlap
   if(COW) return COW; COW=[];
   for(const [C,S2,kind] of [[0xf5f3ee,0x1c1c1c,'hol'],[0xc9a676,0x7a5a3a,'tan'],[0x6b4a32,0x3e2a1c,'brn']]){
-    const b=[P('sphHi',C,0,1.05,0,.92,.86,1.75),P('sphHi',C,0,1.08,.62,.86,.9,.76),P('sphHi',C,0,1.1,-.6,.88,.84,.76),P('sphHi',C,0,.86,0,.8,.6,1.4),
-      P('sphHi',C,.32,1.38,-.64,.18,.14,.2),P('sphHi',C,-.32,1.38,-.64,.18,.14,.2),P('sphHi',C,0,1.45,.45,.36,.18,.5)];
-    if(kind==='hol'){b.push(P('sphHi',0xf2b8b0,0,.66,-.42,.36,.24,.4)); for(const x of [-.08,.08]) for(const z of [-.5,-.34]) b.push(P('cylHi',0xf2b8b0,x,.52,z,.04,.13,.04));
-      [[.44,1.05,.25,.08,.42,.55],[-.44,1.1,-.3,.08,.46,.5],[.43,.95,-.6,.08,.32,.38],[-.43,1.0,.5,.08,.36,.42],[0,1.47,-.25,.55,.06,.5],[.42,1.25,-.05,.08,.3,.3],[-.4,.9,.0,.08,.28,.34]]
+    const low=kind==='hol'?0xf5f3ee:C;
+    const b=[P('cowBody',C,0,1.02,-.04,.84,.9,1.02),P('sphHi',C,0,1.3,.6,.66,.4,.66),P('sphHi',C,0,1.28,-.7,.7,.36,.56),
+      P('sphHi',C,.28,1.31,-.78,.13,.11,.14),P('sphHi',C,-.28,1.31,-.78,.13,.11,.14),P('sphHi',C,0,1.33,-.98,.13,.11,.18),
+      P('neck',C,0,1.16,1.02,.5,.62,.74,.18,0,0),P('sphHi',C,0,.86,.98,.14,kind==='tan'?.46:.32,.52)];
+    if(kind==='hol'){b.push(P('sphHi',0xf2b8b0,0,.66,-.44,.38,.26,.42)); for(const x of [-.09,.09]) for(const z of [-.52,-.36]) b.push(P('cylHi',0xf2b8b0,x,.52,z,.045,.14,.045));
+      [[.42,1.05,.25,.1,.44,.6],[-.43,1.1,-.3,.1,.48,.56],[.42,.98,-.62,.1,.34,.42],[-.42,1.0,.52,.1,.38,.46],[0,1.46,-.2,.56,.08,.5],[.4,1.22,-.02,.1,.32,.34],[-.4,.92,.02,.1,.3,.38],[0,1.32,1.05,.4,.1,.4]]
         .forEach(([x,y,z,sx,sy,sz])=>b.push(P('sphHi',S2,x,y,z,sx,sy,sz)));}
-    if(kind==='tan'){b.push(P('sphHi',C,0,1.52,.55,.44,.36,.44)); b.push(P('sphHi',C,0,.78,.78,.18,.42,.42));}
-    const h=[P('sphHi',C,0,-.08,.05,.5,.56,.6),P('sphHi',C,0,-.04,.38,.4,.42,.55),P('sphHi',C,0,-.2,.6,.32,.34,.44),
-      P('sphHi',kind==='hol'?0xf0c0b4:0x3a2a20,0,-.31,.8,.31,.24,.2),
-      P('sphHi',0x2a1a14,.07,-.3,.9,.05,.05,.03),P('sphHi',0x2a1a14,-.07,-.3,.9,.05,.05,.03),
-      P('sphHi',0x111111,.19,0,.5,.07,.07,.06),P('sphHi',0x111111,-.19,0,.5,.07,.07,.06),
-      P('sphHi',C,.31,.05,.34,.28,.08,.14,0,0,-.35),P('sphHi',C,-.31,.05,.34,.28,.08,.14,0,0,.35),
-      P('cone',0xe8dcc0,.17,.19,.34,.07,.18,.07,0,0,-1.0),P('cone',0xe8dcc0,-.17,.19,.34,.07,.18,.07,0,0,1.0),
-      P('cone',0xd8ccb0,.27,.28,.34,.045,.12,.045,0,0,-.25),P('cone',0xd8ccb0,-.27,.28,.34,.045,.12,.045,0,0,.25)];
-    if(kind==='hol') h.push(P('sphHi',S2,0,.08,.42,.34,.2,.32));
-    if(kind==='tan') h.push(P('sphHi',C,0,-.5,.15,.16,.38,.42));
-    const leg=mergeGeo([P('sphHi',C,0,-.12,0,.27,.44,.32),P('cylHi',C,0,-.4,0,.16,.38,.16),P('sphHi',C,0,-.58,0,.16,.13,.16),
-      P('cylHi',kind==='hol'?0xf5f3ee:C,0,-.74,0,.12,.32,.12),P('sphHi',C,0,-.86,0,.13,.08,.13),P('cylHi',0x2b2b2b,0,-.91,.02,.15,.08,.17)]);
-    const tail=mergeGeo([P('cylHi',C,0,-.36,0,.05,.72,.05),P('sphHi',S2,0,-.76,0,.11,.22,.11)]);
-    COW.push({body:mergeGeo(b),head:mergeGeo(h),leg,tail,hips:[[.27,.92,.6],[-.27,.92,.6],[.27,.92,-.62],[-.27,.92,-.62]],tailAt:[0,1.22,-.98],swing:.5,tailSwing:.45});
+    if(kind==='tan') b.push(P('sphHi',C,0,1.56,.55,.42,.36,.46));   // the Brahman hump
+    const h=[P('sphHi',C,0,-.04,.08,.46,.5,.56),P('taper',C,0,-.14,.42,.34,.46,.34,Math.PI/2+.25,0,0),P('sphHi',C,0,-.22,.62,.32,.3,.36),
+      P('sphHi',kind==='hol'?0xf0c0b4:0x3a2a20,0,-.3,.78,.32,.24,.2),
+      P('sphHi',0x2a1a14,.07,-.3,.88,.05,.05,.03),P('sphHi',0x2a1a14,-.07,-.3,.88,.05,.05,.03),
+      P('sphHi',0x111111,.19,.02,.4,.07,.08,.06),P('sphHi',0x111111,-.19,.02,.4,.07,.08,.06),
+      P('sphHi',C,.32,.06,.2,.3,.08,.15,0,0,-.3),P('sphHi',C,-.32,.06,.2,.3,.08,.15,0,0,.3),
+      P('cone',0xe8dcc0,.15,.21,.18,.07,.2,.07,0,0,-1.0),P('cone',0xe8dcc0,-.15,.21,.18,.07,.2,.07,0,0,1.0)];
+    if(kind==='hol') h.push(P('sphHi',S2,0,.1,.3,.34,.2,.32));
+    const leg=mergeGeo([P('sphHi',C,0,-.06,0,.36,.46,.44),P('taper',C,0,-.2,0,.3,.5,.34),P('sphHi',C,0,-.46,0,.15,.13,.15),P('cylHi',low,0,-.66,0,.11,.4,.11),
+      P('sphHi',low,0,-.86,0,.12,.07,.12),P('cylHi',0x2b2b2b,0,-.92,.02,.15,.07,.17)]);
+    const tail=mergeGeo([P('cylHi',C,0,-.38,0,.05,.76,.05),P('sphHi',S2,0,-.8,0,.11,.22,.11)]);
+    COW.push({body:mergeGeo(b),head:mergeGeo(h),leg,tail,hips:[[.27,.92,.62],[-.27,.92,.62],[.27,.92,-.64],[-.27,.92,-.64]],tailAt:[0,1.3,-1.06],swing:.42,tailSwing:.45,stride:1.15});
   }
   return COW;
 }
-function pigGeo(){ // pink, spotted and black native pigs
+function pigGeo(){ // pink, spotted and black native pigs: a round barrel with hams and shoulders, a big head with a snout disc, floppy ears and a curly tail
   if(PIG) return PIG; PIG=[];
   for(const [C,SN,spots] of [[0xf0b3a8,0xe89a90,false],[0xf0b3a8,0xe89a90,true],[0x2a2a2a,0x3a3a3a,false]]){
-    const b=[P('sphHi',C,0,.5,0,.74,.66,1.22),P('sphHi',C,0,.4,.02,.64,.42,1.0),
-      P('sphHi',C,0,.62,-.6,.09,.09,.09),P('sphHi',C,.05,.68,-.63,.07,.07,.07),P('sphHi',C,.02,.74,-.6,.05,.05,.05)];
-    if(spots) [[.34,.55,.1,.06,.26,.32],[-.34,.5,-.25,.06,.24,.3],[.3,.48,-.38,.06,.2,.24],[0,.8,.15,.3,.05,.3]].forEach(([x,y,z,sx,sy,sz])=>b.push(P('sphHi',0x2a2a2a,x,y,z,sx,sy,sz)));
-    const h=[P('sphHi',C,0,0,.12,.48,.46,.46),P('sphHi',C,0,-.1,.2,.42,.3,.38),P('cylHi',SN,0,-.05,.38,.22,.16,.22,Math.PI/2),
-      P('cylHi',spots?0xd88a80:SN,0,-.05,.465,.2,.02,.2,Math.PI/2),P('sphHi',0x5a2a2a,.045,-.04,.475,.04,.05,.02),P('sphHi',0x5a2a2a,-.045,-.04,.475,.04,.05,.02),
-      P('sphHi',0x111111,.12,.09,.3,.04,.04,.03),P('sphHi',0x111111,-.12,.09,.3,.04,.04,.03),
-      P('cone',C,.16,.2,.18,.16,.24,.07,.75),P('cone',C,-.16,.2,.18,.16,.24,.07,.75)];
-    const leg=mergeGeo([P('sphHi',C,0,-.04,0,.2,.22,.24),P('cylHi',C,0,-.18,0,.11,.24,.11),P('cylHi',0x3a2a20,0,-.31,.02,.12,.05,.13)]);
-    PIG.push({body:mergeGeo(b),head:mergeGeo(h),leg,hips:[[.2,.33,.3],[-.2,.33,.3],[.2,.33,-.34],[-.2,.33,-.34]],swing:.55});
+    const b=[P('pigBody',C,0,.5,0,.66,.6,.72),P('sphHi',C,0,.37,0,.56,.34,1.0),
+      P('sphHi',C,.2,.52,-.42,.32,.44,.46),P('sphHi',C,-.2,.52,-.42,.32,.44,.46),P('sphHi',C,.17,.54,.38,.3,.4,.4),P('sphHi',C,-.17,.54,.38,.3,.4,.4)];
+    if(spots) [[.34,.55,.1,.06,.28,.34],[-.34,.5,-.25,.06,.26,.32],[.31,.48,-.4,.06,.22,.26],[0,.82,.15,.32,.05,.32]].forEach(([x,y,z,sx,sy,sz])=>b.push(P('sphHi',0x2a2a2a,x,y,z,sx,sy,sz)));
+    const h=[P('sphHi',C,0,0,.1,.5,.48,.48),P('sphHi',C,0,-.1,.2,.44,.32,.4),P('cylHi',SN,0,-.05,.38,.24,.18,.24,Math.PI/2),
+      P('cylHi',spots?0xd88a80:SN,0,-.05,.475,.22,.02,.22,Math.PI/2),P('sphHi',0x5a2a2a,.05,-.04,.485,.045,.055,.02),P('sphHi',0x5a2a2a,-.05,-.04,.485,.045,.055,.02),
+      P('sphHi',0x111111,.13,.09,.3,.045,.045,.03),P('sphHi',0x111111,-.13,.09,.3,.045,.045,.03),
+      P('cone',C,.17,.18,.24,.18,.28,.07,1.15,0,-.2),P('cone',C,-.17,.18,.24,.18,.28,.07,1.15,0,.2)];
+    const leg=mergeGeo([P('sphHi',C,0,-.02,0,.26,.26,.3),P('taper',C,0,-.08,0,.22,.24,.26),P('cylHi',C,0,-.22,0,.11,.16,.11),P('cylHi',0x3a2a20,0,-.31,.02,.12,.05,.13)]);
+    const tail=mergeGeo([P('curl',C,0,-.06,0,.12,.12,.12,0,Math.PI/2,0)]);
+    PIG.push({body:mergeGeo(b),head:mergeGeo(h),leg,tail,hips:[[.2,.33,.36],[-.2,.33,.36],[.2,.33,-.4],[-.2,.33,-.4]],tailAt:[0,.62,-.74],swing:.5,tailSwing:.3,stride:.7});
   }
   return PIG;
 }
-function herd(g,animals,kinds,pivot){ // wander, walk to feeders, graze / root with head down; legs step while walking, tails swish
+// wander, walk to feeders, graze / root with head down. They speed up and slow down gently, turn in smooth arcs and walk with a four-beat gait
+// (left hind, left front, right hind, right front), the body and head bobbing in time; tails swish
+const GAIT=[.75,.25,.5,0];   // hips are ordered front-right, front-left, back-right, back-left
+function herd(g,animals,kinds,pivot){
   const meshes=kinds.map((k,ki)=>{const list=animals.filter(a=>a.kind===ki); list.forEach((a,j)=>a.j=j);
     const mk=(geo,n)=>{const m=instOf(geo,ANIMAT,Array.from({length:n},()=>new THREE.Matrix4())); m.castShadow=true; g.add(m); return m;};
     return {B:mk(k.body,list.length),H:mk(k.head,list.length),L:mk(k.leg,list.length*4),T:k.tail?mk(k.tail,list.length):null,k};});
-  const rnd=Math.random, _h=new THREE.Matrix4(), _r=new THREE.Matrix4(), _l=new THREE.Matrix4();
+  const rnd=Math.random, _h=new THREE.Matrix4(), _r=new THREE.Matrix4(), _l=new THREE.Matrix4(), _e=new THREE.Euler();
   const pick=a=>{if(a.feeds.length&&rnd()<.5){const f=a.feeds[(rnd()*a.feeds.length)|0]; a.tx=f[0]+(rnd()-.5)*.5; a.tz=f[1]+(rnd()-.5)*.5;}
     else {a.tx=a.bx0+rnd()*(a.bx1-a.bx0); a.tz=a.bz0+rnd()*(a.bz1-a.bz0);}};
-  animals.forEach(a=>{a.wait=rnd()*3; a.ph=rnd()*6; a.step=0; a.a=rnd()*6.3; pick(a);});
+  animals.forEach(a=>{a.wait=rnd()*3; a.ph=rnd()*6; a.step=rnd()*6; a.a=rnd()*6.3; a.v=0; a.down=.5; pick(a);});
   let last=null;
   const tick=(tm,hungry)=>{const dt=last==null?0:Math.min(.1,tm-last); last=tm;
-    animals.forEach(a=>{let down, walking=false;
-      if(a.wait>0){a.wait-=dt; down=a.graze*(.8+.2*Math.sin(tm*a.rate*(hungry?.4:1)+a.ph)); if(a.wait<=0) pick(a);}
+    animals.forEach(a=>{const M=meshes[a.kind], K=M.k; let downT;
+      if(a.wait>0){a.wait-=dt; a.v=Math.max(0,a.v-dt*1.2); downT=a.graze*(.8+.2*Math.sin(tm*a.rate*(hungry?.4:1)+a.ph)); if(a.wait<=0) pick(a);}
       else {const dx=a.tx-a.x, dz=a.tz-a.z, d=Math.hypot(dx,dz);
-        if(d<.1) a.wait=2+rnd()*4; else {const st=Math.min(d,a.speed*dt); a.x+=dx/d*st; a.z+=dz/d*st; a.a=lerpAng(a.a,Math.atan2(dx,dz),.07); a.step+=st*6/a.s; walking=true;}
-        down=.12+Math.sin(tm*6+a.ph)*.04;}
-      const M=meshes[a.kind], K=M.k, bob=walking?Math.abs(Math.sin(a.step))*.03:0;
-      const m=Mx(a.x,bob,a.z,a.s,a.s,a.s,0,a.a,0); M.B.setMatrixAt(a.j,m);
-      _r.makeRotationX(down); _pm.multiplyMatrices(m,pivot).multiply(_r); M.H.setMatrixAt(a.j,_pm);
-      K.hips.forEach((hp,q)=>{const sw=walking?Math.sin(a.step+(q===0||q===3?0:Math.PI))*K.swing:0;
-        _h.makeTranslation(hp[0],hp[1],hp[2]); _r.makeRotationX(sw); _l.multiplyMatrices(m,_h).multiply(_r); M.L.setMatrixAt(a.j*4+q,_l);});
-      if(M.T){_h.makeTranslation(K.tailAt[0],K.tailAt[1],K.tailAt[2]); _r.makeRotationFromEuler(new THREE.Euler(.25,0,Math.sin(tm*2.3+a.ph)*K.tailSwing)); _l.multiplyMatrices(m,_h).multiply(_r); M.T.setMatrixAt(a.j,_l);}});
+        if(d<.12){a.wait=2+rnd()*4;}
+        else {const want=Math.atan2(dx,dz), diff=Math.abs(((want-a.a+Math.PI*3)%(Math.PI*2))-Math.PI);
+          a.a=lerpAng(a.a,want,1-Math.exp(-dt*(1.4+a.v*2)));                                        // turn in a smooth arc
+          const tv=a.speed*Math.min(1,d/.9)*(diff>1.1?.25:1); a.v+=(tv-a.v)*Math.min(1,dt*1.6);       // ease in and out
+          const st=Math.min(d,a.v*dt); a.x+=Math.sin(a.a)*st; a.z+=Math.cos(a.a)*st; a.step+=st*Math.PI*2/(1.25*a.s*(K.stride||1));}
+        downT=.1+Math.sin(a.step*2)*.05;}
+      a.down+=(downT-a.down)*Math.min(1,dt*3);                                                         // the head lowers and lifts smoothly
+      const w=Math.min(1,a.v/Math.max(.01,a.speed)), bob=Math.abs(Math.sin(a.step*2))*.025*a.s*w, roll=Math.sin(a.step)*.025*w;
+      const m=Mx(a.x,bob,a.z,a.s,a.s,a.s,0,a.a,roll); M.B.setMatrixAt(a.j,m);
+      _r.makeRotationX(a.down); _pm.multiplyMatrices(m,pivot).multiply(_r); M.H.setMatrixAt(a.j,_pm);
+      K.hips.forEach((hp,q)=>{const ph=a.step+(GAIT[q]||0)*Math.PI*2, sw=Math.sin(ph)*K.swing*w, lift=Math.max(0,Math.cos(ph))*.03*w;   // the swinging leg lifts a little
+        _h.makeTranslation(hp[0],hp[1]+lift,hp[2]); _r.makeRotationX(sw); _l.multiplyMatrices(m,_h).multiply(_r); M.L.setMatrixAt(a.j*4+q,_l);});
+      if(M.T){_h.makeTranslation(K.tailAt[0],K.tailAt[1],K.tailAt[2]); _r.makeRotationFromEuler(_e.set(.25,0,Math.sin(tm*2.3+a.ph)*K.tailSwing)); _l.multiplyMatrices(m,_h).multiply(_r); M.T.setMatrixAt(a.j,_l);}});
     meshes.forEach(M=>{M.B.instanceMatrix.needsUpdate=M.H.instanceMatrix.needsUpdate=M.L.instanceMatrix.needsUpdate=true; if(M.T) M.T.instanceMatrix.needsUpdate=true;});};
   tick(0,false); return tick;
 }
@@ -5753,6 +5768,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:23,date:'Nov 9, 2026',title:'Better cows and pigs',items:['🐄 New cows: one smooth barrel body with a real back line (withers, hip bones, tailhead), a neck and dewlap, tapered legs with knees and hooves; the Brahman keeps its hump and the Holstein its patches and udder.','🐖 New pigs: plump round bodies with hams and shoulders, big snouts, floppy ears and a curly tail.','🚶 They walk more naturally now: a four-beat walk, easing into and out of each step, turning in smooth arcs, heads bobbing in time.']},
   {v:22,date:'Nov 9, 2026',title:'The sea and the pantalan',items:['🌊 The map now reaches the sea in the south-east corner: a beach, shallow turquoise water, bangkas bobbing near the shore and a parola on the point. Pan over and listen to the waves.','⚓ Pantalan ng San Isidro: a port with a bodega, container stacks, a crane and a pier, where the cargo ship MV Sinag Dagat docks.','🚢 Bay trading (level 12, in the 🏬 Bagsakan & Factory sheet): haul any goods to the pantalan with your trucks. When 40 items are waiting (or when you say so) the ship sails to the islands and comes back with 160% of the palengke price.']},
   {v:21,date:'Nov 9, 2026',title:'Town life: buses, jeepneys, police and fiesta',items:['🚌 Sinag Liner buses now stop at their new terminal beside the highway. One goes on to Maynila; the Bundok bus climbs the hill road to a waiting shed in the mountain barangay, where people live and walk along the roads.','🚙 A jeepney terminal with a queue: the jeepney in front fills up with riders, then leaves for the palengke or the Mega Foods gate, and the others move up.','🚓 A police station by the east road. Its patrol car makes rounds day and night through the highway, the side street and the barangay, lights flashing.','🎉 Fiesta days: every other month the barangay back road gets banderitas, and a parade with a band, dancers, two higantes and a carroza marches up and down it (Santacruzan in May).','🔍 You can now pan to every corner of the map, zoom out further and look over the mountain barangay.']},
   {v:20,date:'Nov 9, 2026',title:'Doors that open, and Bida Pinoy vans',items:['🚪 Every vehicle has a real driver\'s door now. It swings open when someone gets in or out, and when your driver steps out at a store, the palengke or the bagsakan.','🚗 Cars that park at the stores open the door, the driver gets out to shop, and comes back.','🐷 The factory\'s closed vans now wear the Bida Pinoy livery from Mega Foods (tocino, longganisa, hotdog), with rear doors that swing open at the bagsakan and the factory docks.']},

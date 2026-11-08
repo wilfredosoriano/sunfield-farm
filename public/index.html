@@ -4443,7 +4443,7 @@ function placeVehicles(now,dt){
       V.blk=blk?(V.blk||0)+dt:0; if(blk&&V.blk<8) st.trip.t0+=dt*1000;}   // wait behind whoever stopped in front
     if(st.trip){const ph=vehPhase(vid,now), R=ph.R;
       if(ph.ph==='out'){p=routePos(R.out,ph.e); goods=['palengke','warehouse','city','brgy','mountain','port'].includes(st.trip.dest)?Math.max(.2,st.trip.fill||1):false;}
-      else if(ph.ph==='stop'){p=routePos(R.out,R.out.T); if(!['palengke','warehouse','city','brgy','mountain','pickup','port'].includes(st.trip.dest)) mats=Math.min(1,ph.e/STOP[st.trip.dest])*matsFrac(st.trip,vid); else goods=Math.max(.2,st.trip.fill||1)*(1-Math.min(1,ph.e/(STOP.palengke*.85)));}
+      else if(ph.ph==='stop'){p=routePos(R.out,R.out.T); if(!['palengke','warehouse','city','brgy','mountain','pickup','port'].includes(st.trip.dest)) mats=Math.min(1,ph.e/STOP[st.trip.dest])*matsFrac(st.trip,vid); else if(st.trip.dest!=='pickup') goods=Math.max(.2,st.trip.fill||1)*(1-Math.min(1,ph.e/(STOP.palengke*.85)));}   // pickups load inside the vehicle, nothing on the roof
       else if(ph.ph==='back'){p=routePos(R.back,ph.e); if(!['palengke','warehouse','city','brgy','mountain','pickup','port'].includes(st.trip.dest)) mats=matsFrac(st.trip,vid);}
     }
     if(V.prev){const d=Math.hypot(p.x-V.prev.x,p.z-V.prev.z); if(d<5) V.wheels.forEach(w=>w.rotation.y-=d/V.r);} V.prev={x:p.x,z:p.z};

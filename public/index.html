@@ -5566,7 +5566,7 @@ function spray(W,i,t){if(!W.spr){W.spr=new THREE.Group(); for(let k=0;k<10;k++) 
       hoseDraw(W);}
     else if(W.hoseM&&W.hoseM.count) hoseDraw(W);
     if(!W.coil){W.coil=new THREE.Mesh(new THREE.TorusGeometry(.22,.06,6,14),HOSE_MAT); W.coil.position.set(0,.95,.32); W.coil.visible=false; W.p.root.add(W.coil);}
-    W.coil.visible=W.hose&&ret; if(W.coil.visible) W.coil.scale.setScalar(.6+.9*Math.min(1,1-W.trail.length/Math.max(2,W.maxT||2)));
+    W.coil.visible=!!(W.hose&&ret); if(W.coil.visible) W.coil.scale.setScalar(.6+.9*Math.min(1,1-W.trail.length/Math.max(2,W.maxT||2)));
     if(W.spr&&W.spr.visible&&now-(W.sprT||0)>120) W.spr.visible=false;}
   if(REEL.g) REEL.g.userData.coil.scale.setScalar([farmer,...helpers].some(W=>W.hose)?.55:1);})();
 /* ---------- Stage G: town life. Sinag Liner buses and their terminal, a stop up in the mountain barangay with people walking its roads,

@@ -2671,6 +2671,7 @@ const LIFE={
   broiler:{kind:'meat',max:[10,18,28],young:'chick',grow:2,word:'broilers',yield:{chicken:8},live:'live_chicken'},
   pig:{kind:'meat',max:[4,8,12],young:'piglet',grow:4,word:'pigs',yield:{pork:30},live:'live_pig'},
   fish:{kind:'meat',max:[60,120,200],young:'fingerling',grow:3,word:'tilapia',yield:{tilapia:1}}};
+const LIVE_VEH={live_chicken:['sedan','truck'],live_pig:['stock','truck'],live_goat:['stock','truck'],live_cow:['stock']};   // which trucks may carry live animals
 const UNIT={chick:10,pullet:10,duckling:10,itik:10,fingerling:50,piglet:1,calf:1,kid:1}, POULTRY_B=['coop','broiler','duck'];
 const maxN=t=>LIFE[t.b].max[(t.lvl||1)-1];
 const herdFrac=t=>!LIFE[t.b]?1:t.n>0?Math.min(1,t.n/maxN(t)):0;
@@ -3769,9 +3770,9 @@ function jobSpot(i){const p=tilePos(i), s=slotOf(i); if(s) return SLOT_SPOT[i-NF
 for(const v of Object.keys(VEH)){const V=VEH[v], m=bakePerson(FARMER_LOOK,poseSit), d=V.obj.userData.driver; m.position.copy(d.position); m.visible=false; V.obj.add(m); V.seat=m; V.doorZ=V.doorZ0!=null?V.doorZ0:v==='jeep'?.8:2.3; V.doorUntil=0;
   V.wf=V.wf||(v==='jeep'?1.95:2.15); V.wr=V.wr||(v==='jeep'?1.55:1.9); V.tw=V.tw||(v==='jeep'?.82:.92); V.obj.rotation.order='YXZ';}
 for(const v of Object.keys(VEH)){const tr=S.veh[v].trip; if(tr&&tr.driver==='farmer'&&tr.t0) farmer.riding=v;}
-function jobSpotJ(j){if(j.type==='board'){const V=VEH[j.vid]; return [V.slot+1.6,G0+V.doorZ];} if(j.type==='home') return homeDoor(); if(j.type==='fish') return jobSpot(j.pi); return jobSpot(j.i);}
+function jobSpotJ(j){if(j.type==='board'){const V=VEH[j.vid]; return [V.slot+1.6,G0+V.doorZ];} if(j.type==='home') return homeDoor(); if(j.type==='fish') return jobSpot(j.pi); if(j.type==='hose') return [REEL[0]+.9,REEL[1]+.7]; return jobSpot(j.i);}
 function farmerExit(vid){const F=farmer, V=VEH[vid], r=F.p.root; F.riding=null; r.visible=true; r.position.set(V.slot+1.6,.08,G0+V.doorZ); r.rotation.y=Math.PI/2; V.doorUntil=Date.now()+1400; F.state=F.jobs.length?'idle':(F.carry?'deposit':'home');}
-function jobTime(j){if(j.type==='board') return 1.1; if(j.type==='care') return 1.0; if(j.type==='water') return .5; if(j.type==='home') return HOME_T[j.sub]||10; if(j.type==='fish') return 1e9; const t=S.tiles[j.i]; if(j.type==='plow') return .55; if(j.type==='plant') return .4; if(j.type==='chop') return 1.8;
+function jobTime(j){if(j.type==='board') return 1.1; if(j.type==='care') return 1.0; if(j.type==='water') return .9; if(j.type==='hose') return .8; if(j.type==='home') return HOME_T[j.sub]||10; if(j.type==='fish') return 1e9; const t=S.tiles[j.i]; if(j.type==='plow') return .55; if(j.type==='plant') return .4; if(j.type==='chop') return 1.8;
   if(t.s==='bld') return t.b==='coop'||t.b==='cows'?1.6:t.b==='tree'?.9:1.3; return .45;}
 const CARRY={coop:'tray',cows:'pail',broiler:'sack',pig:'sack',tree:'basket',duck:'tray',goat:'pail',fish:'basket'};
 function doJob(j){
@@ -3803,11 +3804,13 @@ function farmerY(x,z){return inField(x,z)?.2:.08;}
 function updateFarmer(dt,t){
   const F=farmer, r=F.p.root, p=F.p;
   if(F.riding){r.visible=false; const pill=$('farmPill'); pill.hidden=false; $('farmTxt').textContent=`Driving the ${VEH[F.riding].name.toLowerCase()}`; pill.classList.toggle('on',followFarmer&&follow); return;}
+  if(!F.cur&&F.hose&&!F.jobs.some(j=>j.type==='water')&&F.state!=='work'){F.cur={type:'hose',sub:'put',i:-1}; F.state='go';}   // done watering: roll the hose back up
   const tired=S.me.energy<=0;
   if(!F.cur&&F.jobs.length&&F.state!=='work'&&(!tired||F.jobs.some(j=>j.type==='board'||j.type==='home'))){ // next job: the closest one (an exhausted farmer only drives or goes home)
     let best=F.jobs.findIndex(j=>j.type==='board'||(tired&&j.type==='home'));
     if(best<0){best=0; let bd=1e9; F.jobs.forEach((j,k)=>{const s=jobSpotJ(j), d=Math.hypot(s[0]-r.position.x,s[1]-r.position.z); if(d<bd){bd=d; best=k;}});}
     F.cur=F.jobs.splice(best,1)[0]; F.state='go';
+    if(F.cur.type==='water'&&!F.hose){F.jobs.unshift(F.cur); F.cur={type:'hose',sub:'get',i:-1};}   // first fetch the hose from the water tower
   }
   const goTo=(x,z,speed)=>{const w=waypoint(F,x,z,r.position.x,r.position.z), tx=w?w[0]:x, tz=w?w[1]:z;   // along the paths when a fence is in the way
     const dx=tx-r.position.x, dz=tz-r.position.z, d=Math.hypot(dx,dz); if(d<.08&&!w) return true; unsit(p); if(d<1e-4) return false;
@@ -3819,19 +3822,21 @@ function updateFarmer(dt,t){
   const stand=()=>{p.lL.g.rotation.x=p.lR.g.rotation.x=p.lL.k.rotation.x=p.lR.k.rotation.x=0; r.position.y=farmerY(r.position.x,r.position.z);};
   if(S.pasa){pasabayStep(F,dt,t,goTo); return;}
   if(F.state==='go'){const s=jobSpotJ(F.cur); if(goTo(s[0],s[1],4.6*needSpd())){F.state='work'; F.timer=jobTime(F.cur);
-    if(F.cur.type==='home'){r.rotation.y=Math.PI; sfx('door',s[0],s[1]);} else if(F.cur.type==='fish'){const tp=tilePos(F.cur.pi); r.rotation.y=Math.atan2(tp.x-r.position.x,tp.z-r.position.z); fishStart(F.cur.pi);} else
+    if(F.cur.type==='home'){r.rotation.y=Math.PI; sfx('door',s[0],s[1]);} else if(F.cur.type==='hose'){r.rotation.y=Math.atan2(REEL[0]-r.position.x,REEL[1]-r.position.z);} else if(F.cur.type==='fish'){const tp=tilePos(F.cur.pi); r.rotation.y=Math.atan2(tp.x-r.position.x,tp.z-r.position.z); fishStart(F.cur.pi);} else
     if(F.cur.type==='board'){r.rotation.y=-Math.PI/2; VEH[F.cur.vid].doorUntil=Date.now()+1500; {const V=VEH[F.cur.vid]; sfx('door',V.slot,G0+V.doorZ);}} else {const tp=tilePos(F.cur.i); r.rotation.y=Math.atan2(tp.x-r.position.x,tp.z-r.position.z);}}}
   else if(F.state==='work'&&F.cur.type==='board'){stand(); poseStand(p,t); F.timer-=dt; if(F.timer<.55) r.visible=false;
-    if(F.timer<=0){const st=S.veh[F.cur.vid]; if(st.trip&&!st.trip.t0){st.trip.t0=departAt(F.cur.vid); st.trip.driver='farmer'; save();} F.riding=F.cur.vid; F.cur=null; F.state='riding'; showCarry(null); F.carry=null;}}
+    if(F.timer<=0){const st=S.veh[F.cur.vid]; if(st.trip&&!st.trip.t0){st.trip.t0=departAt(F.cur.vid); st.trip.driver='farmer'; save();} F.riding=F.cur.vid; F.cur=null; F.state='riding'; if(F.hose) hoseToggle(F,'drop'); showCarry(null); F.carry=null;}}
   else if(F.state==='work'&&F.cur.type==='home'){stand(); r.visible=false; F.timer-=dt; const j=F.cur;   // inside the house: resting, sleeping or cooking
     if(j.sub==='sleep'){S.me.energy=Math.min(100,S.me.energy+dt*1.4); const h=gameHour(); if(h>=5&&h<21||F.jobs.some(q=>q.type==='board')) F.timer=0;} else if(j.sub==='rest') S.me.energy=Math.min(100,S.me.energy+dt*2.6);
     if(F.timer<=0){r.visible=true; finishHome(j); F.cur=null; F.state=F.jobs.length?'idle':'home';}}
+  else if(F.state==='work'&&F.cur.type==='hose'){stand(); p.aL.rotation.x=p.aR.rotation.x=-1.2+Math.sin(t*8)*.3; F.timer-=dt; if(F.timer<=0){hoseToggle(F,F.cur.sub); F.cur=null; F.state=F.jobs.length?'idle':'home';}}
   else if(F.state==='work'&&F.cur.type==='fish'){stand(); p.aR.rotation.x=-1.1+(FISH.st==='bite'?Math.sin(t*20)*.15:0); p.aL.rotation.x=-.9; p.aR.rotation.z=-.15;
     if(!FISH.on){fishRod(false); F.cur=null; F.state=F.jobs.length?'idle':'home';}}
   else if(F.state==='work'){
     stand(); F.timer-=dt; const j=F.cur, tile=S.tiles[j.i];
     if(j.type==='plow'||j.type==='chop'){p.aL.rotation.x=p.aR.rotation.x=-2.5+Math.abs(Math.sin(t*(j.type==='chop'?7:9)))*2.1; p.aL.rotation.z=.06; p.aR.rotation.z=-.06;}
     else if(j.type==='plant'){p.aR.rotation.x=-1.0+Math.sin(t*12)*.6; p.aL.rotation.x=-.6;}
+    else if(j.type==='water'){p.aR.rotation.x=-1.15+Math.sin(t*5)*.12; p.aL.rotation.x=-.9; spray(F,j.i,t);}
     else if(tile.s==='bld'){p.aL.rotation.x=p.aR.rotation.x=-1.3+Math.sin(t*6)*.25; const k=CARRY[tile.b]||'basket'; if(F.timer<jobTime(j)*.6) showCarry(k);}
     else {p.aR.rotation.x=-1.4; p.aR.rotation.z=-.4+Math.sin(t*14)*.7; p.aL.rotation.x=-.5;}
     if(F.timer<=0){const got=doJob(j); dropPin(j.i); spendNeeds(j.type); if(got) {F.carry=got; showCarry(got); buzz();} else if(!F.carry) showCarry(null); F.cur=null; F.state=F.jobs.length?'idle':(F.carry?'deposit':'home');}
@@ -3902,7 +3907,8 @@ function findJob(H){
   const consider=i=>{if(claimedBy(i)) return; const sk=H.skip.get(i); if(sk&&now<sk) return; const sp=jobSpot(i), d=Math.hypot(sp[0]-pos.x,sp[1]-pos.z); if(d<bd){bd=d; best=i;}};
   if(h.role==='tanim'){const c=CROPS[h.crop]; H.msg='';
     if(!c||S.level<c.lvl){H.msg='Pick a crop for me to plant.'; return null;}
-    for(let i=0;i<NF;i++){const t=S.tiles[i]; if(t.s==='crop'&&t.dry) consider(i);} if(best>=0) return {type:'water',i:best};   // water dry crops first
+    for(let i=0;i<NF;i++){const t=S.tiles[i]; if(t.s==='crop'&&t.dry) consider(i);} if(best>=0) return H.hose?{type:'water',i:best}:{type:'hose',sub:'get',i:-1};   // water dry crops first, with the hose from the tower
+    if(H.hose) return {type:'hose',sub:'put',i:-1};
     if(seedsFree(h.crop)<1){H.msg=`No ${c.name} binhi left. Buy more at the 🌱 Binhi store.`; return null;}
     for(let i=0;i<NF;i++) if(S.tiles[i].s==='soil'&&!hasWild(i)) consider(i);
     if(best<0){H.msg='No plowed soil. Use the Hoe tool to plow plots for me.'; return null;}
@@ -3948,7 +3954,7 @@ function updateHelpers(dt,t){
       r.position.y=farmerY(r.position.x,r.position.z)+Math.abs(c)*.05; return false;};
     const stand=()=>{p.lL.g.rotation.x=p.lR.g.rotation.x=p.lL.k.rotation.x=p.lR.k.rotation.x=0; r.position.y=farmerY(r.position.x,r.position.z);};
     if(H.state==='gone'||H.state==='wait') return;            // home asleep, or at the bus stop (the commuter code moves them)
-    if(!isWork()&&H.state!=='leave'){                          // quitting time: drop the task and walk to the sakayan
+    if(!isWork()&&H.state!=='leave'){if(H.hose) hoseToggle(H,'drop');                          // quitting time: drop the task and walk to the sakayan
       if(H.cur&&H.cur.type==='board') releaseTrip(H); r.visible=true; H.cur=null; H.carry=false; H.basket.visible=false; H.msg='';
       H.state='leave'; H.path=walkOut();}
     if(H.state==='leave'||H.state==='arrive'){const q=H.path[0];
@@ -3968,7 +3974,10 @@ function updateHelpers(dt,t){
         if(H.timer<=0){const st=S.veh[j.vid]; if(st.trip&&!st.trip.t0&&st.trip.driver==='h'+h.id){st.trip.t0=departAt(j.vid); save(); H.riding=j.vid; H.state='riding';} else r.visible=true; H.cur=null; if(!H.riding) H.state='home';}
         return;}
       if(j.type==='plant'){p.aR.rotation.x=-1.0+Math.sin(t*12)*.6; p.aL.rotation.x=-.6;}
+      else if(j.type==='water'){p.aR.rotation.x=-1.15+Math.sin(t*5)*.12; p.aL.rotation.x=-.9; spray(H,j.i,t);}
+      else if(j.type==='hose'){p.aL.rotation.x=p.aR.rotation.x=-1.2+Math.sin(t*8)*.3;}
       else {p.aL.rotation.x=p.aR.rotation.x=-1.3+Math.sin(t*6)*.25;}
+      if(H.timer<=0&&j.type==='hose'){hoseToggle(H,j.sub); H.cur=null; H.state='idle'; H.timer=.15; return;}
       if(H.timer<=0){const got=doJob(j); H.cur=null;
         if(got===null) H.skip.set(j.i,Date.now()+8000);
         if(got){H.carry=true; H.basket.visible=true; H.state='deposit';} else {H.state='idle'; H.timer=.15;}}}
@@ -5301,7 +5310,6 @@ setInterval(()=>{if(bldIdx!==-2||!$('bldSheet').classList.contains('open')) retu
   if(st+K.owned!==renderKat.st) return renderKat(); if(st!=='run') return; const el=$('bldState'), m=document.querySelector('#bldBody .meter i');
   if(el) el.textContent=`🔪 Butchers at work… ${fmt((K.t0+K.dur*1000-now)/1000)}`; if(m) m.style.width=Math.round(100*Math.min(1,(now-K.t0)/(K.dur*1000)))+'%';},1000);
 // which of your trucks can carry live animals, and the truck pickup at an animal area
-const LIVE_VEH={live_chicken:['sedan','truck'],live_pig:['stock','truck'],live_goat:['stock','truck'],live_cow:['stock']};
 function liveOK(v,items){return Object.keys(items||{}).every(id=>!ITEMS[id]||!ITEMS[id].live||(LIVE_VEH[id]||[]).includes(v));}
 function liveMsg(items){const ids=Object.keys(items||{}).filter(id=>ITEMS[id]&&ITEMS[id].live);
   return ids.includes('live_cow')?'🐄 Live cows ride only in the 🚛 livestock truck.':ids.includes('live_pig')||ids.includes('live_goat')?'🐖 Live pigs and goats ride only in the 🚛 livestock truck or the 🚚 Elf truck.':'🐔 Live chickens ride only in the 🛻 chicken truck or the 🚚 Elf truck.';}
@@ -5409,8 +5417,29 @@ $('fishStop').addEventListener('click',()=>{FISH.on=false; FISH.st='idle'; clear
   if(FISH.st==='bite'){FISH.m=.5+.5*Math.sin((now-FISH.t0)/1000*(2.6+FISH.hits*.9)); const mk=$('fishMark'); if(mk) mk.style.left=FISH.m*100+'%';
     if(now-FISH.last>4500){FISH.st='done'; FISH.msg='💨 Too slow, nakatakas! Cast again?'; fishShow();}}})();
 renderNeeds();
+// the hose: it hangs on a reel by the water tower's faucet; whoever waters takes it, drags it along the way they walk, sprays, and rolls it back up
+const REEL=[-37.3,-2.2];
+(()=>{const g=new THREE.Group(); g.position.set(REEL[0],0,REEL[1]); scene.add(g);
+  g.add(new THREE.Mesh(mergeGeo([P('box',0x6d4c41,0,.55,0,.12,1.1,.12),P('box',0x6d4c41,0,1.05,.0,.5,.08,.08),P('cyl',0x9e9e9e,.45,.5,.2,.08,.6,.08),P('box',0xd63031,.45,.82,.2,.18,.06,.06)]),VCMAT));
+  const coil=new THREE.Mesh(new THREE.TorusGeometry(.32,.07,6,18),new THREE.MeshStandardMaterial({color:0x2e8b3e,roughness:.7})); coil.position.set(0,.8,.12); coil.castShadow=true; g.add(coil); g.userData.coil=coil; REEL.g=g;})();
+function hoseToggle(W,sub){if(sub==='get'){W.hose=true; W.trail=[[REEL[0]+.3,REEL[1]+.2]]; sfx('tap');} else {W.hose=false; W.trail=[]; if(sub==='put') sfx('tap');} hoseDraw(W);}
+const HOSE_MAT=new THREE.MeshStandardMaterial({color:0x2e8b3e,roughness:.7}), HOSE_GEO=new THREE.CylinderGeometry(.045,.045,1,5);
+function hoseDraw(W){if(!W.hoseM){W.hoseM=new THREE.InstancedMesh(HOSE_GEO,HOSE_MAT,140); W.hoseM.frustumCulled=false; W.hoseM.count=0; scene.add(W.hoseM);}
+  const m=W.hoseM; if(!W.hose){m.count=0; return;} const r=W.p.root, pts=[...W.trail,[r.position.x+Math.sin(r.rotation.y)*.35,r.position.z+Math.cos(r.rotation.y)*.35]], M=new THREE.Matrix4(), q=new THREE.Quaternion(), up=new THREE.Vector3(0,1,0), v=new THREE.Vector3();
+  let n=0; for(let k=0;k<pts.length-1&&n<140;k++){const [ax,az]=pts[k], [bx,bz]=pts[k+1], last=k===pts.length-2, ay=.05, by=last?.85:.05, L=Math.hypot(bx-ax,bz-az,by-ay); if(L<.01) continue;
+    v.set(bx-ax,by-ay,bz-az).normalize(); q.setFromUnitVectors(up,v); M.compose(new THREE.Vector3((ax+bx)/2,(ay+by)/2,(az+bz)/2),q,new THREE.Vector3(1,L,1)); m.setMatrixAt(n++,M);}
+  m.count=n; m.instanceMatrix.needsUpdate=true;}
+const SPRAY_MAT=new THREE.MeshBasicMaterial({color:0xbfe3f5,transparent:true,opacity:.75,depthWrite:false});
+function spray(W,i,t){if(!W.spr){W.spr=new THREE.Group(); for(let k=0;k<10;k++) W.spr.add(new THREE.Mesh(new THREE.SphereGeometry(.07,6,4),SPRAY_MAT)); scene.add(W.spr);}
+  W.sprT=performance.now(); const r=W.p.root, tp=tilePos(i), hx=r.position.x+Math.sin(r.rotation.y)*.45, hz=r.position.z+Math.cos(r.rotation.y)*.45;
+  W.spr.visible=true; W.spr.children.forEach((s,k)=>{const u=(t*1.6+k/10)%1, x=hx+(tp.x-hx)*u, z=hz+(tp.z-hz)*u; s.position.set(x+Math.sin(k*7)*.15*u,.9+u*.6-u*u*1.3,z+Math.cos(k*5)*.15*u); s.scale.setScalar(.6+u*.9);});}
+(function hoseLoop(){requestAnimationFrame(hoseLoop); const now=performance.now();
+  for(const W of [farmer,...helpers]){if(W.hose){const r=W.p.root, tr=W.trail, l=tr[tr.length-1]; if(Math.hypot(r.position.x-l[0],r.position.z-l[1])>1.1&&tr.length<139) tr.push([r.position.x,r.position.z]); hoseDraw(W);}
+    else if(W.hoseM&&W.hoseM.count) hoseDraw(W);
+    if(W.spr&&W.spr.visible&&now-(W.sprT||0)>120) W.spr.visible=false;}
+  if(REEL.g) REEL.g.userData.coil.scale.setScalar([farmer,...helpers].some(W=>W.hose)?.55:1);})();
 const NEWS=[
-  {v:19,date:'Nov 8, 2026',title:'Watering, rain, a hungry farmer and fishing',items:['💧 New tool: Dilig. Newly planted crops wait for water before they start growing (a blue marker shows them). Plots next to a poso stay moist, and your Taniman trabahador water dry crops first.','🌧️ In the rainy months (Hun–Nob) some days it rains and the rain waters every crop for you.','🍚⚡ Your farmer now gets hungry and tired from work. Watch the meter at the top; tap it (or your house) for 🏠 Bahay: rest, sleep at night, or cook a meal from your harvest: adobong manok, sinigang na isda, tortang talong and more.','🎣 Mangisda: from the Bahay sheet your farmer takes the pamingwit to your own 🐟 palaisdaan. Cast, wait for the bite, then tap Hila while the marker is in the green. Three good pulls land a tilapia, which leaves the pond (still-small fingerlings go back in).']},
+  {v:19,date:'Nov 8, 2026',title:'Watering, rain, a hungry farmer and fishing',items:['💧 New tool: Dilig. Newly planted crops wait for water before they start growing (a blue marker shows them). Your farmer, or a Taniman trabahador, takes the hose from the reel at the water tower, drags it out to the field, sprays each dry plot and rolls it back up. Plots next to a poso stay moist.','🌧️ In the rainy months (Hun–Nob) some days it rains and the rain waters every crop for you.','🍚⚡ Your farmer now gets hungry and tired from work. Watch the meter at the top; tap it (or your house) for 🏠 Bahay: rest, sleep at night, or cook a meal from your harvest: adobong manok, sinigang na isda, tortang talong and more.','🎣 Mangisda: from the Bahay sheet your farmer takes the pamingwit to your own 🐟 palaisdaan. Cast, wait for the bite, then tap Hila while the marker is in the green. Three good pulls land a tilapia, which leaves the pond (still-small fingerlings go back in).']},
   {v:18,date:'Nov 8, 2026',title:'The livestock truck and new customers',items:['🚛 New: the livestock truck (level 5, ₱12,000) with its own carport. Two decks with checker-plate sides and pipe bars; the tailgate drops into a ramp and the animals walk up. It is the only vehicle for live cows, and it takes pigs and goats too.','🐄 Sell grown cows and goats live, one at a time: tap their house → 🐾 Alaga → Sell 1 live. The 🔪 Katayan now also turns them into 🥩 beef and 🍖 chevon.','⛰️ New customers up in the mountain barangay (level 6): sitio families, the tindahan sa bundok and the kapilya fiesta. Your truck drives up the winding hill road.','🏡 More homes and small businesses order from you: a lechon manok stand, a home bakery, a binyag party, a subdivision house and a kalderetang kambing place. Some want live animals.']},
   {v:17,date:'Nov 8, 2026',title:'Live animals, the katayan and the chicken truck',items:['🐔 Grown broilers and pigs now leave their house alive. Sell them live at the palengke (some buyers order buhay na manok or baboy), or turn them into meat.','🔪 New: your own Katayan beside the farm road (level 2). Tap it, open it, and the butchers turn live manok and baboy into 🍗 and 🥓 for a small fee.','🛻 The sedan is now a chicken truck with stacked crates (level 2, ₱4,500). It and the Elf truck drive to the area gate, reverse in, and the animals walk up into the cages. Pigs ride only in the Elf truck.','🏬 The bagsakan takes meat only, never live animals. No truck yet? Your farmer still carries the animals out.']},
   {v:16,date:'Nov 8, 2026',title:'Living animals and seasons',items:['🐣 Your animals are alive now. Each house has a herd that you buy young at the Agrivet: sisiw, biik, guya, batang kambing, bibi and similya ng tilapia. They grow over a few game days while you feed them.','🍗 Broilers, pigs and tilapia are harvested all at once when grown, then the house is empty until you restock. Hens, itik, cows and goats grow up and then keep producing.','🔥 New building: the Pisaan (level 4). Put in trays of 12 eggs and they hatch into a box of 10 sisiw (itik eggs into bibi).','📅 The clock now shows the month. Watch for bird-flu news in Dis–Peb (vaccinate with 💉 Bakuna, cure with 💊 Gamot) and heat waves in Mar–May (tap 🐾 Alaga → 💧 Painumin).','💀 Animals left hungry, sick or thirsty for a few minutes start to die, but only while you are playing. Your houses from before are full and grown.']},

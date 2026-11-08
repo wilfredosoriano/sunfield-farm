@@ -142,10 +142,10 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
   font-size:11px;font-weight:900;line-height:20px;text-align:center}
 .badge.ready{background:#e2482f;color:#fff}
 
-#market,#hwSheet,#upSheet,#bldSheet,#helpSheet,#bizSheet,#newsSheet,#achSheet,#misSheet{position:fixed;inset:0;z-index:8;display:none;align-items:center;justify-content:center;background:rgba(10,20,10,.35);
+#market,#hwSheet,#upSheet,#bldSheet,#drvSheet,#helpSheet,#bizSheet,#newsSheet,#achSheet,#misSheet{position:fixed;inset:0;z-index:8;display:none;align-items:center;justify-content:center;background:rgba(10,20,10,.35);
   padding:10px calc(env(safe-area-inset-right,0px) + 12px) 10px calc(env(safe-area-inset-left,0px) + 12px)}
-#market.open,#hwSheet.open,#upSheet.open,#bldSheet.open,#helpSheet.open,#bizSheet.open,#newsSheet.open,#achSheet.open,#misSheet.open{display:flex}
-#market .sheet,#hwSheet .sheet,#upSheet .sheet,#bldSheet .sheet,#helpSheet .sheet,#bizSheet .sheet,#newsSheet .sheet,#achSheet .sheet,#misSheet .sheet{width:min(760px,100%);max-height:100%;overflow-y:auto;gap:6px;padding:14px}
+#market.open,#hwSheet.open,#upSheet.open,#bldSheet.open,#drvSheet.open,#helpSheet.open,#bizSheet.open,#newsSheet.open,#achSheet.open,#misSheet.open{display:flex}
+#market .sheet,#hwSheet .sheet,#upSheet .sheet,#bldSheet .sheet,#drvSheet .sheet,#helpSheet .sheet,#bizSheet .sheet,#newsSheet .sheet,#achSheet .sheet,#misSheet .sheet{width:min(760px,100%);max-height:100%;overflow-y:auto;gap:6px;padding:14px}
 .mhead{display:flex;align-items:center;justify-content:space-between}
 .mhead h2{margin:0}
 .sheet .x{width:38px;height:38px;padding:0;text-align:center;border-radius:12px}
@@ -258,7 +258,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 /* touch devices held upright: block the game */
 @media (orientation: portrait) and (pointer: coarse){
   #rotate{display:flex}
-  #hud,#status,#bottom,#cats,#toast,#menu,#market,#hwSheet,#upSheet,#bldSheet,#helpSheet,#bizSheet,#newsSheet,#achSheet,#misSheet,#c{visibility:hidden}
+  #hud,#status,#bottom,#cats,#toast,#menu,#market,#hwSheet,#upSheet,#bldSheet,#drvSheet,#helpSheet,#bizSheet,#newsSheet,#achSheet,#misSheet,#c{visibility:hidden}
 }
 /* short landscape screens (phones): tools on the left, picker on the right, map in the middle */
 @media (orientation: landscape) and (max-height: 520px){
@@ -282,6 +282,56 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
   .chip{min-width:72px;padding:4px 6px}
   .chip .ci{font-size:18px}
 }
+/* ---------- game look: warm paper panels with an ink outline (to match the sketched world) and chunky buttons that press down ---------- */
+:root{--ink2:#3b2e24; --paper:#fbf3df; --paper2:#f2e4c2; --gold:#f2b632; --green:#8fd05f; --sel:#ffe39a}
+.pill,#tools,#cats,#picker,#hint,.sheet{background:var(--paper)!important;color:var(--ink2)!important;border:2.5px solid var(--ink2);box-shadow:0 4px 0 var(--ink2)!important;
+  backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+#hint{border-width:2px;box-shadow:0 2px 0 var(--ink2)!important}
+.sheet{border-radius:22px!important}
+.sheet .pay,.sheet h3,.sheet .jstat,.lvl{color:#6b5a48!important}
+.tool,.chip,.sheet .go,.sheet .bigbtn,.sheet .vchip,.sheet .x,.sheet .good button,.sheet .qty button,#helpSheet .rchip,#helpSheet .hacts button,.sheet .mbtns button,
+#achList .ach button,#market .lacts .go,#market .lacts .skip,.sheet .oacts .go,.sheet .oacts .skip,.gbtn,#homeBtn,#farmPill,#tripPill{
+  border:2px solid var(--ink2)!important;border-radius:14px!important;box-shadow:0 3px 0 var(--ink2)!important;background:var(--paper2)!important;color:var(--ink2)!important;
+  font-weight:900;transition:transform .06s,box-shadow .06s}
+.tool:active,.chip:active,.sheet .go:active,.sheet .bigbtn:active,.sheet .vchip:active,.gbtn:active,.sheet .x:active,.sheet .good button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink2)!important}
+.tool:disabled,.gbtn:disabled,.sheet .go:disabled,.sheet .bigbtn:disabled,.sheet .vchip:disabled{opacity:.5;box-shadow:0 1px 0 var(--ink2)!important;transform:none}
+.sheet .go,.sheet .bigbtn,#achList .ach button,#market .lacts .go,.sheet .oacts .go,.gbtn.gold{background:var(--gold)!important}
+.tool.on,.chip.on,.sheet .vchip.on,#helpSheet .rchip.on,.gbtn.on,#farmPill.on,#tripPill.on{background:var(--sel)!important}
+.tool.cat.open{background:var(--sel)!important}
+#tools,#cats{gap:5px!important;padding:7px!important}
+.badge{border:2px solid var(--paper)}
+.ucard,.order,.good{background:var(--paper2)!important;border:2px solid rgba(59,46,36,.25);color:var(--ink2)}
+/* the three-button pop-ups */
+#bldSheet .sheet,#drvSheet .sheet{width:min(440px,100%)!important}
+#upCards{display:block}
+.bstat{display:flex;gap:8px;align-items:center;font-size:13px;font-weight:800;color:#6b5a48}
+.bstat .lvp{color:#c9900f;letter-spacing:2px;font-size:15px}
+.meter{height:12px;border:2px solid var(--ink2);border-radius:9px;background:#fffaf0;overflow:hidden;margin:4px 0 2px}
+.meter i{display:block;height:100%;background:linear-gradient(90deg,#8fd05f,#5aa83c);transition:width .4s}
+.gtabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.gtabs.five{grid-template-columns:repeat(5,1fr);gap:6px}
+.gbtn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:8px 4px;min-height:66px;font-size:21px;line-height:1.1;text-align:center}
+.gbtn b{font-size:13px;font-weight:900}
+.gbtn small{font-size:10.5px;font-weight:800;opacity:.75}
+.gtabs.five .gbtn{min-height:60px;font-size:18px}
+.gtabs.five .gbtn b{font-size:11.5px}
+.gbtn.green{background:var(--green)!important}
+.gpanel{position:relative;margin-top:12px;background:var(--paper2);border:2px solid var(--ink2);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:7px;--nx:50%}
+.gpanel::before,.gpanel::after{content:"";position:absolute;left:var(--nx);transform:translateX(-50%);border:solid transparent}
+.gpanel::before{top:-11px;border-width:0 10px 10px;border-bottom-color:var(--ink2)}
+.gpanel::after{top:-7px;border-width:0 8px 8px;border-bottom-color:var(--paper2)}
+.gpanel.at-up{--nx:50%} .gpanel.at-info{--nx:83.3%}
+.gpanel.at-0{--nx:10%} .gpanel.at-1{--nx:30%} .gpanel.at-2{--nx:50%} .gpanel.at-3{--nx:70%} .gpanel.at-4{--nx:90%}
+.gpanel .ucard{background:transparent!important;border:0;padding:0}
+.gpanel .gbtn{min-height:48px;flex-direction:row;gap:8px}
+.gpanel .need{display:flex;flex-wrap:wrap;gap:6px;font-weight:800;font-size:13px}
+.gpanel .need span{background:#fffaf0;border:1.5px solid rgba(59,46,36,.3);border-radius:10px;padding:2px 8px}
+.gpanel .need span.got{border-color:#4caf50}
+.drvlist{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.gbtn.row{flex-direction:row;justify-content:flex-start;gap:10px;min-height:56px;padding:8px 12px;text-align:left}
+.gbtn.row b{font-size:15px} .gbtn.row small{margin-left:auto;font-size:12px}
+.gbtn.row.busy small{color:#b04a3a;opacity:1}
+@media (max-width:520px){.gtabs.five{grid-template-columns:repeat(3,1fr)} .gpanel.at-3{--nx:30%} .gpanel.at-4{--nx:50%}}
 </style>
 </head>
 <body>
@@ -324,6 +374,12 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
   </div>
 </div>
 
+<div id="drvSheet" role="dialog" aria-label="Choose a driver">
+  <div class="sheet">
+    <div class="mhead"><h2 id="drvTitle">Who drives?</h2><div class="mbtns"><button class="x" id="closeDrv" aria-label="Close">✕</button></div></div>
+    <div id="drvBody" class="drvlist"></div>
+  </div>
+</div>
 <div id="bldSheet" role="dialog" aria-label="Manukan">
   <div class="sheet">
     <div class="mhead"><h2 id="bldTitle">🐔 Manukan</h2><div class="mbtns"><button class="x" id="closeBld" aria-label="Close">✕</button></div></div>
@@ -370,9 +426,9 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 <div id="upSheet" role="dialog" aria-label="Upgrades">
   <div class="sheet">
     <div class="mhead"><h2>🏠 Upgrade</h2><div class="mbtns"><button class="x" id="closeUp" aria-label="Close">✕</button></div></div>
+    <div class="ucards" id="upCards"></div>
     <h3>Materials in your bodega</h3>
     <div class="stock" id="upStock"></div>
-    <div class="ucards" id="upCards"></div>
   </div>
 </div>
 
@@ -1500,7 +1556,7 @@ function suspend(V,x,z,a,dt,moving){
 // ---- the house (3 levels, each needs materials from the hardware store)
 const houseG=new THREE.Group(); houseG.position.set(S.housePos.x,0,S.housePos.z); scene.add(houseG);
 // ---- kubo-kubo (bamboo hut with a papag) in front of the house: where you and your trabahador rest and chat
-const KUBO_OFF=[-2.8,5.75], KUBO_SEATS=[[-.85,.05,Math.PI/2],[.85,.05,-Math.PI/2],[0,-.62,0],[0,.68,Math.PI]];   // [x,z,facing] around the little table
+const KUBO_OFF=[-2.8,5.75], KUBO_SEATS=[[-.85,.05,Math.PI/2],[.85,.05,-Math.PI/2],[0,-.62,0],[0,.68,Math.PI],[-.45,1.75,Math.PI],[.45,1.75,Math.PI],[1.85,-.2,-Math.PI/2]];   // round the papag, then the bench and the stool for a bigger crew   // [x,z,facing] around the little table
 const kuboG=new THREE.Group(); scene.add(kuboG);
 (()=>{const b=[], BB=0xc9a96a, BD=0xa98a52;
   for(const x of [-1.25,1.25]) for(const z of [-.95,.95]){b.push(P('cyl',BB,x,1.12,z,.13,2.24,.13)); for(const y of [.6,1.2,1.8]) b.push(P('cyl',BD,x,y,z,.15,.03,.15));}
@@ -1512,6 +1568,8 @@ const kuboG=new THREE.Group(); scene.add(kuboG);
   b.push(P('box',0x7a5c32,0,2.2,0,3.3,.07,2.75));
   b.push(P('box',0xa0784a,0,.56,.03,.55,.06,.42)); b.push(P('cyl',0x6b5a4a,.1,.66,.03,.16,.16,.16)); b.push(P('cyl',0x3d3d3d,.1,.76,.03,.06,.05,.06));  // low table, kettle of kape
   for(const [x,z] of [[-.15,-.06],[-.18,.12],[.02,.16]]) b.push(P('cyl',0xf3ead2,x,.63,z,.07,.08,.07));
+  b.push(P('box',0x8d6e4b,0,.4,1.75,1.5,.07,.38)); for(const x of [-.65,.65]) b.push(P('box',0x6d4c41,x,.2,1.75,.08,.4,.32));   // a bench in front
+  b.push(P('cyl',0x8d6e4b,1.85,.2,-.2,.42,.4,.42));                                                                          // and a tuod (stump) stool
   const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.castShadow=m.receiveShadow=true; m.position.set(KUBO_OFF[0],0,KUBO_OFF[1]); kuboG.add(m);
   // nipa roof, a little see-through so you can watch the kwentuhan from above (it still casts its shade)
   const roofM=new THREE.Mesh(mergeGeo([P('pyr',0x9c7a45,0,2.85,0,3.5,1.3,3.0),P('pyr',0x8a6a3a,0,3.45,0,1.2,.35,1.0)]),new THREE.MeshStandardMaterial({vertexColors:true,transparent:true,opacity:.42,depthWrite:false,flatShading:true,roughness:1}));
@@ -3416,16 +3474,16 @@ const HELP_NAMES=['Jun','Bong','Nonoy','Dodong','Inday','Neneng','Totoy','Caloy'
 const ROLES={tanim:{icon:'🌱',name:'Taniman',what:'Plants your chosen crop on every plowed plot (uses your binhi).'},
   ani:{icon:'🧺',name:'Ani',what:'Harvests ripe crops and collects eggs, milk and meat into the bodega.'},
   biyahe:{icon:'🚚',name:'Biyahero',what:'Drives your jeepney or Elf truck on every trip and can deliver to the palengke by himself.'}};
-const HIRE_FEE=[2500,6000,15000], WAGE=50, PAY_MS=300000;
-const helperSlots=()=>S.level>=12?3:S.level>=8?2:S.level>=5?1:0, SLOT_LV=[5,8,12];
+const HIRE_FEE=[2500,6000,15000,25000,40000,60000], WAGE=50, PAY_MS=300000;
+const SLOT_LV=[5,8,12,15,18,21], helperSlots=()=>SLOT_LV.filter(l=>S.level>=l).length;   // up to six trabahador as you level up
 if(!Array.isArray(S.helpers)) S.helpers=[];
 S.helpers.forEach(h=>{h.paidUntil=Math.max(h.paidUntil||0,Date.now()); h.unpaid=false;});   // no sweldo while the game is closed
 const helperHome=k=>seatWorld(k+1).slice(0,2);
 function spawnHelper(h){
   const r=rng(h.seed), L=randLook(r); L.f=h.f; L.bag=null; L.skirt=false; L.shorts=!h.f&&r()<.5; L.h=.96+r()*.06;
-  const slot=[0,1,2].filter(k=>!helpers.some(H=>H.slot===k)).concat(0)[0];   // each of the three trabahador gets their own work clothes, so you can tell them apart
-  L.style=[h.f?'long':'cap','salakot',h.f?'bun':'short'][slot]; L.capC=[0xf1c40f,0x27ae60,0xe67e22][slot];
-  L.top=[0xc0392b,0x2e86de,0x27ae60][slot]; L.bottom=[0x34495e,0x5d4037,0x3b5b8c][slot];
+  const slot=[0,1,2,3,4,5].filter(k=>!helpers.some(H=>H.slot===k)).concat(0)[0];   // each of the three trabahador gets their own work clothes, so you can tell them apart
+  L.style=[h.f?'long':'cap','salakot',h.f?'bun':'short','cap',h.f?'long':'salakot','short'][slot]; L.capC=[0xf1c40f,0x27ae60,0xe67e22,0x8e44ad,0x2e86de,0xc0392b][slot];
+  L.top=[0xc0392b,0x2e86de,0x27ae60,0xf39c12,0x8e44ad,0x16a085][slot]; L.bottom=[0x34495e,0x5d4037,0x3b5b8c,0x2c3e50,0x6d4c41,0x34495e][slot];
   const p=makePerson(L), basket=new THREE.Group();
   basket.add(mesh(new THREE.CylinderGeometry(.24,.18,.26,8),0xb08850,0,0,0)); basket.add(mesh(new THREE.SphereGeometry(.18,6,4),0xe9c24b,0,.12,0));
   basket.position.set(0,1.08,.36); basket.visible=false; p.root.add(basket);
@@ -3435,7 +3493,7 @@ function spawnHelper(h){
   return H;
 }
 S.helpers.forEach(h=>{const H=spawnHelper(h); for(const v in S.veh){const tr=S.veh[v].trip; if(tr&&tr.driver==='h'+h.id){H.riding=v; H.state='riding'; H.p.root.visible=false;}}});
-function driverName(tr,cap){if(!tr) return ''; if(tr.driver==='farmer') return cap?'Your farmer':'your farmer'; const H=helpers.find(H=>'h'+H.h.id===tr.driver); return H?H.h.name:(cap?'Your hired driver':'the hired driver');}
+function driverName(tr,cap){if(!tr) return ''; if(tr.driver==='farmer') return cap?'Your farmer':'your farmer'; if(tr.driver==='pending') return cap?'Your driver':'your driver'; const H=helpers.find(H=>'h'+H.h.id===tr.driver); return H?H.h.name:(cap?'Your hired driver':'the hired driver');}
 const OFF_DUTY=['leave','wait','gone','arrive'];
 function freeDriver(){return isWork()?helpers.find(H=>H.h.role==='biyahe'&&!H.h.unpaid&&!H.riding&&!OFF_DUTY.includes(H.state)&&!(H.cur&&H.cur.type==='board')):null;}
 function helperExit(vid,H){const V=VEH[vid], r=H.p.root; H.riding=null; r.visible=true; r.position.set(V.slot+1.6,.08,G0+V.doorZ); r.rotation.y=Math.PI/2; V.doorUntil=Date.now()+1400; H.cur=null; H.state='home';}
@@ -3462,11 +3520,11 @@ function biyaheTick(H){ // auto-deliver: ready orders first, then bodega goods o
   for(let k=0;k<S.orders.length&&guard<12;k++){const o=S.orders[k]; if(!hasAll(o)) continue; const need=Object.values(o.items).reduce((a,b)=>a+b,0); if(n+need>cap) continue;
     for(const id in o.items) S.inv[id]-=o.items[id]; S.orders.splice(k,1); fillOrders(); guard++;
     S.load.push({label:`${o.who.split(' (')[0]}'s order`,coins:o.reward,xp:o.xp,n:need,ret:{...o.items},order:o}); n+=need; k=-1;}
-  if(n>0&&(S.load.some(c=>c.order)||n>=Math.min(12,cap))){mktVeh=v; if(!beginTrip(v,{dest:'palengke',cargo:S.load,paid:false,fill:n/cap})) return; S.load=[];
+  if(n>0&&(S.load.some(c=>c.order)||n>=Math.min(12,cap))){mktVeh=v; if(!beginTrip(v,{dest:'palengke',cargo:S.load,paid:false,fill:n/cap},'h'+h.id)) return; S.load=[];
     toast(`${VEH[v].icon} ${h.name} is delivering ${n} items to the palengke in the ${vname(v)}.`,3000); changed(); return;}
   const keep=(OWN('van')?MEATS:[]).concat(...(S.missions||[]).map(m=>Object.keys(m.items))), spare=bodegaN()-keep.reduce((a,k)=>a+(S.inv[k]||0),0);   // meat waits for the closed van and the city
   if(n===0&&S.wh.owned&&spare>=20){const g=takeGoods(cap,keep); const m=Object.values(g).reduce((a,b)=>a+b,0);
-    if(m&&beginTrip(v,{dest:'warehouse',goods:g,paid:false,fill:m/cap})){toast(`${VEH[v].icon} ${h.name} is hauling ${m} items to the bagsakan.`,3000); changed();} else for(const k in g) S.inv[k]+=g[k];}
+    if(m&&beginTrip(v,{dest:'warehouse',goods:g,paid:false,fill:m/cap},'h'+h.id)){toast(`${VEH[v].icon} ${h.name} is hauling ${m} items to the bagsakan.`,3000); changed();} else for(const k in g) S.inv[k]+=g[k];}
 }
 let payT=0;
 function payWages(){ // sweldo every 5 minutes of work time; no sweldo at night while they are home
@@ -3547,9 +3605,9 @@ function renderHelp(){
       ${h.role==='tanim'?`<label>Plant: <select data-hcrop="${h.id}">${crops.map(([id,c])=>`<option value="${id}" ${h.crop===id?'selected':''}>${c.icon} ${c.name} (${seedsOf(id)} binhi)</option>`).join('')}</select></label>`:''}
       ${h.role==='biyahe'?`<label><input type="checkbox" data-hauto="${h.id}" ${h.auto?'checked':''}> Deliver by himself: palengke orders as soon as they are ready</label>`:''}
       <div class="hacts"><button data-hcancel="${h.id}">✋ Cancel task</button><button data-hfind="${h.id}">📍 Find</button><button class="${fireAsk===h.id?'warn':''}" data-hfire="${h.id}">${fireAsk===h.id?'Tap again to let go':'👋 Let go'}</button></div></div>`;}).join('')
-    +`<div class="ucard"><div class="who">➕ Hire a trabahador</div>`+(n>=3?'<div class="pay">You have the most helpers you can hire.</div>'
+    +`<div class="ucard"><div class="who">➕ Hire a trabahador</div>`+(n>=SLOT_LV.length?'<div class="pay">You have the most helpers you can hire.</div>'
       :n>=slots?`<div class="pay">Your next helper unlocks at level ${SLOT_LV[n]}.</div>`
-      :`<div class="pay">Hiring fee ₱${fee.toLocaleString()} (includes the first sweldo).</div>${needHouse([1,2,3][n])}<button class="hire" data-hire="1" ${S.coins>=fee&&S.house>=[1,2,3][n]?'':'disabled'}>👷 Hire for ₱${fee.toLocaleString()}</button>`)+`</div>`;
+      :`<div class="pay">Hiring fee ₱${fee.toLocaleString()} (includes the first sweldo).</div>${''}<button class="hire" data-hire="1" ${S.coins>=fee?'':'disabled'}>👷 Hire for ₱${fee.toLocaleString()}</button>`)+`</div>`;
 }
 function refreshHelpStatus(){helpers.forEach(H=>{const el=document.getElementById('hst-'+H.h.id); if(el){const s=helperStatus(H); if(el.textContent!==s) el.textContent=s;}});}
 function cancelHelper(H){ if(H.cur&&H.cur.type==='board'){releaseTrip(H); H.p.root.visible=true;} H.cur=null; H.state=H.carry?'deposit':'home'; H.skip.clear(); }
@@ -3562,7 +3620,7 @@ $('helpSheet').addEventListener('click',e=>{
   const g=(k)=>{const el=e.target.closest('[data-'+k+']'); return el?el.dataset[k.replace(/^h/,'h')]:null;};
   const hire=e.target.closest('[data-hire]'), role=e.target.closest('[data-hrole]'), can=e.target.closest('[data-hcancel]'), find=e.target.closest('[data-hfind]'), fire=e.target.closest('[data-hfire]');
   const byId=id=>helpers.find(H=>H.h.id==id);
-  if(hire){const n=S.helpers.length, fee=HIRE_FEE[n]; if(n>=helperSlots()||S.coins<fee||S.house<[1,2,3][n]) return;
+  if(hire){const n=S.helpers.length, fee=HIRE_FEE[n]; if(n>=helperSlots()||S.coins<fee||false) return;
     S.coins-=fee; const used=S.helpers.map(h=>h.name), r=Math.random, pool=HELP_NAMES.filter(x=>!used.includes(x)), name=pool[(r()*pool.length)|0];
     const h={id:Date.now()%1e7,name,role:n===0?'ani':n===1?'tanim':'biyahe',crop:CROPS[S.crop]?S.crop:'wheat',auto:true,seed:(r()*1e6)|0,f:['Inday','Neneng','Lorna','Ising','Mylene','Tess'].includes(name),paidUntil:Date.now()+PAY_MS};
     S.helpers.push(h); spawnHelper(h); toast(`👷 ${name} is now working on your farm!`,2600); buzz(); changed(); return renderHelp();}
@@ -3771,13 +3829,29 @@ const matsLabel=m=>Object.entries(m).filter(([,n])=>n>0).map(([k,n])=>`${n} ${MA
 const farmerBusyDriving=()=>{const F=farmer; return !!(S.pasa||F.riding||F.jobs.some(j=>j.type==='board')||(F.cur&&F.cur.type==='board'));};
 const driverFree=()=>!!freeDriver()||!farmerBusyDriving();   // every vehicle needs someone to drive it
 function noDriver(){toast(`🚫 No one to drive: your farmer is already on the road. Hire a 🚚 Biyahero trabahador to drive the other vehicle.`,3400);}
-function beginTrip(vid,tr){ // a Biyahero trabahador drives first, otherwise your farmer; with nobody free the trip does not start
-  const F=farmer, st=S.veh[vid];
-  const D=freeDriver(); if(D){st.trip=tr; tr.t0=null; tr.driver='h'+D.h.id; D.cur={type:'board',vid,i:-1}; D.state='go'; return true;}
-  if(farmerBusyDriving()){noDriver(); return false;}
-  st.trip=tr; tr.t0=null; tr.driver='farmer';
-  if(F.cur&&F.state==='go'){F.jobs.push(F.cur); F.cur=null; F.state='idle';}
-  F.jobs.unshift({type:'board',vid,i:-1}); return true;
+// who can drive right now: you, and every Biyahero trabahador (busy people are listed too, greyed out, so you can see why)
+function driverChoices(){const F=farmer, out=[{id:'farmer',icon:'👨‍🌾',name:'You',free:!farmerBusyDriving(),note:farmerBusyDriving()?'Already driving':F.cur?'Will pause the current task':'Free'}];
+  helpers.filter(H=>H.h.role==='biyahe').forEach(H=>{const free=isWork()&&!H.h.unpaid&&!H.riding&&!OFF_DUTY.includes(H.state)&&!(H.cur&&H.cur.type==='board');
+    out.push({id:'h'+H.h.id,icon:'👷',name:H.h.name,free,note:free?'Free · Biyahero':helperStatus(H).replace(/^\S+\s/,'')});}); return out;}
+function assignDriver(vid,id){const F=farmer, tr=S.veh[vid].trip; if(!tr) return;
+  if(id==='farmer'){tr.driver='farmer'; if(F.cur&&F.state==='go'){F.jobs.push(F.cur); F.cur=null; F.state='idle';} F.jobs.unshift({type:'board',vid,i:-1});}
+  else {const H=helpers.find(H=>'h'+H.h.id===id); if(!H) return assignDriver(vid,'farmer'); tr.driver=id; H.cur={type:'board',vid,i:-1}; H.state='go';}
+  save();}
+let drvVid=null;
+function openDriverPick(vid){drvVid=vid; const V=VEH[vid];
+  $('drvTitle').textContent=`${V.icon} Who drives the ${V.name.toLowerCase()}?`;
+  $('drvBody').innerHTML=driverChoices().map(c=>`<button class="gbtn row ${c.free?'':'busy'}" data-drv="${c.id}" ${c.free?'':'disabled'}><span class="gi">${c.icon}</span><b>${c.name}</b><small>${c.note}</small></button>`).join('');
+  $('drvSheet').classList.add('open');}
+function closeDriverPick(pick){const vid=drvVid; drvVid=null; $('drvSheet').classList.remove('open'); if(!vid) return; const tr=S.veh[vid].trip; if(!tr||tr.driver!=='pending') return;
+  const free=driverChoices().filter(c=>c.free); if(pick&&free.some(c=>c.id===pick)) assignDriver(vid,pick); else if(free.length) assignDriver(vid,(free.find(c=>c.id!=='farmer')||free[0]).id); else {S.veh[vid].trip=null; noDriver(); refundTrip(tr);}}
+function refundTrip(tr){if(tr.cargo) S.load.push(...tr.cargo); if(tr.goods) for(const k in tr.goods) S.inv[k]=(S.inv[k]||0)+tr.goods[k]; changed();}
+function beginTrip(vid,tr,by){ // you choose who drives when more than one person is free (a Biyahero delivering on his own drives himself)
+  const st=S.veh[vid], free=driverChoices().filter(c=>c.free);
+  if(!free.length){noDriver(); return false;}
+  st.trip=tr; tr.t0=null;
+  if(by&&free.some(c=>c.id===by)){assignDriver(vid,by); return true;}
+  if(free.length===1){assignDriver(vid,free[0].id); return true;}
+  tr.driver='pending'; setTimeout(()=>openDriverPick(vid),0); return true;
 }
 function departAt(vid){const tr=S.veh[vid].trip; let t0=Date.now();
   for(const o in S.veh){const ot=S.veh[o].trip; if(o!==vid&&ot&&ot.t0&&ot.dest===tr.dest&&t0-ot.t0<7000) t0=Math.max(t0,ot.t0+7000);} return t0;}
@@ -3916,7 +3990,9 @@ function updateTravelHUD(now){
   const lines=Object.keys(VEH).filter(OWN).map(v=>`${VEH[v].icon} ${VEH[v].name}: ${S.veh[v].trip?vehText(v,now):'parked at the farm'}`).join(' · ');
   if($('market').classList.contains('open')) $('jeepStatus').textContent=lines+'. You get paid when the vehicle reaches the palengke.';
   if($('hwSheet').classList.contains('open')) $('hwStatus').textContent=lines;
-  if(bldOpen()){const t=S.tiles[bldIdx], el=$('bldState'); if(t&&t.s==='bld'&&el){el.textContent=bldStateText(t,now); const b=el.nextElementSibling, h=collectBtn(t); if(b&&b.outerHTML!==h) b.outerHTML=h;}}
+  if(bldOpen()){const t=S.tiles[bldIdx], el=$('bldState'); if(t&&t.s==='bld'&&el){const sig=`${t.stored||0}|${!!claimedBy(bldIdx)}|${underConstruction(t,now)}|${lvlOf(t)}`;
+    if(sig!==renderBld.sig){renderBld.sig=sig; renderBld();} else {el.textContent=bldStateText(t,now); const m=document.querySelector('#bldBody .meter i'), uc=underConstruction(t,now);
+      if(m) m.style.width=Math.round(100*Math.min(1,uc?(now-t.bs)/(t.bd*1000):(t.stored||0)/capOf(t)))+'%';}}}
   const bl=$('buildLeft'); if(bl&&S.build) bl.textContent=fmt(Math.max(0,S.build.t0/1000+S.build.dur-now/1000));
 }
 const followObj=()=>{if(followFarmer) return farmer.riding?VEH[farmer.riding].obj:farmer.p.root; const a=activeVehs(); return a.length?VEH[a[0]].obj:null;};
@@ -3964,7 +4040,7 @@ $('hwSheet').addEventListener('click',e=>{
 /* ---------- Manukan detail / upgrade sheet ---------- */
 let bldIdx=-1;
 const bldOpen=()=>$('bldSheet').classList.contains('open');
-function openBld(i){bldIdx=i; renderBld(); $('bldSheet').classList.add('open');}
+function openBld(i){bldIdx=i; bldTab=null; renderBld(); $('bldSheet').classList.add('open');}
 function bldStateText(t,now){
   if(underConstruction(t,now)) return `🔨 Workers are building… ${fmt((t.bs+t.bd*1000-now)/1000)}`;
   const k=Object.keys(BLDS[t.b].gives)[0], st=`Storage: ${(t.stored||0)*perBatch(t,k)}/${capOf(t)*perBatch(t,k)} ${ITEMS[k].icon}`;
@@ -3972,27 +4048,32 @@ function bldStateText(t,now){
   if(t.hungry) return `😟 Gutom! Out of feeds, so production stopped. ${st}`;
   return `⏱ Next batch in ${fmt(secondsLeft(bldIdx,now))} · ${st}${t.stored?' · ready to collect!':''}`;
 }
-function collectBtn(t){
-  const n=t.stored||0, queued=!!claimedBy(bldIdx);
-  const what=Object.keys(BLDS[t.b].gives).map(k=>`${n*perBatch(t,k)} ${ITEMS[k].icon}`).join(' + ');
-  if(queued) return '<button class="go" disabled>👨‍🌾 Your farmer is on the way…</button>';
-  return `<button class="go big" data-act="collect" ${n?'':'disabled'}>${n?`🧺 Collect ${what}`:'🧺 Nothing to collect yet'}</button>`;
-}
+// a building's pop-up: three game buttons (Collect · Upgrade · Info); Upgrade and Info open a panel attached under their button
+let bldTab=null;
 function renderBld(){
   const t=S.tiles[bldIdx]; if(!t||t.s!=='bld'||!(BLDS[t.b].size>1)){$('bldSheet').classList.remove('open'); return;}
   const B=BLDS[t.b], lv=lvlOf(t), LV=POULTRY_LV[t.b], cur=LV[lv], next=LV[lv+1], now=Date.now(), uc=underConstruction(t,now);
   const gives=Object.entries(B.gives).map(([k,n])=>`${n*lv} ${ITEMS[k].icon} ${ITEMS[k].name}`).join(', ');
   $('bldTitle').textContent=`${B.icon} ${cur.name}`;
-  $('bldBody').innerHTML=`<p class="jstat">Level ${lv}/3 · ${cur.desc}</p>
-    <div class="ucards">
-      <div class="ucard"><div class="who">Production</div><div class="pay">Each batch makes ${gives} and goes into the farm's storage (holds ${capOf(t)} batches).${B.feed?` Each batch eats ${feedNeed(t)} ${MATS[feedKey(t)].icon} ${MATS[feedKey(t)].name}.`:''}</div><div class="pay" id="bldState">${bldStateText(t,now)}</div>${collectBtn(t)}</div>
-      ${B.feed?`<div class="ucard"><div class="who">${MATS[feedKey(t)].icon} ${MATS[feedKey(t)].name}</div><div class="pay">In your bodega: <b>${S.mats[feedKey(t)]||0}</b>. Only this feed works for this farm.</div><button class="go" data-act="buyfeed">🐣 Buy feeds</button></div>`:''}
-      <div class="ucard"><div class="who">⬆️ Upgrade</div>${next?`<div class="pay">Next: <b>${next.name}</b> · ${next.desc} Storage grows to ${next.cap} batches (${next.cap*B.gives[Object.keys(B.gives)[0]]*(lv+1)} ${ITEMS[Object.keys(B.gives)[0]].icon}).</div><div class="need">${needHTML(next)}</div>
-        <button class="go" data-act="upgrade" ${canAfford(next)&&!uc?'':'disabled'}>🔨 Upgrade (${next.dur}s)</button>`:'<div class="pay">✅ Fully upgraded</div>'}</div>
-    </div>`;
+  const n=t.stored||0, queued=!!claimedBy(bldIdx), what=Object.keys(B.gives).map(k=>`${n*perBatch(t,k)} ${ITEMS[k].icon}`).join(' + ');
+  const fill=Math.round(100*Math.min(1,uc?(now-t.bs)/(t.bd*1000):n/capOf(t))), fk=B.feed?feedKey(t):null;
+  const panel=bldTab==='up'?(next?`<div class="pay">Next: <b>${next.name}</b> · ${next.desc} Storage grows to ${next.cap} batches.</div><div class="need">${needHTML(next)}</div>
+      <button class="gbtn gold" data-act="upgrade" ${canAfford(next)&&!uc?'':'disabled'}>🔨 <b>Upgrade</b><small>${next.dur}s</small></button>`:'<div class="pay">✅ Fully upgraded</div>')
+    :bldTab==='info'?`<div class="pay">${cur.desc}</div><div class="pay">Each batch makes ${gives} and goes into storage (holds ${capOf(t)} batches).${B.feed?` Each batch eats ${feedNeed(t)} ${MATS[fk].icon} ${MATS[fk].name}.`:''}</div>
+      ${B.feed?`<div class="pay">${MATS[fk].icon} ${MATS[fk].name} in your bodega: <b>${S.mats[fk]||0}</b></div><button class="gbtn" data-act="buyfeed">🐣 <b>Buy feeds</b></button>`:''}`:'';
+  $('bldBody').innerHTML=`<div class="bstat"><span class="lvp">${'●'.repeat(lv)}${'○'.repeat(3-lv)}</span><span id="bldState">${bldStateText(t,now)}</span></div>
+    <div class="meter"><i style="width:${fill}%"></i></div>
+    <div class="gtabs">
+      <button class="gbtn green" data-act="collect" ${n&&!queued?'':'disabled'}>🧺<b>${queued?'On the way':'Collect'}</b><small>${n?what:'nothing yet'}</small></button>
+      <button class="gbtn ${bldTab==='up'?'on':''}" data-tab="up">⬆️<b>Upgrade</b><small>${next?'to level '+(lv+1):'max level'}</small></button>
+      <button class="gbtn ${bldTab==='info'?'on':''}" data-tab="info">ℹ️<b>Info</b><small>${B.feed?`${S.mats[fk]||0} ${MATS[fk].icon} feed`:'details'}</small></button>
+    </div>
+    ${bldTab?`<div class="gpanel at-${bldTab}">${panel}</div>`:''}`;
 }
+$('drvSheet').addEventListener('click',e=>{if(e.target.id==='drvSheet'||e.target.closest('#closeDrv')) return closeDriverPick(null); const b=e.target.closest('[data-drv]'); if(b&&!b.disabled){closeDriverPick(b.dataset.drv); buzz(); refreshSheets();}});
 $('bldSheet').addEventListener('click',e=>{
   if(e.target.id==='bldSheet'||e.target.closest('#closeBld')) return $('bldSheet').classList.remove('open');
+  const tb=e.target.closest('[data-tab]'); if(tb){bldTab=bldTab===tb.dataset.tab?null:tb.dataset.tab; buzz(); return renderBld();}
   const a=e.target.closest('[data-act]'); if(!a) return;
   if(a.dataset.act==='collect'){if(queueJob('harvest',bldIdx)){buzz(); toast('👨‍🌾 Your farmer is going to collect it and bring it to the bodega.',2600);} $('bldSheet').classList.remove('open'); return;}
   if(a.dataset.act==='buyfeed'){$('bldSheet').classList.remove('open'); return openHW('poultry');}
@@ -4005,8 +4086,8 @@ $('bldSheet').addEventListener('click',e=>{
   }
 });
 /* ---------- Upgrades sheet ---------- */
-let upFocus=null;
-function openUp(f){upFocus=typeof f==='string'?f:null; renderUp(); $('upSheet').classList.add('open'); setTimeout(()=>{const c=document.querySelector('.ucard.focus'); if(c) c.scrollIntoView({block:'nearest',behavior:'smooth'});},60);}
+let upFocus=null, upTab='garage';
+function openUp(f){upFocus=typeof f==='string'?f:null; upTab=upFocus&&['garage','jeep','truck','sedan','van'].includes(upFocus)?upFocus:upFocus==='city'?'van':'garage'; renderUp(); $('upSheet').classList.add('open'); setTimeout(()=>{const c=document.querySelector('.ucard.focus'); if(c) c.scrollIntoView({block:'nearest',behavior:'smooth'});},60);}
 function needHTML(o){return Object.entries(o.mats).map(([k,n])=>{const h=S.mats[k]||0; return `<span class="${h>=n?'got':''}">${MATS[k].icon} ${Math.min(h,n)}/${n}</span>`;}).join('')+`<span class="${S.coins>=o.coins?'got':''}">₱${o.coins}</span>`;}
 const canAfford=o=>S.coins>=o.coins&&Object.entries(o.mats).every(([k,n])=>(S.mats[k]||0)>=n);
 function upCard(what,icon,list,lvl){
@@ -4035,11 +4116,16 @@ function renderUp(){
       <div class="pay">Meat in your bodega: <b>${meatN}</b></div><button class="go" data-up="city" ${meatN&&vehFree('van')&&driverFree()?'':'disabled'}>${S.veh.van.trip?'🚐 On the road…':'🏙️ Deliver meat to the city'}</button></div>`
     :`<div class="ucard"><div class="who">🚐 Closed van</div><div class="pay">A Philippine aluminium closed van with a reefer unit. The only vehicle that can take chilled meat to the city, where it sells for 180% of the palengke price.</div>
       ${S.level<VAN_LV?`<div class="pay">🔒 Unlocks at level ${VAN_LV}.</div>`:''}${S.garage<3?'<div class="pay">Needs the big garage (garage level 3).</div>':''}${needHouse(3)}<button class="go" data-up="van" ${S.level>=VAN_LV&&S.garage>=3&&S.house>=3&&S.coins>=VAN_PRICE?'':'disabled'}>Buy for ₱${VAN_PRICE.toLocaleString()}</button></div>`;
-  $('upCards').innerHTML=upCard('garage','🅿️',GARAGE,S.garage)+jeepCard+truckCard+sedanCard+vanCard;
+  // a row of game buttons; the one you pick opens its details in a panel attached under it (tap it again to fold it away)
+  const pr=n=>'₱'+n.toLocaleString(), items=[['garage','🅿️','Garage',`level ${S.garage}/3`,upCard('garage','🅿️',GARAGE,S.garage)],['jeep','🚙','Jeepney',OWN('jeep')?'owned':pr(JEEP_PRICE),jeepCard],
+    ['truck','🚚','Elf truck',S.veh.truck.owned?'owned':pr(TRUCK_PRICE),truckCard],['sedan','🚗','Sedan',OWN('sedan')?'owned':pr(SEDAN_PRICE),sedanCard],['van','🚐','Closed van',OWN('van')?'owned':pr(VAN_PRICE),vanCard]];
+  const si=items.findIndex(x=>x[0]===upTab);
+  $('upCards').innerHTML=`<div class="gtabs five">${items.map(([id,ic,nm,sub])=>`<button class="gbtn ${id===upTab?'on':''}" data-utab="${id}">${ic}<b>${nm}</b><small>${sub}</small></button>`).join('')}</div>${si>=0?`<div class="gpanel at-${si}">${items[si][4]}</div>`:''}`;
   updateTravelHUD(Date.now());
 }
 $('upSheet').addEventListener('click',e=>{
   if(e.target.id==='upSheet'||e.target.closest('#closeUp')) return $('upSheet').classList.remove('open');
+  const ut=e.target.closest('[data-utab]'); if(ut){upTab=upTab===ut.dataset.utab?null:ut.dataset.utab; buzz(); return renderUp();}
   const u=e.target.closest('[data-up]'); if(!u) return;
   const what=u.dataset.up;
   if(what==='sedan'){if(OWN('sedan')||S.level<SEDAN_LV||S.garage<3||S.house<2||S.coins<SEDAN_PRICE) return; S.coins-=SEDAN_PRICE; S.veh.sedan.owned=true; toast('🚗 Your sedan is parked in the garage!',3000); buzz(); changed(); return renderUp();}

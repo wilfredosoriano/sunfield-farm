@@ -742,6 +742,7 @@ function freshState(){
   return {coins:150,xp:0,level:1,tiles,tool:null,crop:'wheat',bld:'tree',seenHelp:false,inv:{},orders:[],queue:[],veh:{jeep:{owned:false,trip:null},truck:{owned:false,trip:null},sedan:{owned:false,trip:null},van:{owned:false,trip:null}},mats:{},house:1,garage:1,build:null,premade:true,premade2:true,yardMig:true,coop3:true,cows3:true};
 }
 let S=null;
+const OUTF=new WeakMap();   // share of a house's animals already carried out to a waiting vehicle (drawn fewer; not saved)
 try{const raw=localStorage.getItem(KEY); if(raw) S=JSON.parse(raw);}catch(e){S=null}
 if(S&&Array.isArray(S.tiles)&&S.tiles.length===NF+48){const old=S.tiles.slice(NF); S.tiles=S.tiles.slice(0,NF); for(let i=NF;i<NT;i++) S.tiles.push({s:'grass'});
   old.forEach((t,k)=>{if(t.s!=='grass') S.tiles[NF+(((k/8)|0)+1)*YC+(k%8)+4]=t;});}
@@ -2741,7 +2742,7 @@ const LIVE_VEH={live_chicken:['sedan','truck'],live_pig:['stock','truck'],live_g
 const UNIT={chick:10,pullet:10,duckling:10,itik:10,fingerling:50,piglet:1,calf:1,kid:1}, POULTRY_B=['coop','broiler','duck'];
 const maxN=t=>LIFE[t.b].max[(t.lvl||1)-1];
 const herdFrac=t=>!LIFE[t.b]?1:t.n>0?Math.min(1,t.n/maxN(t)):0;
-function visN(t,base){if(!t||!LIFE[t.b]||t.n==null) return base; if(!(t.n>0)) return 0; return Math.max(1,Math.round(base*herdFrac(t)));}   // how many animals to draw
+function visN(t,base){if(!t||!LIFE[t.b]||t.n==null) return base; if(!(t.n>0)) return 0; const f=1-(OUTF.get(t)||0); if(f<=.001) return 0; return Math.max(1,Math.round(base*herdFrac(t)*f));}   // how many animals to draw
 const gsc=t=>t&&LIFE[t.b]&&t.n>0&&(t.gp||0)<1?.55+.45*(t.gp||0):1;                                                                 // young ones are drawn smaller
 function fmtG(ms){const h=ms/DAY_MS*24; return h>=24?`${Math.floor(h/24)}d ${Math.floor(h%24)}h`:h>=1?`${Math.floor(h)}h ${Math.floor((h%1)*6)*10}m`:`${Math.max(1,Math.round(h*60))}m`;}   // game time
 function growLeft(t,now){const L=LIFE[t.b], per=BLDS[t.b].period*1000; return Math.max(0,(1-(t.gp||0))*L.grow*DAY_MS-(t.hungry?0:Math.min(per,now-t.t)));}
@@ -4412,8 +4413,8 @@ function updateVehicles(now){
       if(tr.eggs&&t&&isFarm(t)&&(t.stored||0)>0){const B=BLDS[t.b], n=t.stored, wasFull=isFull(t), g={}; for(const k in B.gives) g[k]=perBatch(t,k)*n;   // egg trays from the itlogan or itikan
         t.stored=0; if(g.egg) S.stats.egg+=g.egg; gainXP(B.xp*lvlOf(t)*n); if(wasFull||t.hungry) startCycle(tr.i,true); tr.got=g; tr.word='itlog'; updateTile(tr.i,Date.now());}
       else if(L&&(L.live||L.cull)&&t.n>0&&(t.gp||0)>=1){const k=L.live||L.cull, take=L.live?t.n:Math.min(t.n,tr.cnt||1); tr.got={[k]:take}; tr.word=take===1&&L.one?L.one:L.word;
-        gainXP(Math.round(BLDS[t.b].xp*lvlOf(t)*capOf(t)*take/maxN(t))); t.n-=take; if(!t.n){t.gp=0; t.hungry=false; t.ng=0; t.sick=false;} t.t=Date.now(); updateTile(tr.i,Date.now());}
-      else tr.got={}; changed();}
+        gainXP(Math.round(BLDS[t.b].xp*lvlOf(t)*capOf(t)*take/maxN(t))); OUTF.delete(t); t.n-=take; if(!t.n){t.gp=0; t.hungry=false; t.ng=0; t.sick=false;} t.t=Date.now(); updateTile(tr.i,Date.now());}
+      else tr.got={}; if(t) OUTF.delete(t); changed();}
     if(ph.ph==='done'){
       if(tr.dest==='pickup'&&tr.got){let m=0; for(const k in tr.got){S.inv[k]=(S.inv[k]||0)+tr.got[k]; m+=tr.got[k];}
         if(m) toast(tr.eggs?`${VEH[vid].icon} Back with ${m} ${Object.keys(tr.got).map(k=>ITEMS[k].icon).join(' ')} in egg trays. They are in your bodega.`:`${VEH[vid].icon} Back with ${m} live ${tr.word}! Sell them live at the palengke, or turn them into meat at the 🔪 Katayan.`,4000);}
@@ -4457,11 +4458,11 @@ function placeVehicles(now,dt){
     const useFeed=!!(st.trip&&(st.trip.dest==='poultry'||st.trip.dest==='seeds')), MG=useFeed?V.feed:V.mats; (useFeed?V.mats:V.feed).visible=false;
     const n=MG.children.length, show=Math.round(mats*n); MG.visible=show>0; MG.children.forEach((c,i)=>c.visible=i<show);
     {const tr=st.trip, on=tr&&tr.dest==='pickup'&&tr.eggs; if(on||V.eggSet){if(!V.eggSet) V.eggSet=makeEggSet(V); let f=0;   // egg trays stacking up in the jeepney or truck
-      if(on){const P5=vehPhase(vid,now); f=P5.ph==='stop'?Math.min(1,P5.e/(tr.stopT||12)):P5.ph==='back'?1:0;} const n=V.eggSet.children.length, sh=Math.ceil(f*n); V.eggSet.visible=sh>0; V.eggSet.children.forEach((c,k)=>c.visible=k<sh);}}
+      if(on){const P5=vehPhase(vid,now); f=P5.ph==='stop'?(V.pickIn!=null?V.pickIn:Math.min(1,P5.e/(tr.stopT||12))):P5.ph==='back'?1:0;} const n=V.eggSet.children.length, sh=Math.ceil(f*n); V.eggSet.visible=sh>0; V.eggSet.children.forEach((c,k)=>c.visible=k<sh);}}
     if(V.liveSets){let kind=null, lf=0; const tr=st.trip;   // live animals in the cages: loading at a pen, riding home, or going to the palengke
       if(V.ramp){let open=0; if(tr&&tr.dest==='pickup'){const P3=vehPhase(vid,now); if(P3.ph==='stop') open=Math.max(0,Math.min(1,P3.e/1.2,(STOP.pickup-P3.e)/1.2));} V.ramp.rotation.x+=(-2.2*open-V.ramp.rotation.x)*Math.min(1,dt*6);}
       if(tr&&tr.dest==='pickup'){const P2=vehPhase(vid,now), set=V.liveSets[AREA_LIVE[tr.area]]; kind=AREA_LIVE[tr.area]; const fr=set?Math.min(1,(tr.cnt||99)/set.children.length):1;
-        lf=fr*(P2.ph==='stop'?Math.min(1,P2.e/(tr.stopT||STOP.pickup)):P2.ph==='back'?(tr.got&&Object.keys(tr.got).length?1:0):0); loadWalkers(V,tr,P2,now);}
+        lf=fr*(P2.ph==='stop'?(kind==='live_chicken'&&V.pickIn!=null?V.pickIn:Math.min(1,P2.e/(tr.stopT||STOP.pickup))):P2.ph==='back'?(tr.got&&Object.keys(tr.got).length?1:0):0); loadWalkers(V,tr,P2,now);}
       else {hideWalkers(V); if(tr&&tr.cargo&&['palengke','brgy','mountain','city'].includes(tr.dest)){const ids=tr.cargo.flatMap(c=>Object.keys(c.ret||c.live||{})); kind=['live_cow','live_pig','live_goat','live_chicken'].find(k=>ids.includes(k))||null; if(kind) lf=Math.max(.3,+goods||0);}}
       for(const k in V.liveSets){const g=V.liveSets[k], ln=g.children.length, ls=k===kind?Math.ceil(lf*ln):0; g.visible=ls>0;
         if(ls) g.children.forEach((c,q)=>{c.visible=q<ls; c.position.y=c.userData.y0+Math.abs(Math.sin(now/170+q*1.7))*.05;});}}
@@ -4480,20 +4481,23 @@ function errandPerson(V,tr){const key=tr.driver;
     scene.add(p.root); V.er=p; V.erKey=key;} return V.er;}
 function walkAlong(p,pts,u,now){let L=0; const seg=[]; for(let k=0;k<pts.length-1;k++){const d=Math.hypot(pts[k+1][0]-pts[k][0],pts[k+1][1]-pts[k][1]); seg.push(d); L+=d;}
   let s=Math.max(0,Math.min(1,u))*L, k=0; while(k<seg.length-1&&s>seg[k]){s-=seg[k]; k++;} const [ax,az]=pts[k], [bx,bz]=pts[k+1], f=seg[k]?Math.min(1,s/seg[k]):0;
-  p.root.position.set(ax+(bx-ax)*f,.08,az+(bz-az)*f); p.root.rotation.y=Math.atan2(bx-ax,bz-az); poseWalk(p,now/1000*8); return L;}
+  p.root.position.set(ax+(bx-ax)*f,.08,az+(bz-az)*f); p.root.rotation.y=lerpAng(p.root.rotation.y,Math.atan2(bx-ax,bz-az),.3); poseWalk(p,now/1000*8); return L;}   // turns smoothly at corners
 const pathLen=pts=>{let L=0; for(let k=0;k<pts.length-1;k++) L+=Math.hypot(pts[k+1][0]-pts[k][0],pts[k+1][1]-pts[k][1]); return L;};
-function errandStep(V,vid,tr,now){V.out=false; const hide=()=>{if(V.er) V.er.root.visible=false;};
+function errandStep(V,vid,tr,now){V.out=false; V.pickIn=null; const hide=()=>{if(V.er) V.er.root.visible=false;};
   const P=tr&&tr.t0?vehPhase(vid,now):null; if(!P||P.ph!=='stop'){hide(); return;}
   const sd=tr.stopT||STOP[tr.dest]||8, e=P.e, o=V.obj, ry=o.rotation.y, door=[o.position.x+Math.cos(ry)*1.5+Math.sin(ry)*1.6, o.position.z-Math.sin(ry)*1.5+Math.cos(ry)*1.6];
   const chick=tr.dest==='pickup'&&(tr.eggs||AREA_LIVE[tr.area]==='live_chicken'), shop=ERRAND_AT[tr.dest];
   if(!chick&&!shop){hide(); return;} if(e<.9||e>sd-.7){hide(); return;}   // still opening the door / already back in the seat
   const p=errandPerson(V,tr); p.root.visible=true; V.out=true; const t=e-.9, T=sd-1.6, sp=chick?3.2:1.6;
   if(chick){const rear=[o.position.x-Math.sin(ry)*(V.rear+.7),o.position.z-Math.cos(ry)*(V.rear+.7)], A=FARM.areas.find(a=>a.type===tr.area), h=jobSpot(tr.i), loop=[rear,A.gate,h,A.gate,rear];
-    const d0=Math.hypot(rear[0]-door[0],rear[1]-door[1])/sp, L=pathLen(loop), back=d0;
-    if(t<d0){walkAlong(p,[door,rear],t/d0,now); p.crate.visible=false;}
-    else if(t>T-back){walkAlong(p,[rear,door],(t-(T-back))/back,now); p.crate.visible=false;}
-    else {const u=((t-d0)*sp%L)/L; walkAlong(p,loop,u,now); const c=u>.5; p.crate.visible=c&&!tr.eggs; p.tray.visible=c&&!!tr.eggs; holdPose(p,c?(tr.eggs?'eggs':'crate'):null);}
-    if(!(t>=d0&&t<=T-back)) p.tray.visible=false;
+    // a whole number of trips (truck, house, truck), so the last crate goes in at the truck and he walks back to his door from there, no jump
+    const d0=Math.hypot(rear[0]-door[0],rear[1]-door[1])/sp, L=pathLen(loop), loopT=Math.max(.1,T-2*d0), n=Math.max(1,Math.round(loopT*sp/L)), per=loopT/n;
+    let c=false, inV=0, outH=0;
+    if(t<d0) walkAlong(p,[door,rear],t/d0,now);
+    else if(t>=d0+loopT){walkAlong(p,[rear,door],Math.min(1,(t-d0-loopT)/d0),now); inV=outH=1;}
+    else {const q=(t-d0)/per, k=Math.floor(q), u=q-k; walkAlong(p,loop,u,now); c=u>.5; inV=k/n; outH=(k+(c?1:0))/n;}   // picks a crate up at the house half way round, puts it in at the truck
+    p.crate.visible=c&&!tr.eggs; p.tray.visible=c&&!!tr.eggs; holdPose(p,c?(tr.eggs?'eggs':'crate'):null);
+    V.pickIn=inV; const ht=S.tiles[tr.i]; if(ht&&!tr.eggs&&!tr.loaded) OUTF.set(ht,outH);   // the flock in the house thins out crate by crate
     p.bag.visible=false; return;}
   const d=Math.hypot(shop[0]-door[0],shop[1]-door[1]), wt=Math.min(T/2.4,d/sp);
   if(t<wt){walkAlong(p,[door,shop],t/wt,now); p.bag.visible=false;}

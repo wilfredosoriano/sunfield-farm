@@ -2084,7 +2084,7 @@ const needHouse=n=>S.house<n?`<div class="pay">🏠 Needs your ${HOUSE[n].name} 
 const OWN=v=>v==='jeep'?S.veh.jeep.owned!==false:!!(S.veh[v]&&S.veh[v].owned);   // old farms keep their jeepney
 const STOCK_PRICE=12000, STOCK_LV=5, SEDAN_PRICE=4500, SEDAN_LV=2, VAN_PRICE=30000, VAN_LV=10;
 const JEEP_PRICE=3000, JEEP_LV=3, TRUCK_LV=7;
-const STOP={sari:7,pickup:12,mountain:8,palengke:8,hardware:9,poultry:7,seeds:7,warehouse:8,city:30,brgy:6};
+const STOP={port:8,sari:7,pickup:12,mountain:8,palengke:8,hardware:9,poultry:7,seeds:7,warehouse:8,city:30,brgy:6};
 const MEATS=['chicken','beef','pork','chevon','tilapia'], CITY_RATE=1.8;
 const WHX=62, FX=395;   // the warehouse, and the factory far out east (its smoke stays away from the barangay)
 const WH_LV=9, WH_PRICE=15000, FAC_LV=14, FAC_PRICE=60000, VAN_CAP=60;
@@ -2127,6 +2127,7 @@ function routesFor(vid,dest,tr){
   const toGarage=fromHwy(sx,d,sl);
   let out,back;
   if(dest==='pickup'){[out,back]=pickupRoute(vid,tr?tr.area:'broiler');}
+  else if(dest==='port'){out=[[sx,G0,sl],...toHwy(sx,d),[DX,LE,h],[394,LE,sl],[400.5,HZ+6,sl],[400.5,-92]]; back=[[400.5,-92,sl],[404,-96,sl],[401,HZ+5,sl],[396,LW,h],[DX,LW,d]].concat(toGarage);}   // into the port yard, to the pantalan bodega
   else if(dest==='sari'){out=[[sx,G0,sl],...toHwy(sx,d),[30.5,-104.4,sl]]; back=[[30.5,-104.4,sl],[33.5,-102,sl],...fromHwy(sx,d,sl)];}   // up the farm road, park beside the sari-sari store
   else if(dest==='palengke'){
     out=[[sx,G0,sl],...toHwy(sx,d),[DX,LE,h],[PX-4,LE,sl],[PX+2,HZ-5,sl],[PX+2,-124]];
@@ -2709,6 +2710,9 @@ function farmReturn(g,tick){let hungry=false; return {g,setReady:()=>{},setProgr
 const ducks=[];   // (the little decorative duck pond made way for the farm service road; ducks now live in their own enclosures)
 // inside the lot fence: the halamanan (orchard) east of the field and the talyer / utility yard west of the kamalig
 const ORCH=[21,36,-5,44], UTIL=[-45,-31,-7,5], SARI=[16.5,28,-104.8,-96.5];   // [x0,x1,z0,z1]; SARI: sari-sari store where the dirt road meets the highway
+// the sea in the south-east corner: the shore curves from the south down to a strip of land just south of the highway
+const shoreZ=x=>-78+160*Math.exp(-(x-250)/22)+2.5*Math.sin(x/13)+1.5*Math.sin(x/5.3);
+const nearSea=(x,z,m=0)=>x>196-m&&z>shoreZ(x)-14-m;
 const inRect=(R,x,z,m)=>x>R[0]-m&&x<R[1]+m&&z>R[2]-m&&z<R[3]+m;
 // countryside: acacia, mango, niyog, saging and kawayan trees, wild grass and flowers (all instanced, all cast shadows)
 (()=>{const rr=rng(42);
@@ -2719,6 +2723,7 @@ const inRect=(R,x,z,m)=>x>R[0]-m&&x<R[1]+m&&z>R[2]-m&&z<R[3]+m;
   const busy=(x,z,m)=>inLot(x,z)&&(m>=0||busyIn(x,z))   // the farm lot
     ||(x>116-m&&x<216+m&&z>-171-m&&z<-112+m)   // the poblacion block round the palengke (streets and shophouses)
     ||(x>226-m&&x<330+m&&z>-162-m&&z<-113+m)   // the bus terminal, the jeepney terminal and the police station
+    ||nearSea(x,z,m+2)||(x>366-m&&x<444+m&&z>-102-m&&z<-76+m)   // the beach, the sea and the port yard
     ||(x>PX-25-m&&x<PX+25+m&&z>PZ-19-m&&z<HZ-4)||(x>HWX-14-m&&x<HWX+14+m&&z>HZ-25-m&&z<HZ-4)||(x>PSX-14-m&&x<PSX+14+m&&z>HZ-25-m&&z<HZ-4)||(x>SSX-12-m&&x<SSX+12+m&&z>HZ-25-m&&z<HZ-4)||(x>DX+1-m&&x<DX+32+m&&z>HZ+3-m&&z<HZ+12+m)||(x>34-m&&x<336+m&&z>-218-m&&z<-164+m)||(x>34-m&&x<46+m&&z>-190&&z<HZ-4)||(x>324-m&&x<336+m&&z>-190&&z<HZ-4)||(x>PX+38-m&&x<PX+46+m&&z>-190-m&&z<HZ-4)||(x>WHX-14-m&&x<WHX+30+m&&z>HZ-32-m&&z<HZ-4)||(x>FX-30-m&&x<FX+30+m&&z>HZ-64-m&&z<HZ-4)   // sakayan, warehouse, factory
     ||inRect(ORCH,x,z,m)||inRect(UTIL,x,z,m)||inRect(SARI,x,z,m);
   const trunks=[],blobs=[],segs=[],fronds=[],nuts=[],bleaves=[],culms=[],bananaL=[];
@@ -2797,7 +2802,7 @@ const inRect=(R,x,z,m)=>x>R[0]-m&&x<R[1]+m&&z>R[2]-m&&z<R[3]+m;
 })();
 // gentle hills (burol) beyond the farm, the town and the factory, where nothing is built
 (()=>{const r=rng(606), b=[], CL=[0x7fb352,0x86b85a,0x78ab4e,0x8fbf5e];
-  const hill=(x,z)=>{const w=24+r()*36; b.push(P('dome',CL[(r()*4)|0],x,-.4,z,w,4+r()*7,w*(.6+r()*.5),0,r()*3,0));};
+  const hill=(x,z)=>{if(nearSea(x,z,30)) return; const w=24+r()*36; b.push(P('dome',CL[(r()*4)|0],x,-.4,z,w,4+r()*7,w*(.6+r()*.5),0,r()*3,0));};
   for(let k=0;k<26;k++) hill(-190+r()*660,100+r()*90);           // south, past the farm lot
   for(let k=0;k<26;k++){const x=-190+r()*660, z=-262-r()*110; if(x<40||x>340) hill(x,z);}   // north, past the barangay (the hillside barangay has its own slope)
   for(let k=0;k<10;k++){hill(-205-r()*80,-200+r()*260); hill(470+r()*80,-200+r()*260);}   // west and east ends
@@ -3275,7 +3280,7 @@ function pan(dx,dy){
   const s=cam.dist*.0022, sy=Math.sin(cam.yaw), cy=Math.cos(cam.yaw);
   cam.target.x+=-cy*dx*s - sy*dy*s;
   cam.target.z+= sy*dx*s - cy*dy*s;
-  cam.target.x=Math.max(-215,Math.min(465,cam.target.x)); cam.target.z=Math.max(-380,Math.min(105,cam.target.z));   // the whole map: the far farm corners, the factory, the mountain barangay
+  cam.target.x=Math.max(-215,Math.min(520,cam.target.x)); cam.target.z=Math.max(-380,Math.min(cam.target.x>220?160:105,cam.target.z));   // the whole map: the far farm corners, the factory, the mountain barangay
 }
 const zoom=f=>{cam.dist=Math.max(10,Math.min(130,cam.dist*f));};
 const ptrs=new Map(); let down=null, moved=false, btn=0, pinch=null, moveCand=-1, moving=null;
@@ -4265,7 +4270,7 @@ const MATS={wood:{name:'Kahoy',sub:'lumber',icon:'🪵',price:8,store:'hardware'
   pandesal:{name:'Pandesal',sub:'a bag of 5 bread rolls',icon:'🥖',price:25,store:'sari',food:1},
   kape:{name:'Kape',sub:'a sachet of 3-in-1 coffee: wakes your farmer up',icon:'☕',price:8,store:'sari',food:1}};
 for(const id in CROPS){const c=CROPS[id]; MATS['seed_'+id]={name:`Binhi ng ${c.name}`,sub:`seeds for 1 plot · ready in ${fmt(c.time)}`,icon:c.icon,price:c.cost,store:'seeds',crop:id};}
-const TRUCK_PRICE=15000, PLACE={brgy:'barangay',city:'city',palengke:'palengke',hardware:'hardware',poultry:'poultry supply',seeds:'Binhi store',warehouse:'warehouse',pickup:'animal pens',mountain:'mountain barangay',sari:'sari-sari store'};
+const TRUCK_PRICE=15000, PLACE={brgy:'barangay',city:'city',palengke:'palengke',hardware:'hardware',poultry:'poultry supply',seeds:'Binhi store',warehouse:'warehouse',pickup:'animal pens',mountain:'mountain barangay',sari:'sari-sari store',port:'pantalan'};
 const matsLabel=m=>Object.entries(m).filter(([,n])=>n>0).map(([k,n])=>`${n} ${MATS[k].name}`).join(', ');
 const farmerBusyDriving=()=>{const F=farmer; return !!(S.pasa||F.riding||F.jobs.some(j=>j.type==='board')||(F.cur&&F.cur.type==='board'));};
 const driverFree=()=>!!freeDriver()||!farmerBusyDriving();   // every vehicle needs someone to drive it
@@ -4320,6 +4325,8 @@ function updateVehicles(now){
       for(const k in (tr.goods||{})){n+=tr.goods[k]; coins+=tr.goods[k]*ITEMS[k].price*CITY_RATE;} let xpB=0; for(const c of (tr.cargo||[])){coins+=c.coins; xpB+=c.xp||0; n+=c.n||0; if(c.mission) S.stats.missions=(S.stats.missions||0)+1;}
       coins=Math.round(coins); S.coins+=coins; sfx('cash'); gainXP(Math.max(2,Math.round(coins/50))+xpB);
       toast(`🏙️ ${VEH[vid].name} delivered ${n} items in the city · +₱${coins.toLocaleString()}`,3600); changed();}
+    if(tr.dest==='port'&&!tr.paid&&ph.ph!=='out'&&ph.ph!=='board'){tr.paid=true; let n=0; for(const k in (tr.goods||{})){S.bay.stock[k]=(S.bay.stock[k]||0)+tr.goods[k]; n+=tr.goods[k];}
+      toast(`⚓ ${n} items are in the pantalan bodega, waiting for the MV Sinag Dagat.`,3200); changed();}
     if(tr.dest==='warehouse'&&!tr.paid&&ph.ph!=='out'&&ph.ph!=='board'){tr.paid=true; let n=0, coins=0;
       for(const k in (tr.goods||{})){S.wh.stock[k]=(S.wh.stock[k]||0)+tr.goods[k]; n+=tr.goods[k]; coins+=tr.goods[k]*ITEMS[k].price*whRate(k);}
       coins=Math.round(coins); S.coins+=coins; sfx('cash'); gainXP(Math.max(1,Math.round(coins/60))); S.stats.bulk+=n;
@@ -4361,9 +4368,9 @@ function placeVehicles(now,dt){
     if(st.trip&&st.trip.t0){const ph0=vehPhase(vid,now).ph; const blk=(ph0==='out'||ph0==='back')&&aheadGap(o,o.position.x,o.position.z,o.rotation.y,V.len||6)<1.2;
       V.blk=blk?(V.blk||0)+dt:0; if(blk&&V.blk<8) st.trip.t0+=dt*1000;}   // wait behind whoever stopped in front
     if(st.trip){const ph=vehPhase(vid,now), R=ph.R;
-      if(ph.ph==='out'){p=routePos(R.out,ph.e); goods=['palengke','warehouse','city','brgy','mountain'].includes(st.trip.dest)?Math.max(.2,st.trip.fill||1):false;}
-      else if(ph.ph==='stop'){p=routePos(R.out,R.out.T); if(!['palengke','warehouse','city','brgy','mountain','pickup'].includes(st.trip.dest)) mats=Math.min(1,ph.e/STOP[st.trip.dest]); else goods=Math.max(.2,st.trip.fill||1)*(1-Math.min(1,ph.e/(STOP.palengke*.85)));}
-      else if(ph.ph==='back'){p=routePos(R.back,ph.e); if(!['palengke','warehouse','city','brgy','mountain','pickup'].includes(st.trip.dest)) mats=1;}
+      if(ph.ph==='out'){p=routePos(R.out,ph.e); goods=['palengke','warehouse','city','brgy','mountain','port'].includes(st.trip.dest)?Math.max(.2,st.trip.fill||1):false;}
+      else if(ph.ph==='stop'){p=routePos(R.out,R.out.T); if(!['palengke','warehouse','city','brgy','mountain','pickup','port'].includes(st.trip.dest)) mats=Math.min(1,ph.e/STOP[st.trip.dest]); else goods=Math.max(.2,st.trip.fill||1)*(1-Math.min(1,ph.e/(STOP.palengke*.85)));}
+      else if(ph.ph==='back'){p=routePos(R.back,ph.e); if(!['palengke','warehouse','city','brgy','mountain','pickup','port'].includes(st.trip.dest)) mats=1;}
     }
     if(V.prev){const d=Math.hypot(p.x-V.prev.x,p.z-V.prev.z); if(d<5) V.wheels.forEach(w=>w.rotation.y-=d/V.r);} V.prev={x:p.x,z:p.z};
     const moving=st.trip&&p.x!==V.slot;
@@ -4952,7 +4959,7 @@ function renderBiz(){
   const facCard=fac?`<div class="ucard"><div class="who">🏭 Mega Foods supply deal ✅</div><div class="pay">The factory buys only from the bagsakan. With your deal, the bagsakan pays you 130% for ${good}. You still deliver to the bagsakan, never to the factory.</div></div>`
     :`<div class="ucard"><div class="who">🏭 Mega Foods Corp. · supply deal</div><div class="pay">The factory never buys from farmers directly; it only buys from the bagsakan. A supply deal makes the bagsakan pay you 130% (instead of 70%) for ${good}.</div>
       <div class="pay">${!own?'Needs the trader\'s permit first. ':''}${S.level<FAC_LV?`🔒 Unlocks at level ${FAC_LV}.`:''}</div>${needHouse(4)}<button class="go" data-biz="fac" ${own&&S.level>=FAC_LV&&S.house>=4&&S.coins>=FAC_PRICE?'':'disabled'}>Sign the supply deal for ₱${FAC_PRICE.toLocaleString()}</button></div>`;
-  $('bizCards').innerHTML=whCard+facCard;
+  $('bizCards').innerHTML=whCard+facCard+bayCard(free);
 }
 $('bizBtn').addEventListener('click',()=>{closeMarket(); openBiz();});
 $('bizSheet').addEventListener('click',e=>{
@@ -4961,6 +4968,12 @@ $('bizSheet').addEventListener('click',e=>{
   const b=e.target.closest('[data-biz]'), w=e.target.closest('[data-whsend]');
   if(b&&b.dataset.biz==='wh'){if(S.wh.owned||S.level<WH_LV||S.house<2||S.coins<WH_PRICE) return; S.coins-=WH_PRICE; S.wh.owned=true; paintSigns(); toast('🏬 You have a trader\'s permit! Haul any goods to the bagsakan in bulk with your jeepney or Elf truck.',3600); buzz(); changed(); return renderBiz();}
   if(b&&b.dataset.biz==='fac'){if(S.wh.factory||!S.wh.owned||S.level<FAC_LV||S.house<4||S.coins<FAC_PRICE) return; S.coins-=FAC_PRICE; S.wh.factory=true; paintSigns(); toast('🏭 Supply deal signed! The bagsakan now pays 130% for meat, eggs, milk and factory crops.',3800); buzz(); changed(); return renderBiz();}
+  const bs=e.target.closest('[data-baysend]'), bb=e.target.closest('[data-bay]');
+  if(bb){const a=bb.dataset.bay; if(a==='buy'){if(S.bay.owned||S.level<BAY_LV||S.coins<BAY_PRICE) return; S.coins-=BAY_PRICE; S.bay.owned=true; sfx('cash'); toast('⚓ Bay trading permit! Haul goods to the pantalan and the MV Sinag Dagat ships them to the islands.',3600); changed(); return renderBiz();}
+    if(a==='sail'){shipSail(); return renderBiz();} if(a==='visit'){$('bizSheet').classList.remove('open'); return flyTo(405,-70,60);}}
+  if(bs){const v=bs.dataset.baysend; if(!vehFree(v)||!bodegaN()||!S.bay.owned) return; const g=takeGoods(VEH[v].cap), n=Object.values(g).reduce((a,b)=>a+b,0);
+    if(!beginTrip(v,{dest:'port',goods:g,paid:false,fill:n/VEH[v].cap})){for(const k in g) S.inv[k]+=g[k]; return;}
+    toast(`${VEH[v].icon} ${driverName(S.veh[v].trip,true)} is hauling ${n} items to the pantalan.`,3000); buzz(); changed(); return renderBiz();}
   if(w){const v=w.dataset.whsend; if(!vehFree(v)||!bodegaN()) return; const g=takeGoods(VEH[v].cap), n=Object.values(g).reduce((a,b)=>a+b,0);
     if(!beginTrip(v,{dest:'warehouse',goods:g,paid:false,fill:n/VEH[v].cap})){for(const k in g) S.inv[k]+=g[k]; return;}
     toast(`${VEH[v].icon} ${driverName(S.veh[v].trip,true)} is hauling ${n} items to the bagsakan.`,3000); buzz(); changed(); renderBiz();}
@@ -5614,7 +5627,71 @@ let townLast=performance.now();
     if(AC&&SND.sfx&&AC.state==='running'){const k=near(F.x,lz); F.beat+=dt; if(F.beat>=.42){F.beat-=.42; const B=BUS.sfx, bt=(F.bt=(F.bt||0)+1);
       if(k>.05){noise(B,{d:.08,v:.18*k,f:bt%2?1800:200,q:bt%2?.8:.5,type:bt%2?'bandpass':'lowpass'}); if(bt%8===0) [523,659,784,659].forEach((f,i)=>tone(B,{f,type:'sawtooth',d:.18,v:.05*k,t:i*.21,lp:2200}));}}}}
 })();
+/* ---------- Stage H: the sea, the port (pantalan) and the bay trading business ---------- */
+if(!S.bay) S.bay={owned:false,stock:{},ship:null};
+const BAY_LV=12, BAY_PRICE=50000, BAY_RATE=1.6, SHIP_T={out:30,away:45,back:30};
+const SEA=(()=>{const g=new THREE.Group(); scene.add(g); const pts=[]; for(let x=196;x<=900;x+=2){const z=shoreZ(x); if(z<900) pts.push([x,Math.max(-79.5,z)]);}
+  const band=(off0,off1,col,y,op)=>{const sh=new THREE.Shape(); const L=pts.map(([x,z],i)=>{const [a,c]=pts[Math.max(0,i-1)], [b2,d]=pts[Math.min(pts.length-1,i+1)], tx=b2-a, tz=d-c, l=Math.hypot(tx,tz)||1; return [x,z,tz/l,-tx/l];});   // normal points inland (north-west)
+    L.forEach(([x,z,nx,nz],i)=>{const X=x+nx*off0, Z=z+nz*off0; i?sh.lineTo(X,-Z):sh.moveTo(X,-Z);}); for(let i=L.length-1;i>=0;i--){const [x,z,nx,nz]=L[i]; sh.lineTo(x+nx*off1,-(z+nz*off1));}
+    const geo=new THREE.ShapeGeometry(sh); geo.rotateX(-Math.PI/2); const m=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:col,roughness:.9,transparent:op<1,opacity:op})); m.position.y=y; m.receiveShadow=true; g.add(m); return m;};
+  band(14,-1,0xe9d9a6,.03,1);   // the beach
+  const sea=new THREE.Shape(); pts.forEach(([x,z],i)=>i?sea.lineTo(x,-z):sea.moveTo(x,-z)); sea.lineTo(900,-900); sea.lineTo(196,-900);
+  const sg=new THREE.ShapeGeometry(sea); sg.rotateX(-Math.PI/2); const water=new THREE.Mesh(sg,new THREE.MeshStandardMaterial({color:0x2a86b0,roughness:.25,metalness:.1})); water.position.y=.06; g.add(water);
+  const shallow=band(-1,-22,0x56c2c6,.07,.75), foam=band(1.2,-1.6,0xffffff,.08,.6);
+  // parola (lighthouse) on rocks at the eastern point, and bangkas near the beach
+  const lb=[]; const lx=470, lz=shoreZ(470)-4; lb.push(P('dome',0x8d8f8a,lx,0,lz,9,2.4,8)); lb.push(P('cyl',0xf5f5f5,lx,5,lz,2.2,9,2.2)); for(const y of [2.5,6.5]) lb.push(P('cyl',0xc62828,lx,y,lz,2.25,1.4,2.25)); lb.push(P('cyl',0x37474f,lx,10.1,lz,2.6,.3,2.6)); lb.push(P('cyl',0xfff3c4,lx,10.9,lz,1.4,1.3,1.4)); lb.push(P('cone',0xc62828,lx,12.1,lz,1.8,1.2,1.8));
+  const lm=new THREE.Mesh(mergeGeo(lb),VCMAT); lm.castShadow=true; g.add(lm); glow(g,lx,10.9,lz,9,GM.white);
+  const boats=[]; for(let k=0;k<4;k++){const bb=[], col=[0x1e88e5,0xe53935,0xfdd835,0x43a047][k]; bb.push(P('box',0xf5f5f5,0,.35,0,1.0,.5,5.2)); bb.push(P('box',col,0,.55,0,1.04,.12,5.24)); bb.push(P('cone',0xf5f5f5,0,.35,2.9,.5,.9,.5,Math.PI/2,0,0));
+    for(const s of [-1,1]){bb.push(P('cyl',0x6d4c41,s*1.9,.15,0,.12,4.6,.12,Math.PI/2,0,0)); bb.push(P('box',0x6d4c41,s*1.0,.5,1,1.9,.06,.08)); bb.push(P('box',0x6d4c41,s*1.0,.5,-1,1.9,.06,.08));}
+    const bm=new THREE.Group(); bm.add(new THREE.Mesh(mergeGeo(bb),VCMAT)); const x=280+k*24, z=shoreZ(280+k*24)+6+k%2*5; bm.position.set(x,.1,z); bm.rotation.y=.6+k; g.add(bm); boats.push(bm);}
+  return {g,water,shallow,foam,boats};})();
+// the port: yard, pantalan bodega, container stacks, a crane on the pier, and the cargo ship
+const PORT=(()=>{const b=[], g=new THREE.Group(); scene.add(g);
+  b.push(P('box',0xb0aca2,405,.05,-90.5,70,.1,20)); b.push(P('box',0xf1c40f,400.5,.11,-95,.15,.01,8));
+  b.push(P('box',0xe0d8c4,388,3,-93,17,6,11)); b.push(P('box',0x7d8f96,388,6.3,-93,18,.4,12)); b.push(P('box',0x3a3a3a,396.6,2.2,-93,.06,4,6)); b.push(P('box',0x1f4e9a,388,5.2,-87.45,10,1.2,.06));   // bodega with a dock door
+  const CC=[0xc62828,0x1565c0,0x2e7d32,0xf57c00,0x6d4c41,0x00838f]; for(let i=0;i<4;i++) for(let j=0;j<2;j++) for(let h=0;h<1+((i+j)%3);h++) b.push(P('box',CC[(i*2+j+h)%6],418+i*6.4,1.3+h*2.6,-97+j*3,6,2.5,2.6));   // containers
+  for(let k=0;k<14;k++) for(const s of [-1,1]) b.push(P('box',0x6d6d6d,408+s*5.6,-.6,-80+k*-4.4,.5,2.4,.5));   // pier piles
+  b.push(P('box',0xbdb6a6,408,1.0,-50,12,.5,62)); for(let k=0;k<7;k++) b.push(P('cyl',0x37474f,413.4,1.55,-26-k*8.5,.4,.6,.4)); for(let k=0;k<8;k++) b.push(P('cyl',0x1b1b1b,414.2,.8,-24-k*7.5,.7,.7,.4,0,0,Math.PI/2));   // deck, bollards, tyre fenders
+  const cx=409, cz=-56; for(const dx of [-2,2]) for(const dz of [-2,2]) b.push(P('box',0xf9a825,cx+dx,6.5,cz+dz,.5,12,.5)); b.push(P('box',0xf9a825,cx,12.6,cz,5,.6,5)); b.push(P('box',0xf9a825,cx+8,13.3,cz,18,.7,1.2)); b.push(P('box',0x37474f,cx-1,14.2,cz,3,1.8,3));   // crane
+  const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.castShadow=m.receiveShadow=true; g.add(m);
+  const s1=signPlane(['PANTALAN NG SAN ISIDRO','Bay Trading · Inter-island cargo'],'#1f4e9a','#fff',12,2.2); s1.position.set(388,4.6,-87.4); g.add(s1);
+  const hook=new THREE.Mesh(new THREE.BoxGeometry(.1,8,.1),new THREE.MeshBasicMaterial({color:0x222222})); hook.position.set(cx+14,9.2,cz); g.add(hook);
+  // MV Sinag Dagat
+  const sb=[], ship=new THREE.Group(); sb.push(P('box',0x8e2b2b,0,1.2,0,9,2.6,36)); sb.push(P('box',0x1a3a5a,0,3.2,0,9.1,1.6,36.1)); sb.push(P('cone',0x1a3a5a,0,2.4,19.5,4.6,4.4,6,Math.PI/2,0,0)); sb.push(P('box',0xf5f5f5,0,4.1,0,9.2,.2,36.2));
+  sb.push(P('box',0xf5f5f5,0,6.5,-14,8,4.6,6)); sb.push(P('box',0x2b3a48,0,7.6,-10.95,7.4,1.0,.05)); sb.push(P('cyl',0xf9a825,0,10,-15,1.6,3,1.6)); sb.push(P('box',0x1f4e9a,0,10.5,-15,1.65,.6,1.65));
+  const cargo=[]; for(let i=0;i<4;i++) for(let j=0;j<2;j++) cargo.push(P('box',CC[(i+j)%6],(j-.5)*3.6,5.5,-4+i*6.2,3.4,2.5,6));
+  ship.add(new THREE.Mesh(mergeGeo(sb),VCMAT)); const cg=new THREE.Mesh(mergeGeo(cargo),VCMAT); ship.add(cg);
+  const nm=signPlane(['MV SINAG DAGAT'],'#1a3a5a','#fff',8,1,512,64); [-1,1].forEach(sd=>{const q=nm.clone(); q.position.set(sd*4.57,3.2,8); q.rotation.y=sd*Math.PI/2; ship.add(q);});
+  glow(ship,0,9.2,-11,3,GM.white); glow(ship,0,4.5,18,2.4,GM.head); ship.position.set(424,0,-52); ship.traverse(o=>{if(o.isMesh) o.castShadow=true;}); g.add(ship);
+  return {g,ship,cargo:cg,hook,dock:[424,-52]};})();
+const shipSum=st=>Object.entries(st||{}).reduce((a,[,n])=>a+n,0);
+function shipSail(){const B=S.bay; if(!B.owned||B.ship||!shipSum(B.stock)) return; let coins=0; for(const [k,n] of Object.entries(B.stock)) coins+=n*ITEMS[k].price*BAY_RATE;
+  B.ship={t0:Date.now(),cargo:B.stock,n:shipSum(B.stock),coins:Math.round(coins)}; B.stock={}; sfx('horn',PORT.dock[0],PORT.dock[1]); toast(`🚢 The MV Sinag Dagat sails with ${B.ship.n} items for the islands. Pay comes when she is back.`,3600); changed();}
+function shipPhase(now=Date.now()){const sh=S.bay.ship; if(!sh) return {ph:'dock'}; const e=(now-sh.t0)/1000, T=SHIP_T;
+  return e<T.out?{ph:'out',u:e/T.out}:e<T.out+T.away?{ph:'away'}:e<T.out+T.away+T.back?{ph:'back',u:(e-T.out-T.away)/T.back}:{ph:'home'};}
+function bayCard(free){const B=S.bay, n=shipSum(B.stock), P=shipPhase();
+  if(!B.owned) return `<div class="ucard"><div class="who">⚓ Pantalan · bay trading</div><div class="pay">Ship any goods to the islands on the MV Sinag Dagat. Haul them to the pantalan by the sea; when she sails and comes back you are paid <b>${Math.round(BAY_RATE*100)}%</b> of the palengke price.</div>
+    <div class="pay">${S.level<BAY_LV?`🔒 Unlocks at level ${BAY_LV}.`:'✅ Your level is high enough.'}</div><div class="hacts"><button class="go" data-bay="buy" ${S.level>=BAY_LV&&S.coins>=BAY_PRICE?'':'disabled'}>Get a bay trading permit for ₱${BAY_PRICE.toLocaleString()}</button><button class="go" data-bay="visit">📍 See the pantalan</button></div></div>`;
+  const st=P.ph==='dock'?`🚢 MV Sinag Dagat is docked${n?`, ${n} items waiting in the bodega`:', waiting for cargo'}.`:P.ph==='out'?'🚢 Sailing out to sea…':P.ph==='away'?'🏝️ Selling your cargo in the islands…':'🚢 Coming back to port…';
+  return `<div class="ucard"><div class="who">⚓ Pantalan · bay trading ✅</div><div class="pay">Haul goods here; the ship pays <b>${Math.round(BAY_RATE*100)}%</b> of the palengke price when she comes back. She sails by herself once 40 items are waiting, or when you tell her to.</div>
+    <div class="pay">${st}</div><div class="hacts">${free.map(v=>`<button class="go" data-baysend="${v}" ${bodegaN()&&driverFree()?'':'disabled'}>${VEH[v].icon} Haul up to ${VEH[v].cap} with the ${vname(v)}</button>`).join('')}
+    <button class="go" data-bay="sail" ${P.ph==='dock'&&n?'':'disabled'}>🚢 Sail now (${n})</button><button class="go" data-bay="visit">📍 See the pantalan</button></div></div>`;}
+let seaLast=performance.now(), seaWave=0;
+(function seaLoop(){requestAnimationFrame(seaLoop); const n=performance.now(), dt=Math.min(.05,(n-seaLast)/1000), t=n/1000; seaLast=n; if(document.hidden) return;
+  SEA.foam.material.opacity=.35+.3*Math.sin(t*1.3); SEA.shallow.material.opacity=.68+.08*Math.sin(t*.7); SEA.water.position.y=.06+Math.sin(t*.8)*.02;
+  SEA.boats.forEach((b,k)=>{b.position.y=.1+Math.sin(t*1.5+k)*.08; b.rotation.z=Math.sin(t*1.2+k)*.05;});
+  const B=S.bay, now=Date.now(), P=shipPhase(now), sh=PORT.ship, [dx,dz]=PORT.dock;
+  if(P.ph==='home'){S.coins+=B.ship.coins; gainXP(Math.max(5,Math.round(B.ship.coins/60))); sfx('cash'); sfx('horn',dx,dz); toast(`🚢 The MV Sinag Dagat is back! Your ${B.ship.n} items sold in the islands · +₱${B.ship.coins.toLocaleString()}`,4200); B.ship=null; changed(); if(typeof bizOpen==='function'&&bizOpen()) renderBiz();}
+  else if(P.ph==='dock'&&B.owned&&shipSum(B.stock)>=40){B.dockT=(B.dockT||0)+dt; if(B.dockT>20){B.dockT=0; shipSail();}}
+  const path=u=>{const x=dx+u*u*90, z=dz+u*230; return [x,z];};
+  if(P.ph==='out'||P.ph==='back'){const u=P.ph==='out'?P.u:1-P.u, [x,z]=path(u), [x2,z2]=path(Math.min(1,u+.01)); sh.visible=true; sh.position.set(x,Math.sin(t)*.1,z); sh.rotation.y=Math.atan2(x2-x,z2-z)+(P.ph==='back'?Math.PI:0);}
+  else if(P.ph==='away'){sh.visible=false;}
+  else {sh.visible=true; sh.position.set(dx,Math.sin(t*.8)*.08,dz); sh.rotation.y=0;}
+  PORT.cargo.visible=P.ph==='out'||P.ph==='away'||(P.ph==='dock'&&shipSum(B.stock)>0); PORT.hook.position.y=9.2+Math.sin(t*.6)*2;
+  if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
+})();
 const NEWS=[
+  {v:22,date:'Nov 9, 2026',title:'The sea and the pantalan',items:['🌊 The map now reaches the sea in the south-east corner: a beach, shallow turquoise water, bangkas bobbing near the shore and a parola on the point. Pan over and listen to the waves.','⚓ Pantalan ng San Isidro: a port with a bodega, container stacks, a crane and a pier, where the cargo ship MV Sinag Dagat docks.','🚢 Bay trading (level 12, in the 🏬 Bagsakan & Factory sheet): haul any goods to the pantalan with your trucks. When 40 items are waiting (or when you say so) the ship sails to the islands and comes back with 160% of the palengke price.']},
   {v:21,date:'Nov 9, 2026',title:'Town life: buses, jeepneys, police and fiesta',items:['🚌 Sinag Liner buses now stop at their new terminal beside the highway. One goes on to Maynila; the Bundok bus climbs the hill road to a waiting shed in the mountain barangay, where people live and walk along the roads.','🚙 A jeepney terminal with a queue: the jeepney in front fills up with riders, then leaves for the palengke or the Mega Foods gate, and the others move up.','🚓 A police station by the east road. Its patrol car makes rounds day and night through the highway, the side street and the barangay, lights flashing.','🎉 Fiesta days: every other month the barangay back road gets banderitas, and a parade with a band, dancers, two higantes and a carroza marches up and down it (Santacruzan in May).','🔍 You can now pan to every corner of the map, zoom out further and look over the mountain barangay.']},
   {v:20,date:'Nov 9, 2026',title:'Doors that open, and Bida Pinoy vans',items:['🚪 Every vehicle has a real driver\'s door now. It swings open when someone gets in or out, and when your driver steps out at a store, the palengke or the bagsakan.','🚗 Cars that park at the stores open the door, the driver gets out to shop, and comes back.','🐷 The factory\'s closed vans now wear the Bida Pinoy livery from Mega Foods (tocino, longganisa, hotdog), with rear doors that swing open at the bagsakan and the factory docks.']},
   {v:19,date:'Nov 8, 2026',title:'Watering, rain, a hungry farmer and fishing',items:['💧 New tool: Dilig. Newly planted crops wait for water before they start growing (a blue marker shows them). Your farmer, or a Taniman trabahador, takes the hose from the reel at the water tower, drags it out to the field, sprays each dry plot and rolls it back up. Plots next to a poso stay moist.','🌧️ In the rainy months (Hun–Nob) some days it rains and the rain waters every crop for you.','🍚⚡ Your farmer now gets hungry and tired from work. Watch the meter at the top; tap it (or your house) for 🏠 Bahay: rest, sleep at night, or cook a meal from your harvest: adobong manok, sinigang na isda, tortang talong and more.','🎣 Mangisda: from the Bahay sheet your farmer takes the pamingwit to your own 🐟 palaisdaan. Cast, wait for the bite, then tap Hila while the marker is in the green. One good pull lands a tilapia, which leaves the pond (still-small fingerlings go back in).']},

@@ -889,6 +889,8 @@ const nightK=h=>h>=7&&h<17?0:(h>=19||h<5)?1:h>=17&&h<19?(h-17)/2:1-(h-5)/2;
 const GLOW_TEX=(()=>{const c=document.createElement('canvas'); c.width=c.height=64; const g=c.getContext('2d'), r=g.createRadialGradient(32,32,0,32,32,32);
   r.addColorStop(0,'rgba(255,255,255,1)'); r.addColorStop(.22,'rgba(255,255,255,.6)'); r.addColorStop(1,'rgba(255,255,255,0)'); g.fillStyle=r; g.fillRect(0,0,64,64); return new THREE.CanvasTexture(c);})();
 const GLOW_MATS=[], glowMat=(color,k)=>{const m=new THREE.SpriteMaterial({map:GLOW_TEX,color,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,opacity:0}); m.userData.k=k; m.visible=false; GLOW_MATS.push(m); return m;};
+const DOOR_OBJS=[];   // traffic cars and factory vans whose doors swing (the player's vehicles animate theirs in placeVehicles)
+function cabDoor(g,x,y,z,h,w,col){const dg=new THREE.Group(); dg.position.set(x,y,z); dg.add(part(.04,h,w,col,0,0,-w/2)); dg.add(part(.045,h*.42,w*.72,0x2b3a48,0,h*.24,-w/2)); dg.add(part(.05,.04,.14,0x333333,.03,-.05,-w+.12)); g.add(dg); g.userData.door=dg; return dg;}
 const GM={warm:glowMat(0xffc46b,.95), white:glowMat(0xfff3d6,.85), head:glowMat(0xfff6d0,1), tail:glowMat(0xff3b30,.75)};
 // lamps inside the animal houses: they glow through the open sides at night; chicks and other young poultry get red-orange heat lamps (brooders)
 const LIT=glowMat(0xffd98a,.6), HEAT=glowMat(0xff7a2e,.85); LIT.depthTest=false; HEAT.depthTest=false;
@@ -2014,6 +2016,7 @@ function buildExtraVeh(kind){
     [-1,1].forEach(sd=>{const q=new THREE.Mesh(new THREE.PlaneGeometry(4.2,1.05),sm); q.position.set(sd*1.18,2.2,-1.05); q.rotation.y=sd*Math.PI/2; g.add(q);});
   }
   const body=new THREE.Mesh(mergeGeo(b),PAINT); body.castShadow=true; g.add(body);
+  if(kind==='van') cabDoor(g,1.01,1.45,3.0,1.2,.9,0xf5f5f5); else cabDoor(g,.97,1.25,3.18,1.05,.95,0xf2f2ee);   // the driver's door swings open
   wpos.forEach(([x,z])=>{const w=new THREE.Mesh(mergeGeo([P('cyl',0x1b1b1b,0,0,0,wr*2,.24,wr*2),P('cyl',0xd9dee2,0,0,0,wr,.26,wr)]),VCMAT); const h=new THREE.Group(); h.position.set(x,wr,z); h.rotation.z=Math.PI/2; h.add(w); g.add(h); wheels.push(w);});
   const L=randLook(rng(kind==='van'?44:45)); L.f=false; L.bag=null; L.h=1; const d=bakePerson(L,poseSit); d.position.set(.42,kind==='van'?.92:.95,kind==='van'?2.35:2.55); g.add(d); g.userData.driver=d; d.visible=false;
   [-.62,.62].forEach(xx=>{glow(g,xx*(kind==='van'?1.15:1.05),kind==='van'?1.0:.85,kind==='van'?3.15:3.5,1.2,GM.head); glow(g,xx*(kind==='van'?1.35:1.3),.75,kind==='van'?-3.65:-3.62,.7,GM.tail);});
@@ -2062,7 +2065,7 @@ function buildStock(){
   for(let q=1;q<=3;q++) b.push(P('box',ST,0,mid+H*.25+q*H*.07,z1,2.04,.05,.05)); b.push(P('box',PL,0,mid+H*.12,z1,2.04,H*.24,.04));   // upper rear gate
   for(const sd of [-1,1]) b.push(P('box',ST,sd*1.0,H0+H/2,z1,.1,H,.1));
   [-1,1].forEach(sd=>{b.push(P('box',0xfff6d0,sd*.65,.85,3.52,.3,.16,.04)); b.push(P('box',0xd63031,sd*.8,.7,-3.62,.24,.12,.04));});
-  const body=new THREE.Mesh(mergeGeo(b),PAINT); body.castShadow=true; g.add(body);
+  const body=new THREE.Mesh(mergeGeo(b),PAINT); body.castShadow=true; g.add(body); cabDoor(g,.985,1.25,3.22,1.05,.95,C);
   const ramp=new THREE.Group(); ramp.position.set(0,H0,z1); g.add(ramp);                                                                   // lower rear gate: drops down into a loading ramp
   ramp.add(new THREE.Mesh(mergeGeo([P('box',PL,0,H*.25,0,2.0,H*.5,.06),...[.1,.2,.3,.4].map(f=>P('box',0x949ba0,0,H*f,-.04,1.96,.03,.02)),P('box',ST,0,H*.5,0,2.04,.06,.08)]),PAINT));
   [[-.85,2.4],[.85,2.4],[-.85,-1.95],[.85,-1.95]].forEach(([x,z])=>{const w=new THREE.Mesh(mergeGeo([P('cyl',0x1b1b1b,0,0,0,wr*2,.26,wr*2),P('cyl',0xd9dee2,0,0,0,wr,.28,wr)]),VCMAT); const h=new THREE.Group(); h.position.set(x,wr,z); h.rotation.z=Math.PI/2; h.add(w); g.add(h); wheels.push(w);});
@@ -2234,6 +2237,7 @@ function makeCar(type,col){ // Vios-type sedan, Innova-type MPV, Fortuner-type S
   [-.62,.62].forEach(x=>{glow(g,x,.8,2.5,1.2,GM.head); glow(g,x,.8,-2.5,.7,GM.tail);});
   const L=randLook(typeof tfr!=='undefined'?tfr:Math.random); L.bag=null; L.h=1; const d=bakePerson(L,poseSit); d.traverse(o=>{o.castShadow=false;});
   d.position.set(.42,{vios:.3,innova:.42,fortuner:.6,hilux:.6,l300:.7}[type],{vios:.15,innova:.3,fortuner:.25,hilux:.9,l300:1.35}[type]); g.add(d);
+  cabDoor(g,{vios:.91,innova:.93,fortuner:.96,hilux:.94,l300:.875}[type],{vios:.72,innova:.95,fortuner:1.05,hilux:1.0,l300:1.25}[type],d.position.z+.6,{vios:.52,innova:.68,fortuner:.72,hilux:.62,l300:.85}[type],1.0,col); g.userData.drv=d; DOOR_OBJS.push(g);
   scene.add(g); return g;
 }
 let SHOPS=null; const shopList=()=>SHOPS||(SHOPS=[ // where shoppers park and which door they walk to (built on first use, after every store exists)
@@ -2290,6 +2294,7 @@ function updateTraffic(dt,t){
       c.e+=dt; const R=c.state==='in'?c.R:c.Rout, q=routePos(R,c.e);
       g.position.set(q.x,0,q.z); g.rotation.y=lerpAng(g.rotation.y,q.ang,1-Math.exp(-dt*6));
       if(c.e>=R.T){ if(c.state==='in'){ // park, the driver gets out and goes in
+          g.userData.doorUntil=Date.now()+1400; if(g.userData.drv) g.userData.drv.visible=false; sfx('door',c.spot[0],c.spot[1]);   // the driver opens the door and gets out
           c.state='shop'; const L=randLook(tfr); L.bag=null; c.look=L; c.p=makePerson(L); c.p.root.position.set(c.spot[0]+1.3,.08,c.spot[1]); scene.add(c.p.root); c.walk=0; c.leg='go'; c.timer=0;}
         else {spotTaken.delete(c.spot); c.state='drive'; c.x=q.x; c.v=6; c.plan=null; g.rotation.y=c.dir>0?Math.PI/2:-Math.PI/2;}}
     }else if(c.state==='shop'){
@@ -2298,7 +2303,7 @@ function updateTraffic(dt,t){
         continue;}
       const tgt=c.leg==='go'?c.plan.door:[c.spot[0]+1.3,c.spot[1]], r=p.root, dx=tgt[0]-r.position.x, dz=tgt[1]-r.position.z, d=Math.hypot(dx,dz);
       if(d<.12){ if(c.leg==='go'){scene.remove(r); disposePerson(p); c.leg='inside'; c.timer=5+tfr()*8;}
-        else {scene.remove(r); disposePerson(p); c.p=null; c.state='out'; c.e=0;} }
+        else {scene.remove(r); disposePerson(p); c.p=null; c.state='out'; c.e=-1.2; g.userData.doorUntil=Date.now()+1100; if(g.userData.drv) g.userData.drv.visible=true; sfx('door',c.spot[0],c.spot[1]);} }
       else {const st=Math.min(d,1.3*dt); r.position.x+=dx/d*st; r.position.z+=dz/d*st; r.rotation.y=lerpAng(r.rotation.y,Math.atan2(dx,dz),.2); c.walk+=st*5.2; poseWalk(p,c.walk);}
     }
   }
@@ -3771,7 +3776,7 @@ for(const v of Object.keys(VEH)){const V=VEH[v], m=bakePerson(FARMER_LOOK,poseSi
   V.wf=V.wf||(v==='jeep'?1.95:2.15); V.wr=V.wr||(v==='jeep'?1.55:1.9); V.tw=V.tw||(v==='jeep'?.82:.92); V.obj.rotation.order='YXZ';}
 for(const v of Object.keys(VEH)){const tr=S.veh[v].trip; if(tr&&tr.driver==='farmer'&&tr.t0) farmer.riding=v;}
 function jobSpotJ(j){if(j.type==='board'){const V=VEH[j.vid]; return [V.slot+1.6,G0+V.doorZ];} if(j.type==='home') return homeDoor(); if(j.type==='fish') return jobSpot(j.pi); if(j.type==='hose') return [REEL[0]+.9,REEL[1]+.7]; return jobSpot(j.i);}
-function farmerExit(vid){const F=farmer, V=VEH[vid], r=F.p.root; F.riding=null; r.visible=true; r.position.set(V.slot+1.6,.08,G0+V.doorZ); r.rotation.y=Math.PI/2; V.doorUntil=Date.now()+1400; F.state=F.jobs.length?'idle':(F.carry?'deposit':'home');}
+function farmerExit(vid){const F=farmer, V=VEH[vid], r=F.p.root; V.doorUntil=Date.now()+1400; sfx('door',V.slot,G0); F.riding=null; r.visible=true; r.position.set(V.slot+1.6,.08,G0+V.doorZ); r.rotation.y=Math.PI/2; V.doorUntil=Date.now()+1400; F.state=F.jobs.length?'idle':(F.carry?'deposit':'home');}
 function jobTime(j){if(j.type==='board') return 1.1; if(j.type==='care') return 1.0; if(j.type==='water') return .9; if(j.type==='hose') return .8; if(j.type==='home') return HOME_T[j.sub]||10; if(j.type==='fish') return 1e9; const t=S.tiles[j.i]; if(j.type==='plow') return .55; if(j.type==='plant') return .4; if(j.type==='chop') return 1.8;
   if(t.s==='bld') return t.b==='coop'||t.b==='cows'?1.6:t.b==='tree'?.9:1.3; return .45;}
 const CARRY={coop:'tray',cows:'pail',broiler:'sack',pig:'sack',tree:'basket',duck:'tray',goat:'pail',fish:'basket'};
@@ -4353,7 +4358,8 @@ function placeVehicles(now,dt){
     o.position.set(p.x,moving?Math.abs(Math.sin(now/90))*.03:0,p.z); o.rotation.y=lerpAng(o.rotation.y,p.ang,1-Math.exp(-dt*7)); suspend(V,p.x,p.z,o.rotation.y,dt,moving);
     {const ph2=st.trip?vehPhase(vid,now).ph:null, onRoad=!!(st.trip&&ph2!=='board');
       if(V.seat) V.seat.visible=onRoad&&st.trip.driver==='farmer'; if(o.userData.driver) o.userData.driver.visible=onRoad&&st.trip.driver!=='farmer';
-      if(o.userData.door){const open=now<(V.doorUntil||0); o.userData.door.rotation.y+=((open?-1.25:0)-o.userData.door.rotation.y)*Math.min(1,dt*8);}}
+      if(o.userData.door){if(st.trip&&st.trip.t0){const P4=vehPhase(vid,now), sd=STOP[st.trip.dest]||8; if(P4.ph==='stop'&&(P4.e<1.1||P4.e>sd-1.1)){if(now>(V.doorUntil||0)) sfx('door',o.position.x,o.position.z); V.doorUntil=now+250;}}   // the driver gets out on arrival and back in before leaving
+  const open=now<(V.doorUntil||0); o.userData.door.rotation.y+=((open?-1.25:0)-o.userData.door.rotation.y)*Math.min(1,dt*8);}}
     const gn=V.goods.children.length, gshow=goods===true?gn:Math.ceil((+goods||0)*gn); V.goods.visible=gshow>0; V.goods.children.forEach((c,i)=>c.visible=i<gshow);
     const useFeed=!!(st.trip&&(st.trip.dest==='poultry'||st.trip.dest==='seeds')), MG=useFeed?V.feed:V.mats; (useFeed?V.mats:V.feed).visible=false;
     const n=MG.children.length, show=Math.ceil(mats*n); MG.visible=show>0; MG.children.forEach((c,i)=>c.visible=i<show);
@@ -4801,11 +4807,45 @@ boardSign(['LOADING · CONVEYOR','runs while your goods are processed'],'#0d47a1
 glow(scene,WHX-6,4.6,HZ-14.6,3.2); glow(scene,WHX+6,4.6,HZ-14.6,3.2); glow(scene,FX,3.6,HZ-8.6,3.4,GM.white); glow(scene,FX-15,3.6,HZ-24,4,GM.white); glow(scene,FX+6,8,HZ-31.6,4.5);
 function makeVan(){const b=[], D=0x1b1b1b, GL=0x2b3a48;
   b.push(P('box',0x2a2a2a,0,.55,0,1.7,.2,6.2)); b.push(P('box',0xf5f5f5,0,1.45,2.35,2.0,1.6,1.5)); b.push(P('box',GL,0,1.75,3.12,1.8,.6,.04)); [-1,1].forEach(sd=>b.push(P('box',GL,sd*1.01,1.75,2.4,.03,.5,.8)));
-  b.push(P('box',0xfafafa,0,1.85,-.75,2.2,2.4,4.6)); b.push(P('box',0x0d47a1,0,1.6,-.75,2.22,.35,4.62)); b.push(P('box',0xd32f2f,0,2.05,-.75,2.22,.12,4.62)); b.push(P('box',0xb0bec5,0,1.85,-3.06,2.1,2.3,.04));
+  b.push(P('box',0xfafafa,0,1.85,-.75,2.2,2.4,4.6)); b.push(P('box',0x0d47a1,0,1.6,-.75,2.22,.35,4.62)); b.push(P('box',0xd32f2f,0,2.05,-.75,2.22,.12,4.62)); b.push(P('box',0x263238,0,1.85,-3.0,2.0,2.2,.04)); for(let k=0;k<4;k++) b.push(P('box',0xc8a27a,-.5+(k%2),1.0+((k>>1))*.45,-2.6,.8,.4,.6));   // dark inside, boxes of chilled product
   [2.3,-1.9].forEach(z=>[-1,1].forEach(sd=>b.push(P('cyl',D,sd*.95,.42,z,.84,.28,.84,0,0,Math.PI/2))));
   const g=new THREE.Group(), m=new THREE.Mesh(mergeGeo(b),PAINT); m.castShadow=true; g.add(m);
   [-.7,.7].forEach(x=>{glow(g,x,1.0,3.15,1.3,GM.head); glow(g,x,.9,-3.1,.7,GM.tail);});
-  const d=bakePerson(randLook(Math.random),poseSit); d.position.set(.45,.92,2.4); g.add(d); g.scale.setScalar(1.3); scene.add(g); return g;}
+  const d=bakePerson(randLook(Math.random),poseSit); d.position.set(.45,.92,2.4); g.add(d);
+  // the Bida Pinoy livery on both sides, and rear double doors that swing open at the docks
+  const lm=new THREE.MeshBasicMaterial({map:liveryTex()}); [-1,1].forEach(sd=>{const q=new THREE.Mesh(new THREE.PlaneGeometry(4.5,2.3),lm); q.position.set(sd*1.115,1.85,-.75); q.rotation.y=sd*Math.PI/2; g.add(q);});
+  const rm=new THREE.MeshBasicMaterial({map:liveryTex('rear')}), rear=[];
+  [-1,1].forEach(sd=>{const h=new THREE.Group(); h.position.set(sd*1.05,1.85,-3.08); const pnl=new THREE.Mesh(new THREE.BoxGeometry(1.04,2.28,.05),new THREE.MeshStandardMaterial({color:0xf2f2f2})); pnl.position.x=-sd*.52; h.add(pnl);
+    const face=new THREE.Mesh(new THREE.PlaneGeometry(1.0,2.2),rm); face.position.set(-sd*.52,0,-.03); face.rotation.y=Math.PI; if(sd>0){face.material=rm.clone(); face.material.map=liveryTex('rearR');} h.add(face);
+    h.add(new THREE.Mesh(new THREE.BoxGeometry(.05,2.0,.06),new THREE.MeshStandardMaterial({color:0x90a4ae}))).position.set(-sd*.95,0,-.05); g.add(h); rear.push([h,sd]);});
+  g.userData.rear=rear; g.userData.door=cabDoor(g,1.01,1.45,3.0,1.2,.9,0xf5f5f5); DOOR_OBJS.push(g);
+  g.scale.setScalar(1.3); scene.add(g); return g;}
+// a made-up Filipino processed-meat brand from the factory: BIDA PINOY by Mega Foods (pig-chef mascot, tocino · longganisa · hotdog)
+function liveryTex(part){const key=part||'side'; liveryTex.c=liveryTex.c||{}; if(liveryTex.c[key]) return liveryTex.c[key];
+  const cv=document.createElement('canvas'), x=cv.getContext('2d'), R='#c62828', Y='#f9a825', INK='#37474f';
+  const pig=(cx,cy,r)=>{x.fillStyle='#ffffff'; x.beginPath(); x.ellipse(cx,cy-r*1.05,r*.75,r*.42,0,0,7); x.fill(); x.fillRect(cx-r*.55,cy-r*1.05,r*1.1,r*.45); x.strokeStyle='#7a2e2a'; x.lineWidth=r*.06; x.strokeRect(cx-r*.55,cy-r*.65,r*1.1,.01);   // chef's hat
+    x.fillStyle='#f6a5a0'; for(const s of [-1,1]){x.beginPath(); x.moveTo(cx+s*r*.55,cy-r*.75); x.lineTo(cx+s*r*.95,cy-r*.95); x.lineTo(cx+s*r*.85,cy-r*.4); x.fill();}
+    x.beginPath(); x.arc(cx,cy,r,0,7); x.fill(); x.stroke(); x.fillStyle='#ef8f8a'; x.beginPath(); x.ellipse(cx,cy+r*.2,r*.38,r*.27,0,0,7); x.fill(); x.stroke();
+    x.fillStyle='#7a2e2a'; for(const s of [-1,1]){x.beginPath(); x.ellipse(cx+s*r*.13,cy+r*.2,r*.06,r*.1,0,0,7); x.fill(); x.beginPath(); x.arc(cx+s*r*.38,cy-r*.25,r*.09,0,7); x.fill();}
+    x.beginPath(); x.arc(cx,cy+r*.42,r*.35,.25,Math.PI-.25); x.stroke();
+    x.fillStyle=R; x.beginPath(); x.moveTo(cx-r*.3,cy+r*.95); x.lineTo(cx+r*.3,cy+r*.95); x.lineTo(cx,cy+r*.8); x.fill();};   // red bandana knot
+  if(key==='side'){cv.width=1024; cv.height=524; x.fillStyle='#fffdf7'; x.fillRect(0,0,1024,524);
+    x.fillStyle=R; x.fillRect(0,0,1024,74); x.fillStyle=Y; x.fillRect(0,74,1024,14); x.fillStyle=R; x.fillRect(0,462,1024,62); x.fillStyle=Y; x.fillRect(0,448,1024,14);
+    x.fillStyle='#fff'; x.font='800 38px Arial, sans-serif'; x.textBaseline='middle'; x.textAlign='center'; x.fillText('MEGA FOODS CORP. · CHILLED MEAT DELIVERY',512,38); x.fillText('Gawang Pinoy · Para sa Pamilyang Pilipino',512,494);
+    pig(195,285,122); x.textAlign='left'; x.font='900 150px "Arial Black", Arial, sans-serif'; x.lineWidth=14; x.strokeStyle=Y; x.strokeText('BIDA',360,210); x.fillStyle=R; x.fillText('BIDA',360,210);
+    x.font='900 96px "Arial Black", Arial, sans-serif'; x.strokeText('PINOY',366,312); x.fillStyle=INK; x.fillText('PINOY',366,312);
+    x.fillStyle=INK; x.font='800 40px Arial, sans-serif'; x.fillText('Tocino · Longganisa · Hotdog',366,380); x.fillStyle=R; x.font='italic 800 34px Arial, sans-serif'; x.fillText('"Sarap na bida sa bawat hapag!"',366,424);}
+  else {cv.width=256; cv.height=560; x.fillStyle='#fffdf7'; x.fillRect(0,0,256,560); x.fillStyle=R; x.fillRect(0,0,256,60); x.fillRect(0,500,256,60); x.fillStyle=Y; x.fillRect(0,60,256,10); x.fillRect(0,490,256,10);
+    x.textAlign='center'; x.textBaseline='middle';
+    if(key==='rear'){pig(128,240,82); x.fillStyle=R; x.font='900 56px "Arial Black", Arial, sans-serif'; x.fillText('BIDA',128,390); x.fillStyle=INK; x.font='900 38px "Arial Black", Arial'; x.fillText('PINOY',128,440);}
+    else {x.fillStyle=INK; x.font='800 30px Arial, sans-serif'; ['KEEP','FROZEN','-18°C'].forEach((s,k)=>x.fillText(s,128,170+k*44)); x.fillStyle=R; x.font='800 26px Arial, sans-serif'; x.fillText('Hotline',128,340); x.fillStyle=INK; x.fillText('(02) 8-BIDA-000',128,378);
+      x.font='800 22px Arial'; x.fillText('How\'s my driving?',128,430);}}
+  const t=new THREE.CanvasTexture(cv); t.anisotropy=4; return liveryTex.c[key]=t;}
+// swing the doors of the traffic cars and the factory vans
+let doorLast=performance.now();
+(function doorLoop(){requestAnimationFrame(doorLoop); const n=performance.now(), dt=Math.min(.05,(n-doorLast)/1000), now=Date.now(); doorLast=n;
+  for(const g of DOOR_OBJS){const d=g.userData.door; if(d){const tgt=now<(g.userData.doorUntil||0)?-1.2:0; d.rotation.y+=(tgt-d.rotation.y)*Math.min(1,dt*8);}
+    if(g.userData.rear) for(const [h,sd] of g.userData.rear) h.rotation.y+=((g.userData.rearOpen?sd*1.95:0)-h.rotation.y)*Math.min(1,dt*3);}})();
 const vans=[0,1,2].map(i=>{const sx=FX-2+i*6, wx=WHX-6+i*6, sl=SPD.slow;
   const out=mkRoute([[sx,HZ-25,2.5,true],[sx,HZ-19,4],[FX,HZ-14,4],[FX,HZ-6,6],[FX-8,LW,13],[WHX+16,LW,6],[wx-3.5,HZ-4.0,2,true],[wx,HZ-5.6,2,true],[wx,HZ-9.6]]);   // backs into the dock, rear doors to the warehouse
   const back=mkRoute([[wx,HZ-9.6,4],[wx,HZ-5.2,6],[wx+8,LE,13],[FX-8,LE,6],[FX,HZ-6,4],[FX,HZ-14,4],[sx,HZ-19,3],[sx,HZ-25]]);
@@ -4851,6 +4891,7 @@ function updateBiz(dt,t){
   // vans: go when the warehouse has goods
   const busyVans=vans.filter(v=>v.state!=='home').length, needVans=Math.ceil(whN()/VAN_CAP);
   for(const V of vans){
+    if((V.state==='load'||V.state==='unload')!==!!V.g.userData.rearOpen){V.g.userData.rearOpen=V.state==='load'||V.state==='unload'; V.g.userData.doorUntil=Date.now()+1300; sfx('door',V.g.position.x,V.g.position.z);}   // rear doors open at the docks; the driver hops out
     if(V.state==='home'){V.g.position.set(V.sx,0,HZ-25); V.g.rotation.y=Math.PI; V.timer-=dt;
       if(own&&V.timer<=0&&vans.filter(v=>v.state!=='home').length<needVans){V.state='out'; V.e=0;} continue;}
     if(V.state==='out'||V.state==='back'){const blk=aheadGap(V.g,V.g.position.x,V.g.position.z,V.g.rotation.y,8.4)<1.2; V.blk=blk?(V.blk||0)+dt:0; if(!blk||V.blk>8) V.e+=dt; const R=V.state==='out'?V.out:V.back, q=routePos(R,V.e);
@@ -5439,6 +5480,7 @@ function spray(W,i,t){if(!W.spr){W.spr=new THREE.Group(); for(let k=0;k<10;k++) 
     if(W.spr&&W.spr.visible&&now-(W.sprT||0)>120) W.spr.visible=false;}
   if(REEL.g) REEL.g.userData.coil.scale.setScalar([farmer,...helpers].some(W=>W.hose)?.55:1);})();
 const NEWS=[
+  {v:20,date:'Nov 9, 2026',title:'Doors that open, and Bida Pinoy vans',items:['🚪 Every vehicle has a real driver\'s door now. It swings open when someone gets in or out, and when your driver steps out at a store, the palengke or the bagsakan.','🚗 Cars that park at the stores open the door, the driver gets out to shop, and comes back.','🐷 The factory\'s closed vans now wear the Bida Pinoy livery from Mega Foods (tocino, longganisa, hotdog), with rear doors that swing open at the bagsakan and the factory docks.']},
   {v:19,date:'Nov 8, 2026',title:'Watering, rain, a hungry farmer and fishing',items:['💧 New tool: Dilig. Newly planted crops wait for water before they start growing (a blue marker shows them). Your farmer, or a Taniman trabahador, takes the hose from the reel at the water tower, drags it out to the field, sprays each dry plot and rolls it back up. Plots next to a poso stay moist.','🌧️ In the rainy months (Hun–Nob) some days it rains and the rain waters every crop for you.','🍚⚡ Your farmer now gets hungry and tired from work. Watch the meter at the top; tap it (or your house) for 🏠 Bahay: rest, sleep at night, or cook a meal from your harvest: adobong manok, sinigang na isda, tortang talong and more.','🎣 Mangisda: from the Bahay sheet your farmer takes the pamingwit to your own 🐟 palaisdaan. Cast, wait for the bite, then tap Hila while the marker is in the green. Three good pulls land a tilapia, which leaves the pond (still-small fingerlings go back in).']},
   {v:18,date:'Nov 8, 2026',title:'The livestock truck and new customers',items:['🚛 New: the livestock truck (level 5, ₱12,000) with its own carport. Two decks with checker-plate sides and pipe bars; the tailgate drops into a ramp and the animals walk up. It is the only vehicle for live cows, and it takes pigs and goats too.','🐄 Sell grown cows and goats live, one at a time: tap their house → 🐾 Alaga → Sell 1 live. The 🔪 Katayan now also turns them into 🥩 beef and 🍖 chevon.','⛰️ New customers up in the mountain barangay (level 6): sitio families, the tindahan sa bundok and the kapilya fiesta. Your truck drives up the winding hill road.','🏡 More homes and small businesses order from you: a lechon manok stand, a home bakery, a binyag party, a subdivision house and a kalderetang kambing place. Some want live animals.']},
   {v:17,date:'Nov 8, 2026',title:'Live animals, the katayan and the chicken truck',items:['🐔 Grown broilers and pigs now leave their house alive. Sell them live at the palengke (some buyers order buhay na manok or baboy), or turn them into meat.','🔪 New: your own Katayan beside the farm road (level 2). Tap it, open it, and the butchers turn live manok and baboy into 🍗 and 🥓 for a small fee.','🛻 The sedan is now a chicken truck with stacked crates (level 2, ₱4,500). It and the Elf truck drive to the area gate, reverse in, and the animals walk up into the cages. Pigs ride only in the Elf truck.','🏬 The bagsakan takes meat only, never live animals. No truck yet? Your farmer still carries the animals out.']},
@@ -5596,7 +5638,7 @@ function frame(now){
   flashBox.material.opacity=Math.max(0,1-(now-flashT)/600);
   syncGrid(); updateRoofs(); updateCam(); followSun(); mountains.position.set(camera.position.x,0,camera.position.z); drawFrame();
 }
-if(/[?&]debug\b/.test(location.search)) window.SF={cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,loadWalkers,STOP,homeAct:(a,r)=>homeAct(a,{dataset:{r}}),openHome,FISH,startRain,dayAt:f=>{const g=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((f-g+1)%1)*DAY_MS;},step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
+if(/[?&]debug\b/.test(location.search)) window.SF={cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,vans,traffic,loadWalkers,STOP,homeAct:(a,r)=>homeAct(a,{dataset:{r}}),openHome,FISH,startRain,dayAt:f=>{const g=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((f-g+1)%1)*DAY_MS;},step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
 renderHUD();
 requestAnimationFrame(frame);
 if(!S.seenHelp){S.seenHelp=true; save(); setTimeout(()=>toast('Open 🧰 Tools, pick a tool, and drag across the field. Sell your harvest at the 🏪 Palengke!',4800),600);}

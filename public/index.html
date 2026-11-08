@@ -2018,7 +2018,7 @@ function buildExtraVeh(kind){
   const body=new THREE.Mesh(mergeGeo(b),PAINT); body.castShadow=true; g.add(body);
   if(kind==='van') cabDoor(g,1.01,1.45,3.0,1.2,.9,0xf5f5f5); else cabDoor(g,.97,1.25,3.18,1.05,.95,0xf2f2ee);   // the driver's door swings open
   wpos.forEach(([x,z])=>{const w=new THREE.Mesh(mergeGeo([P('cyl',0x1b1b1b,0,0,0,wr*2,.24,wr*2),P('cyl',0xd9dee2,0,0,0,wr,.26,wr)]),VCMAT); const h=new THREE.Group(); h.position.set(x,wr,z); h.rotation.z=Math.PI/2; h.add(w); g.add(h); wheels.push(w);});
-  const L=randLook(rng(kind==='van'?44:45)); L.f=false; L.bag=null; L.h=1; const d=bakePerson(L,poseSit); d.position.set(.42,kind==='van'?.92:.95,kind==='van'?2.35:2.55); g.add(d); g.userData.driver=d; d.visible=false;
+  const L=randLook(rng(kind==='van'?44:45)); L.f=false; L.bag=null; L.h=1; L.style='short'; const d=bakePerson(L,poseSit); d.position.set(.42,kind==='van'?.92:.95,kind==='van'?2.35:2.55); g.add(d); g.userData.driver=d; d.visible=false;
   [-.62,.62].forEach(xx=>{glow(g,xx*(kind==='van'?1.15:1.05),kind==='van'?1.0:.85,kind==='van'?3.15:3.5,1.2,GM.head); glow(g,xx*(kind==='van'?1.35:1.3),.75,kind==='van'?-3.65:-3.62,.7,GM.tail);});
   goods.visible=mats.visible=feed.visible=live.visible=false; g.add(goods,mats,feed,live); g.visible=false; scene.add(g);
   return {obj:g,goods,mats,feed,live,wheels,r:wr};
@@ -2069,7 +2069,7 @@ function buildStock(){
   const ramp=new THREE.Group(); ramp.position.set(0,H0,z1); g.add(ramp);                                                                   // lower rear gate: drops down into a loading ramp
   ramp.add(new THREE.Mesh(mergeGeo([P('box',PL,0,H*.25,0,2.0,H*.5,.06),...[.1,.2,.3,.4].map(f=>P('box',0x949ba0,0,H*f,-.04,1.96,.03,.02)),P('box',ST,0,H*.5,0,2.04,.06,.08)]),PAINT));
   [[-.85,2.4],[.85,2.4],[-.85,-1.95],[.85,-1.95]].forEach(([x,z])=>{const w=new THREE.Mesh(mergeGeo([P('cyl',0x1b1b1b,0,0,0,wr*2,.26,wr*2),P('cyl',0xd9dee2,0,0,0,wr,.28,wr)]),VCMAT); const h=new THREE.Group(); h.position.set(x,wr,z); h.rotation.z=Math.PI/2; h.add(w); g.add(h); wheels.push(w);});
-  const LK=randLook(rng(46)); LK.f=false; LK.bag=null; LK.h=1; const d=bakePerson(LK,poseSit); d.position.set(.42,.95,2.6); g.add(d); g.userData.driver=d; d.visible=false;
+  const LK=randLook(rng(46)); LK.f=false; LK.bag=null; LK.h=1; LK.style='short'; const d=bakePerson(LK,poseSit); d.position.set(.42,.95,2.6); g.add(d); g.userData.driver=d; d.visible=false;
   [-.62,.62].forEach(xx=>{glow(g,xx*1.05,.85,3.55,1.2,GM.head); glow(g,xx*1.3,.75,-3.66,.7,GM.tail);});
   for(let i=0;i<3;i++) goods.add(part(.5,.3,.45,[0xe8dcc0,0xc79a5b,0x2e86de][i],-.5+i*.5,1.05,-.6)); for(let i=0;i<2;i++) mats.add(part(1.2,.2,.5,0xd9d4c7,0,1.0+i*.21,-.6)); for(let i=0;i<2;i++) feed.add(part(.55,.24,.8,0xf2f2f2,-.3+i*.6,1.02,-.6));
   goods.visible=mats.visible=feed.visible=false; g.add(goods,mats,feed); g.visible=false; scene.add(g);
@@ -2084,7 +2084,7 @@ const needHouse=n=>S.house<n?`<div class="pay">🏠 Needs your ${HOUSE[n].name} 
 const OWN=v=>v==='jeep'?S.veh.jeep.owned!==false:!!(S.veh[v]&&S.veh[v].owned);   // old farms keep their jeepney
 const STOCK_PRICE=12000, STOCK_LV=5, SEDAN_PRICE=4500, SEDAN_LV=2, VAN_PRICE=30000, VAN_LV=10;
 const JEEP_PRICE=3000, JEEP_LV=3, TRUCK_LV=7;
-const STOP={port:8,sari:7,pickup:12,mountain:8,palengke:8,hardware:9,poultry:7,seeds:7,warehouse:8,city:30,brgy:6};
+const STOP={port:8,sari:9,pickup:12,mountain:8,palengke:8,hardware:9,poultry:9,seeds:9,warehouse:8,city:30,brgy:6};
 const MEATS=['chicken','beef','pork','chevon','tilapia'], CITY_RATE=1.8;
 const WHX=62, FX=395;   // the warehouse, and the factory far out east (its smoke stays away from the barangay)
 const WH_LV=9, WH_PRICE=15000, FAC_LV=14, FAC_PRICE=60000, VAN_CAP=60;
@@ -3499,7 +3499,7 @@ function ambTick(){
   if(Math.floor(h)===5&&lastHour!==5&&S.tiles.some(t=>t.s==='bld'&&(t.b==='coop'||t.b==='broiler'))) animal('rooster',.8,B);   // the rooster at dawn
   lastHour=Math.floor(h);
   if(day){
-    if(Math.random()<.22){const f=2400+Math.random()*1800, n=2+(Math.random()*4|0), v=.035*zoom; for(let i=0;i<n;i++) tone(B,{f:f*(1+Math.random()*.15),f2:f*(1.25+Math.random()*.3),type:'sine',d:.07,v,t:i*.11,glide:.06});}
+    if(!rainOn()&&Math.random()<.22){const f=2400+Math.random()*1800, n=2+(Math.random()*4|0), v=.035*zoom; for(let i=0;i<n;i++) tone(B,{f:f*(1+Math.random()*.15),f2:f*(1.25+Math.random()*.3),type:'sine',d:.07,v,t:i*.11,glide:.06});}
     if(Math.random()<.05) noise(B,{d:2.5,a:1.2,v:.05,f:500,q:.4,type:'lowpass'});
   }else{
     if(Math.random()<.7){const f=4200+Math.random()*600; for(let i=0;i<6;i++) tone(B,{f,type:'sine',a:.002,d:.025,v:.012*zoom,t:i*.045+Math.random()*.01});}
@@ -3781,7 +3781,7 @@ const SLOT_SPOT=SLOTS.map(s=>{const g=AREA_BOX[s.area].in, rects=SLOTS.filter(o=
   for(const p of c.sort(byLen)) for(const v of [[p[0],g[1]],[g[0],p[1]]]) if(areaAt(v[0],v[1])===s.area&&clear(g,v)&&clear(v,p)){p.via=v; return p;}   // an L-shaped walk along a lane
   return c[0]||[s.x,s.z+s.d/2+.9];});
 function jobSpot(i){const p=tilePos(i), s=slotOf(i); if(s) return SLOT_SPOT[i-NF]; return [p.x+.15,p.z+.75];}
-for(const v of Object.keys(VEH)){const V=VEH[v], m=bakePerson(FARMER_LOOK,poseSit), d=V.obj.userData.driver; m.position.copy(d.position); m.visible=false; V.obj.add(m); V.seat=m; V.doorZ=V.doorZ0!=null?V.doorZ0:v==='jeep'?.8:2.3; V.doorUntil=0;
+for(const v of Object.keys(VEH)){const V=VEH[v], m=bakePerson({...FARMER_LOOK,style:'short'},poseSit), d=V.obj.userData.driver; m.position.copy(d.position); m.visible=false; V.obj.add(m); V.seat=m; V.doorZ=V.doorZ0!=null?V.doorZ0:v==='jeep'?.8:2.3; V.doorUntil=0;
   V.wf=V.wf||(v==='jeep'?1.95:2.15); V.wr=V.wr||(v==='jeep'?1.55:1.9); V.tw=V.tw||(v==='jeep'?.82:.92); V.obj.rotation.order='YXZ';}
 for(const v of Object.keys(VEH)){const tr=S.veh[v].trip; if(tr&&tr.driver==='farmer'&&tr.t0) farmer.riding=v;}
 function jobSpotJ(j){if(j.type==='board'){const V=VEH[j.vid]; return [V.slot+1.6,G0+V.doorZ];} if(j.type==='home') return homeDoor(); if(j.type==='fish') return jobSpot(j.pi); if(j.type==='hose') return [REEL[0]+.9,REEL[1]+.7]; return jobSpot(j.i);}
@@ -3906,7 +3906,7 @@ function spawnHelper(h){
   basket.add(mesh(new THREE.CylinderGeometry(.24,.18,.26,8),0xb08850,0,0,0)); basket.add(mesh(new THREE.SphereGeometry(.18,6,4),0xe9c24b,0,.12,0));
   basket.position.set(0,1.08,.36); basket.visible=false; p.root.add(basket);
   const home=helperHome(helpers.length); p.root.position.set(home[0],.08,home[1]); scene.add(p.root);
-  const H={h,p,slot,basket,state:'idle',cur:null,timer:.5+helpers.length*.3,ph:0,carry:false,riding:null,skip:new Map(),tick:0,msg:'',path:[]}; helpers.push(H);
+  const H={h,p,look:L,slot,basket,state:'idle',cur:null,timer:.5+helpers.length*.3,ph:0,carry:false,riding:null,skip:new Map(),tick:0,msg:'',path:[]}; helpers.push(H);
   if(!isWork()){H.state='gone'; p.root.visible=false;}   // hired or loaded at night: they start in the morning
   return H;
 }
@@ -4303,7 +4303,7 @@ function departAt(vid){const tr=S.veh[vid].trip, V=VEH[vid]; let t0=Date.now(); 
   for(const o in S.veh){const ot=S.veh[o].trip; if(o!==vid&&ot&&ot.t0&&ot.dest===tr.dest&&t0-ot.t0<7000) t0=Math.max(t0,ot.t0+7000);} return t0;}
 function vehPhase(vid,now){
   const tr=S.veh[vid].trip, R=routesFor(vid,tr.dest,tr); if(!tr.t0) return {ph:'board',R};
-  const e=(now-tr.t0)/1000, st=STOP[tr.dest];
+  const e=(now-tr.t0)/1000, st=tr.stopT||STOP[tr.dest];
   if(e<R.out.T) return {ph:'out',e,R};
   if(e<R.out.T+st) return {ph:'stop',e:e-R.out.T,R};
   if(e<R.out.T+st+R.back.T) return {ph:'back',e:e-R.out.T-st,R};
@@ -4369,30 +4369,63 @@ function placeVehicles(now,dt){
       V.blk=blk?(V.blk||0)+dt:0; if(blk&&V.blk<8) st.trip.t0+=dt*1000;}   // wait behind whoever stopped in front
     if(st.trip){const ph=vehPhase(vid,now), R=ph.R;
       if(ph.ph==='out'){p=routePos(R.out,ph.e); goods=['palengke','warehouse','city','brgy','mountain','port'].includes(st.trip.dest)?Math.max(.2,st.trip.fill||1):false;}
-      else if(ph.ph==='stop'){p=routePos(R.out,R.out.T); if(!['palengke','warehouse','city','brgy','mountain','pickup','port'].includes(st.trip.dest)) mats=Math.min(1,ph.e/STOP[st.trip.dest]); else goods=Math.max(.2,st.trip.fill||1)*(1-Math.min(1,ph.e/(STOP.palengke*.85)));}
-      else if(ph.ph==='back'){p=routePos(R.back,ph.e); if(!['palengke','warehouse','city','brgy','mountain','pickup','port'].includes(st.trip.dest)) mats=1;}
+      else if(ph.ph==='stop'){p=routePos(R.out,R.out.T); if(!['palengke','warehouse','city','brgy','mountain','pickup','port'].includes(st.trip.dest)) mats=Math.min(1,ph.e/STOP[st.trip.dest])*matsFrac(st.trip,vid); else goods=Math.max(.2,st.trip.fill||1)*(1-Math.min(1,ph.e/(STOP.palengke*.85)));}
+      else if(ph.ph==='back'){p=routePos(R.back,ph.e); if(!['palengke','warehouse','city','brgy','mountain','pickup','port'].includes(st.trip.dest)) mats=matsFrac(st.trip,vid);}
     }
     if(V.prev){const d=Math.hypot(p.x-V.prev.x,p.z-V.prev.z); if(d<5) V.wheels.forEach(w=>w.rotation.y-=d/V.r);} V.prev={x:p.x,z:p.z};
     const moving=st.trip&&p.x!==V.slot;
     o.position.set(p.x,moving?Math.abs(Math.sin(now/90))*.03:0,p.z); o.rotation.y=lerpAng(o.rotation.y,p.ang,1-Math.exp(-dt*7)); suspend(V,p.x,p.z,o.rotation.y,dt,moving);
     {const ph2=st.trip?vehPhase(vid,now).ph:null, onRoad=!!(st.trip&&ph2!=='board');
-      if(V.seat) V.seat.visible=onRoad&&st.trip.driver==='farmer'; if(o.userData.driver) o.userData.driver.visible=onRoad&&st.trip.driver!=='farmer';
-      if(o.userData.door){if(st.trip&&st.trip.t0){const P4=vehPhase(vid,now), sd=STOP[st.trip.dest]||8; if(P4.ph==='stop'&&(P4.e<1.1||P4.e>sd-1.1)){if(now>(V.doorUntil||0)) sfx('door',o.position.x,o.position.z); V.doorUntil=now+250;}}   // the driver gets out on arrival and back in before leaving
+      errandStep(V,vid,st.trip,now); if(V.seat) V.seat.visible=onRoad&&!V.out&&st.trip.driver==='farmer'; if(o.userData.driver) o.userData.driver.visible=onRoad&&!V.out&&st.trip.driver!=='farmer';
+      if(o.userData.door){if(st.trip&&st.trip.t0){const P4=vehPhase(vid,now), sd=st.trip.stopT||STOP[st.trip.dest]||8; if(P4.ph==='stop'&&(P4.e<1.1||P4.e>sd-1.1)){if(now>(V.doorUntil||0)) sfx('door',o.position.x,o.position.z); V.doorUntil=now+250;}}   // the driver gets out on arrival and back in before leaving
   const open=now<(V.doorUntil||0); o.userData.door.rotation.y+=((open?-1.25:0)-o.userData.door.rotation.y)*Math.min(1,dt*8);}}
     const gn=V.goods.children.length, gshow=goods===true?gn:Math.ceil((+goods||0)*gn); V.goods.visible=gshow>0; V.goods.children.forEach((c,i)=>c.visible=i<gshow);
     const useFeed=!!(st.trip&&(st.trip.dest==='poultry'||st.trip.dest==='seeds')), MG=useFeed?V.feed:V.mats; (useFeed?V.mats:V.feed).visible=false;
-    const n=MG.children.length, show=Math.ceil(mats*n); MG.visible=show>0; MG.children.forEach((c,i)=>c.visible=i<show);
+    const n=MG.children.length, show=Math.round(mats*n); MG.visible=show>0; MG.children.forEach((c,i)=>c.visible=i<show);
     if(V.liveSets){let kind=null, lf=0; const tr=st.trip;   // live animals in the cages: loading at a pen, riding home, or going to the palengke
       if(V.ramp){let open=0; if(tr&&tr.dest==='pickup'){const P3=vehPhase(vid,now); if(P3.ph==='stop') open=Math.max(0,Math.min(1,P3.e/1.2,(STOP.pickup-P3.e)/1.2));} V.ramp.rotation.x+=(-2.2*open-V.ramp.rotation.x)*Math.min(1,dt*6);}
       if(tr&&tr.dest==='pickup'){const P2=vehPhase(vid,now), set=V.liveSets[AREA_LIVE[tr.area]]; kind=AREA_LIVE[tr.area]; const fr=set?Math.min(1,(tr.cnt||99)/set.children.length):1;
-        lf=fr*(P2.ph==='stop'?Math.min(1,P2.e/STOP.pickup):P2.ph==='back'?(tr.got&&Object.keys(tr.got).length?1:0):0); loadWalkers(V,tr,P2,now);}
+        lf=fr*(P2.ph==='stop'?Math.min(1,P2.e/(tr.stopT||STOP.pickup)):P2.ph==='back'?(tr.got&&Object.keys(tr.got).length?1:0):0); loadWalkers(V,tr,P2,now);}
       else {hideWalkers(V); if(tr&&tr.cargo&&['palengke','brgy','mountain','city'].includes(tr.dest)){const ids=tr.cargo.flatMap(c=>Object.keys(c.ret||c.live||{})); kind=['live_cow','live_pig','live_goat','live_chicken'].find(k=>ids.includes(k))||null; if(kind) lf=Math.max(.3,+goods||0);}}
       for(const k in V.liveSets){const g=V.liveSets[k], ln=g.children.length, ls=k===kind?Math.ceil(lf*ln):0; g.visible=ls>0;
         if(ls) g.children.forEach((c,q)=>{c.visible=q<ls; c.position.y=c.userData.y0+Math.abs(Math.sin(now/170+q*1.7))*.05;});}}
   }
 }
 // animals walking out of their house, through the area gate and up into the truck while it is parked there
-function loadWalkers(V,tr,P,now){const kind=AREA_LIVE[tr.area]||'live_chicken'; if(!V.walk) V.walk={};
+// what you see on the roof or bed matches what you bought: a few small things ride in the cab, food never shows as lumber
+function matsFrac(tr,vid){if(!tr||tr.dest==='sari') return 0; const n=Object.values(tr.mats||{}).reduce((a,b)=>a+b,0); return Math.min(1,n/VEH[vid].cap*1.6);}
+// the driver gets out: into a store and back with a bag, or to the broiler house and back with crates of chickens, again and again
+const ERRAND_AT={sari:[22,-102.8],hardware:[HWX,HZ-8.8],poultry:[PSX,HZ-12.2],seeds:[SSX,HZ-9.5]};
+function errandPerson(V,tr){const key=tr.driver;
+  if(V.erKey!==key||!V.er){if(V.er){scene.remove(V.er.root); disposePerson(V.er);} const H=helpers.find(H=>'h'+H.h.id===tr.driver);
+    const L={...(tr.driver==='farmer'?FARMER_LOOK:H&&H.look?H.look:randLook(Math.random)),bag:null}; const p=makePerson(L);
+    const crate=new THREE.Group(); crate.add(new THREE.Mesh(mergeGeo([P('box',0xe74c3c,0,0,0,.62,.32,.42),P('box',0x2b2b2b,0,.02,0,.64,.1,.3)]),VCMAT));
+    for(const x of [-.14,.14]){const c=miniAnimal('live_chicken'); c.scale.setScalar(.5); c.position.set(x,.1,0); crate.add(c);} crate.position.set(0,1.0,.38); crate.visible=false; p.root.add(crate); p.crate=crate;
+    const bag=new THREE.Mesh(new THREE.BoxGeometry(.26,.3,.12),new THREE.MeshStandardMaterial({color:0xf5f5f5})); bag.position.set(.34,.6,0); bag.visible=false; p.root.add(bag); p.bag=bag;
+    scene.add(p.root); V.er=p; V.erKey=key;} return V.er;}
+function walkAlong(p,pts,u,now){let L=0; const seg=[]; for(let k=0;k<pts.length-1;k++){const d=Math.hypot(pts[k+1][0]-pts[k][0],pts[k+1][1]-pts[k][1]); seg.push(d); L+=d;}
+  let s=Math.max(0,Math.min(1,u))*L, k=0; while(k<seg.length-1&&s>seg[k]){s-=seg[k]; k++;} const [ax,az]=pts[k], [bx,bz]=pts[k+1], f=seg[k]?Math.min(1,s/seg[k]):0;
+  p.root.position.set(ax+(bx-ax)*f,.08,az+(bz-az)*f); p.root.rotation.y=Math.atan2(bx-ax,bz-az); poseWalk(p,now/1000*8); return L;}
+const pathLen=pts=>{let L=0; for(let k=0;k<pts.length-1;k++) L+=Math.hypot(pts[k+1][0]-pts[k][0],pts[k+1][1]-pts[k][1]); return L;};
+function errandStep(V,vid,tr,now){V.out=false; const hide=()=>{if(V.er) V.er.root.visible=false;};
+  const P=tr&&tr.t0?vehPhase(vid,now):null; if(!P||P.ph!=='stop'){hide(); return;}
+  const sd=tr.stopT||STOP[tr.dest]||8, e=P.e, o=V.obj, ry=o.rotation.y, door=[o.position.x+Math.cos(ry)*1.5+Math.sin(ry)*1.6, o.position.z-Math.sin(ry)*1.5+Math.cos(ry)*1.6];
+  const chick=tr.dest==='pickup'&&AREA_LIVE[tr.area]==='live_chicken', shop=ERRAND_AT[tr.dest];
+  if(!chick&&!shop){hide(); return;} if(e<.9||e>sd-.7){hide(); return;}   // still opening the door / already back in the seat
+  const p=errandPerson(V,tr); p.root.visible=true; V.out=true; const t=e-.9, T=sd-1.6, sp=chick?3.2:1.6;
+  if(chick){const rear=[o.position.x-Math.sin(ry)*(V.rear+.7),o.position.z-Math.cos(ry)*(V.rear+.7)], A=FARM.areas.find(a=>a.type===tr.area), h=jobSpot(tr.i), loop=[rear,A.gate,h,A.gate,rear];
+    const d0=Math.hypot(rear[0]-door[0],rear[1]-door[1])/sp, L=pathLen(loop), back=d0;
+    if(t<d0){walkAlong(p,[door,rear],t/d0,now); p.crate.visible=false;}
+    else if(t>T-back){walkAlong(p,[rear,door],(t-(T-back))/back,now); p.crate.visible=false;}
+    else {const u=((t-d0)*sp%L)/L; walkAlong(p,loop,u,now); p.crate.visible=u>.5; if(p.crate.visible){p.aL.rotation.x=p.aR.rotation.x=-1.2;}}
+    p.bag.visible=false; return;}
+  const d=Math.hypot(shop[0]-door[0],shop[1]-door[1]), wt=Math.min(T/2.4,d/sp);
+  if(t<wt){walkAlong(p,[door,shop],t/wt,now); p.bag.visible=false;}
+  else if(t>T-wt){walkAlong(p,[shop,door],(t-(T-wt))/wt,now); p.bag.visible=true;}
+  else p.root.visible=false;   // inside the store, buying
+  p.crate.visible=false;}
+function loadWalkers(V,tr,P,now){const kind=AREA_LIVE[tr.area]||'live_chicken';
+  if(kind==='live_chicken'){if(V.walk) for(const k in V.walk) V.walk[k].visible=false; return;}   // chickens are carried in crates by the driver (errandStep) if(!V.walk) V.walk={};
   if(!V.walk[kind]){const g=new THREE.Group(); for(let k=0;k<5;k++) g.add(miniAnimal(kind)); g.visible=false; scene.add(g); V.walk[kind]=g;}
   for(const k in V.walk) V.walk[k].visible=false; if(P.ph!=='stop'||P.e>STOP.pickup-1.2) return;
   const g=V.walk[kind], o=V.obj, rx=o.position.x-Math.sin(o.rotation.y)*V.rear, rz=o.position.z-Math.cos(o.rotation.y)*V.rear, h=tilePos(tr.i), A=FARM.areas.find(a=>a.type===tr.area), [gx,gz]=A?A.gate:[rx,rz], sp=kind==='live_cow'?.18:kind==='live_pig'||kind==='live_goat'?.28:.5;
@@ -4487,7 +4520,7 @@ function renderHW(){
     +`<button class="vchip ${pasa?'on':''}" data-veh="pasabay" ${pasabayOK()?'':'disabled'}>🚌 Pasabay<small>${S.pasa?'Your farmer is out':`Ride the bus · ${PASA_CAP} items · ₱${PASA_FARE}`}</small></button>`;
   $('hwRows').innerHTML=Object.entries(MATS).filter(([,m])=>m.store===curStore).map(([id,m])=>`<div class="mrow"><span class="gi" aria-hidden="true">${m.icon}</span><span class="gn">${m.name}<small>${m.sub} · ₱${m.price}</small></span>
     <span class="qty"><button data-q="${id}" data-d="-10" aria-label="10 less ${m.name}" ${(hwQty[id]||0)?"":"disabled"}>−10</button><button data-q="${id}" data-d="-1" aria-label="Less ${m.name}" ${(hwQty[id]||0)?"":"disabled"}>−</button><b>${hwQty[id]||0}</b><button data-q="${id}" data-d="1" aria-label="More ${m.name}">+</button><button data-q="${id}" data-d="10">+10</button></span><span class="have">have ${S.mats[id]||0}</span></div>`).join('');
-  const total=Object.entries(hwQty).reduce((s,[k,n])=>s+n*MATS[k].price,0), load=Object.values(hwQty).reduce((a,b)=>a+b,0), cap=capV(hwVeh), fare=pasa?PASA_FARE:0, ok=(pasa?pasabayOK():avail(hwVeh))&&load>0&&load<=cap&&S.coins>=total+fare;
+  const total=Object.entries(hwQty).reduce((s,[k,n])=>s+n*MATS[k].price,0), load=Object.values(hwQty).reduce((a,b)=>a+b,0), cap=capV(hwVeh), fare=pasa&&curStore!=='sari'?PASA_FARE:0, ok=(pasa?pasabayOK():avail(hwVeh))&&load>0&&load<=cap&&S.coins>=total+fare;
   $('hwTotal').innerHTML=`Load ${load}/${cap} · Total ₱${total}${fare?` + ₱${fare} fare`:''}`+(load>cap?' · <span class="warn">too much for this ride</span>':'')+(S.coins<total+fare?' · <span class="warn">not enough coins</span>':'');
   $('hwBuy').disabled=!ok; $('hwBuy').textContent=pasa?(curStore==='sari'?'🚶 Walk there & buy':'🚌 Ride the bus & buy'):`${VEH[hwVeh].icon} Drive there & buy`;
   updateTravelHUD(Date.now());
@@ -4500,7 +4533,7 @@ $('hwSheet').addEventListener('click',e=>{
   if(q){const id=q.dataset.q; hwQty[id]=Math.max(0,(hwQty[id]||0)+(+q.dataset.d)); return renderHW();}
   if(e.target.closest('#hwBuy')){
     const total=Object.entries(hwQty).reduce((s,[k,n])=>s+n*MATS[k].price,0), load=Object.values(hwQty).reduce((a,b)=>a+b,0);
-    if(hwVeh==='pasabay'){if(load<1||load>PASA_CAP||!pasabayOK()||S.coins<total+PASA_FARE) return; S.coins-=total+PASA_FARE; startPasabay({dest:curStore,mats:{...hwQty}}); hwQty={};
+    if(hwVeh==='pasabay'){const fare=curStore==='sari'?0:PASA_FARE; if(load<1||load>PASA_CAP||!pasabayOK()||S.coins<total+fare) return; S.coins-=total+fare; startPasabay({dest:curStore,mats:{...hwQty}}); hwQty={};
       toast(`🚌 Your farmer is riding the bus to ${STORE[curStore].name}.`,3000); buzz(); changed(); return renderHW();}
     const V=VEH[hwVeh];
     if(S.veh[hwVeh].trip||load<1||load>V.cap||S.coins<total) return;
@@ -5384,7 +5417,7 @@ function pickupVeh(t){const L=LIFE[t.b], k=L&&(L.live||L.cull); if(!k) return []
 function pickupPending(i){return Object.keys(VEH).some(v=>{const tr=S.veh[v]&&S.veh[v].trip; return tr&&tr.dest==='pickup'&&tr.i===i&&!tr.loaded;});}
 function startPickup(i,cnt){const t=S.tiles[i], L=LIFE[t.b], vs=pickupVeh(t); if(pickupPending(i)) return toast('A truck is already on its way to these animals.',2600);
   const v=vs.find(vehFree); if(!v) return toast(`${vs.map(x=>VEH[x].icon+' '+VEH[x].name).join(' and ')} ${vs.length>1?'are both':'is'} on the road. Try again when ${vs.length>1?'one':'it'} is back.`,3200);
-  const n=L.live?t.n:Math.min(t.n,cnt||1); if(!beginTrip(v,{dest:'pickup',i,area:t.b,cnt:n,paid:true})) return;
+  const n=L.live?t.n:Math.min(t.n,cnt||1); if(!beginTrip(v,{dest:'pickup',i,area:t.b,cnt:n,paid:true,stopT:t.b==='broiler'?24:12})) return;
   toast(`${VEH[v].icon} The ${VEH[v].name.toLowerCase()} will back up to the ${FARM.areas.find(a=>a.type===t.b).name.toLowerCase()} gate and load ${n} ${n===1&&L.one?L.one:L.word}.`,3400); buzz(); changed();}
 /* ---------- watering, rain, the farmer's hunger and energy, home and fishing ---------- */
 const needsWater=i=>!rainOn()&&growMult(i)<=1;   // plots next to a poso stay moist, and rain waters everything
@@ -5397,7 +5430,15 @@ let rainLast=performance.now();
 (function rainLoop(){requestAnimationFrame(rainLoop); const now=performance.now(), dt=Math.min(.05,(now-rainLast)/1000); rainLast=now; const on=rainOn(); rainMesh.visible=on; if(!on) return;
   const T=cam.target, M=new THREE.Matrix4(); rainMesh.userData.p.forEach((q,k)=>{q[1]-=dt*20; if(q[1]<0){q[1]=24+Math.random()*4; q[0]=Math.random()*70-35; q[2]=Math.random()*70-35;}
     M.makeTranslation(T.x+q[0],q[1],T.z+q[2]); rainMesh.setMatrixAt(k,M);}); rainMesh.instanceMatrix.needsUpdate=true;})();
-setInterval(()=>{if(rainOn()&&AC&&SND.amb&&AC.state==='running') noise(BUS.amb,{d:1.3,a:.4,v:.09,f:2600,q:.3,type:'highpass'});},1000);
+// the sound of rain: a steady soft hiss that fades in and out, droplets ticking on leaves and yero roofs, now and then a far kulog (thunder)
+let rainSnd=null;
+setInterval(()=>{const want=rainOn()&&AC&&SND.amb&&AC.state==='running';
+  if(want&&!rainSnd){const s=AC.createBufferSource(); s.buffer=NOISE; s.loop=true; const hp=AC.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=450; const lp=AC.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=4800;
+    const g=AC.createGain(); g.gain.value=0; s.connect(hp); hp.connect(lp); lp.connect(g); g.connect(BUS.amb); s.start(); g.gain.setTargetAtTime(.1,AC.currentTime,1.5); rainSnd={s,g,lp};}
+  else if(!want&&rainSnd){const r=rainSnd; rainSnd=null; if(AC) r.g.gain.setTargetAtTime(0,AC.currentTime,1); setTimeout(()=>{try{r.s.stop();}catch(e){}},4000);}
+  if(want){rainSnd.g.gain.setTargetAtTime(.085+Math.random()*.03,AC.currentTime,.8); rainSnd.lp.frequency.setTargetAtTime(4200+Math.random()*1200,AC.currentTime,.8);
+    for(let k=0;k<7;k++) tone(BUS.amb,{f:2200+Math.random()*3800,type:'sine',a:.001,d:.018,v:.012+Math.random()*.018,t:Math.random()});
+    if(Math.random()<.035) noise(BUS.amb,{d:3.8,a:.5,v:.2,f:110,f2:45,q:.7,type:'lowpass'});}},1000);
 // the farmer gets hungry and tired: slower when low, refuses work when exhausted; rest, sleep or eat at home
 const HOME_T={rest:20,cook:10,sleep:1e9}, COST={plow:1.4,plant:.6,harvest:.7,chop:3,water:.4,care:.6};
 const homeDoor=()=>[S.housePos.x,S.housePos.z+5.8];

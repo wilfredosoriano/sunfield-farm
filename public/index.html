@@ -310,6 +310,10 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
   #cats .tool .ti{font-size:15px} #cats .tool .ti.svg{width:17px;height:17px} #cats .tool .tl{font-size:9px}
   .pill{padding:4px 10px} #menuBtn{width:34px;height:34px}
 }
+/* living animals: warnings in the pop-up */
+.alert{background:#fde3dc;border:2px solid #c0392b;border-radius:12px;padding:7px 10px;font-weight:800;font-size:13px;color:#7a2a1f}
+.gbtn.warn{background:#ffd7c9!important}
+.gbtn.warn small{color:#b03a2e;opacity:1}
 /* sound switches in the menu */
 .sndrow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .sndrow button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px!important;font-size:13px}
@@ -514,6 +518,7 @@ const BLDS={
   pig:{name:'Babuyan',    icon:'🐖',cost:2500,lvl:4,bt:18,period:120,size:3,feed:1,feedType:'feed_pig',gives:{pork:2},xp:12,mark:0xffd1c7,what:'raises baboy for pork (eats pakain sa baboy)',build:buildPiggery},
   duck:{name:'Itikan',     icon:'🦆',cost:1200,lvl:4,bt:15,period:80,size:3,feed:1,feedType:'feed',gives:{duckegg:6},xp:9,mark:0xfff4d6,what:'itik that lay itlog ng itik, the eggs for balut (eats patuka)',build:buildDuckPen},
   goat:{name:'Kambingan',  icon:'🐐',cost:2000,lvl:5,bt:18,period:110,size:3,feed:1,feedType:'feed_cow',gives:{goatmilk:2,chevon:1},xp:13,mark:0xe9f1ff,what:'goats for gatas and karne ng kambing (eats dayami at darak)',build:buildGoatHouse},
+  incubator:{name:'Pisaan',icon:'🐣',cost:1800,lvl:4,bt:10,what:'an incubator: 12 itlog hatch into a box of 10 sisiw (itlog ng itik into bibi) in one game day',build:buildIncubator},
   fish:{name:'Palaisdaan', icon:'🐟',cost:2500,lvl:6,bt:20,period:140,size:3,feed:1,feedType:'feed_fish',gives:{tilapia:4},xp:15,mark:0xd6f0ff,what:'a tilapia pond with an aerator (eats pakain sa isda)',build:buildFishpond},
 };
 /* goods kept in the bodega until delivered to the palengke */
@@ -827,6 +832,12 @@ const softCover=o=>{if(!POST) return scene.add(o),o; o.traverse(m=>{if(m.materia
 /* ---------- day and night: one game day lasts 13 minutes (day 6 AM–6 PM about 9 min, night about 4 min) ---------- */
 const DAY_MS=13*60*1000;
 let TIME_SHIFT=0;
+/* ---------- calendar: 2 game days per month (a game year is about 5 real hours); bird flu alerts in Dec–Feb, heat waves in Mar–May ---------- */
+const MONTHS=['Ene','Peb','Mar','Abr','May','Hun','Hul','Ago','Set','Okt','Nob','Dis'];
+const gameDayN=(now=Date.now())=>Math.floor((now+TIME_SHIFT)/DAY_MS), monthN=(now=Date.now())=>Math.floor(gameDayN(now)/2);
+if(!S.ev) S.ev={};
+const heatOn=(now=Date.now())=>(S.ev.heatEnd||0)>now, fluOn=(now=Date.now())=>S.ev.flu!=null&&S.ev.flu===monthN(now);
+const hotNow=(t,now=Date.now())=>heatOn(now)&&t.n>0&&now-(t.wet||0)>DAY_MS/4;   // in a heat wave animals need water every quarter of a day
 function gameHour(now=Date.now()+TIME_SHIFT){const f=(now%DAY_MS)/DAY_MS; return f<.7?6+f/.7*12:(18+(f-.7)/.3*12)%24;}
 const isWork=()=>{const h=gameHour(); return h>=6&&h<18;};
 const nightK=h=>h>=7&&h<17?0:(h>=19||h<5)?1:h>=17&&h<19?(h-17)/2:1-(h-5)/2;
@@ -847,7 +858,7 @@ function updateDayNight(){
   sun.intensity=.95-.68*NK; sun.color.copy(S_DAY).lerp(S_NIGHT,NK).lerp(S_DUSK,.5*dusk*(1-NK*.6));
   for(const m of GLOW_MATS){m.opacity=NK*m.userData.k; m.visible=NK>.02;}
   LAMP_MAT.color.copy(L_OFF).lerp(L_ON,NK); MTN_MAT.color.setRGB(1,1,1).lerp(MTN_NIGHT,NK*.85);
-  const hh=Math.floor(h), mm=Math.floor((h-hh)*60/10)*10, txt=`${NK>.5?'🌙':(h>=5&&h<7.5)||(h>=16.5&&h<19)?'🌅':'☀️'} ${((hh+11)%12)+1}:${String(mm).padStart(2,'0')} ${hh<12?'AM':'PM'}`;
+  const hh=Math.floor(h), mm=Math.floor((h-hh)*60/10)*10, txt=`${NK>.5?'🌙':(h>=5&&h<7.5)||(h>=16.5&&h<19)?'🌅':'☀️'} ${((hh+11)%12)+1}:${String(mm).padStart(2,'0')} ${hh<12?'AM':'PM'} · ${MONTHS[monthN()%12]}${heatOn()?' 🥵':''}`;
   if(txt!==clockTxt){clockTxt=txt; const el=document.getElementById('clockTxt'); if(el) el.textContent=txt;}
   const w=h>=6&&h<18; if(wasWork!==null&&w!==wasWork&&S.helpers&&S.helpers.length) toast(w?'🌅 Magandang umaga! Your trabahador are taking the bus back to work.':'🌇 Alas-sais na! Your trabahador are going home to rest.',3200); wasWork=w;
 }
@@ -1044,6 +1055,17 @@ function buildCoop(){
       o.c.rotation.y=Math.atan2(-Math.cos(a)*rz,-Math.sin(a)*rx);
       o.c.position.y=.2+Math.abs(Math.sin(t*8+o.ph))*.04;});
   }};
+}
+function buildIncubator(){   // a little nipa hut over a wooden incubator cabinet with a warm lamp glowing inside
+  const g=new THREE.Group(), b=[];
+  b.push(P('box',0xbdb6a6,0,.06,0,1.7,.12,1.7));
+  for(const x of [-.72,.72]) for(const z of [-.72,.72]) b.push(P('box',0x6d4c41,x,.8,z,.1,1.6,.1));
+  b.push(P('pyr',0xa8823f,0,1.85,0,2.1,.7,2.1));
+  b.push(P('box',0x8d6e4b,0,.58,-.15,1.1,.9,.75)); b.push(P('box',0x5d4037,0,.58,.235,.92,.72,.02)); b.push(P('box',0x6d4c41,0,.1,-.15,1.2,.1,.85));
+  for(let k=0;k<3;k++) b.push(P('box',0xd7ccc8,.75,.18+k*.1,.55,.36,.06,.28));   // egg trays stacked outside
+  g.add(vcGroup(b));
+  const glow=new THREE.Mesh(new THREE.PlaneGeometry(.72,.45),new THREE.MeshBasicMaterial({color:0xffb74d})); glow.position.set(0,.64,.25); g.add(glow);
+  return {g};
 }
 function buildWell(){
   const g=new THREE.Group();
@@ -2218,7 +2240,7 @@ function buildLayerHouse(t,i){poultryMats();
   for(let k=0;k<2+L0;k++){b.push(P('box',0xf2f2f2,Lh/2+.6,.2+(k>2?.3:0),W/2-.4-(k%3)*.62,.5,.3,.56)); b.push(P('box',0x27ae60,Lh/2+.86,.22+(k>2?.3:0),W/2-.4-(k%3)*.62,.02,.1,.5));}   // egg crates by the door
   g.add(vcGroup(b));
   const cm=instOf(G.tiny,CAGE_MAT,cages); cm.castShadow=true; g.add(cm);
-  const HG=henGeo().b, bodies=instOf(HG.body,VCMAT,hens.map(h=>h.m)), heads=instOf(HG.head,VCMAT,hens.map(h=>_pm.multiplyMatrices(h.m,PIV).clone()));
+  hens.splice(visN(t,hens.length)); const HG=henGeo().b, bodies=instOf(HG.body,VCMAT,hens.map(h=>h.m)), heads=instOf(HG.head,VCMAT,hens.map(h=>_pm.multiplyMatrices(h.m,PIV).clone()));
   bodies.castShadow=true; g.add(bodies,heads);
   const eg=instOf(EGG_GEO,mat(0xd9a066),eggsL); eg.count=0; g.add(eg);
   let hungry=false, shown=0, tnow=0; const born=new Float32Array(eggsL.length);
@@ -2232,7 +2254,7 @@ function buildLayerHouse(t,i){poultryMats();
 }
 // ---- broiler house: a long floor house on rice-hull litter, wooden kick-boards, green curtains, rows of pan feeders and bell drinkers
 function buildBroilerHouse(t,i){poultryMats();
-  const L0=(t&&t.lvl)||1, {w,d}=slotSize(i,14,6.5), g=new THREE.Group(), b=[], n=[0,14,24,36][L0];
+  const L0=(t&&t.lvl)||1, {w,d}=slotSize(i,14,6.5), g=new THREE.Group(), b=[], n=visN(t,[0,14,24,36][L0]), gs=gsc(t);
   const Lh=[w*.6,w*.8,w*.96][L0-1], W=d-.5, ht=2.4+(L0-1)*.2;
   b.push(P('box',0xcdb98c,0,.05,0,Lh,.1,W)); for(let k=0;k<Math.round(Lh*2);k++) b.push(P('box',[0xbfa978,0xd8c79c][k%2],-Lh/2+.5+((k*37)%Math.round(Lh*10-10))/10,.105,-W/2+.5+((k*53)%Math.round(W*10-10))/10,.6,.01,.4,0,k,0));
   for(const s of [-1,1]){b.push(P('box',0x8a6a48,0,.24,s*W/2,Lh,.4,.06)); b.push(P('box',0x8a6a48,s*Lh/2,.24,0,.06,.4,W));}            // kick-boards
@@ -2257,7 +2279,7 @@ function buildBroilerHouse(t,i){poultryMats();
       birds.forEach((bd,k)=>{let peck=0;
         if(bd.wait>0){bd.wait-=dt; peck=Math.pow(Math.max(0,Math.sin(tm*(hungry?2:6)+bd.ph)),3)*1.1; if(bd.wait<=0) pickTarget(bd);}
         else {const dx=bd.tx-bd.x, dz=bd.tz-bd.z, dd=Math.hypot(dx,dz); if(dd<.08){bd.wait=1+rnd()*2.5;} else {const st=Math.min(dd,.55*dt); bd.x+=dx/dd*st; bd.z+=dz/dd*st; bd.a=lerpAng(bd.a,Math.atan2(dx,dz),.15);}}
-        const bob=bd.wait>0?0:Math.abs(Math.sin(tm*10+bd.ph))*.03, m=Mx(bd.x,.1+bob,bd.z,.9,.9,.9,0,bd.a,0); bodies.setMatrixAt(k,m);
+        const bob=bd.wait>0?0:Math.abs(Math.sin(tm*10+bd.ph))*.03, m=Mx(bd.x,.1+bob,bd.z,.9*gs,.9*gs,.9*gs,0,bd.a,0); bodies.setMatrixAt(k,m);
         _pr.makeRotationX(peck); _pm.multiplyMatrices(m,PIV).multiply(_pr); heads.setMatrixAt(k,_pm);});
       bodies.instanceMatrix.needsUpdate=true; heads.instanceMatrix.needsUpdate=true;}};
 }
@@ -2273,14 +2295,14 @@ function buildCowBarn(t,i){poultryMats();
   b.push(P('cyl',0xe5c45a,-Lb/2+.9,.45,Wd/2-.9,1.0,.9,1.0)); b.push(P('cyl',0xe5c45a,-Lb/2+2,.45,Wd/2-.8,1.0,.9,1.0));                   // round hay bales
   b.push(P('box',0x9e9e9e,Lb/2-1.2,.22,Wd/2+2.4,1.6,.4,.6)); b.push(P('box',0x5f8a80,Lb/2-1.2,.4,Wd/2+2.4,1.45,.04,.46));               // water trough in the pasture
   g.add(vcGroup(b));
-  const n=[0,2,4,6][L0], cows=[], feeds=[[0,-Wd/2+1.2],[Lb/2-1.2,Wd/2+1.9]];
-  for(let k=0;k<n;k++) cows.push({kind:k%3,x:(k%3-1)*2,z:Wd/2+2+(k>>1)*1.5,s:.78,speed:.35,graze:1.0,rate:1.3,bx0:-w/2+.8,bx1:w/2-.8,bz0:-Wd/2+1.4,bz1:Wd/2+14,feeds});
+  const n=visN(t,[0,2,4,6][L0]), cows=[], feeds=[[0,-Wd/2+1.2],[Lb/2-1.2,Wd/2+1.9]];
+  for(let k=0;k<n;k++) cows.push({kind:k%3,x:(k%3-1)*2,z:Wd/2+2+(k>>1)*1.5,s:.78*gsc(t),speed:.35,graze:1.0,rate:1.3,bx0:-w/2+.8,bx1:w/2-.8,bz0:-Wd/2+1.4,bz1:Wd/2+14,feeds});
   const tick=herd(g,cows,cowGeo(),PIVC); let hungry=false;
   return {g,setReady:()=>{},setProgress:(p,hg)=>{hungry=hg;},tick:tm=>tick(tm,hungry)};
 }
 // ---- goat house on stilts with a slatted floor and a ramp; the goats browse in the yard in front
 function buildGoatHouse(t,i){
-  const L0=(t&&t.lvl)||1, {w,d}=slotSize(i,7,5), g=new THREE.Group(), b=[], n=[0,4,7,10][L0], Wh=Math.min(w-.6,3+L0*1.2), Dh=d-1.4;
+  const L0=(t&&t.lvl)||1, {w,d}=slotSize(i,7,5), g=new THREE.Group(), b=[], n=visN(t,[0,4,7,10][L0]), Wh=Math.min(w-.6,3+L0*1.2), Dh=d-1.4;
   for(const x of [-Wh/2,Wh/2]) for(const z of [-Dh/2,Dh/2]) b.push(P('box',0x6d4c41,x,.6,z,.14,1.2,.14));
   b.push(P('box',0x8d6e4b,0,.9,0,Wh+.2,.1,Dh)); for(let k=0;k<10;k++) b.push(P('box',0x5d4037,-Wh/2+k*Wh/9,.96,0,.04,.02,Dh));          // slatted floor
   b.push(P('box',0xb08850,0,1.5,-Dh/2,Wh+.2,1.1,.08)); for(const x of [-Wh/2-.05,Wh/2+.05]) b.push(P('box',0xb08850,x,1.5,0,.08,1.1,Dh));
@@ -2288,11 +2310,11 @@ function buildGoatHouse(t,i){
   b.push(P('box',0x8d6e4b,-w/2+.9,.9,d/2+1,1.2,.9,.4)); for(let k=0;k<5;k++) b.push(P('box',0xd4b06a,-w/2+.4+k*.25,1.05,d/2+1,.12,.5,.25));   // hay rack
   if(L0>=3) b.push(P('box',0x8d6e4b,w/2-.7,.5,d/2+1.4,1.0,.08,.7));                                                                  // milking stand
   g.add(vcGroup(b));
-  const gs=[]; for(let k=0;k<n;k++) gs.push({kind:k%3,x:-2+Math.random()*4,z:d/2+.8+Math.random()*2,s:.85,speed:.32,graze:.85,rate:2.4,bx0:-w/2+.4,bx1:w/2-.4,bz0:d/2+.2,bz1:d/2+3.6,feeds:[[-w/2+.9,d/2+.6]]});
+  const gs=[]; for(let k=0;k<n;k++) gs.push({kind:k%3,x:-2+Math.random()*4,z:d/2+.8+Math.random()*2,s:.85*gsc(t),speed:.32,graze:.85,rate:2.4,bx0:-w/2+.4,bx1:w/2-.4,bz0:d/2+.2,bz1:d/2+3.6,feeds:[[-w/2+.9,d/2+.6]]});
   return farmReturn(g,herd(g,gs,goatGeo(),PIVG));}
 // ---- pig house: a roofed shelter with pens across it, each opening onto its own concrete run with a trough
 function buildPiggery(t,i){poultryMats();
-  const L0=(t&&t.lvl)||1, {w,d}=slotSize(i,11,9), g=new THREE.Group(), b=[], pens=L0+1, pigsN=[0,4,8,12][L0], WALL=0x9e9e9e, pigs=[];
+  const L0=(t&&t.lvl)||1, {w,d}=slotSize(i,11,9), g=new THREE.Group(), b=[], pens=L0+1, pigsN=visN(t,[0,4,8,12][L0]), WALL=0x9e9e9e, pigs=[];
   const pw=(w-.4)/pens, zs=-d/2+.2, zm=-d/2+d*.55, ze=d/2-.2;   // shelter from zs to zm, run from zm to ze
   b.push(P('box',0xbdb6a6,0,.06,0,w-.2,.12,d-.2));
   b.push(P('box',WALL,0,.45,zs,w-.4,.9,.15)); for(const s of [-1,1]) b.push(P('box',WALL,s*(w/2-.2),.38,(zs+ze)/2,.15,.75,ze-zs));
@@ -2302,7 +2324,7 @@ function buildPiggery(t,i){poultryMats();
     b.push(P('box',0xbdbdbd,cx,.17,ze-.4,pw*.7,.3,.32)); b.push(P('box',0xd6c08a,cx,.31,ze-.4,pw*.65,.03,.24));                       // trough
     b.push(P('cyl',0x95a5a6,cx+pw/2-.3,.45,zs+.5,.06,.3,.06));
     const nk=Math.round(pigsN/pens)+(k<pigsN%pens?0:0);
-    for(let q=0;q<nk&&pigs.length<pigsN;q++) pigs.push({kind:(k+q)%3,x:cx+(q-.5)*.5,z:(zs+ze)/2,s:.82,speed:.3,graze:.75,rate:3,bx0:cx-pw/2+.5,bx1:cx+pw/2-.5,bz0:zs+.6,bz1:ze-.6,feeds:[[cx,ze-.9]]});}
+    for(let q=0;q<nk&&pigs.length<pigsN;q++) pigs.push({kind:(k+q)%3,x:cx+(q-.5)*.5,z:(zs+ze)/2,s:.82*gsc(t),speed:.3,graze:.75,rate:3,bx0:cx-pw/2+.5,bx1:cx+pw/2-.5,bz0:zs+.6,bz1:ze-.6,feeds:[[cx,ze-.9]]});}
   const sh=new THREE.Group(); sh.position.z=(zs+zm)/2; g.add(sh); const sb=[]; shed(sh,sb,w-.2,zm-zs,2.3,false); sh.add(vcGroup(sb));          // roof over the shelter half
   b.push(P('box',0xb8b0a0,0,.13,(zm+ze)/2,w-.6,.02,ze-zm-.4));                                                                       // the open concrete run
   if(L0>=3){for(const dx of [-.35,.35]) for(const dz of [-.35,.35]) b.push(P('box',0x7f8c8d,-w/2-.9+dx,1.7,zs+.6+dz,.08,3.4,.08)); b.push(P('cyl',0x2e86de,-w/2-.9,3.9,zs+.6,.9,1.0,.9));}
@@ -2314,7 +2336,7 @@ function buildPiggery(t,i){poultryMats();
 // ---- duck enclosure: a shelter with nest boxes, a muddy run and a small round pond with reeds, bamboo fence round it
 const POND_MAT=new THREE.MeshStandardMaterial({color:0x4f7a74,roughness:.15,metalness:.1});
 function buildDuckPen(t,i){
-  const L0=(t&&t.lvl)||1, {w,d}=slotSize(i,10,7), g=new THREE.Group(), b=[], n=[0,8,14,20][L0], pr=Math.min(d,w*.45)/2-.4+L0*.2;
+  const L0=(t&&t.lvl)||1, {w,d}=slotSize(i,10,7), g=new THREE.Group(), b=[], n=visN(t,[0,8,14,20][L0]), pr=Math.min(d,w*.45)/2-.4+L0*.2;
   b.push(P('box',0x9a8a68,0,.06,0,w,.12,d)); const px=w/2-pr-.6;
   b.push(P('cyl',0x6e5e44,px,.1,0,pr*2+.6,.06,pr*2+.4));
   const pond=new THREE.Mesh(new THREE.CylinderGeometry(pr,pr,.04,24),POND_MAT); pond.position.set(px,.14,0); pond.receiveShadow=true; g.add(pond);
@@ -2326,7 +2348,7 @@ function buildDuckPen(t,i){
   for(let k=0;k<L0+2;k++){const x=sx-1+k*.55; b.push(P('box',0x8d6e4b,x,.25,-d/2+.5,.5,.4,.5)); b.push(P('sph',0xe8e0c8,x,.42,-d/2+.55,.12,.09,.1));}     // nest boxes with eggs
   b.push(P('box',0xbdbdbd,sx,.15,d/2-.8,1.6,.2,.4)); b.push(P('box',0xd6c08a,sx,.26,d/2-.8,1.4,.03,.3));                                  // feed trough
   g.add(vcGroup(b));
-  const ds=[]; for(let k=0;k<n;k++) ds.push({kind:k%3?0:1,x:-w/2+1+Math.random()*(w-2),z:-d/2+1+Math.random()*(d-2),s:.95,speed:.35,graze:.6,rate:4,bx0:-w/2+.6,bx1:w/2-.6,bz0:-d/2+.6,bz1:d/2-.6,feeds:[[sx,d/2-1.2],[px,0]]});
+  const ds=[]; for(let k=0;k<n;k++) ds.push({kind:k%3?0:1,x:-w/2+1+Math.random()*(w-2),z:-d/2+1+Math.random()*(d-2),s:.95*gsc(t),speed:.35,graze:.6,rate:4,bx0:-w/2+.6,bx1:w/2-.6,bz0:-d/2+.6,bz1:d/2-.6,feeds:[[sx,d/2-1.2],[px,0]]});
   return farmReturn(g,herd(g,ds,duckGeo(),PIVD));}
 // ---- tilapia pond: an earthen pond with grassy dikes, paddle-wheel aerators throwing spray, a bamboo dock and a feeding hut
 function buildFishpond(t,i){
@@ -2348,7 +2370,7 @@ function buildFishpond(t,i){
   const fishM=new THREE.MeshStandardMaterial({color:0x78909c,roughness:.6}), fish=[]; for(let k=0;k<3;k++){const f=new THREE.Mesh(new THREE.SphereGeometry(.14,8,6),fishM); f.scale.set(.6,.6,1.4); f.visible=false; g.add(f); fish.push({f,t0:Math.random()*6,x:(Math.random()-.5)*iw*.7,z:(Math.random()-.5)*id*.7});}
   return farmReturn(g,(tm,hungry)=>{const sp=hungry?1:3; wheels.forEach(h=>h.rotation.x=tm*sp);
     spray.forEach(o=>{const u=(tm*.9*sp/3+o.ph)%1, a=o.ph*6.28; o.s.position.set(o.x+Math.cos(a)*.3*u,.3+Math.sin(u*Math.PI)*.55,o.z+.45+u*.5); o.s.scale.setScalar(.4+u*.8); o.s.visible=!hungry||u<.5;});
-    fish.forEach(o=>{const u=((tm+o.t0)%4)/.8; o.f.visible=u<1; if(u<1){o.f.position.set(o.x+u*.6,.35+Math.sin(u*Math.PI)*.6,o.z); o.f.rotation.x=(u-.5)*2;} else if(u>4.9){o.x=(Math.random()-.5)*iw*.7; o.z=(Math.random()-.5)*id*.7;}});});}
+    fish.forEach(o=>{const u=((tm+o.t0)%4)/.8; o.f.visible=u<1&&!(t&&t.n===0); if(u<1){o.f.position.set(o.x+u*.6,.35+Math.sin(u*Math.PI)*.6,o.z); o.f.rotation.x=(u-.5)*2;} else if(u>4.9){o.x=(Math.random()-.5)*iw*.7; o.z=(Math.random()-.5)*id*.7;}});});}
 const POULTRY_LV={
   coop:[null,{name:'Maliit na Itlogan',desc:'1 row of 2-tier battery cages, 20 hens.'},
     {name:'Itlogan',desc:'2 rows of 3-tier battery cages, 84 hens, blue curtains.',coins:300,mats:{wood:10,nails:10,yero:8},dur:15},
@@ -2502,6 +2524,24 @@ POULTRY_LV.fish=[null,{name:'Maliit na Palaisdaan',desc:'An earthen tilapia pond
   {name:'Palaisdaan',desc:'Deeper pond, two aerators and a feeding hut.',coins:500,mats:{hollow:20,cement:10,wood:10},dur:22},
   {name:'Malaking Palaisdaan',desc:'Concrete-lined pond, nets and three aerators.',coins:1200,mats:{hollow:40,cement:20,wood:14,nails:10},dur:32}];
 for(const k of ['cows','pig','duck','goat','fish']) POULTRY_LV[k].forEach((L,i)=>{if(L) L.cap=[0,4,6,10][i];});
+/* ---------- living animals: every house keeps a herd (n animals) and an age (gp: 0 = young just bought, 1 = grown) ----------
+   layers and dairy grow up first and then produce; meat animals grow, then the whole batch is harvested and the house is empty again */
+const LIFE={
+  coop:{kind:'layer',max:[20,84,126],young:'chick',adult:'pullet',grow:2,word:'hens'},
+  duck:{kind:'layer',max:[8,14,20],young:'duckling',adult:'itik',grow:2,word:'itik'},
+  cows:{kind:'dairy',max:[2,4,6],young:'calf',grow:3,word:'cows'},
+  goat:{kind:'dairy',max:[4,7,10],young:'kid',grow:2,word:'goats'},
+  broiler:{kind:'meat',max:[10,18,28],young:'chick',grow:2,word:'broilers',yield:{chicken:8}},
+  pig:{kind:'meat',max:[4,8,12],young:'piglet',grow:4,word:'pigs',yield:{pork:30}},
+  fish:{kind:'meat',max:[60,120,200],young:'fingerling',grow:3,word:'tilapia',yield:{tilapia:1}}};
+const UNIT={chick:10,pullet:10,duckling:10,itik:10,fingerling:50,piglet:1,calf:1,kid:1}, POULTRY_B=['coop','broiler','duck'];
+const maxN=t=>LIFE[t.b].max[(t.lvl||1)-1];
+const herdFrac=t=>!LIFE[t.b]?1:t.n>0?Math.min(1,t.n/maxN(t)):0;
+function visN(t,base){if(!t||!LIFE[t.b]||t.n==null) return base; if(!(t.n>0)) return 0; return Math.max(1,Math.round(base*herdFrac(t)));}   // how many animals to draw
+const gsc=t=>t&&LIFE[t.b]&&t.n>0&&(t.gp||0)<1?.55+.45*(t.gp||0):1;                                                                 // young ones are drawn smaller
+function fmtG(ms){const h=ms/DAY_MS*24; return h>=24?`${Math.floor(h/24)}d ${Math.floor(h%24)}h`:h>=1?`${Math.floor(h)}h ${Math.floor((h%1)*6)*10}m`:`${Math.max(1,Math.round(h*60))}m`;}   // game time
+function growLeft(t,now){const L=LIFE[t.b], per=BLDS[t.b].period*1000; return Math.max(0,(1-(t.gp||0))*L.grow*DAY_MS-(t.hungry?0:Math.min(per,now-t.t)));}
+for(const t of S.tiles) if(t.s==='bld'&&LIFE[t.b]&&t.n==null){t.n=maxN(t); t.gp=1;}   // houses from before: full and grown
 let DUCK=null, GOAT=null;
 const PIVD=new THREE.Matrix4().makeTranslation(0,.36,.2), PIVG=new THREE.Matrix4().makeTranslation(0,.86,.44);
 function duckGeo(){ // brown Pateros-type itik (mallard look) and white itik
@@ -2700,7 +2740,7 @@ const C={grass:0x7fc15b,soil:0x8a5a3a,furrow:0x6e4429,locked:0x6b9548,yard:0xb8a
 const tileRoot=new THREE.Group(); scene.add(tileRoot);
 const tiles=[]; const markers=new Set(); const popping=new Set(), constructing=new Set();
 const underConstruction=(t,now)=>t.s==='bld'&&t.bd>0&&now<t.bs+t.bd*1000;
-const lvlOf=t=>t.lvl||1, feedNeed=t=>(BLDS[t.b].feed||0)*lvlOf(t), feedKey=t=>BLDS[t.b].feedType||'feed';
+const lvlOf=t=>t.lvl||1, feedNeed=t=>Math.ceil((BLDS[t.b].feed||0)*lvlOf(t)*herdFrac(t)), feedKey=t=>BLDS[t.b].feedType||'feed';
 const FEED_NAME={feed:'patuka ng manok',feed_pig:'pakain sa baboy',feed_cow:'dayami at darak',feed_fish:'pakain sa isda'};
 function startCycle(i,quiet){ // each batch of eggs / broilers eats patuka from the bodega
   const t=S.tiles[i], need=feedNeed(t);
@@ -2802,20 +2842,39 @@ function growMult(i){
 const isFarm=t=>t&&t.s==='bld'&&BLDS[t.b]&&BLDS[t.b].size>1&&BLDS[t.b].period;
 const capOf=t=>(POULTRY_LV[t.b][lvlOf(t)].cap)||4;
 const isFull=t=>(t.stored||0)>=capOf(t);
-const perBatch=(t,k)=>BLDS[t.b].gives[k]*lvlOf(t);
-function produce(i,now){ // finished batches go into storage; the next batch starts (eating feed) unless storage is full
-  const t=S.tiles[i], per=BLDS[t.b].period*1000; let changedAny=false;
+const perBatch=(t,k)=>Math.max(1,Math.round(BLDS[t.b].gives[k]*lvlOf(t)*(LIFE[t.b]&&LIFE[t.b].kind!=='meat'&&t.n>0?herdFrac(t):1)));
+function produce(i,now){ // each period eats feed: young animals grow; grown layers and dairy fill storage; grown meat animals wait for the harvest
+  const t=S.tiles[i], L=LIFE[t.b], meat=L&&L.kind==='meat', per=BLDS[t.b].period*1000; let changedAny=false;
   if(underConstruction(t,now)) return false;
-  while(!t.hungry&&!isFull(t)&&now-t.t>=per){
-    t.stored=(t.stored||0)+1; t.t+=per; changedAny=true;
-    if(isFull(t)) break;
-    const need=feedNeed(t);
-    const fk=feedKey(t);
+  if(L&&(!(t.n>0)||t.sick||hotNow(t,now))){t.t=now; return false;}   // empty, sick or too hot: nothing happens
+  while(!t.hungry&&now-t.t>=per){
+    if(L&&(t.gp||0)<1){t.gp=Math.min(1,(t.gp||0)+per/(L.grow*DAY_MS)); t.t+=per; changedAny=true; if(t.gp>=1&&meat){t.t=now; break;}}
+    else if(meat){t.t=now; break;}
+    else {if(isFull(t)) break; t.stored=(t.stored||0)+1; t.t+=per; changedAny=true; if(isFull(t)) break;}
+    const need=feedNeed(t), fk=feedKey(t);
     if(need&&(S.mats[fk]||0)<need){t.hungry=true; t.t=now; break;}
     S.mats[fk]=(S.mats[fk]||0)-need;
   }
   return changedAny;
 }
+// hunger, sickness and heat kill animals, but only while you are playing (closing the game never wipes out your farm); seasonal events roll each game month
+function lifeTiles(){const a=[]; for(let i=0;i<S.tiles.length;i++){const t=S.tiles[i]; if(t.s==='bld'&&LIFE[t.b]) a.push(i);} return a;}
+let lifeLast=performance.now();
+setInterval(()=>{const pn=performance.now(), dt=Math.min(5,(pn-lifeLast)/1000); lifeLast=pn; if(document.hidden) return;
+  const now=Date.now(), m=monthN(now), M=m%12, houses=lifeTiles(), stocked=b=>houses.some(i=>(!b||b.includes(S.tiles[i].b))&&S.tiles[i].n>0);
+  if(S.ev.m!==m){const first=S.ev.m==null; S.ev.m=m;
+    if(!first&&[11,0,1].includes(M)&&Math.random()<.5&&stocked(POULTRY_B)){S.ev.flu=m; sfx('nope'); toast('📻 Balita: bird flu found in a nearby province! Vaccinate your manukan and itikan with 💉 Bakuna from the Agrivet.',5200);}
+    if(!first&&[2,3,4].includes(M)&&Math.random()<.5&&stocked()){S.ev.heatEnd=now+DAY_MS; houses.forEach(i=>S.tiles[i].wet=now); toast('🥵 Heat wave today! Your animals need water every few hours: tap their house, then 🐾 Alaga → 💧 Painumin.',5200);}
+    save();}
+  for(const i of houses){const t=S.tiles[i]; if(!(t.n>0)||underConstruction(t,now)) continue;
+    if(fluOn(now)&&POULTRY_B.includes(t.b)&&!t.sick&&!((t.vaxUntil||0)>now)&&Math.random()<dt*.001){t.sick=true; sfx('nope'); toast(`🤒 Bird flu at your ${BLDS[t.b].name}! Give 💊 gamot soon or the birds will die.`,4200); save();}
+    const why=t.sick?'sick':hotNow(t,now)?'too hot, no water':t.hungry?'gutom, no feed':null;
+    if(why){const was=t.ng||0; t.ng=was+dt;
+      if(was<180&&t.ng>=180) toast(`⚠️ The ${LIFE[t.b].word} at your ${BLDS[t.b].name} are suffering (${why}). Some will die soon!`,4000);
+      if(t.ng>360){t.dl=(t.dl||0)+dt; if(t.dl>=90){t.dl=0; const d=Math.max(1,Math.ceil(t.n*.1)); t.n=Math.max(0,t.n-d);
+        if(!t.n){t.gp=0; t.sick=false; t.hungry=false; t.ng=0;} floatAt(i,`💀 -${d}`); toast(`💀 ${d} ${LIFE[t.b].word} died at your ${BLDS[t.b].name} (${why}).`,3800); updateTile(i,now); save();}}}
+    else {t.ng=Math.max(0,(t.ng||0)-dt*3); t.dl=0;}}
+},1000);
 function farmLabel(o){ // little floating board above the farm: what's stored and the countdown
   if(o.label) return o.label;
   const cv=document.createElement('canvas'); cv.width=512; cv.height=112;
@@ -2832,13 +2891,18 @@ function drawLabel(o,text,bg){
 function farmText(t,now){
   const k=Object.keys(BLDS[t.b].gives)[0], icon=ITEMS[k].icon, have=(t.stored||0)*perBatch(t,k), max=capOf(t)*perBatch(t,k);
   if(underConstruction(t,now)) return ['🔨 Building…','#22301d'];
+  const L=LIFE[t.b];
+  if(L){if(t.sick) return ['🤒 May sakit!','#8e2b1f']; if(hotNow(t,now)) return ['🥵 Init! Painumin','#b5541c'];
+    if(!(t.n>0)) return t.stored?[`✅ ${icon} ${have} ready`,'#2e7d32']:['🚫 Walang laman · Restock','#555'];
+    if((t.gp||0)<1) return [`🌱 ${t.n} · ${Math.floor((t.gp||0)*100)}% · ⏱ ${fmtG(growLeft(t,now))}`,t.hungry?'#7a2a1f':'rgba(34,48,29,.85)'];
+    if(L.kind==='meat') return [`✅ Handa na! ${t.n} ${L.word}`,'#2e7d32'];}
   if(isFull(t)) return [`✅ FULL ${icon} ${have}/${max}`,'#c0392b'];
   if(t.hungry) return [`😟 Gutom · ${icon} ${have}/${max}`,'#7a2a1f'];
   return [`${icon} ${have}/${max} · ⏱ ${fmt(Math.max(0,(BLDS[t.b].period*1000-(now-t.t))/1000))}`,'rgba(34,48,29,.85)'];
 }
 function progress(i,now){
   const t=S.tiles[i];
-  if(isFarm(t)){ if((t.stored||0)>0) return 1; if(t.hungry||isFull(t)) return 0; return Math.max(0,Math.min(1,(now-t.t)/(BLDS[t.b].period*1000))); }
+  if(isFarm(t)){ if((t.stored||0)>0) return 1; const L=LIFE[t.b]; if(L&&(!(t.n>0)||(t.gp||0)<1)) return 0; if(L&&L.kind==='meat') return 1; if(t.hungry||isFull(t)) return 0; return Math.max(0,Math.min(1,(now-t.t)/(BLDS[t.b].period*1000))); }
   if(t.s==='crop') return Math.min(1,(now-t.t)*growMult(i)/(CROPS[t.c].time*1000));
   if(t.s==='bld'&&t.hungry) return 0;
   if(t.s==='bld'&&BLDS[t.b].period) return Math.max(0,Math.min(1,(now-t.t)/(BLDS[t.b].period*1000)));
@@ -2859,6 +2923,7 @@ function updateTile(i,now){
     const ripe=p>=1; if(ripe!==o.crop.ripe){o.crop.ripe=ripe; o.crop.setRipe(ripe);}
     setMarker(i,ripe,0xffd34d);
   }else if(t.s==='bld'&&o.bld&&BLDS[t.b].period){
+    if(LIFE[t.b]){const sig=visN(t,100)+'|'+Math.round(gsc(t)*8); if(o.lifeSig!=null&&o.lifeSig!==sig){o.lifeSig=sig; refreshTile(i,false); return;} o.lifeSig=sig;}   // herd size or age changed: redraw the animals
     const farm=isFarm(t);
     if(t.hungry&&!underConstruction(t,now)&&!(farm&&isFull(t))&&(S.mats[feedKey(t)]||0)>=feedNeed(t)){startCycle(i,true); save();}
     if(farm&&produce(i,now)) save();
@@ -2866,7 +2931,8 @@ function updateTile(i,now){
     if(ready!==o.bld.ready){o.bld.ready=ready; o.bld.setReady&&o.bld.setReady(ready);}
     o.bld.setProgress&&o.bld.setProgress(farm?(t.stored||0)/capOf(t):p,!!t.hungry);
     if(farm){const [txt,bg]=farmText(t,now); drawLabel(o,txt,bg);}
-    if(o.markerKind!==kind){removeMarker(i); o.markerKind=kind; if(kind) setMarker(i,true,kind==='hungry'?0xe74c3c:kind==='full'?0xff7f50:BLDS[t.b].mark);}
+    const L=LIFE[t.b], lk=L&&!underConstruction(t,now)?(t.sick?'sick':hotNow(t,now)?'hot':!(t.n>0)&&!t.stored?'empty':t.hungry&&t.n>0?'hungry':null):null, mk=lk||kind;
+    if(o.markerKind!==mk){removeMarker(i); o.markerKind=mk; if(mk) setMarker(i,true,{hungry:0xe74c3c,full:0xff7f50,sick:0x8e44ad,hot:0xff9800,empty:0x9e9e9e}[mk]||BLDS[t.b].mark);}
   }
 }
 // ---- animal areas: each has its own irregular fence and gate, ground to suit the animal, pads under the houses, and its slots
@@ -3364,6 +3430,7 @@ function onTap(i){
     if(S.tool==='clear'){ if(queueJob('chop',i)){buzz(); toast('🪓 Your farmer will cut the tree (+2 🪵 kahoy).');} return; }
     return toast('🌳 There is a tree here. Use 🧹 Clear and your farmer will cut it down (+2 🪵 kahoy).',2600);
   }
+  if(t.s==='bld'&&t.b==='incubator'&&S.tool!=='clear'&&!underConstruction(t,now)) return openBld(i);
   if(t.s==='bld'&&BLDS[t.b].size>1&&S.tool!=='harvest'&&S.tool!=='clear') return openBld(i);
   const ripe=(t.s==='crop'||(t.s==='bld'&&BLDS[t.b].period))&&progress(i,now)>=1;
   if(ripe&&S.tool==='harvest'){ if(queueJob('harvest',i)) buzz(); return; }
@@ -3406,7 +3473,7 @@ function placeErr(id,i,ign){
   if(BLDS[id].size>1&&!footFree(i,id,ign)) return 'That slot is taken. Pick an empty one in the same area.';
   return '';
 }
-function newBuilding(id){const bt=BLDS[id].bt||0, now=Date.now(), o=bt?{s:'bld',b:id,t:now+bt*1000,bs:now,bd:bt}:{s:'bld',b:id,t:now}; if(BLDS[id].size>1) o.lvl=1; return o;}
+function newBuilding(id){const bt=BLDS[id].bt||0, now=Date.now(), o=bt?{s:'bld',b:id,t:now+bt*1000,bs:now,bd:bt}:{s:'bld',b:id,t:now}; if(BLDS[id].size>1){o.lvl=1; const L=LIFE[id]; if(L){o.n=L.max[0]; o.gp=L.kind==='meat'?0:1;}} if(id==='incubator') o.inc={egg:0,duckegg:0,t0:0}; return o;}   // new houses come with a free starter batch
 /* press and hold a building (about half a second) to pick it up */
 let holdT=0;
 let holdXY=[0,0];
@@ -3493,6 +3560,12 @@ function harvest(i){
 }
 function collect(i){
   const t=S.tiles[i], b=BLDS[t.b];
+  if(isFarm(t)&&LIFE[t.b]&&LIFE[t.b].kind==='meat'){const L=LIFE[t.b], g={}, old=t.stored||0, lv=lvlOf(t); let n=0;   // meat houses: the whole grown batch is harvested
+    for(const k in b.gives) if(old) g[k]=b.gives[k]*lv*old;                                   // batches made before the animals were alive
+    if(t.n>0&&(t.gp||0)>=1){n=t.n; for(const k in L.yield) g[k]=(g[k]||0)+L.yield[k]*n; gainXP(Math.round(b.xp*lv*capOf(t)*n/maxN(t))); t.n=0; t.gp=0; t.hungry=false; t.ng=0; t.sick=false;}
+    if(!Object.keys(g).length) return; if(old) gainXP(b.xp*lv*old); t.stored=0; t.t=Date.now(); addItems(g,i);
+    if(n) toast(`${BLDS[t.b].icon} Harvested ${n} ${L.word}. The house is empty now: restock with ${MATS[L.young].icon} ${MATS[L.young].name} from the Agrivet${t.b==='broiler'?' or your 🐣 Pisaan':''}.`,3600);
+    updateTile(i,Date.now()); return changed();}
   if(isFarm(t)){ const n=t.stored||0; if(!n) return; const wasFull=isFull(t), g={}; for(const k in b.gives) g[k]=perBatch(t,k)*n;
     t.stored=0; addItems(g,i); if(g.egg) S.stats.egg+=g.egg; gainXP(b.xp*lvlOf(t)*n); if(wasFull||t.hungry) startCycle(i,true); updateTile(i,Date.now()); return changed(); }
   const m=lvlOf(t), g={}; for(const k in b.gives) g[k]=b.gives[k]*m;
@@ -3527,7 +3600,7 @@ const farmer=(()=>{
   return {p,props,jobs:[],cur:null,state:'idle',timer:0,carry:null,ph:0};
 })();
 const helpers=[];   // hired trabahador (runtime bodies); their saved data lives in S.helpers
-const jobPins=new Map(), pinMat=c=>new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:.45,depthWrite:false}), PIN_MAT={harvest:pinMat(0xffd34d),plow:pinMat(0xd9a066),plant:pinMat(0x7ee07e),chop:pinMat(0xff8a5c)};
+const jobPins=new Map(), pinMat=c=>new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:.45,depthWrite:false}), PIN_MAT={care:pinMat(0x64b5f6),harvest:pinMat(0xffd34d),plow:pinMat(0xd9a066),plant:pinMat(0x7ee07e),chop:pinMat(0xff8a5c)};
 const reservedCoins=()=>farmer.jobs.reduce((s,j)=>s+(j.cost||0),0)+((farmer.cur&&farmer.cur.cost)||0);
 const seedsOf=c=>S.mats['seed_'+c]||0;
 const seedsFree=c=>seedsOf(c)-farmer.jobs.filter(j=>j.type==='plant'&&j.crop===c).length-((farmer.cur&&farmer.cur.type==='plant'&&farmer.cur.crop===c)?1:0)-helpers.filter(H=>H.cur&&H.cur.type==='plant'&&H.cur.crop===c).length;
@@ -3554,11 +3627,16 @@ for(const v of Object.keys(VEH)){const V=VEH[v], m=bakePerson(FARMER_LOOK,poseSi
 for(const v of Object.keys(VEH)){const tr=S.veh[v].trip; if(tr&&tr.driver==='farmer'&&tr.t0) farmer.riding=v;}
 function jobSpotJ(j){if(j.type==='board'){const V=VEH[j.vid]; return [V.slot+1.6,G0+V.doorZ];} return jobSpot(j.i);}
 function farmerExit(vid){const F=farmer, V=VEH[vid], r=F.p.root; F.riding=null; r.visible=true; r.position.set(V.slot+1.6,.08,G0+V.doorZ); r.rotation.y=Math.PI/2; V.doorUntil=Date.now()+1400; F.state=F.jobs.length?'idle':(F.carry?'deposit':'home');}
-function jobTime(j){if(j.type==='board') return 1.1; const t=S.tiles[j.i]; if(j.type==='plow') return .55; if(j.type==='plant') return .4; if(j.type==='chop') return 1.8;
+function jobTime(j){if(j.type==='board') return 1.1; if(j.type==='care') return 1.0; const t=S.tiles[j.i]; if(j.type==='plow') return .55; if(j.type==='plant') return .4; if(j.type==='chop') return 1.8;
   if(t.s==='bld') return t.b==='coop'||t.b==='cows'?1.6:t.b==='tree'?.9:1.3; return .45;}
 const CARRY={coop:'tray',cows:'pail',broiler:'sack',pig:'sack',tree:'basket',duck:'tray',goat:'pail',fish:'basket'};
 function doJob(j){
   const i=j.i, t=S.tiles[i], now=Date.now();
+  if(j.type==='care'){if(t.s!=='bld'||!LIFE[t.b]) return null; const p=tilePos(i);   // water, vaccine or medicine for an animal house
+    if(j.what==='water'){t.wet=now; floatAt(i,'💧 Salamat!'); sfx('splash',p.x,p.z);}
+    else if(j.what==='cure'){if(!t.sick||(S.mats.gamot||0)<1) return null; S.mats.gamot--; t.sick=false; t.ng=0; floatAt(i,'💊 Magaling na!'); sfx('collect',p.x,p.z);}
+    else if(j.what==='vax'){if((S.mats.bakuna||0)<1) return null; S.mats.bakuna--; t.vaxUntil=now+12*DAY_MS; floatAt(i,'💉 Protected'); sfx('collect',p.x,p.z);}
+    updateTile(i,now); changed(); return '';}
   if(j.type==='harvest'){
     const ok=(t.s==='crop'||(t.s==='bld'&&BLDS[t.b].period))&&progress(i,now)>=1&&!underConstruction(t,now); if(!ok) return null;
     const kind=t.s==='crop'?'basket':CARRY[t.b]||'basket', p=tilePos(i);
@@ -3990,7 +4068,17 @@ const MATS={wood:{name:'Kahoy',sub:'lumber',icon:'🪵',price:8,store:'hardware'
   feed:{name:'Patuka ng manok',sub:'50 kg sack for the itlogan and broilers',icon:'🐔',price:20,store:'poultry'},
   feed_pig:{name:'Pakain sa baboy',sub:'50 kg sack of hog grower for the babuyan',icon:'🐷',price:24,store:'poultry'},
   feed_fish:{name:'Pakain sa isda',sub:'sack of floating fish pellets for the palaisdaan',icon:'🐠',price:18,store:'poultry'},
-  feed_cow:{name:'Dayami at darak',sub:'bale of rice straw and bran for the bakahan',icon:'🐮',price:16,store:'poultry'}};
+  feed_cow:{name:'Dayami at darak',sub:'bale of rice straw and bran for the bakahan',icon:'🐮',price:16,store:'poultry'},
+  chick:{name:'Sisiw',sub:'box of 10 day-old chicks, for the itlogan or the broilers',icon:'🐣',price:150,store:'poultry'},
+  pullet:{name:'Dumalaga',sub:'crate of 10 ready-to-lay hens',icon:'🐓',price:600,store:'poultry'},
+  duckling:{name:'Bibi',sub:'box of 10 ducklings',icon:'🐥',price:180,store:'poultry'},
+  itik:{name:'Itik na nangingitlog',sub:'crate of 10 laying ducks',icon:'🦆',price:700,store:'poultry'},
+  fingerling:{name:'Similya ng tilapia',sub:'bag of 50 fingerlings',icon:'🐟',price:120,store:'poultry'},
+  piglet:{name:'Biik',sub:'one weaned piglet',icon:'🐖',price:500,store:'poultry'},
+  calf:{name:'Guya',sub:'one young calf',icon:'🐄',price:1500,store:'poultry'},
+  kid:{name:'Batang kambing',sub:'one goat kid',icon:'🐐',price:450,store:'poultry'},
+  bakuna:{name:'Bakuna',sub:'bird-flu vaccine for one poultry house (lasts 6 game months)',icon:'💉',price:150,store:'poultry'},
+  gamot:{name:'Gamot',sub:'medicine that cures one sick house',icon:'💊',price:200,store:'poultry'}};
 for(const id in CROPS){const c=CROPS[id]; MATS['seed_'+id]={name:`Binhi ng ${c.name}`,sub:`seeds for 1 plot · ready in ${fmt(c.time)}`,icon:c.icon,price:c.cost,store:'seeds',crop:id};}
 const TRUCK_PRICE=15000, PLACE={brgy:'barangay',city:'city',palengke:'palengke',hardware:'hardware',poultry:'poultry supply',seeds:'Binhi store',warehouse:'warehouse'};
 const matsLabel=m=>Object.entries(m).filter(([,n])=>n>0).map(([k,n])=>`${n} ${MATS[k].name}`).join(', ');
@@ -4158,9 +4246,9 @@ function updateTravelHUD(now){
   const lines=Object.keys(VEH).filter(OWN).map(v=>`${VEH[v].icon} ${VEH[v].name}: ${S.veh[v].trip?vehText(v,now):'parked at the farm'}`).join(' · ');
   if($('market').classList.contains('open')) $('jeepStatus').textContent=lines+'. You get paid when the vehicle reaches the palengke.';
   if($('hwSheet').classList.contains('open')) $('hwStatus').textContent=lines;
-  if(bldOpen()){const t=S.tiles[bldIdx], el=$('bldState'); if(t&&t.s==='bld'&&el){const sig=`${t.stored||0}|${!!claimedBy(bldIdx)}|${underConstruction(t,now)}|${lvlOf(t)}`;
+  if(bldOpen()){const t=S.tiles[bldIdx], el=$('bldState'); if(t&&t.s==='bld'&&el){const sig=`${t.stored||0}|${!!claimedBy(bldIdx)}|${underConstruction(t,now)}|${lvlOf(t)}|${t.n}|${Math.floor((t.gp||0)*20)}|${!!t.sick}|${hotNow(t,now)}|${!!t.hungry}|${t.b==='incubator'?incStage(t,now):''}`;
     if(sig!==renderBld.sig){renderBld.sig=sig; renderBld();} else {el.textContent=bldStateText(t,now); const m=document.querySelector('#bldBody .meter i'), uc=underConstruction(t,now);
-      if(m) m.style.width=Math.round(100*Math.min(1,uc?(now-t.bs)/(t.bd*1000):(t.stored||0)/capOf(t)))+'%';}}}
+      if(m) m.style.width=Math.round(100*bldFill(t,now))+'%';}}}
   const bl=$('buildLeft'); if(bl&&S.build) bl.textContent=fmt(Math.max(0,S.build.t0/1000+S.build.dur-now/1000));
 }
 const followObj=()=>{if(followFarmer) return farmer.riding?VEH[farmer.riding].obj:farmer.p.root; const a=activeVehs(); return a.length?VEH[a[0]].obj:null;};
@@ -4208,9 +4296,25 @@ $('hwSheet').addEventListener('click',e=>{
 /* ---------- Manukan detail / upgrade sheet ---------- */
 let bldIdx=-1;
 const bldOpen=()=>$('bldSheet').classList.contains('open');
-function openBld(i){bldIdx=i; bldTab=null; renderBld(); $('bldSheet').classList.add('open');}
+// put young (or ready-to-lay) animals from the bodega into a house
+function restock(i,k){const t=S.tiles[i], L=LIFE[t.b]; if(!L) return; const now=Date.now(), adult=k===L.adult, hn=t.n||0, grown=(t.gp||0)>=1;
+  if(hn&&(adult!==grown||(L.kind==='meat'&&grown))) return toast(L.kind==='meat'&&grown?'Harvest the grown ones first.':adult?'They are still growing: add young ones.':'Your hens are grown: add ready-to-lay ones, or wait until the house is empty.',3000);
+  const space=maxN(t)-hn; if(space<=0) return toast('The house is full.');
+  const u=UNIT[k], use=Math.min(S.mats[k]||0,Math.ceil(space/u)); if(!use) return toast(`No ${MATS[k].name} in your bodega. Buy at the 🐣 Agrivet.`);
+  const add=Math.min(space,use*u); S.mats[k]-=use; t.n=hn+add;
+  if(!hn){t.gp=adult?1:0; t.ng=0; t.dl=0; t.sick=false; t.hungry=false; startCycle(i,true);}
+  const p=tilePos(i); sfx(ANIMAL_OF[t.b]||'collect',p.x,p.z); buzz(); floatAt(i,`+${add} ${MATS[k].icon}`);
+  toast(`${MATS[k].icon} ${add} ${adult?'':'young '}${L.word} are in their new house${t.hungry?', but there is no feed! Buy some at the Agrivet.':'.'}`,3000);
+  updateTile(i,now); changed(); renderBld();}
+function openBld(i){bldIdx=i; bldTab=needsCare(S.tiles[i])?'info':null; renderBld(); $('bldSheet').classList.add('open');}
 function bldStateText(t,now){
+  if(t.b==='incubator') return incText(t,now);
   if(underConstruction(t,now)) return `🔨 Workers are building… ${fmt((t.bs+t.bd*1000-now)/1000)}`;
+  const L=LIFE[t.b];
+  if(L){if(t.sick) return '🤒 May sakit! Production stopped. Give them gamot.'; if(hotNow(t,now)) return '🥵 Init! They need water.';
+    if(!(t.n>0)) return t.stored?'Empty house · harvest what is left, then restock.':'🚫 Empty. Restock with young animals.';
+    if((t.gp||0)<1) return `🌱 ${t.n} young ${L.word} growing ${Math.floor((t.gp||0)*100)}% · ready in ${fmtG(growLeft(t,now))}${t.hungry?' · 😟 Gutom!':''}`;
+    if(L.kind==='meat') return `✅ ${t.n} ${L.word} are grown. Harvest them!`;}
   const k=Object.keys(BLDS[t.b].gives)[0], st=`Storage: ${(t.stored||0)*perBatch(t,k)}/${capOf(t)*perBatch(t,k)} ${ITEMS[k].icon}`;
   if(isFull(t)) return `✅ ${st} · FULL. Production stopped until you collect.`;
   if(t.hungry) return `😟 Gutom! Out of feeds, so production stopped. ${st}`;
@@ -4218,30 +4322,81 @@ function bldStateText(t,now){
 }
 // a building's pop-up: three game buttons (Collect · Upgrade · Info); Upgrade and Info open a panel attached under their button
 let bldTab=null;
+// how full the meter under the title is: building work, the incubator, growing young, or storage
+function bldFill(t,now){const L=LIFE[t.b];
+  if(underConstruction(t,now)) return Math.min(1,(now-t.bs)/(t.bd*1000));
+  if(t.b==='incubator'){const I=t.inc||{}, st=incStage(t,now); return st==='run'?(now-I.t0)/INC_MS:st==='done'?1:(I.egg+I.duckegg)/60;}
+  if(L&&t.n>0&&(t.gp||0)<1) return t.gp||0;
+  if(L&&L.kind==='meat') return t.n>0?1:0;
+  return Math.min(1,(t.stored||0)/capOf(t));}
+const needsCare=t=>!!LIFE[t.b]&&!underConstruction(t,Date.now())&&(t.sick||hotNow(t)||(t.hungry&&t.n>0)||(!(t.n>0)&&!t.stored));
 function renderBld(){
-  const t=S.tiles[bldIdx]; if(!t||t.s!=='bld'||!(BLDS[t.b].size>1)){$('bldSheet').classList.remove('open'); return;}
-  const B=BLDS[t.b], lv=lvlOf(t), LV=POULTRY_LV[t.b], cur=LV[lv], next=LV[lv+1], now=Date.now(), uc=underConstruction(t,now);
-  const gives=Object.entries(B.gives).map(([k,n])=>`${n*lv} ${ITEMS[k].icon} ${ITEMS[k].name}`).join(', ');
+  const t=S.tiles[bldIdx]; if(t&&t.s==='bld'&&t.b==='incubator') return renderInc(t);
+  if(!t||t.s!=='bld'||!(BLDS[t.b].size>1)){$('bldSheet').classList.remove('open'); return;}
+  const B=BLDS[t.b], L=LIFE[t.b], lv=lvlOf(t), LV=POULTRY_LV[t.b], cur=LV[lv], next=LV[lv+1], now=Date.now(), uc=underConstruction(t,now);
+  const gives=Object.entries(B.gives).map(([k,n])=>`${perBatch(t,k)} ${ITEMS[k].icon} ${ITEMS[k].name}`).join(', ');
   $('bldTitle').textContent=`${B.icon} ${cur.name}`;
-  const n=t.stored||0, queued=!!claimedBy(bldIdx), what=Object.keys(B.gives).map(k=>`${n*perBatch(t,k)} ${ITEMS[k].icon}`).join(' + ');
-  const fill=Math.round(100*Math.min(1,uc?(now-t.bs)/(t.bd*1000):n/capOf(t))), fk=B.feed?feedKey(t):null;
-  const panel=bldTab==='up'?(next?`<div class="pay">Next: <b>${next.name}</b> · ${next.desc} Storage grows to ${next.cap} batches.</div><div class="need">${needHTML(next)}</div>
+  const n=t.stored||0, queued=!!claimedBy(bldIdx), fk=B.feed?feedKey(t):null, meat=L&&L.kind==='meat', hn=L?(t.n||0):0, grown=(t.gp||0)>=1, max=L?maxN(t):0;
+  const harvestable=meat&&hn>0&&grown, pct=Math.floor((t.gp||0)*100), stress=L&&needsCare(t);
+  const what=meat?[harvestable?Object.entries(L.yield).map(([k,y])=>`${y*hn} ${ITEMS[k].icon}`).join(' + '):'',n?`${n*B.gives[Object.keys(B.gives)[0]]*lv} ${ITEMS[Object.keys(B.gives)[0]].icon}`:''].filter(Boolean).join(' + ')
+    :Object.keys(B.gives).map(k=>`${n*perBatch(t,k)} ${ITEMS[k].icon}`).join(' + ');
+  // the first button: Collect (eggs, milk), Harvest (grown meat animals) or Restock (an empty house)
+  const first=L&&!hn&&!n?`<button class="gbtn green ${bldTab==='info'?'on':''}" data-tab="info">🐣<b>Restock</b><small>buy young</small></button>`
+    :meat?`<button class="gbtn green" data-act="collect" ${(harvestable||n)&&!queued?'':'disabled'}>🧺<b>${queued?'On the way':'Harvest'}</b><small>${harvestable||n?what:hn?`growing ${pct}%`:'empty'}</small></button>`
+    :`<button class="gbtn green" data-act="collect" ${n&&!queued?'':'disabled'}>🧺<b>${queued?'On the way':'Collect'}</b><small>${n?what:L&&hn&&!grown?`growing ${pct}%`:'nothing yet'}</small></button>`;
+  let care='';
+  if(L){const have=k=>S.mats[k]||0, warn=[], gm=have('gamot');
+    if(t.sick) warn.push(`<div class="alert">🤒 <b>May sakit!</b> Bird flu: production stopped and they will die without medicine.</div><button class="gbtn gold row" data-care="cure" ${gm?'':'disabled'}>💊 <b>Give gamot</b><small>have ${gm}${gm?'':' · buy at the Agrivet'}</small></button>`);
+    if(hotNow(t,now)) warn.push(`<div class="alert">🥵 <b>Init!</b> Heat wave: they need water now.</div><button class="gbtn gold row" data-care="water">💧 <b>Painumin</b><small>your farmer brings water</small></button>`);
+    if(t.hungry&&hn) warn.push(`<div class="alert">😟 <b>Gutom!</b> No ${MATS[fk].name} left in your bodega.</div>`);
+    const growing=hn&&!grown?`🌱 growing ${pct}% · ${meat?'ready to harvest':'starts producing'} in <b>${fmtG(growLeft(t,now))}</b>`:'';
+    const line=`<div class="pay"><b>${hn}/${max}</b> ${L.word} · ${!hn?'empty':growing||(meat?'✅ grown, ready to harvest':'grown and producing')}</div>`;
+    const opts=[L.young,...(L.adult?[L.adult]:[])].map(k=>{const adult=k===L.adult, ok=hn<max&&(!hn||(adult===grown&&!(meat&&grown)));
+      return `<button class="gbtn row" data-restock="${k}" ${ok&&have(k)?'':'disabled'}>${MATS[k].icon} <b>${MATS[k].name}</b><small>${adult?'start laying now':`grow ${L.grow} days`} · have ${have(k)}</small></button>`;}).join('');
+    const vax=POULTRY_B.includes(t.b)?((t.vaxUntil||0)>now?`<div class="pay">💉 Vaccinated against bird flu for ${fmtG(t.vaxUntil-now)}.</div>`
+      :`<button class="gbtn row" data-care="vax" ${have('bakuna')&&hn?'':'disabled'}>💉 <b>Vaccinate</b><small>${fluOn(now)?'⚠️ bird flu now! · ':''}have ${have('bakuna')}</small></button>`):'';
+    care=warn.join('')+line+(hn<max?`<div class="pay">${hn?'Add more':'Restock'}: young ones grow for ${L.grow} game days (1 game day ≈ 13 minutes).</div>${opts}`:'')+vax
+      +`<button class="gbtn" data-act="buyfeed">🐣 <b>Agrivet</b><small>feeds · young · bakuna · gamot</small></button>`;}
+  const info=`<div class="pay">${cur.desc}</div><div class="pay">${meat?`Grown ${L.word} give ${Object.entries(L.yield).map(([k,y])=>`${y} ${ITEMS[k].icon} ${ITEMS[k].name}`).join(', ')} each when harvested.`:`Each batch makes ${gives} and goes into storage (holds ${capOf(t)} batches).`}${B.feed?` Every ${B.period}s they eat ${feedNeed(t)} ${MATS[fk].icon} ${MATS[fk].name}.`:''}</div>
+      ${B.feed?`<div class="pay">${MATS[fk].icon} ${MATS[fk].name} in your bodega: <b>${S.mats[fk]||0}</b></div>`:''}`;
+  const panel=bldTab==='up'?(next?`<div class="pay">Next: <b>${next.name}</b> · ${next.desc}${L?` Room for ${L.max[lv]} ${L.word}.`:` Storage grows to ${next.cap} batches.`}</div><div class="need">${needHTML(next)}</div>
       <button class="gbtn gold" data-act="upgrade" ${canAfford(next)&&!uc?'':'disabled'}>🔨 <b>Upgrade</b><small>${next.dur}s</small></button>`:'<div class="pay">✅ Fully upgraded</div>')
-    :bldTab==='info'?`<div class="pay">${cur.desc}</div><div class="pay">Each batch makes ${gives} and goes into storage (holds ${capOf(t)} batches).${B.feed?` Each batch eats ${feedNeed(t)} ${MATS[fk].icon} ${MATS[fk].name}.`:''}</div>
-      ${B.feed?`<div class="pay">${MATS[fk].icon} ${MATS[fk].name} in your bodega: <b>${S.mats[fk]||0}</b></div><button class="gbtn" data-act="buyfeed">🐣 <b>Buy feeds</b></button>`:''}`:'';
+    :bldTab==='info'?care+info:'';
   $('bldBody').innerHTML=`<div class="bstat"><span class="lvp">${'●'.repeat(lv)}${'○'.repeat(3-lv)}</span><span id="bldState">${bldStateText(t,now)}</span></div>
-    <div class="meter"><i style="width:${fill}%"></i></div>
+    <div class="meter"><i style="width:${Math.round(100*bldFill(t,now))}%"></i></div>
     <div class="gtabs">
-      <button class="gbtn green" data-act="collect" ${n&&!queued?'':'disabled'}>🧺<b>${queued?'On the way':'Collect'}</b><small>${n?what:'nothing yet'}</small></button>
+      ${first}
       <button class="gbtn ${bldTab==='up'?'on':''}" data-tab="up">⬆️<b>Upgrade</b><small>${next?'to level '+(lv+1):'max level'}</small></button>
-      <button class="gbtn ${bldTab==='info'?'on':''}" data-tab="info">ℹ️<b>Info</b><small>${B.feed?`${S.mats[fk]||0} ${MATS[fk].icon} feed`:'details'}</small></button>
+      <button class="gbtn ${bldTab==='info'?'on':''} ${stress&&hn?'warn':''}" data-tab="info">🐾<b>Alaga</b><small>${L?(t.sick?'🤒 sick':hotNow(t,now)?'🥵 needs water':t.hungry&&hn?'😟 gutom':`${hn}/${max} ${L.word}`):'details'}</small></button>
     </div>
     ${bldTab?`<div class="gpanel at-${bldTab}">${panel}</div>`:''}`;
 }
+// ---- the Pisaan (incubator): trays of 12 eggs hatch into a box of 10 chicks (or ducklings) in one game day
+const INC_MS=DAY_MS;
+function incStage(t,now){const I=t.inc||{}; if(!(I.egg||I.duckegg)) return 'empty'; if(!I.t0) return 'load'; return now>=I.t0+INC_MS?'done':'run';}
+function incText(t,now){if(underConstruction(t,now)) return `🔨 Workers are building… ${fmt((t.bs+t.bd*1000-now)/1000)}`; const I=t.inc||{}, st=incStage(t,now), tr=((I.egg||0)+(I.duckegg||0))/12;
+  return st==='empty'?'Empty. Put in trays of 12 eggs.':st==='load'?`${tr} tray${tr>1?'s':''} in. Tap Start to switch on the lamp.`:st==='run'?`🔥 Hatching… ${fmtG(I.t0+INC_MS-now)} left`:'🐣 Hatched! Take the chicks to your bodega.';}
+function renderInc(t){const now=Date.now(); if(!t.inc) t.inc={egg:0,duckegg:0,t0:0}; const I=t.inc, st=incStage(t,now), tr=(I.egg+I.duckegg)/12;
+  $('bldTitle').textContent='🐣 Pisaan · Incubator';
+  const c=I.egg/12, d=I.duckegg/12, eg=S.inv.egg||0, de=S.inv.duckegg||0;
+  const body=st==='done'?`<div class="pay">Hatched: ${[c?`${c} 🐣 box${c>1?'es':''} of sisiw`:'',d?`${d} 🐥 box${d>1?'es':''} of bibi`:''].filter(Boolean).join(' and ')}.</div><button class="gbtn green row" data-act="inc-take">🧺 <b>Take them to the bodega</b><small>for your itlogan, broilers or itikan</small></button>`
+    :st==='run'?`<div class="pay">Keeping ${I.egg?I.egg+' 🥚 ':''}${I.duckegg?I.duckegg+' 🦆 ':''}warm under the lamp. Turn them, wait, and listen for the peeping.</div>`
+    :`<div class="pay">12 eggs hatch into a box of 10 (a few never hatch). Up to 5 trays at a time, ready in one game day (about 13 minutes).</div>
+     <div class="gtabs"><button class="gbtn" data-act="inc-egg" ${eg>=12&&tr<5?'':'disabled'}>🥚<b>+12 itlog</b><small>have ${eg}</small></button>
+       <button class="gbtn" data-act="inc-duck" ${de>=12&&tr<5?'':'disabled'}>🦆<b>+12 itik egg</b><small>have ${de}</small></button>
+       <button class="gbtn green" data-act="inc-start" ${tr>0?'':'disabled'}>🔥<b>Start</b><small>${tr}/5 trays</small></button></div>`;
+  $('bldBody').innerHTML=`<div class="bstat"><span id="bldState">${incText(t,now)}</span></div><div class="meter"><i style="width:${Math.round(100*bldFill(t,now))}%"></i></div>${body}`;}
 $('drvSheet').addEventListener('click',e=>{if(e.target.id==='drvSheet'||e.target.closest('#closeDrv')) return closeDriverPick(null); const b=e.target.closest('[data-drv]'); if(b&&!b.disabled){closeDriverPick(b.dataset.drv); buzz(); refreshSheets();}});
 $('bldSheet').addEventListener('click',e=>{
   if(e.target.id==='bldSheet'||e.target.closest('#closeBld')) return $('bldSheet').classList.remove('open');
   const tb=e.target.closest('[data-tab]'); if(tb){bldTab=bldTab===tb.dataset.tab?null:tb.dataset.tab; buzz(); return renderBld();}
+  const rs=e.target.closest('[data-restock]'); if(rs&&!rs.disabled) return restock(bldIdx,rs.dataset.restock);
+  const cr=e.target.closest('[data-care]'); if(cr&&!cr.disabled){if(queueJob('care',bldIdx,{what:cr.dataset.care})){buzz(); toast({water:'💧 Your farmer is bringing water.',cure:'💊 Your farmer is bringing the gamot.',vax:'💉 Your farmer will vaccinate the birds.'}[cr.dataset.care],2400);} else toast('Your farmer already has a job at this house.'); return;}
+  const ia=e.target.closest('[data-act^="inc-"]'); if(ia&&!ia.disabled){const t=S.tiles[bldIdx], I=t.inc, act=ia.dataset.act;
+    if(act==='inc-egg'&&(S.inv.egg||0)>=12){S.inv.egg-=12; I.egg+=12;} else if(act==='inc-duck'&&(S.inv.duckegg||0)>=12){S.inv.duckegg-=12; I.duckegg+=12;}
+    else if(act==='inc-start'){I.t0=Date.now(); toast('🔥 The lamp is on. The eggs hatch in one game day.',2600);}
+    else if(act==='inc-take'){const c=I.egg/12, d=I.duckegg/12; S.mats.chick=(S.mats.chick||0)+c; S.mats.duckling=(S.mats.duckling||0)+d; t.inc={egg:0,duckegg:0,t0:0}; floatAt(bldIdx,`+${c+d} 🐣`); sfx('hen'); toast(`🐣 ${c?c+' box'+(c>1?'es':'')+' of sisiw':''}${c&&d?' and ':''}${d?d+' box'+(d>1?'es':'')+' of bibi':''} are in your bodega. Restock a house with them.`,3400);}
+    buzz(); changed(); return renderBld();}
   const a=e.target.closest('[data-act]'); if(!a) return;
   if(a.dataset.act==='collect'){if(queueJob('harvest',bldIdx)){buzz(); toast('👨‍🌾 Your farmer is going to collect it and bring it to the bodega.',2600);} $('bldSheet').classList.remove('open'); return;}
   if(a.dataset.act==='buyfeed'){$('bldSheet').classList.remove('open'); return openHW('poultry');}
@@ -4908,6 +5063,7 @@ function updateTransit(dt,t){
 if(S.pasa&&S.pasa.phase==='done-on-load'){const P=S.pasa; S.pasa=null; settlePasabay(P); if(P.mats) for(const k in P.mats) S.mats[k]=(S.mats[k]||0)+P.mats[k]; save();}
 /* ---------- 📰 news: what changed in each update ---------- */
 const NEWS=[
+  {v:16,date:'Nov 8, 2026',title:'Living animals and seasons',items:['🐣 Your animals are alive now. Each house has a herd that you buy young at the Agrivet: sisiw, biik, guya, batang kambing, bibi and similya ng tilapia. They grow over a few game days while you feed them.','🍗 Broilers, pigs and tilapia are harvested all at once when grown, then the house is empty until you restock. Hens, itik, cows and goats grow up and then keep producing.','🔥 New building: the Pisaan (level 4). Put in trays of 12 eggs and they hatch into a box of 10 sisiw (itik eggs into bibi).','📅 The clock now shows the month. Watch for bird-flu news in Dis–Peb (vaccinate with 💉 Bakuna, cure with 💊 Gamot) and heat waves in Mar–May (tap 🐾 Alaga → 💧 Painumin).','💀 Animals left hungry, sick or thirsty for a few minutes start to die, but only while you are playing. Your houses from before are full and grown.']},
   {v:15,date:'Nov 8, 2026',title:'Game buttons, sound and more helpers',items:['🔊 The farm has sound now: a slow acoustic guitar tune, birds by day, kuliglig and frogs at night, clucks, oinks and moos from your animals, plus sounds for planting, harvesting, coins, building and your vehicles. Switch Music, Farm sounds or Effects on or off in the ⋯ menu.','🧱 Tap a building for three big buttons: Collect, Upgrade and Info. The details fold out right under the button you tap.','🚚 When more than one driver is free, you choose who drives. The garage now has one button per vehicle.','👷 Hire up to six trabahador as you level up (levels 5, 8, 12, 15, 18 and 21).']},
   {v:14,date:'Nov 7, 2026',title:'A new look for the whole province',items:['🎨 Softer colours, ink outlines and painted grass everywhere. The plot grid only shows while you use a tool.','🏡 One farmhouse for a simple life: a single-storey house with a veranda. House upgrades are gone, and everything that used to need a bigger house now only needs your level.','🏪 A smaller palengke: vegetables and fruit on one side, meat and fish on tiled counters on the other, umbrella stalls outside.','🔨 The hardware, poultry and Binhi stores are modest roadside shops now, with motorsiklo and a tricycle parked out front.','🐄 A bigger farm laid out like a real one: every animal now has its own fenced area with a gate and up to 3 houses, each at its own size. Your animal houses moved there by themselves, with their levels, feed and goods. New ones go straight to the next free spot.','🛣️ Curved dirt roads: a tree-lined farm road from the highway, a service road round the farm, tracks to every area. Your farmer and helpers follow the paths and use the gates.','🌾 The crop field is four beds with walkable tracks, and the plot grid only shows while you use a tool. An orchard, a bodega and a utility yard sit beside the service road.','🏭 Crates and a forklift at the bagsakan; silos and a loading conveyor at Mega Foods. A small town block round the palengke, a mountain barangay with terraces, and mountains in the distance.']},
   {v:13,date:'Nov 7, 2026',title:'New animals, missions and a fenced farm',items:['🦆 Itikan (level 4): itik that lay the eggs for balut. 🐐 Kambingan (level 5): goats for milk and meat. 🐟 Palaisdaan (level 6): a tilapia pond with paddle-wheel aerators.','📋 Missions: Mang Ben the balut maker, the sari-sari store, the kapitan’s fiesta, the karinderya, city restaurants and more ask for your goods. Deliver with your own vehicle; missions pay more than the palengke.','The bakuran is bigger and split into areas: Pastulan (cows, goats), Babuyan at palaisdaan (pigs, fish) and Manukan (chickens, ducks). Its old fence is gone; every farm has its own.','One big fence now goes around your whole lot, with a SUNFIELD FARM gate where the dirt road comes in.','🪵 Build your own fences: pick Bakod in Build and drag. Pieces join up, and you can clear them any time.']},
@@ -5056,7 +5212,7 @@ function frame(now){
   flashBox.material.opacity=Math.max(0,1-(now-flashT)/600);
   syncGrid(); updateRoofs(); updateCam(); followSun(); mountains.position.set(camera.position.x,0,camera.position.z); drawFrame();
 }
-if(/[?&]debug\b/.test(location.search)) window.SF={cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
+if(/[?&]debug\b/.test(location.search)) window.SF={cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,LIFE,lifeTiles,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
 renderHUD();
 requestAnimationFrame(frame);
 if(!S.seenHelp){S.seenHelp=true; save(); setTimeout(()=>toast('Open 🧰 Tools, pick a tool, and drag across the field. Sell your harvest at the 🏪 Palengke!',4800),600);}

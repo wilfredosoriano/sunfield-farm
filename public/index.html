@@ -2812,14 +2812,21 @@ const inRect=(R,x,z,m)=>x>R[0]-m&&x<R[1]+m&&z>R[2]-m&&z<R[3]+m;
 // branches lead off it, modest homes stand in small clusters at the junctions and bends (only where the ground is gentle enough to
 // build), rice terraces step down two faces of the hill, and trees fill the gaps.
 const HILL={x:190,z:-300,rx:140,rz:76,h:24};
-function hillH(x,z){const u=(x-HILL.x)/HILL.rx, v=(z-HILL.z)/HILL.rz, w=Math.max(0,1-u*u)*Math.max(0,1-v*v); return HILL.h*w*w*Math.exp(-u*u*1.2-v*v*.6)*(1+.06*Math.sin(x*.09)+.05*Math.sin(z*.13+x*.03));}
+function hillRaw(x,z){const u=(x-HILL.x)/HILL.rx, v=(z-HILL.z)/HILL.rz, w=Math.max(0,1-u*u)*Math.max(0,1-v*v); return HILL.h*w*w*Math.exp(-u*u*1.2-v*v*.6)*(1+.06*Math.sin(x*.09)+.05*Math.sin(z*.13+x*.03));}
+// the hill roads are cut level across: next to a road the ground blends to the height of the road's centre line
+let HGRID=null;
+function hillH(x,z){const raw=hillRaw(x,z); if(raw<=0) return raw;
+  if(!HGRID){let R; try{R=HROADS;}catch(e){return raw;} HGRID=new Map(); for(const r of R) for(const [a,c] of r.s){const k=Math.floor(a/8)+','+Math.floor(c/8); if(!HGRID.has(k)) HGRID.set(k,[]); HGRID.get(k).push([a,c,r.w/2,hillRaw(a,c)]);}}
+  let bd=1e9, bh=0, bw=0; const cx=Math.floor(x/8), cz=Math.floor(z/8);
+  for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){const L=HGRID.get((cx+i)+','+(cz+j)); if(L) for(const [a,c,hw,h] of L){const d=Math.hypot(x-a,z-c); if(d<bd){bd=d; bh=h; bw=hw;}}}
+  if(bd>bw+4) return raw; const t=Math.max(0,Math.min(1,(bd-bw-.6)/3.4)), s=t*t*(3-2*t); return bh+(raw-bh)*s;}
 const hillSlope=(x,z)=>Math.hypot(hillH(x+1,z)-hillH(x-1,z),hillH(x,z+1)-hillH(x,z-1))/2;
 const HROADS=[
   {w:4,pts:[[150,-189],[151,-215],[158,-232],[178,-244],[206,-252],[232,-262],[246,-280],[236,-296],[212,-304],[186,-310],[160,-318],[146,-334],[158,-350],[186,-356],[214,-352]]},
   {w:3.2,pts:[[206,-252],[196,-268],[176,-276],[150,-282],[128,-294],[118,-312]]},
   {w:3.2,pts:[[246,-280],[272,-286],[294,-300]]}].map(r=>({...r,s:spline(r.pts,false,1.5)}));
 const hroadDist=(x,z)=>{let b=99; for(const r of HROADS) for(const [a,c] of r.s){const d=Math.hypot(x-a,z-c)-r.w/2; if(d<b) b=d;} return b;};
-(()=>{const r=rng(707), geo=new THREE.PlaneGeometry(HILL.rx*2,HILL.rz*2,70,38); geo.rotateX(-Math.PI/2); geo.translate(HILL.x,0,HILL.z);
+(()=>{const r=rng(707), geo=new THREE.PlaneGeometry(HILL.rx*2,HILL.rz*2,140,76); geo.rotateX(-Math.PI/2); geo.translate(HILL.x,0,HILL.z);
   const p=geo.attributes.position; for(let i=0;i<p.count;i++) p.setY(i,hillH(p.getX(i),p.getZ(i))-.05); geo.computeVertexNormals();
   const hm=new THREE.Mesh(geo,worldGrass(0xe2ead2)); hm.receiveShadow=true; scene.add(hm);
   const b=[], lv=[], at=(x,z)=>hillH(x,z), _q=new THREE.Quaternion(), _e=new THREE.Euler(0,0,0,'YXZ');
@@ -2849,7 +2856,7 @@ const hroadDist=(x,z)=>{let b=99; for(const r of HROADS) for(const [a,c] of r.s)
     if(r()<.4) M(w/2+.6,y+.5,0,.8,1.0,.8,0x3a6f9e,'cyl');
     homes.push([hx,hz,Math.max(w,d)/2+1]);};
   const tryHouse=(cx,cz,rad)=>{for(let t=0;t<40;t++){const a=r()*6.28, rr=rad*(.3+r()*.7), x=cx+Math.cos(a)*rr, z=cz+Math.sin(a)*rr, rd=hroadDist(x,z);
-      if(rd<3.5||rd>11||at(x,z)<.4||hillSlope(x,z)>.3||homes.some(([a2,c2,q])=>Math.hypot(a2-x,c2-z)<q+3.5)) continue;
+      if(rd<7||rd>14||at(x,z)<.4||hillSlope(x,z)>.3||homes.some(([a2,c2,q])=>Math.hypot(a2-x,c2-z)<q+3.5)) continue;
       let bi=0,bd=1e9; for(const R of HROADS) for(const [a2,c2] of R.s){const d=Math.hypot(a2-x,c2-z); if(d<bd){bd=d; bi=[a2,c2];}}
       house(x,z,Math.atan2(bi[0]-x,bi[1]-z),hillSlope(x,z)>.16?'wood':(r()<.25?'wood':'chb')); return true;} return false;};
   for(const [cx,cz,n] of [[206,-252,5],[236,-294,4],[162,-316,4],[130,-292,3],[186,-352,3],[272,-288,3]]) for(let k=0;k<n;k++) tryHouse(cx,cz,16);   // clusters
@@ -5455,6 +5462,8 @@ function needsTick(dt,now){const M=S.me, h=gameHour(), F=farmer, inside=F.cur&&F
 function renderNeeds(){const M=S.me, hb=$('hungerBar'), eb=$('energyBar'); if(!hb) return; hb.style.width=Math.round(M.hunger)+'%'; eb.style.width=Math.round(M.energy)+'%';
   $('needPill').classList.toggle('low',M.hunger<15||M.energy<15); $('needPill').title=`Busog ${Math.round(M.hunger)} · Lakas ${Math.round(M.energy)}`;}
 const RECIPES=[
+  {id:'kaninP',name:'Kanin (from your palay)',icon:'🍚',need:{wheat:2},h:25,e:4},
+  {id:'kaninB',name:'Kanin (from bigas)',icon:'🍚',need:{bigas:1},h:25,e:4},
   {id:'kamote',name:'Nilagang kamote',icon:'🍠',need:{kamote:2},h:20,e:4},
   {id:'itlog',name:'Kanin at pritong itlog',icon:'🍳',need:{wheat:1,egg:2},h:35,e:6},
   {id:'ginisa',name:'Ginisang pechay',icon:'🥬',need:{pechay:2,bawang:1,wheat:1},h:35,e:6},
@@ -5564,6 +5573,11 @@ function spray(W,i,t){if(!W.spr){W.spr=new THREE.Group(); for(let k=0;k<10;k++) 
    a jeepney terminal with a queue, the police station and its patrol car, and fiesta days with banderitas and a parade ---------- */
 const TOWN={bus:[250,-122], jx:[280,-126], pol:[316,-150]};
 const hy=(x,z)=>Math.max(0,hillH(x,z));
+// sit a vehicle on the hillside: height and tilt (front to back and side to side) from the ground under its four wheels, so no wheel sinks in
+function onSlope(g,x,z,hl,hw){const a=g.rotation.y, s=Math.sin(a), c=Math.cos(a), H=(f,l)=>hy(x+s*f+c*l,z+c*f-s*l);
+  const fr=H(hl,hw), fl=H(hl,-hw), br=H(-hl,hw), bl=H(-hl,-hw), hf=(fr+fl)/2, hb=(br+bl)/2, hR=(fr+br)/2, hL=(fl+bl)/2;
+  g.rotation.order='YXZ'; g.rotation.x+=(Math.atan2(hb-hf,2*hl)-g.rotation.x)*.25; g.rotation.z+=(Math.atan2(hR-hL,2*hw)-g.rotation.z)*.25;
+  return (fr+fl+br+bl)/4;}
 function signPlane(lines,bg,fg,w,h,cw=512,ch=128){const cv=document.createElement('canvas'); cv.width=cw; cv.height=ch; const x=cv.getContext('2d'); x.fillStyle=bg; x.fillRect(0,0,cw,ch);
   x.fillStyle=fg; x.textAlign='center'; x.textBaseline='middle'; lines.forEach((s,k)=>{x.font=`900 ${k?ch*.22:ch*.42}px Arial, sans-serif`; x.fillText(s,cw/2,lines.length>1?(k?ch*.76:ch*.36):ch/2,cw-16);});
   return new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)}));}
@@ -5648,7 +5662,7 @@ let townLast=performance.now();
   // buses
   for(const B of LINERS){if(B.away>0){B.away-=dt; B.g.visible=false; continue;} B.g.visible=true; const [kind,v]=B.legs[B.k];
     if(kind==='wait'||kind==='stop'){B.e+=dt; if(B.e>=v){B.k++; B.e=0;} if(kind==='stop'){MTN_STOP.wait.forEach((p,i)=>p.root.visible=B.e<3+i);}}
-    else {B.e+=dt*(B.e<0?1:1); const q=routePos(v,Math.max(0,B.e)); B.g.position.set(q.x,hy(q.x,q.z)+(B.e>0?Math.abs(Math.sin(t*9))*.015:0),q.z); B.g.rotation.y=lerpAng(B.g.rotation.y,q.ang,1-Math.exp(-dt*5)); if(B.e>=v.T){B.k++; B.e=0;}}
+    else {B.e+=dt*(B.e<0?1:1); const q=routePos(v,Math.max(0,B.e)); B.g.rotation.y=lerpAng(B.g.rotation.y,q.ang,1-Math.exp(-dt*5)); B.g.position.set(q.x,onSlope(B.g,q.x,q.z,3.4,1.2)+(B.e>0?Math.abs(Math.sin(t*9))*.015:0),q.z); if(B.e>=v.T){B.k++; B.e=0;}}
     if(B.k>=B.legs.length){B.k=0; B.e=0; B.away=25+Math.random()*25; MTN_STOP.wait.forEach(p=>p.root.visible=true);}}
   // jeepneys
   const q=JEEPS.filter(J=>J.state==='queue').sort((a,b)=>a.x-b.x);

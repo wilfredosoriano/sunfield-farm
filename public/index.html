@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#a9d8ec">
+<meta name="color-scheme" content="only light">
 <meta name="screen-orientation" content="landscape">
 <meta name="x5-orientation" content="landscape">
 <meta name="mobile-web-app-capable" content="yes">
@@ -26,19 +27,7 @@
   --chip:#e3ead8; --on:#22301d; --on-ink:#f6f9f0;
   --accent:#e8a92b; --accent-ink:#2b1d03; --line:rgba(34,48,29,.14);
   --sky:#a9d8ec; --toast:#22301d; --toast-ink:#f6f9f0;
-  color-scheme:light;
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --panel:rgba(27,35,25,.94); --ink:#eef3e7; --muted:#a6b39e;
-    --chip:#334130; --on:#eef3e7; --on-ink:#1b2319; --line:rgba(238,243,231,.14);
-    --toast:#eef3e7; --toast-ink:#1b2319; color-scheme:dark;
-  }
-}
-:root[data-theme="dark"]{
-  --panel:rgba(27,35,25,.94); --ink:#eef3e7; --muted:#a6b39e;
-  --chip:#334130; --on:#eef3e7; --on-ink:#1b2319; --line:rgba(238,243,231,.14);
-  --toast:#eef3e7; --toast-ink:#1b2319; color-scheme:dark;
+  color-scheme:only light;   /* the game always looks the same, even when the phone is in dark mode */
 }
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}
@@ -301,6 +290,26 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 #tools,#cats{gap:5px!important;padding:7px!important}
 .badge{border:2px solid var(--paper)}
 .ucard,.order,.good{background:var(--paper2)!important;border:2px solid rgba(59,46,36,.25);color:var(--ink2)}
+/* the title and ✕ stay pinned at the top while a sheet scrolls */
+.sheet>.mhead{position:sticky;top:-14px;z-index:5;background:var(--paper);margin:-14px -14px 2px;padding:12px 14px 8px;border-radius:20px 20px 0 0;border-bottom:2px solid rgba(59,46,36,.12)}
+#menu .sheet>.mhead{top:-18px;margin:-18px -18px 2px;padding:14px 18px 8px}
+#menu .sheet .x{width:auto}
+/* the menu scrolls when it is taller than the screen */
+#menu .sheet{max-height:100%;overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain}
+/* small phones held sideways: a slimmer side bar that starts under the coin pill and scrolls if it still does not fit */
+@media (orientation: landscape) and (max-height:520px){
+  #cats{top:calc(env(safe-area-inset-top,0px) + 56px)!important;transform:none!important;margin-top:0!important;max-height:calc(100% - 62px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));
+    overflow-y:auto;overflow-x:hidden;touch-action:pan-y;scrollbar-width:none;gap:4px!important;padding:5px!important;border-radius:18px!important}
+  #cats::-webkit-scrollbar{display:none}
+  #cats .tool{width:54px;padding:3px 0!important;border-radius:12px!important;box-shadow:0 2px 0 var(--ink2)!important}
+  #cats .tool .ti{font-size:17px} #cats .tool .ti.svg{width:20px;height:20px} #cats .tool .tl{font-size:10px}
+}
+@media (orientation: landscape) and (max-height:400px){
+  #cats{top:calc(env(safe-area-inset-top,0px) + 50px)!important;max-height:calc(100% - 56px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));gap:3px!important;padding:4px!important}
+  #cats .tool{width:48px;padding:2px 0!important}
+  #cats .tool .ti{font-size:15px} #cats .tool .ti.svg{width:17px;height:17px} #cats .tool .tl{font-size:9px}
+  .pill{padding:4px 10px} #menuBtn{width:34px;height:34px}
+}
 /* sound switches in the menu */
 .sndrow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .sndrow button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px!important;font-size:13px}
@@ -462,7 +471,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 
 <div id="menu">
   <div class="sheet">
-    <h2>Sunfield Farm</h2>
+    <div class="mhead"><h2>Sunfield Farm</h2><div class="mbtns"><button class="x" id="closeMenuX" aria-label="Close">✕</button></div></div>
     <p>Open Tools and pick the hoe, seeds or sickle, then drag one finger across the field to work many plots at once. Tap the tool again to put it away. Deliver your harvest at the Palengke. Use two fingers to move, pinch to zoom, twist to rotate. On a computer, scroll to zoom, right-drag to rotate.</p>
     <button id="newsBtn">📰 News &amp; updates</button>
     <button id="achMenuBtn">🏆 Achievements</button>
@@ -3140,10 +3149,20 @@ const SND_KEY='sunfield-sound-v1';
 const SND=(()=>{let o={}; try{o=JSON.parse(localStorage.getItem(SND_KEY))||{};}catch(e){} return {sfx:o.sfx!==false,music:o.music!==false,amb:o.amb!==false};})();
 function saveSnd(){try{localStorage.setItem(SND_KEY,JSON.stringify(SND));}catch(e){}}
 let AC=null, BUS=null, NOISE=null;
-function audioInit(){ // browsers only allow sound after the first tap
-  if(AC){if(AC.state==='suspended'&&!document.hidden) AC.resume(); return;}
+// iPhone: a silent looping <audio> puts Safari in "playback" mode, so the game is heard even with the ring switch on silent
+let silentEl=null; const IOS_SND=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+function silentAudio(){if(silentEl) return silentEl; const n=800, b=new ArrayBuffer(44+n*2), v=new DataView(b), w=(o,s)=>{for(let i=0;i<s.length;i++) v.setUint8(o+i,s.charCodeAt(i));};
+  w(0,'RIFF'); v.setUint32(4,36+n*2,true); w(8,'WAVE'); w(12,'fmt '); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true); v.setUint32(24,8000,true); v.setUint32(28,16000,true); v.setUint16(32,2,true); v.setUint16(34,16,true); w(36,'data'); v.setUint32(40,n*2,true);
+  silentEl=new Audio(URL.createObjectURL(new Blob([b],{type:'audio/wav'}))); silentEl.loop=true; silentEl.setAttribute('playsinline',''); return silentEl;}
+function audioInit(){ // browsers only allow sound after a tap, so every tap tries to wake the sound up until it runs
+  if(document.hidden) return;
+  try{if(navigator.audioSession) navigator.audioSession.type='playback';}catch(e){}
+  if(IOS_SND) try{const s=silentAudio(); if(s.paused) s.play().catch(()=>{});}catch(e){}
+  if(AC&&AC.state==='running') return;
+  if(AC){AC.resume().catch(()=>{}); unlockTick(); return;}
   const C=window.AudioContext||window.webkitAudioContext; if(!C) return;
   try{AC=new C();}catch(e){return;}
+  AC.resume().catch(()=>{});
   const comp=AC.createDynamicsCompressor(); comp.threshold.value=-14; comp.ratio.value=4; comp.connect(AC.destination);
   const master=AC.createGain(); master.gain.value=.9; master.connect(comp);
   const mk=v=>{const g=AC.createGain(); g.gain.value=v; g.connect(master); return g;};
@@ -3153,10 +3172,11 @@ function audioInit(){ // browsers only allow sound after the first tap
   const dl=AC.createDelay(); dl.delayTime.value=.23; const fb=AC.createGain(); fb.gain.value=.28; const wet=AC.createGain(); wet.gain.value=.22; const lp=AC.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=2200;
   dl.connect(lp); lp.connect(fb); fb.connect(dl); lp.connect(wet); wet.connect(master); BUS.echo=dl;
   BUS.music.connect(dl);
-  musicStart(); ambStart();
+  unlockTick(); musicStart(); ambStart();
 }
-['pointerdown','keydown','touchstart'].forEach(ev=>addEventListener(ev,audioInit,{passive:true}));
-document.addEventListener('visibilitychange',()=>{if(!AC) return; document.hidden?AC.suspend():AC.resume();});
+function unlockTick(){if(!AC) return; const s=AC.createBufferSource(); s.buffer=AC.createBuffer(1,1,22050); s.connect(AC.destination); s.start(0);}   // Safari wakes up on a sound started inside the tap
+['pointerdown','pointerup','touchend','click','keydown'].forEach(ev=>addEventListener(ev,audioInit,{passive:true,capture:true}));
+document.addEventListener('visibilitychange',()=>{if(!AC) return; if(document.hidden){AC.suspend(); if(silentEl) silentEl.pause();} else AC.resume().catch(()=>{});});
 function setSnd(k,on){SND[k]=on; saveSnd(); if(!BUS) return; const v={sfx:.7,music:.32,amb:.45}[k]; BUS[k].gain.setTargetAtTime(on?v:0,AC.currentTime,.15);}
 
 // building blocks
@@ -4300,6 +4320,7 @@ buildHouse(); buildGarage(); setupBuildSite();
 fillOrders();
 $('menuBtn').addEventListener('click',()=>{$('menu').classList.add('open'); $('reset').textContent='Start a new farm';});
 $('closeMenu').addEventListener('click',()=>$('menu').classList.remove('open'));
+$('closeMenuX').addEventListener('click',()=>$('menu').classList.remove('open'));
 $('menu').addEventListener('click',e=>{if(e.target.id==='menu') $('menu').classList.remove('open');});
 $('recenter').addEventListener('click',()=>{recenter(); $('menu').classList.remove('open');});
 $('reset').addEventListener('click',e=>{

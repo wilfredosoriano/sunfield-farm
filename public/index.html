@@ -5539,7 +5539,18 @@ const homeDoor=()=>[S.housePos.x,S.housePos.z+4.75];   // the foot of the front 
 // inside the house: up the three steps, across the veranda, through the door, to the stove or the papag
 function homePath(sub){const hx=S.housePos.x, hz=S.housePos.z, p=(x,z,y)=>[hx+x,hz+z,y];
   const base=[p(0,4.75,.08),p(0,4.25,.2),p(0,3.95,.32),p(0,3.6,.52),p(0,1.75,.52),p(0,.9,.52),p(0,0,.52)];
-  return base.concat(sub==='cook'?[p(1.6,-1.0,.52),p(2.4,-2.45,.52)]:[p(-1.4,-.4,.52),p(-2.0,-1.6,.52),p(-2.45,-2.3,.52)]);}
+  if(sub==='table') return [p(2.4,-2.45,.52),p(1.6,-1.0,.52),p(.8,-.1,.52),p(-.4,-.1,.52)];               // from the stove round the table to the bench
+  if(sub==='leave') return [p(-.4,-.1,.52),...base.slice().reverse()];                                   // from the bench out of the door
+  return base.concat(sub==='cook'?[p(1.6,-1.0,.52),p(2.4,-2.45,.52)]:[p(-1.6,-.2,.52),p(-2.2,-.6,.52),p(-2.2,-1.55,.52)]);}   // to the stove, or to the side of the papag
+// the farmer lying on the papag (no salakot in bed) under a kumot when he sleeps, and a plate of rice and ulam on the table while he eats
+const BED=(()=>{const g=new THREE.Group(); houseG.add(g); g.visible=false;
+  const body=bakePerson({...FARMER_LOOK,style:'short'},p=>{p.aL.rotation.z=.12; p.aR.rotation.z=-.12; p.aL.rotation.x=p.aR.rotation.x=0;}); g.add(body);
+  body.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0,0,-1),new THREE.Vector3(-1,0,0),new THREE.Vector3(0,1,0))); body.position.set(-1.72,1.13,-2.4);   // on his back, head on the pillow
+  const kumot=new THREE.Mesh(mergeGeo([P('box',0x6f9bc4,-2.32,1.24,-2.4,1.3,.2,.78),P('box',0xf2efe6,-2.95,1.33,-2.4,.12,.04,.8)]),VCMAT); g.add(kumot);
+  const plate=new THREE.Mesh(mergeGeo([P('cyl',0xf7f7f2,0,0,0,.34,.03,.34),P('sph',0xffffff,-.05,.04,0,.18,.1,.16),P('sph',0x8d5a2b,.07,.035,.03,.12,.07,.11),P('cyl',0xbfe3f0,.28,.08,-.05,.09,.17,.09),P('box',0xc0c0c0,0,.03,.17,.03,.01,.16)]),VCMAT);
+  plate.position.set(-.4,1.29,-1.02); plate.visible=false; houseG.add(plate);
+  return {g,kumot,plate};})();
+function lieDown(F,on,sleep){F.lying=on; F.p.root.visible=!on; BED.g.visible=on; BED.kumot.visible=!!sleep;}
 let homeLast=performance.now();
 function homeStep(F,dt,t){const j=F.cur, r=F.p.root, p=F.p, now=Date.now();
   if(!j.seq){j.seq={stage:'in',u:0,pts:homePath(j.sub)}; r.visible=true;}
@@ -5547,17 +5558,22 @@ function homeStep(F,dt,t){const j=F.cur, r=F.p.root, p=F.p, now=Date.now();
     q.u=Math.min(L,q.u+dt*1.25); let s=q.u, k=0; while(k<seg.length-1&&s>seg[k]){s-=seg[k]; k++;} const a=pts[k], b=pts[k+1], f=seg[k]?Math.min(1,s/seg[k]):1;
     r.position.set(a[0]+(b[0]-a[0])*f,a[2]+(b[2]-a[2])*f,a[1]+(b[1]-a[1])*f); r.rotation.y=lerpAng(r.rotation.y,Math.atan2(b[0]-a[0],b[1]-a[1]),.25); F.ph+=dt*7; poseWalk(p,F.ph);
     const dz=r.position.z-S.housePos.z; if(Math.abs(dz-1.25)<1.3&&Math.abs(r.position.x-S.housePos.x)<1) houseDoorT=now+1200; return q.u>=L;};
-  if(q.stage==='in'){if(walk(q.pts)){q.stage='act'; q.u=0; F.timer=jobTime(j);}}
+  if(q.stage==='in'){if(walk(q.pts)){q.stage='act'; q.u=0; F.timer=jobTime(j); if(j.sub!=='cook') lieDown(F,true,j.sub==='sleep');}}
   else if(q.stage==='act'){F.timer-=dt; const h=gameHour();
     if(j.sub==='cook'){r.rotation.y=Math.PI; poseStand(p,t); p.aR.rotation.x=-1.2+Math.sin(t*7)*.35; p.aL.rotation.x=-.8; cookingT=now+300;}
-    else {r.rotation.y=Math.PI/2; poseSit(p); r.position.y=.55; if(j.sub==='sleep'){r.rotation.y=-Math.PI/2; r.rotation.z=Math.PI/2; r.position.y=1.05;}}
     if(j.sub==='sleep'){S.me.energy=Math.min(100,S.me.energy+dt*1.4); if(h>=5&&h<21||F.jobs.some(q2=>q2.type==='board')) F.timer=0;} else if(j.sub==='rest') S.me.energy=Math.min(100,S.me.energy+dt*2.6);
-    if(F.timer<=0){r.rotation.z=0; finishHome(j); q.stage='out'; q.u=0; q.pts=q.pts.slice().reverse();}}
+    if(F.timer<=0){if(j.sub==='cook'){q.stage='table'; q.u=0; q.pts=homePath('table');}   // carries the meal to the table
+      else {lieDown(F,false); r.rotation.set(0,Math.PI/2,0); finishHome(j); q.stage='out'; q.u=0; q.pts=q.pts.slice().reverse();}}}
+  else if(q.stage==='table'){if(walk(q.pts)){q.stage='eat'; q.u=0; F.timer=7; BED.plate.visible=true;}}
+  else if(q.stage==='eat'){F.timer-=dt;   // sitting on the bench, facing the table, eating spoonful by spoonful
+    r.rotation.set(0,Math.PI,0); r.position.x+=(S.housePos.x-.4-r.position.x)*Math.min(1,dt*6); r.position.z+=(S.housePos.z-.55-r.position.z)*Math.min(1,dt*6);
+    poseSit(p); r.position.y=.95-.88*p.L.h; const sp=(Math.sin(t*3.2)+1)/2; p.aR.rotation.x=-1.0-sp*1.5; p.aR.rotation.z=-.15-sp*.25; p.aL.rotation.x=-1.15; p.aL.rotation.z=.06;
+    if(F.timer<=0){BED.plate.visible=false; p.aR.rotation.z=-.06; finishHome(j); q.stage='out'; q.u=0; q.pts=homePath('leave');}}
   else if(q.stage==='out'){r.rotation.z=0; if(walk(q.pts)){r.position.y=farmerY(r.position.x,r.position.z); F.cur=null; F.state=F.jobs.length?'idle':'home';}}}
 let houseDoorT=0, cookingT=0;
 (function houseLoop(){requestAnimationFrame(houseLoop); const n=performance.now(), dt=Math.min(.05,(n-homeLast)/1000), t=n/1000; homeLast=n; const U=houseG.userData, now=Date.now(); if(!U.door) return;
   U.door.rotation.y+=((now<houseDoorT?1.5:0)-U.door.rotation.y)*Math.min(1,dt*5);
-  const r=farmer.p.root, inside=Math.abs(r.position.x-S.housePos.x)<3.9&&r.position.z>S.housePos.z-3.6&&r.position.z<S.housePos.z+1.35&&r.visible; U.roof.visible=!(inside&&cam.dist<30&&Math.hypot(cam.target.x-S.housePos.x,cam.target.z-S.housePos.z)<20);   // look inside while he is in
+  const r=farmer.p.root, inside=Math.abs(r.position.x-S.housePos.x)<3.9&&r.position.z>S.housePos.z-3.6&&r.position.z<S.housePos.z+1.35&&(r.visible||farmer.lying); U.roof.visible=!(inside&&cam.dist<30&&Math.hypot(cam.target.x-S.housePos.x,cam.target.z-S.housePos.z)<20);   // look inside while he is in
   const cook=now<cookingT; U.flame.visible=cook; U.flame.scale.setScalar(.9+Math.sin(t*20)*.1);
   U.steam.forEach((s,k)=>{s.visible=cook; if(cook){const u=(t*.6+k/5)%1; s.position.set(2.28+Math.sin(k*2+t)*.08,1.6+u*.9,-3.1); s.scale.setScalar(.6+u*1.4); s.material.opacity=.5*(1-u);}});})();
 const needSpd=()=>S.me.energy<=0?.5:(S.me.energy<20||S.me.hunger<15)?.72:1;
@@ -5594,7 +5610,7 @@ const homeBusy=()=>farmer.jobs.some(j=>j.type==='home'||j.type==='fish')||(farme
 function openHome(){bldIdx=-3; bldTab=null; renderHome(); $('bldSheet').classList.add('open');}
 function renderHome(){const M=S.me, F=farmer, cur=F.cur&&F.cur.type==='home'?F.cur:null, q=F.jobs.find(j=>j.type==='home');
   $('bldTitle').textContent='🏠 Bahay';
-  const st=cur?(cur.sub==='sleep'?'😴 Sleeping…':cur.sub==='rest'?'🛏️ Resting inside…':`🍳 Cooking ${RECIPES.find(r=>r.id===cur.r).name}…`):q?'🚶 On the way home…':F.riding?'🚚 Out driving':FISH.on?'🎣 Fishing at your palaisdaan':'At work on the farm';
+  const st=cur?(cur.sub==='sleep'?'😴 Sleeping…':cur.sub==='rest'?'🛏️ Resting inside…':`${cur.seq&&(cur.seq.stage==='table'||cur.seq.stage==='eat')?'🍽️ Eating':'🍳 Cooking'} ${RECIPES.find(r=>r.id===cur.r).name}…`):q?'🚶 On the way home…':F.riding?'🚚 Out driving':FISH.on?'🎣 Fishing at your palaisdaan':'At work on the farm';
   const rec=RECIPES.map(r=>{const ok=canCook(r); return `<button class="gbtn row" data-act="home-cook" data-r="${r.id}" ${ok&&!homeBusy()?'':'disabled'}>${r.icon} <b>${r.name}</b><small>${Object.entries(r.need).map(([k,n])=>`${n} ${foodIcon(k)}`).join(' ')} · +${r.h} 🍚${r.e>=20?` +${r.e} ⚡`:''}</small></button>`;}).join('');
   $('bldBody').innerHTML=`<div class="meters"><span>🍚 Busog</span><div class="meter"><i style="width:${Math.round(M.hunger)}%;background:linear-gradient(90deg,#f0b35b,#e67e22)"></i></div><b>${Math.round(M.hunger)}</b>
       <span>⚡ Lakas</span><div class="meter"><i style="width:${Math.round(M.energy)}%"></i></div><b>${Math.round(M.energy)}</b></div>

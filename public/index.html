@@ -2326,10 +2326,11 @@ function makeTrike(col){
   return {g,pass};
 }
 const TSPOTS=[[PX+8,-125],[PX+11,-125],[PX+14,-125]];
-function trikeRoutes(spot,dir){
-  const [x,z]=spot, far=dir>0?PX+260:PX-260;
-  if(dir>0) return {go:mkRoute([[x,z,4],[x,HZ-5,4],[x+4,LE,13],[far,LE]]), back:mkRoute([[far,LW,13],[x+4,LW,4],[x-3,HZ-4.5,3,true],[x,HZ-6.5,3,true],[x,z]])};
-  return {go:mkRoute([[x,z,4],[x,HZ-5,4],[x-4,LW,13],[far,LW]]), back:mkRoute([[far,LE,13],[x-4,LE,4],[x+3,HZ-4.5,3,true],[x,HZ-6.5,3,true],[x,z]])};
+function trikeRoutes(spot,dir){   // in and out over the palengke culvert (x = PX+4), never across the open drain
+  const [x,z]=spot, far=dir>0?PX+260:PX-260, cx=PX+4, park=[[cx,-119.5,3],[x+3,-120.5,3,true],[x,z]];   // pull past the bay, back in nose-out
+  const out=[[x,z,4],[x-1,-121,4],[cx,-119,4],[cx,-113.5,4]];
+  if(dir>0) return {go:mkRoute([...out,[cx+5,LE,13],[far,LE]]), back:mkRoute([[far,LW,13],[cx+6,LW,4],[cx,-113.5,3],...park])};
+  return {go:mkRoute([...out,[cx-5,LW,13],[far,LW]]), back:mkRoute([[far,LE,13],[cx-2,LE,4],[cx,-113.5,3],...park])};
 }
 [0xd63031,0x2e86de,0x27ae60].forEach((col,k)=>{const t=makeTrike(col); t.g.position.set(TSPOTS[k][0],0,TSPOTS[k][1]); scene.add(t.g);
   trikes.push({...t,spot:TSPOTS[k],state:'wait',timer:4+k*7+trr()*5,e:0,R:null,walker:null,prev:null});});
@@ -6374,27 +6375,28 @@ function makeLiner(dest){const b=[], GL=0x22303c, D=0x1b1b1b, g=new THREE.Group(
   [-.85,.85].forEach(x=>{glow(g,x,.9,5.25,1.4,GM.head); glow(g,x,.9,-5.25,.8,GM.tail);}); glow(g,0,2.3,0,4.5,GM.white);
   const d=bakePerson(randLook(Math.random),poseSit); d.position.set(-.75,.95,4.4); g.add(d); scene.add(g); return g;}
 const LINERS=(()=>{const sl=4, d=SPD.dirt||6, h=13, up=HROADS[0].s, climb=[]; for(let q=0;q<=MTN_STOP.k;q+=3) climb.push([up[q][0],up[q][1],sl]);
-  const via=mkRoute([[TX0,LE,h],[226,LE,6],[236,-122,3],[250,-122]]), thru=mkRoute([[250,-122,3],[266,-122,5],[274,LE,h],[TX1,LE]]);
-  const upR=mkRoute([[250,-122,3],[266,-122,5],[274,LE,10],[326,LE,5],[331.75,-114,6],[331.75,-182,6],[328,-187.75,5],[154,-187.75,5],...climb]);
+  const BUS_IN=[[TX0,LE,h],[222,LE,6],[229,-110,4],[236,-113,3],[236,-120,3],[240,-122,3],[250,-122]], BUS_OUT=[[250,-122,3],[262,-123,3],[268,-125.5,3],[272,-125,3],[273,-123,3],[273,-112,4],[279,-109.5,6]];   // square across the culverts, never over the open drain
+  const via=mkRoute(BUS_IN), thru=mkRoute([...BUS_OUT,[286,LE,h],[TX1,LE]]);
+  const upR=mkRoute([...BUS_OUT,[286,LE,10],[326,LE,5],[331.75,-114,6],[331.75,-182,6],[328,-187.75,5],[154,-187.75,5],...climb]);
   const downR=mkRoute([...climb.slice().reverse(),[154,-184.25,5],[328,-184.25,6],[328.25,-180,6],[328.25,-120,5],[322,LW,10],[TX0,LW]]);
   return [{g:makeLiner('Maynila'),legs:[['in',via],['wait',14],['go',thru]],k:0,e:0,away:30},
           {g:makeLiner('Bundok'),legs:[['in',via],['wait',14],['go',upR],['stop',14],['go',downR]],k:0,e:-55,away:20}];})();
 // jeepneys queue at the terminal; the one in front loads riders, then goes to the palengke (west) or the Mega Foods gate (east)
 const JEEPS=(()=>{const list=[]; for(let k=0;k<3;k++){const g=makePUJ();g.position.set(282+k*8,0,-126);g.rotation.y=-Math.PI/2; g.visible=true; const tex=['PALENGKE','MEGA FOODS','RESIDENTIAL'].map(s=>signPlane([s],'#fff','#c62828',1.5,.32,256,56));
     tex.forEach((q,i)=>{q.position.set(0,2.08,1.16); q.visible=false; g.add(q);}); list.push({g,tex,state:'queue',x:282+k*8,trip:k%3,e:0,R:null,timer:0,riders:0,stopIndex:0});} return list;})();
-const jRoutes={palengke:mkRoute([[282,-126,3],[273,-121,4],[268,LW,8],[PX+12,LW,10],[PX+4,LW,2],[PX-2,LW,10],[TX0,LW]]),
-  factory:mkRoute([[282,-126,3],[273,-121,4],[268,LE,8],[FX-12,LE,10],[FX-4,LE,2],[FX+2,LE,10],[TX1,LE]]),
-  residential:mkRoute([[282,-126,3],[273,-121,4],[268,LW,8],[45,LW,6],[41.75,-119,5],[41.75,STZ+5,4],[48,STZ+1.75,5],[124,STZ+1.75,4],[180,STZ+1.75,4],[248,STZ+1.75,4],[324,STZ+1.75,5],[328.25,-180,5],[328.25,-120,4],[322,LW,8],[TX0,LW]])};
+const jRoutes={palengke:mkRoute([[282,-126,3],[273,-122,3],[273,-113,4],[267,LW,8],[PX+12,LW,10],[PX+4,LW,2],[PX-2,LW,10],[TX0,LW]]),
+  factory:mkRoute([[282,-126,3],[273,-122,3],[273,-112,4],[279,LE,8],[FX-12,LE,10],[FX-4,LE,2],[FX+2,LE,10],[TX1,LE]]),
+  residential:mkRoute([[282,-126,3],[273,-122,3],[273,-113,4],[267,LW,8],[45,LW,6],[41.75,-119,5],[41.75,STZ+5,4],[48,STZ+1.75,5],[124,STZ+1.75,4],[180,STZ+1.75,4],[248,STZ+1.75,4],[324,STZ+1.75,5],[328.25,-180,5],[328.25,-120,4],[322,LW,8],[TX0,LW]])};
 const JEEP_STOPS=[124,180,248].map(x=>({x,z:STZ+1.75,home:HOUSES.find(h=>h.side===-1&&Math.abs(h.door[0]-x)<3)}));
 const RES_STOP_TIMES=JEEP_STOPS.map(stop=>jRoutes.residential.segs.find(seg=>seg.b[0]===stop.x&&seg.b[1]===stop.z)).map(seg=>seg.t0+seg.dur);
 // Return through the west-bank driveway; the river at x=307.6 is crossed only on the highway bridge.
 const jBack=(fromW,slot)=>mkRoute((fromW?[[TX0,LE,13],[291,LE,5],[300,-113,3]]:[[TX1,LW,13],[304,LW,5],[300,-113,3]])
   .concat([[300,-119,3],[300,-126,2],[Math.min(300,slot),-126]]));
 // Concrete culvert driveways carry the terminal entry and exit over the roadside drain.
-(()=>{const b=[];for(const x of [273,300]){
-  b.push(P('box',0xa6a49d,x,.025,-116.4,7,.05,5.8));
-  for(const side of [-1,1]){b.push(P('box',0x8d918f,x+side*3.35,.16,-116.4,.3,.32,2.4));
-    b.push(P('box',0xf2cd46,x+side*2.8,.06,-116.4,.1,.02,4.8));}}
+(()=>{const b=[];for(const [x,w] of [[236,10],[273,7],[300,7]]){   // x=236 is the bus entrance
+  b.push(P('box',0xa6a49d,x,.025,-116.4,w,.05,5.8));
+  for(const side of [-1,1]){b.push(P('box',0x8d918f,x+side*(w/2-.15),.16,-116.4,.3,.32,2.4));
+    b.push(P('box',0xf2cd46,x+side*(w/2-.7),.06,-116.4,.1,.02,4.8));}}
   const m=new THREE.Mesh(mergeGeo(b),VCMAT);m.receiveShadow=true;scene.add(m);
 })();
 // The market driveway crosses the roadside drain on a concrete culvert.
@@ -6592,7 +6594,7 @@ const WWAYS=(()=>{
   const turn=(x,z,m)=>FARM.turning.some(t=>Math.hypot(x-t.x,z-t.z)<t.r+m);
   const covered=(x,z,m)=>(Math.abs(z-HZ)<5.2+m)||(Math.abs(z-STZ)<4.3+m&&x>35-m&&x<335+m)||(Math.abs(x-SRX)<4.3+m&&z>STZ&&z<HZ)||((Math.abs(x-40)<4.3+m||Math.abs(x-330)<4.3+m)&&z>STZ-4.3&&z<HZ)
     ||(Math.abs(x-PX)<7+m&&Math.abs(z+116.4)<3+m) // palengke entrance culvert
-    ||([273,300].some(a=>Math.abs(x-a)<3.5+m)&&Math.abs(z+116.4)<2.9+m)
+    ||([273,300].some(a=>Math.abs(x-a)<3.5+m)&&Math.abs(z+116.4)<2.9+m)||(Math.abs(x-236)<5+m&&Math.abs(z+116.4)<2.9+m)   // terminal driveways, bus entrance
     ||(Math.abs(x-TWN.wx)<TWN.w/2+1.3+m&&z>TWN.bz&&z<HZ)||(Math.abs(z-TWN.bz)<TWN.w/2+1.3+m&&x>TWN.wx&&x<SRX)||hr(x,z,m)||roadDist(x,z)<m||turn(x,z,m-.5);
   const gy=(x,z)=>{const h=hillH(x,z); return h>0?h+.08:0;};
   const tex=(rough)=>{const cv=document.createElement('canvas'); cv.width=64; cv.height=256; const c=cv.getContext('2d'); c.fillStyle=rough?'#e6e6e6':'#d4d4d4'; c.fillRect(0,0,64,256); const r=rng(rough?5:3);

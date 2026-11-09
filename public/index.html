@@ -2334,7 +2334,10 @@ function trikeRoutes(spot,dir){   // in and out over the palengke culvert (x = P
 }
 [0xd63031,0x2e86de,0x27ae60].forEach((col,k)=>{const t=makeTrike(col); t.g.position.set(TSPOTS[k][0],0,TSPOTS[k][1]); scene.add(t.g);
   trikes.push({...t,spot:TSPOTS[k],state:'wait',timer:4+k*7+trr()*5,e:0,R:null,walker:null,prev:null});});
+// The stand's driveway over the culvert is one lane: one trike moves in it at a time, so a trike pulling out never meets one coming in.
+const inStand=(x,z)=>x>PX+1&&x<PX+18&&z<-112&&z>-127;
 function updateTrikes(dt,t){
+  const pos=k=>k.g.position, coming=k=>k.state==='back'&&k.g.visible&&Math.abs(pos(k).x-PX)<45, leaving=k=>(k.state==='go'||k.state==='back')&&inStand(pos(k).x,pos(k).z);
   for(const k of trikes){
     if(k.state==='wait'){k.timer-=dt; if(k.timer<=0){
         const L=randLook(trr); L.bag=L.bag||'plastic'; const p=makePerson(L); p.root.position.set(PX+(trr()-.5)*6,.12,-130.6); scene.add(p.root);
@@ -2344,9 +2347,10 @@ function updateTrikes(dt,t){
       if(d<.1){scene.remove(r); disposePerson(k.walker.p); k.walker=null; k.pass.visible=true; k.state='depart'; k.timer=1.2;}
       else{const st=Math.min(d,1.2*dt); r.position.x+=dx/d*st; r.position.z+=dz/d*st; r.rotation.y=lerpAng(r.rotation.y,Math.atan2(dx,dz),.2); k.walker.ph+=st*5.4; poseWalk(k.walker.p,k.walker.ph);}
     }
-    else if(k.state==='depart'){k.timer-=dt; if(k.timer<=0){k.R=trikeRoutes(k.spot,trr()<.5?1:-1); k.e=0; k.state='go';}}
+    else if(k.state==='depart'){k.timer-=dt; if(k.timer<=0&&!trikes.some(o=>o!==k&&(coming(o)||leaving(o)))){k.R=trikeRoutes(k.spot,trr()<.5?1:-1); k.e=0; k.state='go';}}
     else if(k.state==='go'||k.state==='back'){
-      {const blk=aheadGap(k.g,k.g.position.x,k.g.position.z,k.g.rotation.y,2.4)<1.0; k.blk=blk?(k.blk||0)+dt:0; if(!blk)k.e=trafficRouteTime(k.g,k.state==='go'?k.R.go:k.R.back,k.e,dt,2.4,1.5);} const R=k.state==='go'?k.R.go:k.R.back, p=routePos(R,k.e);
+      {const Rn=k.state==='go'?k.R.go:k.R.back, nx=routePos(Rn,Math.min(Rn.T,k.e+.5)), hold=k.state==='back'&&!inStand(pos(k).x,pos(k).z)&&inStand(nx.x,nx.z)&&trikes.some(o=>o!==k&&leaving(o));
+       const blk=hold||aheadGap(k.g,k.g.position.x,k.g.position.z,k.g.rotation.y,2.4)<1.0; k.blk=blk?(k.blk||0)+dt:0; if(!blk)k.e=trafficRouteTime(k.g,k.state==='go'?k.R.go:k.R.back,k.e,dt,2.4,1.5);} const R=k.state==='go'?k.R.go:k.R.back, p=routePos(R,k.e);
       k.g.position.set(p.x,Math.abs(Math.sin(t*14))*.02,p.z); k.g.rotation.y=lerpAng(k.g.rotation.y,p.ang,1-Math.exp(-dt*8));
       if(k.e>=R.T){ if(k.state==='go'){k.state='away'; k.g.visible=false; k.pass.visible=false; k.timer=4+trr()*6;}
         else {k.state='wait'; k.timer=6+trr()*12; k.g.position.set(k.spot[0],0,k.spot[1]); k.g.rotation.y=0;} }
@@ -2479,6 +2483,7 @@ function trafficRouteTime(ref,R,e,dt,len,width=2.2){
   return clear?e+dt:e;
 }
 function canPass(c){
+  return false;   // no overtaking on the two-lane highway: a car caught in the oncoming lane was the biggest source of cars driving through each other; cars simply follow
   if(c.plan||c.pass||Math.abs(c.g.position.z-c.lane)>.15)return false;
   if([34,40,62,170,212,236,268,273,300,330,395].some(x=>Math.abs(x-c.x)<20))return false;
   const lane=c.dir>0?LW:LE;return !SNAP.some(o=>o.ref!==c.g&&Math.abs(o.z-lane)<1.7&&(o.x-c.x)*c.dir> -28&&(o.x-c.x)*c.dir<110);
@@ -2502,6 +2507,9 @@ function updateTraffic(dt,t){
     updateStreetVendors(dt,t); if(typeof updatePark==='function') updatePark(dt,t);}
   if(!traffic.length) for(let k=0;k<2;k++){const c={}; traffic.push(c); spawnCar(c,TX0+tfr()*(TX1-TX0));}
   for(const c of traffic){const g=c.g;
+    if(c.spawnWait){const spot={x:c.x,z:c.lane,a:c.dir>0?Math.PI/2:-Math.PI/2,len:4.6};   // comes onto the map only where the lane is clear
+      if(SNAP.some(o=>o.ref!==g&&o.ref.visible&&trafficOverlap(spot,o,3))){g.visible=false; continue;}
+      c.spawnWait=false; g.position.set(c.x,0,c.lane); g.visible=true; const me=SNAP.find(o=>o.ref===g); if(me) Object.assign(me,{x:c.x,z:c.lane,a:spot.a});}
     if(c.state==='drive'){
       // keep a safe gap behind the car ahead in the same lane
       const gap=aheadGap(c.g,c.x,c.lane,c.dir>0?Math.PI/2:-Math.PI/2,4.6);
@@ -4780,6 +4788,9 @@ function laneWait(vid,V,tr,P,p,now){const h=V.obj.position, atBay=P.ph==='out'&&
   if(V.lwCache&&now<V.lwCache.t) return V.lwCache.w;
   V.laneSince=V.laneSince||now; if(now-V.laneSince>60000) return null;   // never wait for ever: the backing-up rule is the fallback
   const myRank=entering?2:3, mine=lanePath(vid,now); let w=null;
+  if(atBay) for(const o in VEH){if(o===vid||!S.veh[o]||!S.veh[o].trip||!S.veh[o].trip.t0) continue; const Q=vehPhase(o,now,true);   // let one that is parking finish first
+    if(Q.ph==='back'&&Q.R.back.T-Q.e<10&&Math.hypot(VEH[o].obj.position.x-h.x,VEH[o].obj.position.z-h.z)<30){w=o; break;}}
+  if(w){V.lwCache={t:now+300,w}; return w;}
   if(mine.length) for(const o in VEH){if(o===vid||!S.veh[o]||!S.veh[o].trip||!S.veh[o].trip.t0||!VEH[o].obj.visible) continue;
     if(VEH[o].laneWait===vid) continue;                               // it is already waiting for me
     const Q=vehPhase(o,now,true), oh=VEH[o].obj.position, theirs=lanePath(o,now); if(!theirs.length) continue;
@@ -6563,13 +6574,7 @@ const FIESTA=(()=>{const g=new THREE.Group(), b=[], C=[0xe74c3c,0xf1c40f,0x2e86d
   const car=new THREE.Group(); car.add(new THREE.Mesh(mergeGeo([P('box',0xf5f5f5,0,.6,0,2.4,.8,3.6),...Array.from({length:22},(_,q)=>P('sph',[0xff7f9f,0xffffff,0xf1c40f,0xe74c3c][q%4],-1+(q%5)*.5,1.1,-1.5+((q/5)|0)*.75,.35,.35,.35)),P('box',0xf2d16b,0,2.4,0,1.6,.1,1.6),...[[-.7,-.7],[.7,-.7],[-.7,.7],[.7,.7]].map(([x,z])=>P('box',0xf2d16b,x,1.7,z,.08,1.4,.08))]),VCMAT));
   const reyna=makePerson({...randLook(r),f:true,top:0xffffff,bottom:0xffffff,skirt:true,bag:null}); reyna.root.position.y=1.0; car.add(reyna.root); parade.add(car); mem.push({p:{root:car},off:-24,lane:0,kind:'carroza'});
   return {g,parade,mem,x:60,dir:1,beat:0,was:false};})();
-let townLast=performance.now(), terminalLast=-Infinity,commuterLast=null;
-(function townLoop(){requestAnimationFrame(townLoop); const n=performance.now(), dt=Math.min(.05,(n-townLast)/1000); townLast=n; if(document.hidden) return; const t=n/1000, now=Date.now();
-  roadSnapshot();updateTsuper(t);
-  const terminalNear=Math.hypot(cam.target.x-267,cam.target.z+132)<55&&cam.dist<65;
-  TERMINAL.crowd.visible=terminalNear;
-  if(terminalNear&&t-terminalLast>1/24){updateTerminal(t);terminalLast=t;}
-  if(commuterLast===null||t-commuterLast>=.05){updateCommuters(commuterLast===null?0:Math.min(.5,t-commuterLast),t);commuterLast=t;}
+function updateTownVehicles(dt,t){   // Sinag Liner buses, terminal jeepneys and the police patrol
   // buses
   for(const B of LINERS){if(B.away>0){B.away-=dt; B.g.visible=false; continue;} const [kind,v]=B.legs[B.k];if(kind==='in'&&B.e===0){const entry=routePos(v,0);if(!trafficCanMove(B.g,entry.x,entry.z,entry.ang,10.6,2.6)){B.g.visible=false;continue;}}B.g.visible=true;
     if(kind==='wait'||kind==='stop'){B.e+=dt; if(B.e>=v&&!(kind==='wait'&&COMMUTERS.some(w=>(w.state==='busBoarding'&&w.bus===B)||w.state==='busWait'))){B.k++; B.e=0;} if(kind==='stop'){MTN_STOP.wait.forEach((p,i)=>p.root.visible=B.e<3+i);}}
@@ -6587,6 +6592,15 @@ let townLast=performance.now(), terminalLast=-Infinity,commuterLast=null;
   const Pc=PATROL; if(Pc.state==='park'){Pc.g.position.set(TOWN.pol[0]-8,0,TOWN.pol[1]);Pc.g.rotation.y=-Math.PI/2;Pc.timer-=dt; if(Pc.timer<=0){Pc.state='go'; Pc.e=0; Pc.cops.forEach(p=>p.root.visible=false);}}
   else {Pc.e=trafficRouteTime(Pc.g,Pc.loop,Pc.e,dt,4.6); const p=routePos(Pc.loop,Pc.e); Pc.g.position.set(p.x,0,p.z); Pc.g.rotation.y=lerpAng(Pc.g.rotation.y,p.ang,1-Math.exp(-dt*6)); if(Pc.e>=Pc.loop.T){Pc.state='park'; Pc.timer=25+Math.random()*20; Pc.cops.forEach(p=>p.root.visible=true);}}
   {const f=Math.floor(t*4)%2, on=Pc.state==='go'; Pc.red.material.color.setHex(on&&f?0xff2b2b:0x661111); Pc.blue.material.color.setHex(on&&!f?0x2b6bff:0x112266); Pc.gr.visible=on&&!!f; Pc.gb.visible=on&&!f;}
+}
+let townLast=performance.now(), terminalLast=-Infinity,commuterLast=null;
+(function townLoop(){requestAnimationFrame(townLoop); const n=performance.now(), dt=Math.min(.05,(n-townLast)/1000); townLast=n; if(document.hidden) return; const t=n/1000, now=Date.now();
+  roadSnapshot();updateTsuper(t);
+  const terminalNear=Math.hypot(cam.target.x-267,cam.target.z+132)<55&&cam.dist<65;
+  TERMINAL.crowd.visible=terminalNear;
+  if(terminalNear&&t-terminalLast>1/24){updateTerminal(t);terminalLast=t;}
+  if(commuterLast===null||t-commuterLast>=.05){updateCommuters(commuterLast===null?0:Math.min(.5,t-commuterLast),t);commuterLast=t;}
+  updateTownVehicles(dt,t);
   if(TOWN.flag) TOWN.flag.rotation.y=Math.sin(t*1.7)*.15;
   // hillside walkers
   for(const W of HILLFOLK){const R=W.R; if(W.pause>0){W.pause-=dt; poseStand(W.p,W.ph); continue;} W.u+=W.dir*dt*W.sp/1.5; if(W.u<=0||W.u>=R.length-1){W.dir*=-1; W.u=Math.max(0,Math.min(R.length-1.001,W.u)); W.pause=2+Math.random()*4;}

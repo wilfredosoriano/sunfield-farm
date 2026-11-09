@@ -1190,17 +1190,33 @@ const VCSMOOTH=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.85,m
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(1800,1800),new THREE.MeshStandardMaterial({map:GRASS_TEX,roughness:1,metalness:0})); ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; scene.add(ground);
 
 
-// kamalig (wooden storehouse) + dayami haystacks
-(()=>{const g=new THREE.Group(); g.position.set(-24,0,-2); g.rotation.y=Math.PI/2;   // the bodega, beside the service road (door faces the field)
-  g.add(part(6,3.4,5,0x9a6b3d,0,1.7,0));
-  for(let k=0;k<6;k++) g.add(part(6.05,.06,5.05,0x7d5530,0,.4+k*.55,0));
-  g.add(roof(6.6,5.6,2.2,0x8a959c,3.4,0,0));
-  g.add(part(2.2,2.4,.1,0xe8dcc0,0,1.2,2.52)); g.add(part(1.8,2.1,.12,0x5e3d22,0,1.05,2.53));
-  scene.add(g);
-  [[-19,4.5],[-17.4,5.8],[-19.6,6.6],[-29.5,4.2],[-31,5.6]].forEach(([x,z])=>{
-    scene.add(mesh(new THREE.CylinderGeometry(.9,1,1.1,10),0xe5c45a,x,.55,z));
-    scene.add(mesh(new THREE.ConeGeometry(.95,.6,10),0xd9b44a,x,1.4,z));});
-})();
+// Farm bodega: a larger open-front storehouse with stock that follows the saved inventory.
+const farmBodega=(()=>{const g=new THREE.Group();g.position.set(-24,0,-2);g.rotation.y=Math.PI/2;const add=(w,h,d,c,x,y,z)=>{const m=part(w,h,d,c,x,y,z);g.add(m);return m;};
+  add(7.8,.22,11.8,0xaaa697,0,.11,0);add(7.2,.18,11.2,0xbeb4a0,0,.3,0);
+  add(7.2,3.6,.18,0x9d7953,0,2.05,-5.5);
+  for(const side of [-1,1]){add(.18,3.6,11,0xa98760,side*3.5,2.05,0);add(1.25,3.6,.18,0x9d7953,side*2.9,2.05,5.5);
+    for(let z=-5;z<=5;z+=2)add(.25,4,.25,0x60452e,side*3.45,2.25,z);
+    add(1.1,2.5,.18,0x717e81,side*2.95,1.6,5.65);
+    for(let y=.55;y<3.8;y+=.45)add(.22,.04,11.1,0x80623f,side*3.62,y,0);
+    for(const z of [-3.8,-1.3,1.2]){for(const y of [.65,1.65,2.65])add(1.45,.12,1.85,0x78604a,side*2.5,y,z);for(const dz of [-.8,.8])add(.09,2.7,.09,0x394b50,side*3.05,1.7,z+dz);}}
+  add(7.3,.35,.25,0x60452e,0,3.9,5.5);add(4.2,.75,.12,0x395047,0,3.45,5.67);
+  const cv=document.createElement('canvas');cv.width=512;cv.height=96;const c=cv.getContext('2d');c.fillStyle='#395047';c.fillRect(0,0,512,96);c.fillStyle='#fff1cb';c.font='bold 58px Arial';c.textAlign='center';c.fillText('BODEGA',256,69);const sign=new THREE.Mesh(new THREE.PlaneGeometry(4.1,.75),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)}));sign.position.set(0,3.45,5.75);g.add(sign);
+  // Two real roof slopes; their private materials can fade without affecting other buildings.
+  const top=roof(8,12,1.7,0x75878a,4.05);const roofMats=[];top.traverse(m=>{if(m.material){m.material=m.material.clone();m.material.transparent=true;roofMats.push(m.material);}});g.add(top);
+  const stock=new THREE.Group();g.add(stock);const displays=[];
+  for(let k=0;k<24;k++){const side=k<12?-1:1,n=k%12,row=n%3,level=Math.floor(n/3)%3,deep=Math.floor(n/9);const container=new THREE.Group();container.position.set(side*(deep?1.9:2.7),.74+level, -3.9+row*2.5);stock.add(container);
+    const grain=k<6,egg=k>=6&&k<12,meat=k>=12&&k<18;const color=grain?0xd8c58c:egg?0xe5d6ae:meat?0x8eb4b7:0xa87542;
+    const box=part(.95,grain?.6:.42,1.1,color,0,grain?.3:.21,0);container.add(box);
+    if(!grain){for(const side of [-1,1])container.add(part(1,.06,.06,0x725032,0,.4,side*.52));for(let q=0;q<4;q++)container.add(part(.18,.14,.2,egg?0xf7edcf:meat?0xf3f0dc:0x6a9a46,(q%2-.5)*.38,.48,(Math.floor(q/2)-.5)*.45));}
+    displays.push({g:container,kind:grain?'grain':egg?'eggs':meat?'cold':'produce',index:k%6});}
+  add(1.6,1.15,1.1,0xc5d4d1,0,.9,-4.5);add(1.65,.12,1.15,0x657f83,0,1.52,-4.5); // insulated chest
+  add(3.9,.15,1.4,0x89704e,0,.33,4.2);for(let x=-1.5;x<=1.5;x+=.5)add(.08,.03,1.4,0x5e4935,x,.42,4.2);
+  scene.add(g);return {g,roofMats,displays,signature:'',uiAt:0};})();
+function updateBodega(t){const close=Math.hypot(cam.target.x+24,cam.target.z+2)<21&&cam.dist<43;for(const m of farmBodega.roofMats){m.opacity+=((close?.1:1)-m.opacity)*.15;m.depthWrite=m.opacity>.9;}
+  if(t-farmBodega.uiAt<1)return;farmBodega.uiAt=t;
+  const counts={grain:(S.inv.wheat||0)+(S.inv.corn||0)+Object.entries(S.mats).filter(([k])=>k.startsWith('feed')).reduce((n,[,v])=>n+v,0),eggs:(S.inv.egg||0)+(S.inv.duckegg||0),cold:['chicken','pork','beef','chevon','tilapia','milk'].reduce((n,k)=>n+(S.inv[k]||0),0),produce:Object.entries(S.inv).filter(([k])=>!['wheat','corn','egg','duckegg','chicken','pork','beef','chevon','tilapia','milk'].includes(k)&&!ITEMS[k]?.live).reduce((n,[,v])=>n+v,0)};
+  const signature=JSON.stringify([S.inv,S.mats]);if(signature!==farmBodega.signature){farmBodega.signature=signature;for(const d of farmBodega.displays)d.g.visible=d.index<Math.min(6,Math.ceil(counts[d.kind]/5));if(bldIdx===-5&&bldOpen())renderBodega();}
+}
 const blades=new THREE.Group();
 // kalabaw (carabao) grazing, with a white tagak (egret) riding on its back
 const carabao=new THREE.Group(), carabaoHead=new THREE.Group();
@@ -3481,7 +3497,7 @@ function endPtr(e){
   if(moving){ if(e.type==='pointerup') dropBuilding(e.clientX,e.clientY); else cancelMove(); }
   moveCand=-1;
   if(ptrs.size===1&&!moved&&e.type==='pointerup'){const x=e.clientX,y=e.clientY;
-    if(hitObj(farmShop.g,x,y))openFarmShop();else if(hitMarket(x,y)) openMarket(); else if(hitObj(hwG,x,y)) openHW('hardware'); else if(hitObj(psG,x,y)) openHW('poultry'); else if(hitObj(ssG,x,y)) openHW('seeds'); else if(hitObj(whG,x,y)||hitObj(facG,x,y)) openBiz(); else if(hitObj(houseG,x,y)) openHome(); else if(hitObj(katG,x,y)) openKat();
+    if(hitObj(farmBodega.g,x,y))openBodega();else if(hitObj(farmShop.g,x,y))openFarmShop();else if(hitMarket(x,y)) openMarket(); else if(hitObj(hwG,x,y)) openHW('hardware'); else if(hitObj(psG,x,y)) openHW('poultry'); else if(hitObj(ssG,x,y)) openHW('seeds'); else if(hitObj(whG,x,y)||hitObj(facG,x,y)) openBiz(); else if(hitObj(houseG,x,y)) openHome(); else if(hitObj(katG,x,y)) openKat();
     else if(hitObj(garageG,x,y)||(OWN('jeep')&&!S.veh.jeep.trip&&hitObj(jeep,x,y))||(S.veh.truck.owned&&!S.veh.truck.trip&&hitObj(truck,x,y))) openUp('garage');
     else onTap(pick(x,y)); }
   if(stroke) endStroke();
@@ -3914,7 +3930,7 @@ function changed(){
 }
 
 /* ---------- Your farmer: every Hoe / Seeds / Sickle job becomes a task he runs to do ---------- */
-const FARM_HOME=seatWorld(0).slice(0,2), BODEGA=[-20.6,-2];
+const FARM_HOME=seatWorld(0).slice(0,2), BODEGA=[-17.6,-2];
 const FARMER_LOOK={f:false,skin:0xb07850,hair:0x1c1c1c,top:0x3b6e8f,bottom:0x5d4037,shorts:false,skirt:false,style:'salakot',capC:0,shoes:0x5d4037,bag:null,h:1.02};
 const farmer=(()=>{
   const L=FARMER_LOOK;
@@ -4875,6 +4891,7 @@ function bldFill(t,now){const L=LIFE[t.b];
   return Math.min(1,(t.stored||0)/capOf(t));}
 const needsCare=t=>!!LIFE[t.b]&&!underConstruction(t,Date.now())&&(t.sick||hotNow(t)||(t.hungry&&t.n>0)||(!(t.n>0)&&!t.stored));
 function renderBld(){
+  if(bldIdx===-5)return renderBodega();
   if(bldIdx===-4)return renderFarmShop();
   if(bldIdx===-2) return renderKat();
   if(bldIdx===-3) return renderHome();
@@ -5332,6 +5349,13 @@ const farmShop=(()=>{const g=new THREE.Group(),b=[],x=SHOP.x,z=SHOP.z;
   const openSign=signPlane(['OPEN'],'#287342','#ffffff',1.8,.45),shutSign=signPlane(['CLOSED'],'#8b4636','#ffffff',1.8,.45);
   for(const q of [openSign,shutSign]){q.position.set(x-4.7,2.7,z+4.55);g.add(q);}
   scene.add(g);return {g,roofMat,worker,stockDisplay,closed,openSign,shutSign,customers:[],lastSpawn:0};})();
+function openBodega(){closeMarket();$('bizSheet').classList.remove('open');bldIdx=-5;bldTab=null;renderBodega();$('bldSheet').classList.add('open');}
+function renderBodega(){
+  $('bldTitle').textContent='Bodega - Your stored goods';
+  const rows=(source,catalog)=>Object.entries(source).filter(([,n])=>n>0).sort(([a],[b])=>(catalog[a]?.name||a).localeCompare(catalog[b]?.name||b)).map(([k,n])=>'<div class="pay" style="display:flex;justify-content:space-between;gap:16px"><span>'+(catalog[k]?.icon||'')+' '+(catalog[k]?.name||k)+'</span><b>'+n.toLocaleString()+'</b></div>').join('');
+  const goods=rows(S.inv,ITEMS),supplies=rows(S.mats,MATS);
+  $('bldBody').innerHTML='<div class="pay">Your farm storage. Shelf displays follow your stored goods; the counts below show every item.</div><h3>Harvests, animal products and livestock</h3>'+(goods||'<p class="empty">No goods stored yet. Harvest crops or collect from your animals.</p>')+'<h3>Feed, seeds and supplies</h3>'+(supplies||'<p class="empty">No supplies stored yet.</p>');
+}
 function openFarmShop(){$('bizSheet').classList.remove('open');closeMarket();bldIdx=-4;bldTab=null;renderFarmShop();$('bldSheet').classList.add('open');}
 function renderFarmShop(){const own=S.shop.owned,inc=shopIncoming(),free=Object.keys(VEH).filter(vehFree);$('bldTitle').textContent='Sunfield Mini-Mart';
   if(!own){$('bldBody').innerHTML='<div class="pay">Your own farm shop with Ate Lorna as shopkeeper. Customers pay automatically when they buy from stocked shelves. Open 6 AM-10 PM.</div><div class="pay">Level '+SHOP.level+' - '+SHOP.cost.toLocaleString()+' pesos. Includes a shopkeeper and three working days of salary.</div><button class="gbtn gold row" data-shop="unlock" '+(S.level>=SHOP.level&&S.coins>=SHOP.cost?'':'disabled')+'>Unlock my mini-mart</button><button class="gbtn row" data-shop="visit">Visit shop site</button>';return;}
@@ -6704,7 +6728,7 @@ function frame(now){
      if(!terminalClose&&m.opacity>.995)m.opacity=1;m.depthWrite=m.opacity>.9;}
    roofMat.opacity+=((near?.12:1)-roofMat.opacity)*.12; roofMat.depthWrite=roofMat.opacity>.9; signG.visible=roofMat.opacity>.5;
 }
-  {const fd=Math.min(.3,rawDt); for(let left=fd;left>1e-4;left-=.05){const d=Math.min(.05,left); updateFarmer(d,t); updateHelpers(d,t);} updateSplash(fd); updateKubo(t); updateTransit(fd,t); updateBiz(fd,t);updateFarmShop(fd,t); updateDayNight(); garageLamp.position.set(GX,2.9,G0+3.9);}
+  {const fd=Math.min(.3,rawDt); for(let left=fd;left>1e-4;left-=.05){const d=Math.min(.05,left); updateFarmer(d,t); updateHelpers(d,t);} updateSplash(fd); updateKubo(t); updateTransit(fd,t); updateBiz(fd,t);updateFarmShop(fd,t);updateBodega(t); updateDayNight(); garageLamp.position.set(GX,2.9,G0+3.9);}
   {const wdt=Math.min(.3,rawDt); for(let left=wdt;left>1e-4;left-=.05) updateWalkers(Math.min(.05,left),t);} updateVendors(t);
   {const a=t*.12; carabao.position.x=-20+Math.sin(a)*2.2; carabao.rotation.y=Math.cos(a)>0?0:Math.PI; carabaoHead.rotation.z=Math.sin(t*1.2)*.1-.3;}
   ducks.forEach(o=>{const a=t*.25+o.ph; o.d.position.set(o.px+Math.cos(a)*2.6,.05+Math.sin(t*2+o.ph)*.03,o.pz+Math.sin(a)*1.6);
@@ -6721,7 +6745,7 @@ function frame(now){
   try{updateCam();followSun();mountains.position.set(camera.position.x,0,camera.position.z);drawFrame();}
   catch(error){reportGameError('render',error);}
 }
-if(/[?&]debug\b/.test(location.search)) window.SF={farmDispatch:{loading:LOADING_DISPATCH,state:FARM_DISPATCH,tick:updateFarmDispatch,setSlots,simulate:(now,dt)=>{roadSnapshot();updateFarmDispatch(now,dt);updateVehicles(now);placeVehicles(now,dt);}},shop:{config:SHOP,world:farmShop,open:openFarmShop,unlock:shopUnlock,sale:shopSale,deliver:shopDeliver,dispatch:shopDispatch,refund:shopRefund,incoming:shopIncoming,setDraft:q=>{shopDraft=q;},tick:updateFarmShop},resCars,junctions:TRAFFIC_JUNCTIONS,health:gameHealth,trafficUpdate:updateTraffic,setTrafficUpdate:fn=>{updateTraffic=fn;},pointerCount:()=>ptrs.size,canvas,cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,holdPose,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,vans,traffic,shiftDays:n=>{TIME_SHIFT+=n*DAY_MS;},LINERS:()=>LINERS,PATROL:()=>PATROL,FIESTA:()=>FIESTA,loadWalkers,STOP,homeAct:(a,r)=>homeAct(a,{dataset:{r}}),openHome,FISH,startRain,dayAt:f=>{const g=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((f-g+1)%1)*DAY_MS;},step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
+if(/[?&]debug\b/.test(location.search)) window.SF={bodega:{world:farmBodega,open:openBodega,tick:updateBodega},farmDispatch:{loading:LOADING_DISPATCH,state:FARM_DISPATCH,tick:updateFarmDispatch,setSlots,simulate:(now,dt)=>{roadSnapshot();updateFarmDispatch(now,dt);updateVehicles(now);placeVehicles(now,dt);}},shop:{config:SHOP,world:farmShop,open:openFarmShop,unlock:shopUnlock,sale:shopSale,deliver:shopDeliver,dispatch:shopDispatch,refund:shopRefund,incoming:shopIncoming,setDraft:q=>{shopDraft=q;},tick:updateFarmShop},resCars,junctions:TRAFFIC_JUNCTIONS,health:gameHealth,trafficUpdate:updateTraffic,setTrafficUpdate:fn=>{updateTraffic=fn;},pointerCount:()=>ptrs.size,canvas,cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,holdPose,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,vans,traffic,shiftDays:n=>{TIME_SHIFT+=n*DAY_MS;},LINERS:()=>LINERS,PATROL:()=>PATROL,FIESTA:()=>FIESTA,loadWalkers,STOP,homeAct:(a,r)=>homeAct(a,{dataset:{r}}),openHome,FISH,startRain,dayAt:f=>{const g=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((f-g+1)%1)*DAY_MS;},step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
 renderHUD();
 requestAnimationFrame(frame);
 if(!S.seenHelp){S.seenHelp=true; save(); setTimeout(()=>toast('Open 🧰 Tools, pick a tool, and drag across the field. Sell your harvest at the 🏪 Palengke!',4800),600);}

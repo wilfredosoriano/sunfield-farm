@@ -386,6 +386,18 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
   const v=['truck','van','jeep','sedan'].find(vehFree)||null; if(!v){H.msg='All vehicles are on the road.'; return;}
 @@REPLACE
   const v=['truck','van','jeep','stock','sedan'].find(vehFree)||null; if(!v){H.msg='All vehicles are on the road.'; return;}
+
+/* Compact destination picker: labels and details stack instead of sharing a crowded row. */
+#bldSheet .sheet:has(.animal-pickup){width:min(480px,100%)}
+#bldSheet .sheet:has(.animal-pickup) .mhead h2{font-size:19px;line-height:1.25}
+.animal-pickup{display:grid;gap:10px;padding:4px 0}
+.animal-pickup .pickup-summary{margin:0 0 2px;font-size:13px;line-height:1.5;opacity:.8}
+.animal-pickup .pickup-route{display:grid;grid-template-columns:32px minmax(0,1fr);gap:10px;align-items:center;justify-content:start;min-height:80px;width:100%;padding:13px 14px;text-align:left;font-size:16px;line-height:1.4;border-radius:14px}
+.animal-pickup .pickup-copy{display:grid;gap:4px;min-width:0}
+.animal-pickup .pickup-route b{font-size:15px;line-height:1.3;font-weight:900}
+.animal-pickup .pickup-route small{margin:0;font-size:12px;line-height:1.45;font-weight:600;opacity:.8}
+.animal-pickup .pickup-icon{font-size:25px;text-align:center}
+.animal-pickup .pickup-cancel{min-height:42px;padding:8px;font-size:13px;font-weight:800;line-height:1.4;text-align:center;text-decoration:underline;text-underline-offset:3px}
 </style>
 </head>
 <body>
@@ -6004,7 +6016,8 @@ function processKatQueue(now){const K=S.kat;if(!K.autoQueue||!K.owned||katStage(
   S.coins-=fee;K.q={};let seconds=0;for(const k of live){K.q[k]=Math.min(S.livestock[k],K.awaiting[k]);seconds+=K.q[k]*KAT_SEC[k];S.livestock[k]-=K.q[k];delete K.awaiting[k];}K.t0=now;K.dur=Math.max(10,seconds);K.autoQueue=false;save();
 }
 let pickupChoice=null;
-function chooseAnimalPickup(i,cnt){const t=S.tiles[i],L=t&&LIFE[t.b];if(!L||!(L.live||L.cull)||!(t.n>0)||(t.gp||0)<1)return;pickupChoice={i,cnt};const n=L.live?t.n:Math.min(t.n,cnt||1),kind=L.live||L.cull,fee=n*KAT_FEE[kind];bldIdx=-6;$('bldTitle').textContent='Where should the animals go?';$('bldBody').innerHTML='<div class="pay">'+n+' '+ITEMS[kind].name+'. Your truck keeps them aboard and drives to the destination. Live animals never go inside the bodega.</div><button class="gbtn green row" data-animal-route="katayan" '+(S.kat.owned?'':'disabled')+'>Straight to Katayan<small>Butchers fee: '+fee+' pesos. '+(S.kat.owned?'Wait in the holding pen if processing is busy or funds are short.':'Open your katayan first.')+'</small></button><button class="gbtn gold row" data-animal-route="palengke">Deliver Live to Palengke<small>Sell this batch live for '+(n*ITEMS[kind].price).toLocaleString()+' pesos base value. Matching live buyer orders are filled first.</small></button><button class="gbtn row" data-animal-route="cancel">Keep animals in their pen</button>';$('bldSheet').classList.add('open');}
+function chooseAnimalPickup(i,cnt){const t=S.tiles[i],L=t&&LIFE[t.b];if(!L||!(L.live||L.cull)||!(t.n>0)||(t.gp||0)<1)return;pickupChoice={i,cnt};const n=L.live?t.n:Math.min(t.n,cnt||1),kind=L.live||L.cull,fee=n*KAT_FEE[kind];bldIdx=-6;$('bldTitle').textContent='Animal pickup';
+  $('bldBody').innerHTML='<div class="animal-pickup"><p class="pickup-summary"><b>'+n+' '+ITEMS[kind].name+'</b><br>Choose where your driver takes them.</p><button class="gbtn green pickup-route" data-animal-route="katayan" '+(S.kat.owned?'':'disabled')+'><span class="pickup-icon" aria-hidden="true">&#128298;</span><span class="pickup-copy"><b>Deliver to Katayan</b><small>Butcher fee: &#8369;'+fee.toLocaleString()+'<br>'+(S.kat.owned?'Animals wait in the holding pen until processing.':'Open your katayan first.')+'</small></span></button><button class="gbtn gold pickup-route" data-animal-route="palengke"><span class="pickup-icon" aria-hidden="true">&#128666;</span><span class="pickup-copy"><b>Deliver to Palengke</b><small>Live value: &#8369;'+(n*ITEMS[kind].price).toLocaleString()+'<br>Matching buyer orders are filled first.</small></span></button><button class="pickup-cancel" data-animal-route="cancel">Keep animals in their pen</button></div>';$('bldSheet').classList.add('open');}
 $('bldSheet').addEventListener('click',e=>{const b=e.target.closest('[data-animal-route]');if(!b||b.disabled||!pickupChoice)return;const choice=pickupChoice;pickupChoice=null;$('bldSheet').classList.remove('open');if(b.dataset.animalRoute!=='cancel')startPickup(choice.i,choice.cnt,b.dataset.animalRoute);});
 function startPickup(i,cnt,target){if(!target)return chooseAnimalPickup(i,cnt);const t=S.tiles[i], L=t&&LIFE[t.b];if(!L||!(t.n>0)||(t.gp||0)<1)return toast('These animals are not ready for pickup.');if(target==='katayan'&&!S.kat.owned)return toast('Open the katayan first.');const vs=pickupVeh(t); if(pickupPending(i)) return toast('A truck is already on its way to these animals.',2600);
   const v=vs.find(vehFree); if(!v) return toast(`${vs.map(x=>VEH[x].icon+' '+VEH[x].name).join(' and ')} ${vs.length>1?'are both':'is'} on the road. Try again when ${vs.length>1?'one':'it'} is back.`,3200);

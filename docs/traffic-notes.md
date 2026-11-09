@@ -32,3 +32,43 @@ I tried a ticket system on top of the existing routes. A vehicle needed a ticket
 ## What will fix it
 
 The lane network described to the user. Roads become one-way lanes joined at intersections by turn lanes. Each vehicle follows only the vehicle ahead in its own lane. Intersections have yield rules, no-blocking-the-box and traffic lights. Car parks and stops are side lanes off the road.
+
+# Lane network, step 1 (Nov 10, 2026)
+
+Town and highway NPC traffic now runs on a lane network (search `Lane network` in `public/index.html`). Your own vehicles are not on it yet (step 3).
+
+## How it works
+
+- Roads are one-way lanes. The highway, the end roads, the side street, the back road, the poblacion streets and the mountain road are each a pair of lanes. Junction boxes hold short turn lanes; the straight stretches inside a box are "soft" turn lanes.
+- A vehicle keeps a position along its path of lanes and follows only what is ahead on that path (IDM speed, with curve speed limits).
+- Before it enters a turn lane it needs a grant:
+  - no vehicle on or holding a conflicting stretch (conflicts are precomputed per pair of lanes, with a wider envelope when a bus swings round a curve);
+  - room for its whole body past the box. When boxes sit too close to stop between them, it is granted several at once. It may stop on a soft stretch, but never across the farm-road crossing.
+  - The main road goes first by gap acceptance. Side roads go first come, first served. After 12 s a waiting side vehicle gets priority and the main road keeps clear of its crossing.
+- Grants not yet used are given back while the vehicle can still stop. It is all or nothing, never half a manoeuvre.
+- Car parks, the sakayan bay, the terminal bay and jeepney queue, the tricycle stand, the bagsakan shoulder and docks, and the factory yard are pockets off the road. Reversing out of a spot is a reverse lane.
+- NPCs treat your vehicles as obstacles. They respect the part of your junction reservation you are driving, and give up a shop or stand that is blocked rather than wait in a through lane.
+
+## Changes you will see
+
+- Your vehicles unload at a loading spot at the west end of the palengke forecourt, entering and leaving along the forecourt lanes.
+- The poultry store has one NPC parking spot (the other positions clash with the bagsakan shoulder and with your truck's turnaround). The farm shop's left spot moved to x = 112.5, and the palengke spots are now perpendicular bays.
+- Your trip clock is no longer pushed back twice per blocked frame. Before, a long block froze your vehicle for minutes after the road cleared.
+
+## Stress results (600 s, 8 highway cars, every NPC system; `DET` seeds)
+
+| Run | Ghost passes | Overlap frames | Longest wait | Traffic cost per frame |
+| --- | --- | --- | --- | --- |
+| NPC only, seeds 3, 5, 7, 9 | 0 | 0 | 29–48 s | 0.06 ms |
+| With your truck and jeep on nonstop errands, seeds 3, 7, 11 | 11 (all your vehicles) | 0 | 40 s | 0.08 ms |
+
+- The waits over 20 s are all vehicles waiting in a pocket for a gap: a car backing out of a spot, the bus in its bay, the first tricycles at the stand. Nobody waits that long in a through lane.
+- The 11 ghost passes are your truck and jeep blocking each other inside the farm yard, with no NPC involved. That is the farm-yard yield logic, which step 1 leaves alone.
+- `check-loading-browser.cjs` fails on the previous commit too.
+- Spikes up to about 30 ms happen once per new route (path search) and once when the network builds.
+
+## Checks
+
+- `check-lane-network.cjs` (new) runs every NPC route together for 15 minutes on the real lane code.
+- `check-warehouse-traffic.cjs` and `check-town-traffic.cjs` were rebuilt on it.
+- `check-residential-merge.cjs` and `check-residential-spawn.cjs` were removed; the new check covers them.

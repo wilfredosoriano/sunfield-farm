@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const html = fs.readFileSync(path.join(__dirname, '../public/index.html'), 'utf8');
 const routeSource = html.slice(html.indexOf('function mkRoute('), html.indexOf('const ROUTES='));
-const trafficSource = html.slice(html.indexOf('function aheadGap('), html.indexOf('function canPass('));
+const trafficSource = html.slice(html.indexOf('function trafficOverlap('), html.indexOf('/* ================= Lane network'));
 const dispatchSource = html.slice(html.indexOf('const FARM_DISPATCH='), html.indexOf('const activeVehs='));
 function object(x, z) {
   return { visible: true, userData: {}, position: { x, y: 0, z, set(x, y, z) { Object.assign(this, { x, y, z }); } }, rotation: { y: 0 } };

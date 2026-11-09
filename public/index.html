@@ -2276,8 +2276,9 @@ function routesFor(vid,dest,tr){
   else if(dest==='port'){out=[[sx,G0,sl],...toHwy(sx,d),[DX,LE,h],[394,LE,sl],[400.5,HZ+6,sl],[400.5,-92]]; back=[[400.5,-92,sl],[404,-96,sl],[401,HZ+5,sl],[396,LW,h],[DX,LW,d]].concat(toGarage);}   // into the port yard, to the pantalan bodega
   else if(dest==='sari'){out=[[sx,G0,sl],...toHwy(sx,d),[30.5,-104.4,sl]]; back=[[30.5,-104.4,sl],[33.5,-102,sl],...fromHwy(sx,d,sl)];}   // up the farm road, park beside the sari-sari store
   else if(dest==='palengke'){
-    out=[[sx,G0,sl],...toHwy(sx,d),[DX,LE,h],[PX-4,LE,sl],[PX+2,HZ-5,sl],[PX+2,-124]];
-    back=[[PX+2,-124,sl],[PX,-128.5,sl],[PX-3,-124,sl],[PX-3,HZ-5,sl],[PX-7,LW,h],[DX,LW,d]].concat(toGarage);
+    // in over the culvert like the town traffic, along the forecourt to your own loading spot at its west end, out by the forecourt's exit lane
+    out=[[sx,G0,sl],...toHwy(sx,d),[DX,LE,h],[PX-4,LE,sl],[PX+2,HZ-5,sl],[PX+2,-118.5,sl],[PX-3,-120.8,sl],[PX-13,-120.8,sl],[PX-16,-124,sl],[PX-16,-127]];
+    back=[[PX-16,-127,sl,true],[PX-16,-122.6,sl],[PX-7,-121.9,sl],[PX-4,-119,sl],[PX-4,HZ-5,sl],[PX-8,LW,h],[DX,LW,d]].concat(toGarage);
   }else if(dest==='poultry'){
     out=[[sx,G0,sl],...toHwy(sx,d),[DX,LE,h],[PSX-5,LE,sl],[PSX,HZ-5.5,sl],[PSX,HZ-7.5]];
     back=[[PSX,HZ-7.5,sl],[PSX+3,HZ-10.5,sl],[PSX+6,HZ-7,sl],[PSX+2,LW,h],[DX,LW,d]].concat(toGarage);
@@ -2326,19 +2327,14 @@ function makeTrike(col){
   return {g,pass};
 }
 const TSPOTS=[[PX+8,-125],[PX+11,-125],[PX+14,-125]];
-function trikeRoutes(spot,dir){   // in and out over the palengke culvert (x = PX+4), never across the open drain
-  const [x,z]=spot, far=dir>0?PX+260:PX-260, cx=PX+4, park=[[cx,-119.5,3],[x+3,-120.5,3,true],[x,z]];   // pull past the bay, back in nose-out
-  const out=[[x,z,4],[x-1,-121,4],[cx,-119,4],[cx,-113.5,4]];
-  if(dir>0) return {go:mkRoute([...out,[cx+5,LE,13],[far,LE]]), back:mkRoute([[far,LW,13],[cx+6,LW,4],[cx,-113.5,3],...park])};
-  return {go:mkRoute([...out,[cx-5,LW,13],[far,LW]]), back:mkRoute([[far,LE,13],[cx-2,LE,4],[cx,-113.5,3],...park])};
-}
 [0xd63031,0x2e86de,0x27ae60].forEach((col,k)=>{const t=makeTrike(col); t.g.position.set(TSPOTS[k][0],0,TSPOTS[k][1]); scene.add(t.g);
-  trikes.push({...t,spot:TSPOTS[k],state:'wait',timer:4+k*7+trr()*5,e:0,R:null,walker:null,prev:null});});
-// The stand's driveway over the culvert is one lane: one trike moves in it at a time, so a trike pulling out never meets one coming in.
-const inStand=(x,z)=>x>PX+1&&x<PX+18&&z<-112&&z>-127;
+  trikes.push({...t,spot:TSPOTS[k],state:'wait',timer:4+k*7+trr()*5,walker:null,lv:null,sp:null});});
+// Tricycles drive the lane network: out of the stand over the palengke culvert, along the highway and off the map, then back,
+// pulling past their bay and backing in nose out. The forecourt is one junction, so a trike leaving never meets one coming in.
 function updateTrikes(dt,t){
-  const pos=k=>k.g.position, coming=k=>k.state==='back'&&k.g.visible&&Math.abs(pos(k).x-PX)<45, leaving=k=>(k.state==='go'||k.state==='back')&&inStand(pos(k).x,pos(k).z);
+  if(!lnNet()) return;
   for(const k of trikes){
+    if(!k.lv){k.lv=lnVeh(k.g,{len:2.4,width:1.5,vmax:11,acc:2.2,bounce:.02}); k.sp=LN.by['tr:'+k.spot[0]]; lnGo(k.lv,[k.sp],k.sp.L);}
     if(k.state==='wait'){k.timer-=dt; if(k.timer<=0){
         const L=randLook(trr); L.bag=L.bag||'plastic'; const p=makePerson(L); p.root.position.set(PX+(trr()-.5)*6,.12,-130.6); scene.add(p.root);
         k.walker={p,ph:0}; k.state='board';}}
@@ -2347,15 +2343,11 @@ function updateTrikes(dt,t){
       if(d<.1){scene.remove(r); disposePerson(k.walker.p); k.walker=null; k.pass.visible=true; k.state='depart'; k.timer=1.2;}
       else{const st=Math.min(d,1.2*dt); r.position.x+=dx/d*st; r.position.z+=dz/d*st; r.rotation.y=lerpAng(r.rotation.y,Math.atan2(dx,dz),.2); k.walker.ph+=st*5.4; poseWalk(k.walker.p,k.walker.ph);}
     }
-    else if(k.state==='depart'){k.timer-=dt; if(k.timer<=0&&!trikes.some(o=>o!==k&&(coming(o)||leaving(o)))){k.R=trikeRoutes(k.spot,trr()<.5?1:-1); k.e=0; k.state='go';}}
-    else if(k.state==='go'||k.state==='back'){
-      {const Rn=k.state==='go'?k.R.go:k.R.back, nx=routePos(Rn,Math.min(Rn.T,k.e+.5)), hold=k.state==='back'&&!inStand(pos(k).x,pos(k).z)&&inStand(nx.x,nx.z)&&trikes.some(o=>o!==k&&leaving(o));
-       const blk=hold||aheadGap(k.g,k.g.position.x,k.g.position.z,k.g.rotation.y,2.4)<1.0; k.blk=blk?(k.blk||0)+dt:0; if(!blk)k.e=trafficRouteTime(k.g,k.state==='go'?k.R.go:k.R.back,k.e,dt,2.4,1.5);} const R=k.state==='go'?k.R.go:k.R.back, p=routePos(R,k.e);
-      k.g.position.set(p.x,Math.abs(Math.sin(t*14))*.02,p.z); k.g.rotation.y=lerpAng(k.g.rotation.y,p.ang,1-Math.exp(-dt*8));
-      if(k.e>=R.T){ if(k.state==='go'){k.state='away'; k.g.visible=false; k.pass.visible=false; k.timer=4+trr()*6;}
-        else {k.state='wait'; k.timer=6+trr()*12; k.g.position.set(k.spot[0],0,k.spot[1]); k.g.rotation.y=0;} }
-    }
-    else if(k.state==='away'){k.timer-=dt; if(k.timer<=0){k.state='back'; k.e=0; k.g.visible=true;}}
+    else if(k.state==='depart'){k.timer-=dt; if(k.timer<=0&&lnNext(k.lv,lnPath(k.sp,trr()<.5?'LE$':'LW$'))) k.state='go';}
+    else if(k.state==='go'){if(k.lv.done){k.state='away'; lnHide(k.lv); k.pass.visible=false; k.timer=4+trr()*6;}
+      else if(k.lv.waitSince&&LN.now-k.lv.waitSince>6&&k.lv.path[k.lv.pi].name==='pal:out'&&k.lv.path[k.lv.path.length-1]===LN.by['LE$']) lnNext(k.lv,lnPath(k.lv.path[k.lv.pi],'LW$'));}   // no gap to cross: turn right instead
+    else if(k.state==='away'){k.timer-=dt; if(k.timer<=0){const P=lnPath(trr()<.5?'LE':'LW',k.sp); if(P&&lnFreeAt(P[0],1.2,2.4,k.lv,20)){lnGo(k.lv,P,null,{v:9}); k.state='back';} else k.timer=.5;}}
+    else if(k.state==='back'){if(k.lv.done) {k.state='wait'; k.timer=6+trr()*12;} else if(lnBlocksRoad(k.lv,k.sp)&&lnNext(k.lv,lnPath(k.lv.path[k.lv.pi],k.lv.path[k.lv.pi].road==='LE'?'LE$':'LW$'))) k.state='go';}   // the stand is busy: go round again
   }
 }
 /* ---------- highway traffic: cars, vans and pickups; some stop to shop, most just pass by ---------- */
@@ -2395,38 +2387,29 @@ function makeCar(type,col){ // Vios-type sedan, Innova-type MPV, Fortuner-type S
   scene.add(g); return g;
 }
 let SHOPS=null; const shopList=()=>SHOPS||(SHOPS=[ // where shoppers park and which door they walk to (built on first use, after every store exists)
-  {id:'palengke',x:PX,spots:[[PX-9,-123],[PX-13,-123]],door:[PX+.5,-131.2]},
+  {id:'palengke',x:PX,spots:[[PX-7,-127],[PX-12,-127]],door:[PX+.5,-131.2]},
   {id:'hardware',x:HWX,spots:[[HWX-6,HZ-6.2],[HWX+6,HZ-6.2]],door:[HWX,HZ-8.8]},
-  {id:'poultry',x:PSX,spots:[[PSX-6,HZ-7.5],[PSX+6,HZ-7.5]],door:[PSX,HZ-12.2]},
+  {id:'poultry',x:PSX,spots:[[PSX+12,HZ-7.5]],door:[PSX,HZ-12.2]},
   {id:'seeds',x:SSX,spots:[[SSX-5.5,HZ-7.5],[SSX+5.5,HZ-7.5]],door:[SSX,HZ-12.3]},
-  {id:'farmshop',x:118,spots:[[110,-121],[121,-121]],door:[118,-125.3]}]);
+  {id:'farmshop',x:118,spots:[[112.5,-121],[121,-121]],door:[118,-125.3]}]);
 const spotTaken=new Set();
-function spawnCar(c,x){
+function spawnCar(c){ // a highway car waits off the map, then comes on at the west or east end; about one in three stops to shop, a few drive round the poblacion
+  lnNet();
   if(!c.g){const types=['vios','innova','fortuner','hilux','l300']; c.type=types[traffic.indexOf(c)%types.length]; c.g=makeCar(c.type,CAR_COLS[(tfr()*CAR_COLS.length)|0]);}   // built once, reused
-  c.dir=tfr()<.5?1:-1; c.lane=c.dir>0?LE:LW; c.x=x!=null?x:(c.dir>0?TX0:TX1); c.v=c.vmax=12+tfr()*6; c.state='drive'; c.plan=null;c.pass=null;
-  // about one in three stops to shop at a store ahead of it
-  if(tfr()<(S.shop&&S.shop.owned?.6:.35)){const ahead=shopList().filter(sh=>(sh.id!=='farmshop'||S.shop&&S.shop.owned)&&(sh.x-c.x)*c.dir>30); if(ahead.length) c.plan=ahead.find(sh=>sh.id==='farmshop')&&tfr()<.5?ahead.find(sh=>sh.id==='farmshop'):ahead[(tfr()*ahead.length)|0];}
-  c.g.position.set(c.x,0,c.lane); c.g.rotation.y=c.dir>0?Math.PI/2:-Math.PI/2;c.spawnWait=true;c.g.visible=false;
+  if(!c.lv) c.lv=lnVeh(c.g,{len:4.6,width:2.2});
+  if(c.spot){spotTaken.delete(c.spot); c.spot=null;}
+  lnHide(c.lv); c.dir=tfr()<.5?1:-1; c.lv.vmax=12+tfr()*6; c.state='wait'; c.wait=c.wait==null?tfr()*8:1+tfr()*5; c.plan=null; c.path=null;
+  const start=c.dir>0?'LE':'LW', end=c.dir>0?'LE$':'LW$';
+  if(tfr()<(S.shop&&S.shop.owned?.6:.35)){const ok=shopList().filter(sh=>sh.id!=='farmshop'||S.shop&&S.shop.owned), fs=ok.find(sh=>sh.id==='farmshop'), sh=fs&&tfr()<.5?fs:ok[(tfr()*ok.length)|0], sp=sh.spots.find(q=>!spotTaken.has(q));
+    if(sp){spotTaken.add(sp); c.spot=sp; c.plan=sh; c.path=lnPath(start,LN.spot.get(sp));}}
+  if(!c.path) c.path=tfr()<.15?lnPath(start,'tN','bE',end):lnPath(start,end);
 }
 let SNAP=[];
-function roadSnapshot(){ // every moving vehicle on the roads: where it is, which way it faces, how long it is
+function roadSnapshot(){ // every vehicle on the roads: where it is, which way it faces, how long it is, how fast it goes
   const L=[];
-  for(const c of traffic) if(c.g) L.push({ref:c.g,x:c.g.position.x,z:c.g.position.z,a:c.g.rotation.y,len:4.6});
-  for(const V of puvs) if(V.g.visible) L.push({ref:V.g,x:V.g.position.x,z:V.g.position.z,a:V.g.rotation.y,len:V.len});
+  for(const v of LN.veh) if(v.on&&v.g.visible) L.push({ref:v.g,x:v.g.position.x,z:v.g.position.z,a:v.g.rotation.y,len:v.len,width:v.width,v:v.v});
   for(const v in VEH) if(OWN(v)&&S.veh[v].trip) L.push({ref:VEH[v].obj,x:VEH[v].obj.position.x,z:VEH[v].obj.position.z,a:VEH[v].obj.rotation.y,len:VEH[v].len||6});
-  if(typeof vans!=='undefined') for(const V of vans) L.push({ref:V.g,x:V.g.position.x,z:V.g.position.z,a:V.g.rotation.y,len:8.4});
-  for(const k of trikes) if(k.g.visible&&(k.state==='go'||k.state==='back')) L.push({ref:k.g,x:k.g.position.x,z:k.g.position.z,a:k.g.rotation.y,len:2.4});
-  if(typeof traders!=='undefined') for(const T of traders) if(T.g.visible) L.push({ref:T.g,x:T.g.position.x,z:T.g.position.z,a:T.g.rotation.y,len:7.6});
-  if(typeof resCars!=='undefined') for(const c of resCars) if(c.g.visible) L.push({ref:c.g,x:c.g.position.x,z:c.g.position.z,a:c.g.rotation.y,len:4.6});
-  if(typeof LINERS!=='undefined')for(const B of LINERS)if(B.g.visible)L.push({ref:B.g,x:B.g.position.x,z:B.g.position.z,a:B.g.rotation.y,len:10.6,width:2.6});
-  if(typeof JEEPS!=='undefined')for(const J of JEEPS)if(J.g.visible)L.push({ref:J.g,x:J.g.position.x,z:J.g.position.z,a:J.g.rotation.y,len:6,width:2.1});
-  if(typeof PATROL!=='undefined'&&PATROL.g.visible)L.push({ref:PATROL.g,x:PATROL.g.position.x,z:PATROL.g.position.z,a:PATROL.g.rotation.y,len:4.6});
   SNAP=L;}
-function aheadGap(ref,x,z,a,len){
-  const hx=Math.sin(a),hz=Math.cos(a);let best=1e9;
-  for(const o of SNAP){if(o.ref===ref||!o.ref.visible)continue;const dx=o.x-x,dz=o.z-z,f=dx*hx+dz*hz;if(f<=0||f>65)continue;
-    if(Math.abs(dx*hz-dz*hx)>1.5)continue;best=Math.min(best,f-(len+o.len)/2);}return best;
-}
 function trafficOverlap(a,b,gap=.8){
   const axes=[[Math.sin(a.a),Math.cos(a.a)],[Math.cos(a.a),-Math.sin(a.a)],[Math.sin(b.a),Math.cos(b.a)],[Math.cos(b.a),-Math.sin(b.a)]];
   const radius=(v,n)=>Math.abs(Math.sin(v.a)*n[0]+Math.cos(v.a)*n[1])*(v.len/2+gap)+Math.abs(Math.cos(v.a)*n[0]-Math.sin(v.a)*n[1])*((v.width||2.2)/2+.12);
@@ -2452,7 +2435,7 @@ function trafficCanMoveRaw(ref,x,z,a,len,width=2.2){
   const distance=Math.hypot(x-start.x,z-start.z),steps=distance>15?1:Math.max(1,Math.ceil(distance/.5));
   for(const o of SNAP){if(o.ref===ref||!o.ref.visible||Math.hypot(o.x-x,o.z-z)>len+o.len+10)continue;
     if(!TRAFFIC_JUNCTIONS.some(j=>j.owner===ref)&&Math.abs(start.z-HZ)>5.2&&Math.abs(z-HZ)<7&&Math.abs(o.z-HZ)<3.5&&Math.abs(Math.sin(o.a))>.85){
-      for(const seconds of [.5,1,1.5])if(trafficOverlap(end,{...o,x:o.x+Math.sin(o.a)*12*seconds,z:o.z+Math.cos(o.a)*12*seconds}))return false;}
+      {const sp=o.v!=null?o.v:12; for(const seconds of [.5,1,1.5])if(trafficOverlap(end,{...o,x:o.x+Math.sin(o.a)*sp*seconds,z:o.z+Math.cos(o.a)*sp*seconds}))return false;}}
     const mx=x-start.x, mz=z-start.z;   // on the farm roads, one of your vehicles never waits on another of yours behind it that it's driving away from (no tail deadlock)
     if(ref.userData.farmVeh&&o.ref.userData&&o.ref.userData.farmVeh&&mx*mx+mz*mz>1e-8&&(o.x-start.x)*mx+(o.z-start.z)*mz<0&&Math.hypot(x-o.x,z-o.z)>=Math.hypot(start.x-o.x,start.z-o.z)-.001&&!trafficOverlap(end,o,.15))continue;
     const was=trafficOverlap(start,o);
@@ -2482,70 +2465,334 @@ function trafficRouteTime(ref,R,e,dt,len,width=2.2){
   if(clear&&next>=R.T)for(const j of TRAFFIC_JUNCTIONS)if(j.owner===ref){j.owner=null;j.path=[];}
   return clear?e+dt:e;
 }
-function canPass(c){
-  return false;   // no overtaking on the two-lane highway: a car caught in the oncoming lane was the biggest source of cars driving through each other; cars simply follow
-  if(c.plan||c.pass||Math.abs(c.g.position.z-c.lane)>.15)return false;
-  if([34,40,62,170,212,236,268,273,300,330,395].some(x=>Math.abs(x-c.x)<20))return false;
-  const lane=c.dir>0?LW:LE;return !SNAP.some(o=>o.ref!==c.g&&Math.abs(o.z-lane)<1.7&&(o.x-c.x)*c.dir> -28&&(o.x-c.x)*c.dir<110);
+/* ================= Lane network: the town and highway NPC traffic =================
+   Roads are one-way lanes (polylines). Junction boxes hold short turn lanes that join them. A vehicle keeps a 1-D position on its
+   path of lanes and follows only what is ahead of it on that path, with IDM-style speed. Before it enters a turn lane it needs a
+   grant: nobody on or holding a conflicting stretch, room to get its whole body out of the box (several boxes at once when they
+   sit close together), and the main road goes first; side roads go first come, first served. Car parks, stops, the terminal and
+   the tricycle stand are pocket lanes off the road, so nobody dwells in a through lane. Your own vehicles are not on lanes yet:
+   NPCs treat them as obstacles and give them the junction while they hold it. */
+const LN={lanes:[],by:{},veh:[],built:false,now:0,paths:new Map(),foreign:[],spot:new Map(),warn:[]};
+const LN_GAP=2, LN_S0=2, LN_T=1.2, LN_B=3, LN_ALAT=2.2;
+function lnLane(name,pts,o={}){
+  const L={id:LN.lanes.length,name,pts:[],next:[],prev:[],turn:!!o.turn,rev:!!o.rev,pri:o.pri==null?3:o.pri,vmax:o.vmax||8,w:o.w||2.3,occ:[],conf:[],holders:new Set(),claims:new Set(),appr:[],solo:!!o.solo,soft:!!o.soft,road:o.road||null};
+  for(const p of pts){const q=L.pts[L.pts.length-1]; if(!q||Math.hypot(p[0]-q[0],p[1]-q[1])>.02) L.pts.push([p[0],p[1]]);}
+  const c=[0]; for(let i=1;i<L.pts.length;i++) c.push(c[i-1]+Math.hypot(L.pts[i][0]-L.pts[i-1][0],L.pts[i][1]-L.pts[i-1][1])); L.cum=c; L.L=c[c.length-1];
+  if(name){if(LN.by[name]) LN.warn.push('lane name reused '+name); LN.by[name]=L;} LN.lanes.push(L); return L;
+}
+function lnLink(a,b){if(!a.next.includes(b)){a.next.push(b); b.prev.push(a);}}
+function lnAt(L,s){ // point and unit tangent at arc length s
+  const c=L.cum; s=Math.max(0,Math.min(L.L,s)); let lo=0,hi=c.length-1; while(hi-lo>1){const m=(lo+hi)>>1; if(c[m]<=s) lo=m; else hi=m;}
+  const a=L.pts[lo], b=L.pts[hi], d=c[hi]-c[lo]||1, u=(s-c[lo])/d;
+  return [a[0]+(b[0]-a[0])*u, a[1]+(b[1]-a[1])*u, (b[0]-a[0])/d, (b[1]-a[1])/d];
+}
+const lnDir=(L,end)=>{const t=lnAt(L,end?L.L:0); return [t[2],t[3]];};
+function lnCurve(p0,d0,p1,d1){ // straight, then a round corner, then straight; an S-curve when the two headings are parallel
+  const out=[[p0[0],p0[1]]], wx=p1[0]-p0[0], wz=p1[1]-p0[1], cr=d0[0]*d1[1]-d0[1]*d1[0];
+  if(Math.abs(cr)>.15){const t=(wx*d1[1]-wz*d1[0])/cr, u=(d0[0]*wz-d0[1]*wx)/cr;
+    if(t>.05&&u>.05){const r=Math.min(t,u), I=[p0[0]+d0[0]*t,p0[1]+d0[1]*t], A=[I[0]-d0[0]*r,I[1]-d0[1]*r], B=[I[0]+d1[0]*r,I[1]+d1[1]*r], n=Math.max(4,Math.ceil(r*1.5));
+      out.push(A); for(let k=1;k<n;k++){const q=k/n, a=(1-q)*(1-q), b=2*q*(1-q), c=q*q; out.push([A[0]*a+I[0]*b+B[0]*c,A[1]*a+I[1]*b+B[1]*c]);} out.push(B,[p1[0],p1[1]]); return out;}}
+  const D=Math.hypot(wx,wz), k=D*.4, C1=[p0[0]+d0[0]*k,p0[1]+d0[1]*k], C2=[p1[0]-d1[0]*k,p1[1]-d1[1]*k], n=Math.max(6,Math.ceil(D*1.5));
+  for(let i=1;i<=n;i++){const q=i/n, a=(1-q)**3, b=3*q*(1-q)**2, c=3*q*q*(1-q), d=q**3; out.push([p0[0]*a+C1[0]*b+C2[0]*c+p1[0]*d,p0[1]*a+C1[1]*b+C2[1]*c+p1[1]*d]);}
+  return out;
+}
+function lnTurn(a,b,o={}){ // a turn lane from the end of lane a to the start of lane b
+  const T=lnLane(o.name||null,lnCurve(a.pts[a.pts.length-1],o.d0||lnDir(a,1),b.pts[0],o.d1||lnDir(b,0)),{turn:o.turn!==false,pri:o.pri,vmax:o.vmax||6,rev:o.rev,w:o.w||Math.max(a.w,b.w),solo:o.solo});
+  lnLink(a,T); lnLink(T,b); return T;
+}
+function lnRoad(name,p0,p1,o={}){ // a straight one-way road cut at the given coordinates; the stretches inside boxes are turn lanes
+  const ax=Math.abs(p1[0]-p0[0])>Math.abs(p1[1]-p0[1])?0:1, sg=Math.sign(p1[ax]-p0[ax]), boxes=o.boxes||[];
+  const cs=[...new Set((o.cuts||[]).concat(...boxes))].filter(c=>(c-p0[ax])*sg>.01&&(p1[ax]-c)*sg>.01).sort((a,b)=>(a-b)*sg);
+  const xs=[p0[ax],...cs,p1[ax]], at=c=>ax?[p0[0],c]:[c,p0[1]], segs=[];
+  for(let i=0;i<xs.length-1;i++){const m=(xs[i]+xs[i+1])/2, inBox=boxes.some(b=>m>Math.min(...b)&&m<Math.max(...b));
+    const L=lnLane(name+':'+xs[i],[at(xs[i]),at(xs[i+1])],{turn:inBox,soft:inBox,pri:o.pri||0,vmax:o.vmax,w:o.w,solo:o.solo,road:name}); if(segs.length) lnLink(segs[segs.length-1],L); segs.push(L);}
+  const end=L=>L.pts[L.pts.length-1][ax], beg=L=>L.pts[0][ax];
+  LN.by[name]=segs[0]; LN.by[name+'$']=segs[segs.length-1];
+  return {segs,first:segs[0],last:segs[segs.length-1],endAt:c=>segs.find(L=>Math.abs(end(L)-c)<.01)||LN.warn.push(name+' no cut '+c)&&null,startAt:c=>segs.find(L=>Math.abs(beg(L)-c)<.01)||LN.warn.push(name+' no cut '+c)&&null};
+}
+function lnNet(){ // built on first use, once every road, store and stop exists
+  if(LN.built) return !LN.broken; LN.built=true; try{lnBuild(); return true;}catch(e){LN.broken=true; console.error('lane network failed to build',e); if(typeof gameHealth!=='undefined'&&gameHealth.errors) gameHealth.errors.push('lanes: '+e.message); return false;}
+}
+function lnBuild(){
+  const H=16, SIDE=8, POCK=3.5, REV=2;
+  // ---- highway: every store car park, side road and driveway joins it inside a box
+  const HS=shopList().filter(s=>s.id!=='palengke'), cutE=[30,35,38,45,66,65,71,77,136,145,166,177,206.5,217,229,279.5,292,325,339,389,401], cutW=[35,38,45,68,90,135,145.5,162,176,207,217.5,269,304,321,335,389,401];
+  for(const sh of HS) for(const [sx] of sh.spots){cutE.push(sx-7,sx+8); cutW.push(sx+7,sx-4);}
+  const boxes=[[-75,-44],[-33,-2],[28,148],[159,180],[204,220],[226,240],[266,282],[289,307],[318,341],[386,404]];
+  for(const x of cutE.concat(cutW)) if(!boxes.some(b=>x>b[0]+1&&x<b[1]-1)) LN.warn.push('highway cut outside a box '+x);
+  const LEr=lnRoad('LE',[TX0,LE],[TX1,LE],{cuts:cutE,boxes,pri:0,vmax:H,w:2.6}), LWr=lnRoad('LW',[TX1,LW],[TX0,LW],{cuts:cutW,boxes,pri:0,vmax:H,w:2.6});
+  const E=x=>LEr.endAt(x), Es=x=>LEr.startAt(x), W=x=>LWr.endAt(x), Ws=x=>LWr.startAt(x);
+  for(const L of LEr.segs.concat(LWr.segs)){const m=(L.pts[0][0]+L.pts[1][0])/2; if(m>27&&m<41) L.soft=false;}   // across the farm road: never stop where your vehicles cross
+  // store car parks: in nose first from either direction, back out towards where you are going, then join the highway
+  for(const sh of HS) sh.spots.forEach((spot,i)=>{const [sx,sz]=spot, tag=sh.id+i;
+    const sp=lnLane('sp:'+tag,[[sx,sz+2.3],[sx,sz]],{vmax:REV,solo:true}); LN.spot.set(spot,sp);
+    lnTurn(W(sx+7),sp,{pri:1,vmax:5}); lnTurn(E(sx-7),sp,{pri:2,vmax:5});
+    const rw=lnLane(null,lnCurve([sx,sz],[0,1],[sx+5,-114.8],[1,0]),{turn:true,rev:true,vmax:REV}), re=lnLane(null,lnCurve([sx,sz],[0,1],[sx-5,-114.8],[-1,0]),{turn:true,rev:true,vmax:REV});
+    lnLink(sp,rw); lnLink(sp,re); lnTurn(rw,Ws(sx-4),{pri:3,d0:[-1,0]}); lnTurn(re,Es(sx+8),{pri:3,d0:[1,0]});});
+  // the west end road up to the barangay, and the sakayan bay where the bus and jeepney load off the lane
+  const wN=lnRoad('wN',[41.75,-115],[41.75,-177],{vmax:SIDE,w:2.6,boxes:[[-173,-177]]}), wS=lnRoad('wS',[38.25,-181],[38.25,-115],{vmax:SIDE,w:2.6,boxes:[[-181,-177]]});   // the corner at the back road is a box
+  lnTurn(W(45),wN.first,{pri:1}); lnTurn(E(35),wN.first,{pri:2}); lnTurn(wS.last,Ws(35),{pri:3}); lnTurn(wS.last,Es(45),{pri:3});
+  const bay=lnLane('bay',[[45,-105.3],[59,-105.3]],{vmax:POCK,w:2.4}); lnTurn(E(38),bay,{pri:1,vmax:5}); lnTurn(bay,Es(66),{pri:3});
+  // bagsakan: a shoulder lane along the docks; vans pull past and back in, traders back into the unloading bay
+  const WS=lnRoad('wh:sh',[84,-115.5],[50,-115.5],{cuts:[71,64,58,52],pri:3,vmax:POCK,w:2.5,solo:true}); lnTurn(W(90),WS.first,{pri:1,vmax:5,w:2.6});
+  for(const wx of [56,62,68]){const r=lnLane('wh:dock'+wx,lnCurve([wx-4,-115.5],[1,0],[wx,-119.6],[0,-1]),{rev:true,vmax:REV,w:2.5,solo:true}); lnLink(WS.endAt(wx-4),r); lnTurn(r,Es(wx+9),{pri:3,d0:[0,1]});}
+  {const r=lnLane('wh:bay',lnCurve([71,-115.5],[1,0],[75,-119.5],[0,-1]),{rev:true,vmax:REV,w:2.6,solo:true}); lnLink(WS.endAt(71),r); lnTurn(r,Ws(68),{pri:3,d0:[0,1]});}
+  // poblacion west street and the back street behind the palengke
+  const sN=lnRoad('sN',[213.75,-115],[213.75,-181],{vmax:SIDE,boxes:[[-150,-162]],w:2.6}), sS=lnRoad('sS',[210.25,-181],[210.25,-115],{vmax:SIDE,boxes:[[-162,-150]],w:2.6});
+  lnTurn(W(217.5),sN.first,{pri:1}); lnTurn(E(206.5),sN.first,{pri:2}); lnTurn(sS.last,Ws(207),{pri:3}); lnTurn(sS.last,Es(217),{pri:3});
+  const tN=lnRoad('tN',[141.5,-115],[141.5,-150],{vmax:7}), tS=lnRoad('tS',[138.5,-150],[138.5,-115],{vmax:7}), bE=lnRoad('bE',[146,-154.5],[207.5,-154.5],{vmax:7}), bW=lnRoad('bW',[207.5,-157.5],[146,-157.5],{vmax:7});
+  lnTurn(W(145.5),tN.first,{pri:1}); lnTurn(E(136),tN.first,{pri:2}); lnTurn(tS.last,Ws(135),{pri:3}); lnTurn(tS.last,Es(145),{pri:3});
+  lnTurn(tN.last,bE.first,{pri:1}); lnTurn(bW.last,tS.first,{pri:2});
+  lnTurn(bE.last,sN.startAt(-162),{pri:3}); lnTurn(bE.last,sS.startAt(-150),{pri:3}); lnTurn(sN.endAt(-150),bW.first,{pri:2}); lnTurn(sS.endAt(-162),bW.first,{pri:1});
+  // palengke forecourt: in over the culvert, the two parking spots and the tricycle stand; one way out; everything inside is one junction
+  const PIN=lnLane('pal:in',[[172,-114.6],[172,-118]],{vmax:POCK}), POUT=lnLane('pal:out',[[166,-118],[166,-114.6]],{vmax:POCK});
+  lnTurn(E(166),PIN,{pri:2}); lnTurn(W(176),PIN,{pri:1}); lnTurn(POUT,Ws(162),{pri:3}); lnTurn(POUT,Es(177),{pri:3});
+  {const pal=shopList().find(s=>s.id==='palengke'), FA0=lnLane(null,lnCurve([172,-118],[0,-1],[167.5,-120.8],[-1,0]),{turn:true,vmax:POCK}), FA1=lnLane(null,[[167.5,-120.8],[162.5,-120.8]],{turn:true,vmax:POCK});
+    lnLink(PIN,FA0); lnLink(FA0,FA1);
+    pal.spots.forEach((spot,i)=>{const [sx,sz]=spot, sp=lnLane('sp:palengke'+i,[[sx,sz+2.3],[sx,sz]],{vmax:REV,solo:true}); LN.spot.set(spot,sp); lnTurn(i?FA1:FA0,sp,{vmax:POCK});
+      const r=lnLane(null,lnCurve([sx,sz],[0,1],[sx-4.5,-121.9],[-1,0]),{turn:true,rev:true,vmax:REV}); lnLink(sp,r); lnTurn(r,POUT,{d0:[1,0],vmax:POCK});});
+    const TA=[lnLane(null,lnCurve([172,-118],[0,-1],[175,-121],[1,0]),{turn:true,vmax:POCK,w:1.6})]; lnLink(PIN,TA[0]);
+    for(const [x] of TSPOTS){const a=TA[TA.length-1], b=lnLane(null,[a.pts[a.pts.length-1],[x+3,-121]],{turn:true,vmax:POCK,w:1.6}); lnLink(a,b); TA.push(b);
+      const r=lnLane(null,lnCurve([x+3,-121],[-1,0],[x,-123.8],[0,-1]),{turn:true,rev:true,vmax:REV,w:1.6}); lnLink(b,r);
+      const sp=lnLane('tr:'+x,[[x,-123.8],[x,-125]],{rev:true,vmax:REV,w:1.6,solo:true}); lnLink(r,sp);
+      const o1=lnLane(null,lnCurve([x,-125],[0,1],[x-3,-121.6],[-1,0]),{turn:true,vmax:POCK,w:1.6}); lnLink(sp,o1); lnTurn(o1,POUT,{vmax:POCK,w:1.6});}}
+  // the terminal: bus entrance and bay, the jeepney driveway and queue, one shared exit
+  const BIN=lnLane('t:bin',[[236,-115],[236,-116]],{vmax:POCK,w:2.6}), BBAY=lnLane('t:bay',[[242,-122],[255.3,-122]],{vmax:POCK,w:2.6}), TEX=lnLane('t:ex',[[273,-118],[273,-115]],{vmax:POCK,w:2.6});
+  lnTurn(E(229),BIN,{pri:2}); lnTurn(BIN,BBAY,{}); lnTurn(BBAY,TEX,{}); lnTurn(TEX,Ws(269),{pri:3}); lnTurn(TEX,Es(279.5),{pri:3});
+  const JIN=lnLane('t:jin',[[300,-115],[300,-123]],{vmax:POCK}), JQ=lnLane('t:jq',[[297,-126],[282,-126]],{vmax:POCK});
+  lnTurn(E(292),JIN,{pri:2}); lnTurn(W(304),JIN,{pri:1}); lnTurn(JIN,JQ,{}); lnTurn(JQ,TEX,{});
+  // the east end road with the police station, and the barangay back road
+  const eN=lnRoad('eN',[331.75,-115],[331.75,-181],{vmax:SIDE,cuts:[-140.5,-154.25],boxes:[[-139,-157],[-177,-181]],w:2.6}), eS=lnRoad('eS',[328.25,-177],[328.25,-119],{vmax:SIDE,w:2.6});   // stops short of the highway and the back road so a bus turns wide
+  lnTurn(W(335),eN.first,{pri:1}); lnTurn(E(325),eN.first,{pri:2}); lnTurn(eS.last,Ws(321),{pri:3}); lnTurn(eS.last,Es(339),{pri:3});
+  {const YIN=lnLane('pol:in',[[336,-144.75],[338.5,-144.75]],{vmax:POCK,solo:true}), YU=lnLane('pol:park',lnCurve([338.5,-144.75],[1,0],[342,-150],[-1,0]),{vmax:POCK,solo:true}), YOUT=lnLane('pol:out',[[342,-150],[336,-150]],{vmax:POCK,solo:true});
+    lnLink(YIN,YU); lnLink(YU,YOUT); lnTurn(eN.endAt(-140.5),YIN,{pri:1}); lnTurn(YOUT,eN.startAt(-154.25),{pri:3});}
+  const zE=lnRoad('zE',[49,-184.25],[321,-184.25],{vmax:9,boxes:[[49,53],[146,160],[204,220],[317,321]],cuts:[158,206,218],w:2.6}), zW=lnRoad('zW',[325,-187.75],[45,-187.75],{vmax:9,boxes:[[325,321],[160,146],[220,204],[49,45]],cuts:[155,206,218],w:2.6});
+  lnTurn(wN.last,zE.first,{pri:1}); lnTurn(zW.last,wS.first,{pri:2}); lnTurn(zE.last,eS.first,{pri:1}); lnTurn(eN.last,zW.first,{pri:2});
+  lnTurn(sN.last,zE.startAt(218),{pri:3}); lnTurn(sN.last,zW.startAt(206),{pri:3}); lnTurn(zW.endAt(218),sS.first,{pri:2}); lnTurn(zE.endAt(206),sS.first,{pri:1});
+  {const up=HROADS[0].s; let i0=0; while(i0<MTN_STOP.k-2&&up[i0][1]>-192.5) i0++; const pts=up.slice(i0,MTN_STOP.k+1);
+    const mUp=lnLane('mtn:up',pts,{vmax:6,w:2.6,solo:true}), mDn=lnLane('mtn:dn',pts.slice().reverse(),{vmax:6,w:2.6,solo:true}); lnTurn(zW.endAt(155),mUp,{pri:3}); lnTurn(mDn,zE.startAt(158),{pri:3});}
+  // the factory gate and the vans' yard
+  const GIN=lnLane('f:in',[[396.75,-115],[396.75,-124]],{vmax:POCK,solo:true}), GOUT=lnLane('f:out',[[393.25,-124],[393.25,-115]],{vmax:POCK,solo:true});
+  lnTurn(E(389),GIN,{pri:2}); lnTurn(W(401),GIN,{pri:1}); lnTurn(GOUT,Ws(389),{pri:3}); lnTurn(GOUT,Es(401),{pri:3});
+  for(const sx of [393,399,405]){const sp=lnLane('f:home'+sx,[[sx,-130.8],[sx,-135]],{vmax:REV,solo:true}); lnTurn(GIN,sp,{turn:false,solo:true,vmax:POCK});
+    const r=lnLane(null,lnCurve([sx,-135],[0,1],[sx+5,-128.5],[1,0]),{rev:true,vmax:REV,solo:true}); lnLink(sp,r); lnTurn(r,GOUT,{turn:false,solo:true,d0:[-1,0],vmax:POCK});}
+  // speed limits from curvature, then the conflicting stretches between lanes
+  for(const L of LN.lanes){let rmin=1e9; for(let i=1;i<L.pts.length-1;i++){const a=L.pts[i-1],b=L.pts[i],c=L.pts[i+1], l1=Math.hypot(b[0]-a[0],b[1]-a[1]), l2=Math.hypot(c[0]-b[0],c[1]-b[1]);
+      const th=Math.acos(Math.max(-1,Math.min(1,((b[0]-a[0])*(c[0]-b[0])+(b[1]-a[1])*(c[1]-b[1]))/(l1*l2||1)))); if(th>1e-3) rmin=Math.min(rmin,Math.min(l1,l2)/th);}
+    L.curved=rmin<30; if(rmin<1e9) L.vmax=Math.min(L.vmax,Math.max(2,Math.sqrt(LN_ALAT*rmin)));}
+  lnConflicts();
+  if(LN.warn.length) console.warn('lane network:',LN.warn.join(' | '));
+}
+function lnConflicts(){
+  const S=LN.lanes.map(L=>{const n=Math.max(1,Math.ceil(L.L/.5)), pts=[]; let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;
+    for(let i=0;i<=n;i++){const s=L.L*i/n, p=lnAt(L,s); pts.push([p[0],p[1],s,p[2],p[3]]);}
+    // where the path turns back (a fold) or stops, half a body hangs past the lane's end: cover it, counted as the end of the lane
+    const open=ls=>!ls.length||ls.every(o=>o.rev!==L.rev);
+    if(open(L.next)){const p=lnAt(L,L.L); for(let d=.5;d<=2.6;d+=.5) pts.push([p[0]+p[2]*d,p[1]+p[3]*d,L.L,p[2],p[3]]);}
+    if(open(L.prev)){const p=lnAt(L,0); for(let d=.5;d<=2.6;d+=.5) pts.push([p[0]-p[2]*d,p[1]-p[3]*d,0,p[2],p[3]]);}
+    for(const p of pts){x0=Math.min(x0,p[0]); x1=Math.max(x1,p[0]); z0=Math.min(z0,p[1]); z1=Math.max(z1,p[1]);} return {pts,x0,x1,z0,z1};});
+  const near=(A,B)=>A.next.includes(B)||B.next.includes(A)||A.next.some(n=>n.next.includes(B))||B.next.some(n=>n.next.includes(A));
+  for(let i=0;i<LN.lanes.length;i++) for(let j=i+1;j<LN.lanes.length;j++){const A=LN.lanes[i], B=LN.lanes[j];
+    if(near(A,B)||(A.road&&A.road===B.road)||(!A.turn&&!B.turn&&(A.solo||B.solo))) continue;
+    const th=(A.w+B.w)/2+.25, tw=A.turn&&B.turn&&(A.curved||B.curved)?th+1.8:th, a=S[i], b=S[j]; if(a.x0>b.x1+tw||b.x0>a.x1+tw||a.z0>b.z1+tw||b.z0>a.z1+tw) continue;
+    let a0=1e9,a1=-1e9,b0=1e9,b1=-1e9, wa0=1e9,wa1=-1e9,wb0=1e9,wb1=-1e9;   // narrow: cars; wide: a bus's corners swing out on a turn
+    for(const p of a.pts) for(const q of b.pts){const dx=p[0]-q[0], dz=p[1]-q[1], d2=dx*dx+dz*dz; if(d2>=tw*tw) continue;
+      // clearance across each lane only: a lane is wide sideways, not along itself (its neighbouring samples cover that)
+      const d=Math.sqrt(d2)||1, nx=dx/d, nz=dz/d, need=A.w/2*Math.abs(nx*p[4]-nz*p[3])+B.w/2*Math.abs(nx*q[4]-nz*q[3])+.25, extra=tw-th;
+      if(d2>(need+extra)**2) continue;
+      if(d<need+extra){if(p[2]<wa0)wa0=p[2]; if(p[2]>wa1)wa1=p[2]; if(q[2]<wb0)wb0=q[2]; if(q[2]>wb1)wb1=q[2];
+        if(d<need){if(p[2]<a0)a0=p[2]; if(p[2]>a1)a1=p[2]; if(q[2]<b0)b0=q[2]; if(q[2]>b1)b1=q[2];}}}
+    if(wa0>wa1||(!A.turn&&!B.turn&&a0>a1)) continue;
+    if(A.turn||B.turn){const n=a0<=a1; if(!(A.turn&&B.turn)&&!n&&!(A.w>=2.6&&B.w>=2.6)) continue;
+      A.conf.push({lane:B,a0,a1,b0,b1,wa0,wa1,wb0,wb1,n}); B.conf.push({lane:A,a0:b0,a1:b1,b0:a0,b1:a1,wa0:wb0,wa1:wb1,wb0:wa0,wb1:wa1,n});
+      if(!n) continue; const P=A.turn?B:A; if(!P.turn&&!P.solo) LN.warn.push('turn lane touches a through lane: '+((A.turn?A:B).name||(A.turn?A:B).id)+' / '+(P.name||P.id));}
+    else LN.warn.push('plain lanes touch: '+(A.name||A.id)+' / '+(B.name||B.id));
+  }
+}
+function lnFind(A,B){ // shortest path of lanes from A to B (by driving time)
+  const key=A.id+'>'+B.id; if(LN.paths.has(key)) return LN.paths.get(key);
+  const dist=new Map([[A,0]]), prev=new Map(), done=new Set(); let out=null;
+  for(;;){let u=null,du=Infinity; for(const [L,d] of dist) if(!done.has(L)&&d<du){u=L; du=d;} if(!u) break; if(u===B){out=[]; for(let x=B;x;x=prev.get(x)) out.unshift(x); break;} done.add(u);
+    for(const n of u.next){const d=du+n.L/Math.max(1,n.vmax)+(n.turn?.3:0); if(d<(dist.has(n)?dist.get(n):Infinity)){dist.set(n,d); prev.set(n,u);}}}
+  LN.paths.set(key,out); return out;
+}
+function lnPath(...wps){ // a path through the given lanes (or lane names), shortest between each pair
+  lnNet(); const ls=wps.map(w=>typeof w==='string'?LN.by[w]:w); if(ls.some(l=>!l)){console.warn('lnPath: unknown lane',wps); return null;}
+  let out=[ls[0]]; for(let i=0;i<ls.length-1;i++){const p=lnFind(ls[i],ls[i+1]); if(!p){console.warn('lnPath: no way',ls[i].name||ls[i].id,'→',ls[i+1].name||ls[i+1].id); return null;} out=out.concat(p.slice(1));}
+  return out;
+}
+// ---- vehicles on lanes
+function lnVeh(g,o={}){const v={g,len:o.len||4.6,width:o.width||2.2,vmax:o.vmax||12,acc:o.acc||2,path:[],pi:0,s:0,v:0,on:false,grants:new Set(),claimLanes:new Set(),recs:[],rearIdx:0,
+  stop:null,endOff:0,done:false,atStop:false,waitSince:0,wantLane:null,fail:null,place:o.place||null,bounce:o.bounce==null?.012:o.bounce,ph:Math.random()*9,moved:0}; LN.veh.push(v); g.userData.lane=v; return v;}
+function lnDrop(v){for(const j of v.grants) if(v.path[j]) v.path[j].holders.delete(v); v.grants.clear(); for(const L of v.claimLanes) L.claims.delete(v); v.claimLanes.clear(); v.on=false; v.waitSince=0; v.wantLane=null;}
+function lnHide(v){lnDrop(v); v.g.visible=false; v.v=0;}
+function lnGo(v,path,s,o={}){ // put the vehicle on a path of lanes, its centre s along the first one
+  if(!path) return false; lnDrop(v); v.path=path; v.pi=0; v.s=s==null?Math.min(path[0].L,v.len/2):s; v.on=true; v.done=v.atStop=false; v.stop=null; v.endOff=o.endOff||0; v.g.visible=true;
+  if(o.v!=null) v.v=o.v; lnOccOne(v); lnPlace(v,1); return true;}
+function lnNext(v,tail,o={}){ // drive on from where the vehicle is: tail starts with its current lane; grants it is already using stay
+  if(!tail||tail[0]!==v.path[v.pi]) return false; const P=v.path.slice(0,v.pi).concat(tail);
+  for(const j of v.grants) if(P[j]!==v.path[j]&&lnUsed(v,j)) return false;   // already turning into another lane: not now
+  for(const j of [...v.grants]) if(j>v.pi&&(P[j]!==v.path[j]||!lnUsed(v,j))){v.path[j].holders.delete(v); v.grants.delete(j);}
+  for(const L of [...v.claimLanes]){const i=v.path.indexOf(L,v.pi); if(i<0||P[i]!==L||!v.grants.size){L.claims.delete(v); v.claimLanes.delete(L);}}
+  v.path=P; v.done=v.atStop=false; v.stop=null; v.endOff=o.endOff||0; v.on=true; v.g.visible=true; return true;}
+function lnStopAt(v,x,z,front){ // stop with the centre (or the front) at the point of the path nearest x,z
+  let best=null; for(let k=v.pi;k<v.path.length;k++){const L=v.path[k]; for(let i=0;i<L.pts.length-1;i++){const a=L.pts[i], b=L.pts[i+1], dx=b[0]-a[0], dz=b[1]-a[1], l2=dx*dx+dz*dz||1;
+      const u=Math.max(0,Math.min(1,((x-a[0])*dx+(z-a[1])*dz)/l2)), px=a[0]+dx*u, pz=a[1]+dz*u, d=Math.hypot(px-x,pz-z); if(!best||d<best.d-.01) best={d,k,s:L.cum[i]+Math.sqrt(l2)*u};}}
+  if(!best) return; if(front) best.s-=v.len/2; while(best.s<0&&best.k>v.pi){best.k--; best.s+=v.path[best.k].L;} v.stop={k:best.k,s:best.s}; v.atStop=false;}
+function lnFreeAt(L,s,len,me,ahead=0){ // nobody within len+gap of s on lane L (nor up to 'ahead' metres further), and no player vehicle there
+  for(const r of L.occ) if(r.v!==me&&r.b>s-len/2-LN_GAP-1&&r.a<s+len/2+LN_GAP+1+ahead) return false;
+  const p=lnAt(L,s), box={x:p[0],z:p[1],a:Math.atan2(p[2],p[3]),len:len+2,width:2.4};
+  return !LN.foreign.some(f=>trafficOverlap(box,f,.5));}
+function lnPt(v,d,fold){ // point d metres from the vehicle's centre along its path (straight on past either end, or past a fold when fold is false)
+  let k=v.pi, s=v.s+d; const L0=v.path[k];
+  while(s>v.path[k].L&&k<v.path.length-1&&(fold!==false||v.path[k+1].rev===L0.rev)){s-=v.path[k].L; k++;} while(s<0&&k>0&&(fold!==false||v.path[k-1].rev===L0.rev)){k--; s+=v.path[k].L;}
+  const L=v.path[k], p=lnAt(L,s), x=s<0?s:s>L.L?s-L.L:0; if(x){p[0]+=p[2]*x; p[1]+=p[3]*x;} p.push(L); return p;}
+function lnOccOne(v){ // the stretch of each lane the body covers (not across a fold, where the path turns back on itself)
+  v.recs.length=0; let k=v.pi, s=v.s-v.len/2; while(s< -.05&&k>0&&v.path[k-1].rev===v.path[k].rev){k--; s+=v.path[k].L;} let rem=v.len+Math.min(0,s); s=Math.max(0,s); v.rearIdx=k;
+  while(rem>1e-6){const L=v.path[k], e=Math.min(L.L,s+rem), r={v,lane:L,a:s,b:e}; v.recs.push(r); L.occ.push(r); rem-=e-s; if(k>=v.path.length-1||v.path[k+1].rev!==L.rev) break; k++; s=0;}
+}
+function lnOcc(){
+  for(const L of LN.lanes){L.occ.length=0; L.appr.length=0;}
+  for(const v of LN.veh) if(v.on) lnOccOne(v);
+  for(const v of LN.veh){if(!v.on) continue;
+    for(const j of v.grants) if(j<v.rearIdx){v.path[j].holders.delete(v); v.grants.delete(j);}
+    for(const L of v.claimLanes){const i=v.path.indexOf(L,v.rearIdx); if(i<0||i<=v.rearIdx&&v.path[v.rearIdx]===L){L.claims.delete(v); v.claimLanes.delete(L);}}
+    let off=v.path[v.pi].L-v.s-v.len/2; v.nextTurn=-1;
+    for(let k=v.pi+1;k<v.path.length&&off<130;k++){const L=v.path[k]; if(L.turn){if(v.nextTurn<0) v.nextTurn=k; if(!v.grants.has(k)) L.appr.push({v,d:off});} off+=L.L;}
+    v.ntg=v.nextTurn<0||v.grants.has(v.nextTurn);
+  }
+  for(const v of LN.veh) if(v.on&&v.wantLane&&v.waitSince&&LN.now-v.waitSince>12&&v.fail!=='room') for(const c of v.wantLane.conf) if(c.lane.soft) c.lane.keepT=LN.now;   // keep clear: nobody stops across a road someone waits to cross
+}
+const lnFrontTo=(v,k)=>{let d=v.path[v.pi].L-v.s; for(let j=v.pi+1;j<k;j++) d+=v.path[j].L; return d-v.len/2;};
+const lnUsed=(v,j)=>j<=v.pi||lnFrontTo(v,j)< -.05&&!(v.v<.05&&v.s>=v.path[v.pi].L-.01);   // the vehicle is already in lane j (a parked one has not used what lies ahead)
+const lnClear=(v,dT,a1)=>{const d=Math.max(0,dT)+a1+v.len, vc=Math.max(2.5,Math.min(v.vmax,6)); return v.v>=vc?d/v.v+1:(vc-v.v)/v.acc+(d-(vc*vc-v.v*v.v)/(2*v.acc))/vc+1;};   // seconds until the vehicle has cleared a conflict zone ending a1 into a lane dT ahead
+const lnBlocksRoad=(v,goal)=>{if(!(v.on&&v.waitSince&&LN.now-v.waitSince>4&&v.path[v.pi].road&&v.fail!=='yield')) return false; const i=v.path.indexOf(goal,v.pi); return i>v.pi&&i-v.pi<=8;};   // stuck in a through lane, a few lanes short of its pocket: not just giving way
+const lnUrgent=v=>v.waitSince&&LN.now-v.waitSince>15;
+function lnCleared(h,B,b1){const r=h.recs.find(r=>r.lane===B); return !!r&&r.a>b1;}
+function lnForeignBlocks(v,T){
+  if(!LN.foreign.length) return false;
+  for(const f of LN.foreign){const p0=T.pts[0]; if(Math.hypot(f.x-p0[0],f.z-p0[1])>T.L+f.len+40) continue;
+    const sp=Math.hypot(f.vx,f.vz), own=TRAFFIC_JUNCTIONS.find(j=>j.owner===f.ref);
+    for(let s=0;s<=T.L+.01;s+=1.5){const p=lnAt(T,s), box={x:p[0],z:p[1],a:Math.atan2(p[2],p[3]),len:v.len,width:v.width};
+      if(trafficOverlap(box,f,.6)) return true;
+      if(sp>.5) for(const t of [1,2,3,4]) if(trafficOverlap(box,{...f,x:f.x+f.vx*t,z:f.z+f.vz*t},.4)) return true;
+      if(own&&(LN.now-(f.ref.userData.lnMoved||-9)<3||own.path.slice(0,25).some(q=>Math.hypot(q.x-f.x,q.z-f.z)<9))&&own.path.some(q=>(LN.now-(f.ref.userData.lnMoved||-9)<3||Math.hypot(q.x-f.x,q.z-f.z)<9)&&trafficOverlap(box,q,.3))) return true;}}   // its junction reservation while it is on the move; only the next bit while it waits   // the part of its junction reservation it is about to drive
+  return false;
+}
+function lnTryGrant(v,k){ // grant the turn lane at path index k, any box right after it that the vehicle cannot stop before, and the stretch it will stop on
+  // A road's straight segments inside a box are 'soft': a vehicle may stop on one but has to hold it. Room beyond the box counts plain and soft lanes.
+  const set=[k], room=[]; let free=0; v.why=null;
+  for(let jj=k;jj<v.path.length;jj++){const L=v.path[jj];
+    if(L.turn&&(!L.soft||L.keepT>LN.now-.3&&jj>k)){if(jj===k) continue; if(free>=v.len-.01) break; set.push(jj); free=0; room.length=0; continue;}   // cannot stop before this box: need it too
+    if(L.turn&&jj>k) set.push(jj); room.push(L);
+    let lim=Infinity, queued=false; for(const c of L.claims) if(c!==v&&c.path[c.rearIdx]!==L&&!lnBehind(c,v)){free-=c.len+LN_GAP; queued=true;}   // someone granted ahead will need this space first
+    for(const r of L.occ) if(r.v!==v&&r.a<lim) lim=r.a-LN_GAP;
+    if(v.stop&&v.stop.k===jj) lim=Math.min(lim,v.stop.s+v.len/2); if(jj===v.path.length-1) lim=Math.min(lim,L.L-v.endOff+v.len/2);
+    if(lim<Infinity){free+=Math.min(lim,L.L+v.len); break;} free+=L.L; if(queued||free>=v.len+LN_GAP) break;}
+  if(free<v.len-.01){v.fail='room'; return false;}
+  for(const i of set){const T=v.path[i], dT=lnFrontTo(v,i);
+    for(const c of T.conf){const B=c.lane;
+      const W=u=>v.len>7&&T.curved||u.len>7&&B.curved, b0=u=>W(u)?c.wb0:c.b0, b1=u=>W(u)?c.wb1:c.b1, on=u=>c.n||W(u);   // the wide stretch when a bus swings round a curve
+      for(const r of B.occ) if(r.v!==v&&on(r.v)&&r.b>b0(r.v)&&r.a<b1(r.v)){v.fail='conf'; v.why=[T,B,r.v,'occ']; return false;}
+      for(const h of B.holders) if(h!==v&&on(h)&&!lnCleared(h,B,b1(h))){v.fail='conf'; v.why=[T,B,h,'hold']; return false;}
+      for(const ap of B.appr){const u=ap.v; if(u===v||!on(u)||u.fail==='room'&&u.waitSince||lnBehind(u,v)) continue;
+        if(B.pri<T.pri&&lnComing(u,B)){const eta=(ap.d+b0(u))/Math.max(u.v,1.5); if(eta<lnClear(v,dT,W(u)?c.wa1:c.a1)&&!(lnUrgent(v)&&ap.d>u.v*u.v/(2*LN_B)+3)){v.fail='yield'; v.why=[T,B,u,'yield']; return false;}}
+        else if(T.pri>=3&&B.pri>=3&&u.waitSince&&u.wantLane===B&&(u.fail==='yield'||u.fail==='urgent')&&(!v.waitSince||u.waitSince<v.waitSince)){v.fail='turn'; v.why=[T,B,u,'turn']; return false;}
+        if(T.pri<3&&lnUrgent(u)&&u.wantLane===B&&lnFrontTo(v,k)>v.v*v.v/(2*LN_B)+1){v.fail='urgent'; v.why=[T,B,u,'urgent']; return false;}}}
+    if(lnForeignBlocks(v,T)){v.fail='player'; return false;}}
+  for(const i of set){v.grants.add(i); v.path[i].holders.add(v);} for(const L of room){L.claims.add(v); v.claimLanes.add(L);}
+  v.fail=null; return true;
+}
+function lnRevoke(v){for(const j of [...v.grants]) if(!lnUsed(v,j)){v.path[j].holders.delete(v); v.grants.delete(j);}
+  if(!v.grants.size){for(const L of v.claimLanes) L.claims.delete(v); v.claimLanes.clear();}}
+const lnBehind=(u,v)=>{const i=v.path.lastIndexOf(u.path[u.pi],v.pi); return i>=0&&(i<v.pi||u.s<v.s);};   // u queues behind v on v's own path
+const lnComing=(u,B)=>u.v>.5||!!u.waitSince&&u.wantLane===B&&u.fail!=='room';   // moving, or first at the stop line and able to go: not just queued behind someone
+function lnGrants(v){
+  // a grant not yet used is given back while the vehicle can still stop: when a main-road vehicle now comes first, or it is stuck far away
+  const pend=[...v.grants].filter(j=>!lnUsed(v,j));
+  if(pend.length&&pend.length===v.grants.size){const j0=Math.min(...pend), df=lnFrontTo(v,j0), parked=v.v<.05&&v.s>=v.path[v.pi].L-.01;   // all or nothing: never half a manoeuvre
+    if(parked||df>v.v*v.v/(2*LN_B)+1.5){let back=v.v<1&&df>8;
+      if(!back){
+        out: for(const i of pend){const T=v.path[i], dT=lnFrontTo(v,i); for(const c of T.conf){const B=c.lane; if(B.pri>=T.pri) continue;
+          for(const ap of B.appr){const u=ap.v, w=v.len>7&&T.curved||u.len>7&&B.curved; if(u===v||!(c.n||w)||u.fail==='room'&&u.waitSince||lnBehind(u,v)||!lnComing(u,B)) continue; if((ap.d+(w?c.wb0:c.b0))/Math.max(u.v,1.5)<lnClear(v,dT,w?c.wa1:c.a1)&&!(lnUrgent(v)&&ap.d>u.v*u.v/(2*LN_B)+3)){back=true; break out;}}}
+          if(lnForeignBlocks(v,T)){back=true; break;}}}
+      if(back) lnRevoke(v);}}
+  // ask for the next turn lane once close enough, if nothing ungranted is in front
+  if(v.nextTurn<0) return; let k=-1; for(let j=v.pi+1;j<v.path.length;j++) if(v.path[j].turn&&!v.grants.has(j)){k=j; break;} if(k<0) return;
+  const df=lnFrontTo(v,k); if(df>4+v.v*v.v/(2*2)+v.v*.5) return;
+  for(let j=v.pi;j<k;j++) for(const r of v.path[j].occ){if(r.v===v) continue; const w=r.v; if(j===v.pi&&r.a<v.s) continue; if(!w.ntg) return;}
+  lnTryGrant(v,k);
+}
+function lnMove(v,h){
+  const look=Math.max(30,v.v*v.v/(2*LN_B)*1.6+20), idm=(gap,vl)=>{const ss=LN_S0+Math.max(0,v.v*LN_T+v.v*(v.v-vl)/(2*Math.sqrt(v.acc*LN_B))); return -v.acc*(ss/Math.max(gap,.05))**2;};
+  let aI=0, cap=Math.min(v.vmax,v.path[v.pi].vmax), lim=Infinity, off=-v.s, tgt=null, stopLine=false;
+  for(let k=v.pi;k<v.path.length;k++){const L=v.path[k], front=off-v.len/2;
+    if(k>v.pi){if(L.turn&&!v.grants.has(k)){const g=front; aI=Math.min(aI,idm(g+LN_S0-.3,0)); lim=Math.min(lim,Math.max(0,g)); stopLine=g<2; break;}
+      cap=Math.min(cap,Math.sqrt(L.vmax*L.vmax+2*LN_B*Math.max(0,front)));}
+    for(const r of L.occ){if(r.v===v) continue; const rear=off+r.a; if(rear<=.01) continue; const g=rear-v.len/2; aI=Math.min(aI,idm(g,r.v.v)); lim=Math.min(lim,Math.max(0,g-.5));}
+    if(v.stop&&v.stop.k===k){tgt=off+v.stop.s; break;}
+    if(k===v.path.length-1){tgt=off+L.L-v.endOff; break;}
+    off+=L.L; if(off>look) break;}
+  if(tgt!=null){aI=Math.min(aI,idm(tgt+LN_S0,0)); lim=Math.min(lim,Math.max(0,tgt));}
+  // your own vehicles: whatever sits in the corridor ahead is an obstacle
+  if(LN.foreign.length){const c=lnPt(v,0); for(const f of LN.foreign){if(Math.hypot(f.x-c[0],f.z-c[1])>look+f.len+v.len) continue;
+      const n=Math.min(look,40); for(let d=0;d<=n;d+=1){const p=lnPt(v,d), box={x:p[0],z:p[1],a:Math.atan2(p[2],p[3]),len:v.len,width:v.width};
+        if(trafficOverlap(box,f,.3)){if(d===0){const q=lnPt(v,1); if(Math.hypot(q[0]-f.x,q[1]-f.z)>Math.hypot(c[0]-f.x,c[1]-f.z)) break;} aI=Math.min(aI,idm(Math.max(0,d-1),0)); lim=Math.min(lim,Math.max(0,d-1)); break;}}}}
+  let a=v.acc*(1-(v.v/Math.max(.3,cap))**4)+aI; a=Math.max(-9,Math.min(v.acc,a));
+  let nv=Math.max(0,v.v+a*h), ds=(v.v+nv)/2*h; if(ds>lim){ds=lim; nv=Math.min(nv,lim/h);}
+  if(tgt!=null&&tgt-ds<.15&&nv<.8){ds=Math.max(0,tgt); nv=0;}
+  v.v=nv; v.s+=ds; v.moved+=ds;
+  while(v.s>v.path[v.pi].L&&v.pi<v.path.length-1){v.s-=v.path[v.pi].L; v.pi++;}
+  if(v.stop&&v.stop.k===v.pi&&Math.abs(v.s-v.stop.s)<.16&&v.v<.05){v.atStop=true; v.s=v.stop.s;}
+  if(v.pi===v.path.length-1&&v.s>=v.path[v.pi].L-v.endOff-.16&&v.v<.05){v.done=true; v.s=v.path[v.pi].L-v.endOff;}
+  if(stopLine&&v.v<.3){if(!v.waitSince){v.waitSince=LN.now||1e-3; v.wantLane=v.path[v.nextTurn];}} else if(!stopLine){v.waitSince=0; v.wantLane=null;}
+}
+function lnPlace(v,dt){ // the front and rear wheels run on the path; the body sits between them
+  const L=v.path[v.pi], a=v.len*.32, f=lnPt(v,a,false), b=lnPt(v,-a,false), x=(f[0]+b[0])/2, z=(f[1]+b[1])/2;
+  let ang=Math.atan2(f[0]-b[0],f[1]-b[1]); if(L.rev) ang+=Math.PI;
+  const g=v.g; if(v.place) return v.place(x,z,ang,dt);
+  g.position.set(x,v.v>.3?Math.abs(Math.sin(LN.now*9+v.ph))*v.bounce:0,z); g.rotation.y=dt>=1?ang:lerpAng(g.rotation.y,ang,1-Math.exp(-dt*12));
+}
+function lnForeign(dt){ // your own vehicles out on a trip, with their speed
+  const F=LN.foreign; F.length=0;
+  for(const id in VEH){if(!OWN(id)||!S.veh[id].trip) continue; const o=VEH[id].obj; if(!o.visible) continue; const u=o.userData, px=u.lnPx==null?o.position.x:u.lnPx, pz=u.lnPz==null?o.position.z:u.lnPz;
+    if(Math.hypot(o.position.x-px,o.position.z-pz)>.02) u.lnMoved=LN.now; u.lnPx=o.position.x; u.lnPz=o.position.z; F.push({ref:o,x:o.position.x,z:o.position.z,a:o.rotation.y,len:VEH[id].len||6,width:2.3,vx:(o.position.x-px)/Math.max(dt,1e-3),vz:(o.position.z-pz)/Math.max(dt,1e-3)});}
+}
+let LN_MS=0;
+function lnStep(dt){
+  if(!lnNet()||dt<=0) return; const t0=performance.now(); lnForeign(dt);
+  for(let left=dt;left>1e-6;left-=.05){const h=Math.min(.05,left); LN.now+=h; lnOcc(); for(const v of LN.veh) if(v.on) lnGrants(v); for(const v of LN.veh) if(v.on&&!v.done) lnMove(v,h);}
+  lnOcc(); for(const v of LN.veh) if(v.on) lnPlace(v,dt);
+  LN_MS=LN_MS*.95+(performance.now()-t0)*.05;
 }
 function updateTraffic(dt,t){
-  roadSnapshot();
-  if(typeof resCars!=='undefined'){ for(const c of resCars){ // neighbours drive in from the highway and back out
-      if(c.e<0){c.e+=dt;c.spawnPending=true;c.g.visible=false;continue;}
-      if(c.spawnPending||!c.g.visible){
-        const p=routePos(RES_ROUTE,0),spawn={x:p.x,z:p.z,a:p.ang,len:4.6};
-        if(SNAP.some(o=>o.ref!==c.g&&o.ref.visible&&trafficOverlap(spawn,o,1.5))){c.e=0;c.spawnPending=true;c.g.visible=false;continue;}
-        c.e=0;c.spawnPending=false;c.g.position.set(p.x,0,p.z);c.g.rotation.y=p.ang;c.g.visible=true;
-        SNAP=SNAP.filter(o=>o.ref!==c.g);SNAP.push({ref:c.g,...spawn});
-      }
-      c.g.visible=true;
-      // Follow the swept route and reserve the whole turn before entering the highway.
-      // A forward-only gap check mistakes crossing traffic for a queue mid-turn.
-      c.e=trafficRouteTime(c.g,RES_ROUTE,c.e,dt,4.6);
-      if(c.e>RES_ROUTE.T){c.e=-(15+Math.random()*30); c.g.visible=false; continue;}
-      const q=routePos(RES_ROUTE,c.e); c.g.position.set(q.x,0,q.z); c.g.rotation.y=lerpAng(c.g.rotation.y,q.ang,1-Math.exp(-dt*6));}
+  lnStep(dt); roadSnapshot();
+  if(typeof resCars!=='undefined'){ for(const c of resCars){ // neighbours drive in by the east road, through the barangay, and out by the west road
+      if(!c.lv) c.lv=lnVeh(c.g,{len:4.6,width:2.2,vmax:11});
+      if(!c.lv.on){c.e+=dt; if(c.e>=0){const P=c.P||(c.P=lnPath('LW','eN','zW','wS','LE$')); if(P&&lnFreeAt(P[0],2.3,4.6,c.lv,20)) lnGo(c.lv,P,null,{v:10}); else c.e=-.5;} continue;}
+      if(c.lv.done){lnHide(c.lv); c.e=-(15+Math.random()*30);}}
     updateStreetVendors(dt,t); if(typeof updatePark==='function') updatePark(dt,t);}
-  if(!traffic.length) for(let k=0;k<2;k++){const c={}; traffic.push(c); spawnCar(c,TX0+tfr()*(TX1-TX0));}
-  for(const c of traffic){const g=c.g;
-    if(c.spawnWait){const spot={x:c.x,z:c.lane,a:c.dir>0?Math.PI/2:-Math.PI/2,len:4.6};   // comes onto the map only where the lane is clear
-      if(SNAP.some(o=>o.ref!==g&&o.ref.visible&&trafficOverlap(spot,o,3))){g.visible=false; continue;}
-      c.spawnWait=false; g.position.set(c.x,0,c.lane); g.visible=true; const me=SNAP.find(o=>o.ref===g); if(me) Object.assign(me,{x:c.x,z:c.lane,a:spot.a});}
-    if(c.state==='drive'){
-      // keep a safe gap behind the car ahead in the same lane
-      const gap=aheadGap(c.g,c.x,c.lane,c.dir>0?Math.PI/2:-Math.PI/2,4.6);
-      if(!c.pass&&gap>3&&gap<24&&c.v<c.vmax-2&&canPass(c)){
-        const lead=SNAP.filter(o=>o.ref!==g&&Math.abs(o.z-c.lane)<1.4&&(o.x-c.x)*c.dir>0).sort((a,b)=>Math.abs(a.x-c.x)-Math.abs(b.x-c.x))[0];if(lead)c.pass={leader:lead.ref,returning:false};}
-      if(c.pass){if((c.x-c.pass.leader.position.x)*c.dir>12||SNAP.some(o=>o.ref!==g&&Math.sin(o.a)*c.dir<-.8&&Math.abs(o.z-(c.dir>0?LW:LE))<1.5&&(o.x-c.x)*c.dir>0&&(o.x-c.x)*c.dir<80))c.pass.returning=true;
-        const target=c.pass.returning?c.lane:(c.dir>0?LW:LE),nz=g.position.z+Math.max(-dt*1.7,Math.min(dt*1.7,target-g.position.z));
-        if(trafficCanMove(g,c.x,nz,c.dir>0?Math.PI/2:-Math.PI/2,4.6))g.position.z=nz;
-        if(c.pass.returning&&Math.abs(g.position.z-c.lane)<.05)c.pass=null;}
-      const actualGap=aheadGap(g,c.x,g.position.z,c.dir>0?Math.PI/2:-Math.PI/2,4.6);
-      const want=actualGap<2.5?0:actualGap<18?Math.min(c.vmax,(actualGap-2.5)*1.1):c.vmax; c.v+=(want-c.v)*Math.min(1,dt*(want<c.v?4:1.5)); if(actualGap<1) c.v=0;
-      if(c.plan){const sh=c.plan, d=(sh.x-c.x)*c.dir; if(d<16){const sp=sh.spots.find(q=>!spotTaken.has(q)); if(sp){
-            spotTaken.add(sp); c.spot=sp; c.state='in'; c.e=0; const lz=c.lane, px=sp[0], pz=sp[1], ez=sh.id==='palengke'?HZ-5:HZ-4.5;
-            c.R=mkRoute([[c.x,lz,Math.max(6,c.v)],[px-c.dir*5,lz,6],[px,ez,3],[px,pz]]); c.Rout=mkRoute([[px,pz,2.5,true],[px,ez,4],[px+c.dir*6,lz,10],[px+c.dir*14,lz]]);if(sh.id==='palengke'){
-              c.R=mkRoute([[c.x,lz,Math.max(6,c.v)],[PX+2,HZ-5,3],[PX+2,-121,3],[px,pz]]);
-              c.Rout=mkRoute([[px,pz,2.5,true],[PX-3,-123,3],[PX-3,HZ-5,3],[PX+c.dir*7,lz,8],[PX+c.dir*15,lz]]);
-            }}
-          else c.plan=null;}}
-      if(c.state==='drive'){const nx=c.x+c.dir*c.v*dt;if(trafficCanMove(g,nx,g.position.z,c.dir>0?Math.PI/2:-Math.PI/2,4.6))c.x=nx;else c.v=0; g.position.set(c.x,Math.abs(Math.sin(t*11+c.x))*.012,g.position.z);
-        if((c.dir>0&&c.x>TX1)||(c.dir<0&&c.x<TX0)) spawnCar(c);}
-    }else if(c.state==='in'||c.state==='out'){
-      const R=c.state==='in'?c.R:c.Rout;c.e=trafficRouteTime(g,R,c.e,dt,4.6); const q=routePos(R,Math.max(0,c.e));
-      g.position.set(q.x,0,q.z); g.rotation.y=lerpAng(g.rotation.y,q.ang,1-Math.exp(-dt*6));
-      if(c.e>=R.T){ if(c.state==='in'){ // park, the driver gets out and goes in
-          g.userData.doorUntil=Date.now()+1400; if(g.userData.drv) g.userData.drv.visible=false; sfx('door',c.spot[0],c.spot[1]);   // the driver opens the door and gets out
-          c.state='shop'; const L=randLook(tfr); L.bag=null; c.look=L; c.p=makePerson(L); c.p.root.position.set(c.spot[0]+1.3,.08,c.spot[1]); scene.add(c.p.root); c.walk=0; c.leg='go'; c.timer=0;}
-        else {spotTaken.delete(c.spot); c.state='drive'; c.x=q.x; c.v=6; c.plan=null; g.rotation.y=c.dir>0?Math.PI/2:-Math.PI/2;}}
-    }else if(c.state==='shop'){
+  if(!traffic.length) for(let k=0;k<2;k++) traffic.push({});
+  for(const c of traffic){if(!c.g||!c.lv) spawnCar(c); const g=c.g, v=c.lv;
+    if(c.state==='wait'){c.wait-=dt; if(c.wait<=0){if(c.path&&lnFreeAt(c.path[0],2.3,4.6,v,25)){lnGo(v,c.path,null,{v:Math.min(v.vmax,12)}); c.state='drive';} else c.wait=.5;} continue;}
+    if(c.state==='drive'&&c.plan&&lnBlocksRoad(v,LN.spot.get(c.spot))&&lnNext(v,lnPath(v.path[v.pi],c.dir>0?'LE$':'LW$'))){spotTaken.delete(c.spot); c.spot=null; c.plan=null;}   // the car park is busy: skip the shop rather than hold up the road
+    if(c.state==='drive'&&v.done){
+      if(c.plan){ // parked: the driver opens the door, gets out and goes in
+        g.userData.doorUntil=Date.now()+1400; if(g.userData.drv) g.userData.drv.visible=false; sfx('door',c.spot[0],c.spot[1]);
+        c.state='shop'; const L=randLook(tfr); L.bag=null; c.look=L; c.p=makePerson(L); c.p.root.position.set(c.spot[0]+1.3,.08,c.spot[1]); scene.add(c.p.root); c.walk=0; c.leg='go'; c.timer=0;}
+      else spawnCar(c);}
+    else if(c.state==='shop'){
       const p=c.p; if(c.leg==='inside'){c.timer-=dt; if(c.timer<=0){ // comes out with what they bought
           const L={...c.look,bag:['plastic','bayong','plastic'][(tfr()*3)|0]}; c.p=makePerson(L); c.p.root.position.set(c.plan.door[0],.08,c.plan.door[1]); scene.add(c.p.root); c.leg='back';}
         continue;}
       const tgt=c.leg==='go'?c.plan.door:[c.spot[0]+1.3,c.spot[1]], r=p.root, dx=tgt[0]-r.position.x, dz=tgt[1]-r.position.z, d=Math.hypot(dx,dz);
       if(d<.12){ if(c.leg==='go'){if(c.plan.id==='farmshop')shopSale('Customer by car');scene.remove(r); disposePerson(p); c.leg='inside'; c.timer=5+tfr()*8;}
-        else {scene.remove(r); disposePerson(p); c.p=null; c.state='out'; c.e=-1.2; g.userData.doorUntil=Date.now()+1100; if(g.userData.drv) g.userData.drv.visible=true; sfx('door',c.spot[0],c.spot[1]);} }
+        else {scene.remove(r); disposePerson(p); c.p=null; c.state='out'; c.timer=1.2; g.userData.doorUntil=Date.now()+1100; if(g.userData.drv) g.userData.drv.visible=true; sfx('door',c.spot[0],c.spot[1]);} }
       else {const st=Math.min(d,1.3*dt); r.position.x+=dx/d*st; r.position.z+=dz/d*st; r.rotation.y=lerpAng(r.rotation.y,Math.atan2(dx,dz),.2); c.walk+=st*5.2; poseWalk(p,c.walk);}
     }
+    else if(c.state==='out'){c.timer-=dt; if(c.timer<=0&&lnNext(v,lnPath(v.path[v.pi],c.dir>0?'LE$':'LW$'))) c.state='leave';}   // backs out towards where it is going
+    else if(c.state==='leave'){if(c.spot&&v.pi>v.path.indexOf(LN.spot.get(c.spot))+1){spotTaken.delete(c.spot); c.spot=null;} if(v.done) spawnCar(c);
+      else if(c.spot&&v.waitSince&&LN.now-v.waitSince>8&&v.path[v.pi]===LN.spot.get(c.spot)&&lnNext(v,lnPath(v.path[v.pi],c.dir>0?'LW$':'LE$'))){c.dir=-c.dir; v.waitSince=LN.now;}}   // no gap that way: pull out the other way
   }
 }
 /* ================= Poultry: battery-cage itlogan, broiler pens, hens that peck, feed store ================= */
@@ -4763,7 +5010,7 @@ function yieldStep(vid,V,tr,p,now,dt){const o=V.obj, here={x:o.position.x,z:o.po
   const lw=laneWait(vid,V,tr,P,p,now); V.laneWait=lw;
   if(lw){if(!V.saidLane||V.saidLane!==lw){V.saidLane=lw; toast(`${VEH[vid].icon} Your ${vname(vid)} waits for the ${vname(lw)} to clear the one-lane farm road.`,2600);} tr.t0+=dt*1000; return here;}
   V.saidLane=null;
-  if(!trafficCanMove(o,p.x,p.z,p.ang,V.len||6)){tr.t0+=dt*1000; V.blockedSince=V.blockedSince||now;
+  if(!trafficCanMove(o,p.x,p.z,p.ang,V.len||6)){if(V.heldAt!==now&&P.e>0) tr.t0+=Math.min(dt,P.e)*1000; V.blockedSince=V.blockedSince||now;
     if(now-V.blockedSince>1200){const w=mutualBlock(vid,now); if(w&&givesWay(vid,w,now)){V.yield={w,mode:'back',until:now+40000}; V.blockedSince=0; toast(`${VEH[vid].icon} Your ${vname(vid)} backs up to give the ${vname(w)} room.`,2600);}}
     return here;}
   V.blockedSince=0; return p;}
@@ -4807,7 +5054,7 @@ function advancePlayerTraffic(vid,now,dt){
   if(P.ph!=='out'&&P.ph!=='back')return;
   const R=P.ph==='out'?P.R.out:P.R.back,elapsed=Math.min(dt,Math.max(0,P.e)),before=Math.max(0,P.e-elapsed);
   const allowed=trafficRouteTime(V.obj,R,before,elapsed,V.len||6);
-  const wait=Math.max(0,P.e-allowed);if(wait>0)tr.t0+=wait*1000;
+  const wait=Math.max(0,Math.min(P.e,P.e-allowed));if(wait>0){tr.t0+=wait*1000; V.heldAt=now;}
   V.blk=wait>0?(V.blk||0)+dt:0;
 }
 function placeVehicles(now,dt){
@@ -5387,10 +5634,8 @@ let doorLast=performance.now();
 (function doorLoop(){requestAnimationFrame(doorLoop); const n=performance.now(), dt=Math.min(.05,(n-doorLast)/1000), now=Date.now(); doorLast=n;
   for(const g of DOOR_OBJS){const d=g.userData.door; if(d){const tgt=now<(g.userData.doorUntil||0)?-1.2:0; d.rotation.y+=(tgt-d.rotation.y)*Math.min(1,dt*8);}
     if(g.userData.rear) for(const [h,sd] of g.userData.rear) h.rotation.y+=((g.userData.rearOpen?sd*1.95:0)-h.rotation.y)*Math.min(1,dt*3);}})();
-const vans=[0,1,2].map(i=>{const sx=FX-2+i*6, wx=WHX-6+i*6, sl=SPD.slow;
-  const out=mkRoute([[sx,HZ-25,2.5,true],[sx,HZ-19,4],[FX,HZ-14,4],[FX,HZ-6,6],[FX-8,LW,13],[WHX+16,LW,6],[wx-3.5,HZ-4.0,2,true],[wx,HZ-5.6,2,true],[wx,HZ-9.6]]);   // backs into the dock, rear doors to the warehouse
-  const back=mkRoute([[wx,HZ-9.6,4],[wx,HZ-5.2,6],[wx+8,LE,13],[FX-8,LE,6],[FX,HZ-6,4],[FX,HZ-14,4],[sx,HZ-19,3],[sx,HZ-25]]);
-  const g=makeVan(); g.position.set(sx,0,HZ-25); g.rotation.y=Math.PI; return {g,out,back,state:'home',e:0,timer:i*3,load:{},sx,wx};});
+const vans=[0,1,2].map(i=>{const sx=FX-2+i*6, wx=WHX-6+i*6;   // home bay in the factory yard, dock at the warehouse
+  const g=makeVan(); g.position.set(sx,0,HZ-25); g.rotation.y=Math.PI; return {g,state:'home',timer:i*3,load:{},sx,wx,lv:null};});
 // other traders' trucks also deliver here: one unloading bay, first come first served
 function makeTraderTruck(cab,tarp,label){
   const b=[], D=0x1b1b1b;
@@ -5406,10 +5651,7 @@ function makeTraderTruck(cab,tarp,label){
   [-.85,.85].forEach(xx=>{glow(g,xx,1.0,3.6,1.3,GM.head); glow(g,xx*1.1,.9,-4.05,.7,GM.tail);});
   const d=bakePerson(randLook(Math.random),poseSit); d.position.set(.5,1.0,2.8); g.add(d); g.visible=false; scene.add(g); return g;}
 const BAYX=WHX+13, BAYZ_=HZ-9.5, QX=WHX+19, QZ=HZ-7.8;
-const traders=[[0x1565c0,0x2e7d32,'ALING CORA VEG TRADING'],[0xf5f5f5,0x1565c0,'MANG DINDO BIGASAN']].map(([c,tp,l],k)=>({g:makeTraderTruck(c,tp,l),label:l.split(' ').slice(0,2).join(' '),state:'away',timer:8+k*22,e:0,R:null,blk:0}));
-const TR_IN=(q)=>mkRoute([[TX1,LW,13],[WHX+34,LW,6],[q[0]+1.5,HZ-4.8,3],[q[0],q[1]]]);
-const TR_DOCK=mkRoute([[QX,QZ,1.8,true],[BAYX+1.5,HZ-5.0,2.2],[BAYX,BAYZ_]]);
-const TR_OUT=mkRoute([[BAYX,BAYZ_,2.5,true],[BAYX+.5,HZ-5.0,3],[BAYX-6,LW,8],[TX0,LW]]);
+const traders=[[0x1565c0,0x2e7d32,'ALING CORA VEG TRADING'],[0xf5f5f5,0x1565c0,'MANG DINDO BIGASAN']].map(([c,tp,l],k)=>({g:makeTraderTruck(c,tp,l),label:l.split(' ').slice(0,2).join(' '),state:'away',timer:8+k*22,lv:null}));
 function bayTaken(){ // someone is backing into or unloading at the bay
   if(traders.some(t=>t.state==='dock'||t.state==='unload')) return 'npc';
   for(const v in VEH){const tr=S.veh[v]&&S.veh[v].trip; if(tr&&tr.dest==='warehouse'&&tr.t0){const ph=vehPhase(v,Date.now()); if(ph.ph==='stop'||(ph.ph==='out'&&ph.R.out.T-ph.e<1.4)) return 'me';}}
@@ -5420,15 +5662,15 @@ function warehouseDispatchClear(ref){
   if(traders.some(v=>v.g!==ref&&v.state!=='away'))return false;
   return !Object.keys(VEH).some(v=>{const tr=S.veh[v].trip;return tr&&tr.dest==='warehouse';});
 }
-function updateTraders(dt,t){
-  traders.forEach((T,k)=>{const g=T.g;
-    if(T.state==='away'){g.visible=false; T.timer-=dt; if(T.timer<=0&&warehouseDispatchClear(g)){T.state='in'; T.e=0; T.q=k&&traders[0].state!=='away'?[QX+5.5,QZ]:[QX,QZ]; T.R=TR_IN(T.q); g.visible=true;} return;}
-    const move=R=>{T.e=trafficRouteTime(g,R,T.e,dt,7.6); const q=routePos(R,Math.min(T.e,R.T)); g.position.set(q.x,0,q.z); g.rotation.y=lerpAng(g.rotation.y,q.ang,1-Math.exp(-dt*6)); return T.e>=R.T;};
-    if(T.state==='in'){if(move(T.R)){T.state='queue'; T.e=0;}}
-    else if(T.state==='queue'){ if(T.q[0]===QX&&!bayTaken()){T.state='dock'; T.e=0;} else if(T.q[0]!==QX&&!traders.some(o=>o!==T&&(o.state==='queue'&&o.q[0]===QX))&&!bayTaken()){T.q=[QX,QZ]; T.state='dock'; T.e=0;} }
-    else if(T.state==='dock'){if(move(TR_DOCK)){T.state='unload'; T.timer=9;}}
-    else if(T.state==='unload'){T.timer-=dt; if(T.timer<=0){T.state='out'; T.e=0;}}
-    else if(T.state==='out'){if(move(TR_OUT)){T.state='away'; T.timer=40+Math.random()*45;}}
+function updateTraders(dt,t){   // in from the east onto the dock shoulder, wait there while the bay is busy, back into the bay, unload, out west
+  traders.forEach(T=>{const g=T.g; if(!T.lv) T.lv=lnVeh(g,{len:7.6,width:2.5,vmax:12,acc:1.3}); const v=T.lv;
+    if(T.state==='away'){if(v.on) lnHide(v); g.visible=false; T.timer-=dt; if(T.timer<=0&&warehouseDispatchClear(g)){const P=lnPath('LW','wh:bay'); if(P&&lnFreeAt(P[0],3.8,7.6,v,25)){lnGo(v,P,null,{v:11}); T.state='in';} else T.timer=.5;} return;}
+    if(T.state==='in'){if(bayTaken()){if(!v.stop&&g.position.x>81.5&&g.position.z>-113.5) lnStopAt(v,80.5,-115.5); if(v.atStop) T.state='queue';} else if(v.stop){v.stop=null; v.atStop=false;}
+      if(v.path[v.pi].name==='wh:bay') T.state='dock';}
+    else if(T.state==='queue'){if(!bayTaken()){v.stop=null; v.atStop=false; T.state='dock';}}
+    if(T.state==='dock'&&v.done){T.state='unload'; T.timer=9;}
+    else if(T.state==='unload'){T.timer-=dt; if(T.timer<=0&&lnNext(v,lnPath(v.path[v.pi],'LW$'))) T.state='out';}
+    else if(T.state==='out'&&v.done){T.state='away'; lnHide(v); T.timer=40+Math.random()*45;}
   });
 }
 let bizT=0, facRun=0, convT=0;   // the conveyor runs while a van unloads your goods, then a while longer to process them
@@ -5438,15 +5680,15 @@ function updateBiz(dt,t){
   // vans: go when the warehouse has goods
   const busyVans=vans.filter(v=>v.state!=='home').length, needVans=Math.ceil(whN()/VAN_CAP);
   for(const V of vans){
+    if(!V.lv){V.lv=lnVeh(V.g,{len:8.4,width:2.3,vmax:12,acc:1.4}); if(lnNet()){const H=LN.by['f:home'+V.sx]; lnGo(V.lv,[H],H.L);}}
     if((V.state==='load'||V.state==='unload')!==!!V.g.userData.rearOpen){V.g.userData.rearOpen=V.state==='load'||V.state==='unload'; V.g.userData.doorUntil=Date.now()+1300; sfx('door',V.g.position.x,V.g.position.z);}   // rear doors open at the docks; the driver hops out
-    if(V.state==='home'){V.g.position.set(V.sx,0,HZ-25); V.g.rotation.y=Math.PI; V.timer-=dt;
-      if(own&&V.timer<=0&&warehouseDispatchClear(V.g)&&vans.filter(v=>v.state!=='home').length<needVans){V.state='out'; V.e=0;} continue;}
-    if(V.state==='out'||V.state==='back'){V.e=trafficRouteTime(V.g,V.state==='out'?V.out:V.back,V.e,dt,8.4); const R=V.state==='out'?V.out:V.back, q=routePos(R,V.e);
-      V.g.position.set(q.x,Math.abs(Math.sin(t*9+q.x))*.012,q.z); V.g.rotation.y=lerpAng(V.g.rotation.y,q.ang,1-Math.exp(-dt*6));
-      if(V.e>=R.T){ if(V.state==='out'){V.state='load'; V.timer=6;} else {V.state='unload'; V.timer=6;} }}
-    else if(V.state==='load'){V.timer-=dt; if(V.timer<=0){ // fill the van from the warehouse
+    if(V.state==='home'){V.timer-=dt;
+      if(own&&V.timer<=0&&warehouseDispatchClear(V.g)&&vans.filter(v=>v.state!=='home').length<needVans&&lnNext(V.lv,lnPath(V.lv.path[V.lv.pi],'wh:dock'+V.wx))) V.state='out'; continue;}
+    if(V.state==='out'&&V.lv.done){V.state='load'; V.timer=6;}
+    else if(V.state==='back'&&V.lv.done){V.state='unload'; V.timer=6;}
+    else if(V.state==='load'){V.timer-=dt; if(V.timer<=0&&lnNext(V.lv,lnPath(V.lv.path[V.lv.pi],'f:home'+V.sx))){ // fill the van from the warehouse
         let n=0; V.load={}; for(const id of Object.keys(S.wh.stock)){const q=Math.min(S.wh.stock[id]||0,VAN_CAP-n); if(q>0){V.load[id]=q; S.wh.stock[id]-=q; n+=q;} if(S.wh.stock[id]<=0) delete S.wh.stock[id];}
-        V.state='back'; V.e=0; save(); if(bizOpen()) renderBiz();}}
+        V.state='back'; save(); if(bizOpen()) renderBiz();}}
     else if(V.state==='unload'){V.timer-=dt; facRun=Math.max(facRun,24); if(V.timer<=0){
         V.load={}; V.state='home'; V.timer=4;   // the factory's business: your money came when you sold to the warehouse
         if(bizOpen()) renderBiz();}}
@@ -5462,7 +5704,7 @@ function updateBiz(dt,t){
   smoke.forEach(o=>{const u=(t*.12+o.userData.ph)%1; o.position.set(FX+19+u*3,16+u*7,HZ-48-u*1.5); o.scale.setScalar(.8+u*2.2); o.material.opacity=.5*(1-u);});
   // warehouse kargador carry boxes into a loading van
   const lv=vans.find(v=>v.state==='load'), tu=traders.find(T=>T.state==='unload');
-  if(!lv&&tu){whBoys.forEach((b,k)=>{const r=b.p.root, tail=[BAYX+(k?1.4:-1.4),HZ-5.4], door=[WHX+9.4,HZ-14.2], c=(t*.45+b.ph)%1, go=c<.5, u=go?c/.5:(c-.5)/.5, a=go?tail:door, z=go?door:tail;
+  if(!lv&&tu){whBoys.forEach((b,k)=>{const r=b.p.root, ta=tu.g.rotation.y, sd=k?1.4:-1.4, tail=[tu.g.position.x-Math.sin(ta)*3.9+Math.cos(ta)*sd,tu.g.position.z-Math.cos(ta)*3.9-Math.sin(ta)*sd], door=[WHX+9.4,HZ-14.2], c=(t*.45+b.ph)%1, go=c<.5, u=go?c/.5:(c-.5)/.5, a=go?tail:door, z=go?door:tail;
     r.position.set(a[0]+(z[0]-a[0])*u,.08,a[1]+(z[1]-a[1])*u); r.rotation.y=Math.atan2(z[0]-a[0],z[1]-a[1]); poseWalk(b.p,t*9+k*2); b.box.visible=go; if(go){b.p.aR.rotation.x=b.p.aL.rotation.x=-1.3;}}); return;}
   whBoys.forEach((b,k)=>{const r=b.p.root;
     if(!lv){r.position.set(b.home[0],.08,b.home[1]); r.rotation.y=0; poseStand(b.p,t+k); b.box.visible=false; return;}
@@ -5694,7 +5936,6 @@ const SRX=PX+42, STZ=-186;   // side street off the highway (between the palengk
   const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.receiveShadow=m.castShadow=true; scene.add(m); glow(scene,cx,4,cz+4,3.5,GM.white);
 })();
 walkers.forEach((w,k)=>{if(k%2===0) spawnWalker(w,(k%3)*3);});   // some shoppers start out from their houses
-const RES_ROUTE=mkRoute([[420,LW,12],[336,LW,5],[331.75,HZ-8,8],[331.75,STZ+5,4],[326,STZ-1.75,9],[46,STZ-1.75,4],[38.25,STZ+5,8],[38.25,HZ-8,4],[44,LE,12],[220,LE]]);   // in by the east road, through the barangay, out by the west road
 const resCars=[0,1].map(k=>{const g=makeCar(k?'l300':'innova',CAR_COLS[(k*5+3)%CAR_COLS.length]); g.visible=false; return {g,e:-6-k*30,blk:0};});
 (()=>{const b=[];
   // irrigation canal along the front of the field, with a small wooden footbridge
@@ -6063,28 +6304,23 @@ function updateTransit(dt,t){
   }
   // the bus and the jeepney: come from the west, stop at the sakayan, then drive on
   const waiting=()=>riders.filter(R=>R.state==='wait'||R.state==='walkin'), goneHelpers=()=>helpers.filter(H=>H.state==='gone');
-  for(const V of puvs){
-    if(V.state==='hidden'){V.timer-=dt; const other=puvs.find(o=>o!==V&&o.state!=='hidden'&&o.x<STOPX+30);
-      if(V.timer<=0&&!other){V.state='drive'; V.x=TX0; V.v=V.vmax; V.stopped=false; V.g.visible=true; V.g.position.set(TX0,0,LE); V.g.rotation.y=Math.PI/2;} continue;}
-    const target=STOPX-V.door;
+  for(const V of puvs){   // the bus and the jeepney: in from the west, into the sakayan bay off the lane when someone waits, then on east
+    if(!V.lv) V.lv=lnVeh(V.g,{len:V.len,width:V.kind==='bus'?2.4:2.1,vmax:V.vmax,acc:1.5,bounce:.015});
+    const lv=V.lv;
+    if(V.state==='hidden'){V.timer-=dt; const other=puvs.find(o=>o!==V&&o.state!=='hidden'&&o.g.position.x<STOPX+30);
+      if(V.timer<=0&&!other){const P=lnPath('LE','LE$'); if(P&&lnFreeAt(P[0],V.len/2,V.len,lv,25)){lnGo(lv,P,null,{v:V.vmax}); V.state='drive'; V.stopped=false; V.decided=false; V.toBay=false;} else V.timer=.5;} continue;}
+    V.x=V.g.position.x;
     if(V.state==='drive'){
-      const want=!V.stopped&&V.x<target&&(waiting().length>0||(work&&goneHelpers().length>0)||(S.pasa&&S.pasa.phase==='ret')||Math.random()<.002);
-      if(want||(!V.stopped&&V.x<target&&V.slowing)){V.slowing=true; const d=target-V.x; V.v=Math.min(V.vmax,Math.max(1.2,Math.sqrt(2*4.5*d)));
-        if(d<.05){V.x=target; V.v=0; V.state='stop'; V.stopped=true; V.slowing=false; V.timer=3+Math.random()*2;
-          const dx=V.x+V.door, dz=BAYZ+1.3;
-          for(const R of waiting()){R.state='board'; R.tx=dx; R.tz=dz;}                 // everyone at the sakayan gets on
-          if(S.pasa&&S.pasa.phase==='ret'){const r=farmer.p.root; r.visible=true; r.position.set(dx,.08,dz); S.pasa.phase='home'; S.pasa.path=walkIn().concat([[FARM_HOME[0],FARM_HOME[1]]]);}
-          if(work) for(const H of goneHelpers()){H.p.root.visible=true; H.p.root.position.set(dx,.08,dz); H.state='arrive'; H.path=walkIn().concat([helperHome(helpers.indexOf(H))]);}
-          const off=late?0:(Math.random()*3)|0; for(let q=0;q<off;q++){const p=spawnRider(dx); p.root.position.z=dz; riders.push({kind:'npc',p,state:'off',tx:STOPX+(Math.random()<.5?-1:1)*(26+Math.random()*8),ph:0});}}}
-      else {V.v+=(V.vmax-V.v)*Math.min(1,dt*.8); if(V.x>target+1) V.slowing=false;}
-      {const gap=aheadGap(V.g,V.g.position.x,V.g.position.z,V.g.rotation.y,V.len); if(gap<1.5) V.v=0; else if(gap<12) V.v=Math.min(V.v,(gap-1.5)*1.4);}
-      V.x+=V.v*dt; if(V.x>TX1){V.state='hidden'; V.g.visible=false; V.timer=(late?70:40)+Math.random()*30;}
-    }else if(V.state==='stop'){V.timer-=dt; if(V.timer<=0&&!riders.some(R=>R.state==='board')){V.state='drive'; V.v=.5;}}
-    const tgt=STOPX-V.door, inBay=V.state==='stop'?1:V.slowing?Math.max(0,Math.min(1,1-(tgt-V.x-2)/16)):V.stopped&&V.x>tgt?Math.max(0,1-(V.x-tgt)/16):0;
-    const z=LE+(BAYZ-LE)*inBay, pz=V.g.position.z, px=V.g.position.x;
-    if(!trafficCanMove(V.g,V.x,z,Math.PI/2,V.len)){V.x=px;V.v=0;continue;}
-    V.g.position.set(V.x,V.state==='stop'?0:Math.abs(Math.sin(t*9+V.x))*.015,z); V.z=z;
-    if(V.x-px>.01) V.g.rotation.y=lerpAng(V.g.rotation.y,Math.atan2(V.x-px,z-pz),.3); else if(V.state==='stop') V.g.rotation.y=lerpAng(V.g.rotation.y,Math.PI/2,.1);
+      if(!V.decided&&V.x>-160){const want=waiting().length>0||(work&&goneHelpers().length>0)||(S.pasa&&S.pasa.phase==='ret')||Math.random()<.3;
+        if(!want||lnNext(lv,lnPath(lv.path[lv.pi],'bay'),{endOff:V.len/2})){V.decided=true; V.toBay=want;}}
+      if(lv.done&&V.toBay){V.state='stop'; V.stopped=true; V.toBay=false; V.timer=3+Math.random()*2;
+        const dx=V.x+V.door, dz=V.g.position.z+1.3;
+        for(const R of waiting()){R.state='board'; R.tx=dx; R.tz=dz;}                 // everyone at the sakayan gets on
+        if(S.pasa&&S.pasa.phase==='ret'){const r=farmer.p.root; r.visible=true; r.position.set(dx,.08,dz); S.pasa.phase='home'; S.pasa.path=walkIn().concat([[FARM_HOME[0],FARM_HOME[1]]]);}
+        if(work) for(const H of goneHelpers()){H.p.root.visible=true; H.p.root.position.set(dx,.08,dz); H.state='arrive'; H.path=walkIn().concat([helperHome(helpers.indexOf(H))]);}
+        const off=late?0:(Math.random()*3)|0; for(let q=0;q<off;q++){const p=spawnRider(dx); p.root.position.z=dz; riders.push({kind:'npc',p,state:'off',tx:STOPX+(Math.random()<.5?-1:1)*(26+Math.random()*8),ph:0});}}
+      else if(lv.done){V.state='hidden'; lnHide(lv); V.timer=(late?70:40)+Math.random()*30;}
+    }else if(V.state==='stop'){V.timer-=dt; if(V.timer<=0&&!riders.some(R=>R.state==='board')&&lnNext(lv,lnPath(lv.path[lv.pi],'LE$'))) V.state='drive';}
   }
 }
 if(S.pasa&&S.pasa.phase==='done-on-load'){const P=S.pasa; S.pasa=null; settlePasabay(P); if(P.mats) for(const k in P.mats) S.mats[k]=(S.mats[k]||0)+P.mats[k]; save();}
@@ -6419,24 +6655,14 @@ function makeLiner(dest){const b=[], GL=0x22303c, D=0x1b1b1b, g=new THREE.Group(
   const ds=signPlane([dest.toUpperCase()],'#111','#ffb300',1.8,.32,256,48); ds.position.set(0,2.45,5.23); g.add(ds);
   [-.85,.85].forEach(x=>{glow(g,x,.9,5.25,1.4,GM.head); glow(g,x,.9,-5.25,.8,GM.tail);}); glow(g,0,2.3,0,4.5,GM.white);
   const d=bakePerson(randLook(Math.random),poseSit); d.position.set(-.75,.95,4.4); g.add(d); scene.add(g); return g;}
-const LINERS=(()=>{const sl=4, d=SPD.dirt||6, h=13, up=HROADS[0].s, climb=[]; for(let q=0;q<=MTN_STOP.k;q+=3) climb.push([up[q][0],up[q][1],sl]);
-  const BUS_IN=[[TX0,LE,h],[222,LE,6],[229,-110,4],[236,-113,3],[236,-120,3],[240,-122,3],[250,-122]], BUS_OUT=[[250,-122,3],[262,-123,3],[268,-125.5,3],[272,-125,3],[273,-123,3],[273,-112,4],[279,-109.5,6]];   // square across the culverts, never over the open drain
-  const via=mkRoute(BUS_IN), thru=mkRoute([...BUS_OUT,[286,LE,h],[TX1,LE]]);
-  const upR=mkRoute([...BUS_OUT,[286,LE,10],[326,LE,5],[331.75,-114,6],[331.75,-182,6],[328,-187.75,5],[154,-187.75,5],...climb]);
-  const downR=mkRoute([...climb.slice().reverse(),[154,-184.25,5],[328,-184.25,6],[328.25,-180,6],[328.25,-120,5],[322,LW,10],[TX0,LW]]);
-  return [{g:makeLiner('Maynila'),legs:[['in',via],['wait',14],['go',thru]],k:0,e:0,away:30},
-          {g:makeLiner('Bundok'),legs:[['in',via],['wait',14],['go',upR],['stop',14],['go',downR]],k:0,e:-55,away:20}];})();
+const LINERS=(()=>{const mk=(dest,legs,e,away)=>{const g=makeLiner(dest); g.visible=false; return {g,legs,k:0,e,away,lv:null};};   // legs: lanes to drive through, or a wait in seconds
+  return [mk('Maynila',[['in',['LE','t:bay']],['wait',14],['go',['LE$']]],0,30),
+          mk('Bundok',[['in',['LE','t:bay']],['wait',14],['go',['eN','zW','mtn:up']],['stop',14],['go',['mtn:dn','eS','LW$'],true]],-55,20)];})();
 // jeepneys queue at the terminal; the one in front loads riders, then goes to the palengke (west) or the Mega Foods gate (east)
 const JEEPS=(()=>{const list=[]; for(let k=0;k<3;k++){const g=makePUJ();g.position.set(282+k*8,0,-126);g.rotation.y=-Math.PI/2; g.visible=true; const tex=['PALENGKE','MEGA FOODS','RESIDENTIAL'].map(s=>signPlane([s],'#fff','#c62828',1.5,.32,256,56));
-    tex.forEach((q,i)=>{q.position.set(0,2.08,1.16); q.visible=false; g.add(q);}); list.push({g,tex,state:'queue',x:282+k*8,trip:k%3,e:0,R:null,timer:0,riders:0,stopIndex:0});} return list;})();
-const jRoutes={palengke:mkRoute([[282,-126,3],[273,-122,3],[273,-113,4],[267,LW,8],[PX+12,LW,10],[PX+4,LW,2],[PX-2,LW,10],[TX0,LW]]),
-  factory:mkRoute([[282,-126,3],[273,-122,3],[273,-112,4],[279,LE,8],[FX-12,LE,10],[FX-4,LE,2],[FX+2,LE,10],[TX1,LE]]),
-  residential:mkRoute([[282,-126,3],[273,-122,3],[273,-113,4],[267,LW,8],[45,LW,6],[41.75,-119,5],[41.75,STZ+5,4],[48,STZ+1.75,5],[124,STZ+1.75,4],[180,STZ+1.75,4],[248,STZ+1.75,4],[324,STZ+1.75,5],[328.25,-180,5],[328.25,-120,4],[322,LW,8],[TX0,LW]])};
+    tex.forEach((q,i)=>{q.position.set(0,2.08,1.16); q.visible=false; g.add(q);}); list.push({g,tex,state:k<2?'queue':'back',x:282+k*8,trip:k%3,timer:0,riders:0,stopIndex:0,lv:null});} return list;})();
+const JEEP_TRIPS=[['LW$'],['LE$'],['wN','zE','eS','LW$']];   // to the palengke and on west, to the Mega Foods gate and on east, round the barangay
 const JEEP_STOPS=[124,180,248].map(x=>({x,z:STZ+1.75,home:HOUSES.find(h=>h.side===-1&&Math.abs(h.door[0]-x)<3)}));
-const RES_STOP_TIMES=JEEP_STOPS.map(stop=>jRoutes.residential.segs.find(seg=>seg.b[0]===stop.x&&seg.b[1]===stop.z)).map(seg=>seg.t0+seg.dur);
-// Return through the west-bank driveway; the river at x=307.6 is crossed only on the highway bridge.
-const jBack=(fromW,slot)=>mkRoute((fromW?[[TX0,LE,13],[291,LE,5],[300,-113,3]]:[[TX1,LW,13],[304,LW,5],[300,-113,3]])
-  .concat([[300,-119,3],[300,-126,2],[Math.min(300,slot),-126]]));
 // Concrete culvert driveways carry the terminal entry and exit over the roadside drain.
 (()=>{const b=[];for(const [x,w] of [[236,10],[273,7],[300,7]]){   // x=236 is the bus entrance
   b.push(P('box',0xa6a49d,x,.025,-116.4,w,.05,5.8));
@@ -6555,10 +6781,9 @@ function updateCommuters(dt,t){
 const PATROL=(()=>{const g=makeCar('sedan',0xf4f4f4), [px,pz]=TOWN.pol; g.add(new THREE.Mesh(mergeGeo([P('box',0x1f4e9a,0,.75,0,1.82,.18,4.3),P('box',0x222222,0,1.5,-.2,1.0,.1,.3)]),VCMAT));
   const red=new THREE.Mesh(new THREE.BoxGeometry(.4,.14,.24),new THREE.MeshBasicMaterial({color:0xff2b2b})), blue=new THREE.Mesh(new THREE.BoxGeometry(.4,.14,.24),new THREE.MeshBasicMaterial({color:0x2b6bff}));
   red.position.set(-.25,1.62,-.2); blue.position.set(.25,1.62,-.2); g.add(red,blue); const gr=glow(g,-.3,1.66,-.2,2.2,glowMat(0xff3030,1)), gb=glow(g,.3,1.66,-.2,2.2,glowMat(0x3060ff,1));
-  const loop=mkRoute([[px-8,pz,3],[338,pz,3],[331.75,pz-6,4],[331.75,-180,5],[328,-187.75,5],[218,-187.75,6],[210.25,-181,4],[210.25,-118,5],[217,LE,6],[326,LE,6],[331.75,-116,4],[331.75,pz+10,4],[338,pz+4,3],[px-8,pz]]);
   const s=signPlane(['PULIS'],'#1f4e9a','#fff',1.2,.3,256,64); [-1,1].forEach(sd=>{const q=s.clone(); q.position.set(sd*.93,.95,-.2); q.rotation.y=sd*Math.PI/2; g.add(q);});
   g.position.set(px-8,0,pz); g.rotation.y=-Math.PI/2; const cops=[0,1].map(k=>{const L=randLook(Math.random); L.top=0x1f4e9a; L.bottom=0x1b2a4a; L.bag=null; const p=makePerson(L); p.root.position.set(px-5.5,.1,pz+(k?1:-1)); p.root.rotation.y=-Math.PI/2; scene.add(p.root); poseStand(p,k); return p;});
-  return {g,red,blue,gr,gb,loop,state:'park',timer:20,e:0,cops};})();
+  return {g,red,blue,gr,gb,state:'park',timer:20,cops,lv:null};})();
 // people living up in the mountain barangay, walking its roads
 const HILLFOLK=(()=>{const list=[], r=rng(91); for(let k=0;k<10;k++){const R=HROADS[k%HROADS.length].s, p=makePerson(randLook(r)); scene.add(p.root); list.push({p,R,u:r()*R.length,dir:r()<.5?1:-1,sp:1.1+r()*.4,ph:r()*6,pause:0});} return list;})();
 // fiesta days: banderitas over the barangay back road and a parade with a band, dancers, higantes and a carroza
@@ -6574,23 +6799,44 @@ const FIESTA=(()=>{const g=new THREE.Group(), b=[], C=[0xe74c3c,0xf1c40f,0x2e86d
   const car=new THREE.Group(); car.add(new THREE.Mesh(mergeGeo([P('box',0xf5f5f5,0,.6,0,2.4,.8,3.6),...Array.from({length:22},(_,q)=>P('sph',[0xff7f9f,0xffffff,0xf1c40f,0xe74c3c][q%4],-1+(q%5)*.5,1.1,-1.5+((q/5)|0)*.75,.35,.35,.35)),P('box',0xf2d16b,0,2.4,0,1.6,.1,1.6),...[[-.7,-.7],[.7,-.7],[-.7,.7],[.7,.7]].map(([x,z])=>P('box',0xf2d16b,x,1.7,z,.08,1.4,.08))]),VCMAT));
   const reyna=makePerson({...randLook(r),f:true,top:0xffffff,bottom:0xffffff,skirt:true,bag:null}); reyna.root.position.y=1.0; car.add(reyna.root); parade.add(car); mem.push({p:{root:car},off:-24,lane:0,kind:'carroza'});
   return {g,parade,mem,x:60,dir:1,beat:0,was:false};})();
-function updateTownVehicles(dt,t){   // Sinag Liner buses, terminal jeepneys and the police patrol
+function updateTownVehicles(dt,t){   // Sinag Liner buses, terminal jeepneys and the police patrol, on the lane network
+  if(!lnNet()) return;
   // buses
-  for(const B of LINERS){if(B.away>0){B.away-=dt; B.g.visible=false; continue;} const [kind,v]=B.legs[B.k];if(kind==='in'&&B.e===0){const entry=routePos(v,0);if(!trafficCanMove(B.g,entry.x,entry.z,entry.ang,10.6,2.6)){B.g.visible=false;continue;}}B.g.visible=true;
-    if(kind==='wait'||kind==='stop'){B.e+=dt; if(B.e>=v&&!(kind==='wait'&&COMMUTERS.some(w=>(w.state==='busBoarding'&&w.bus===B)||w.state==='busWait'))){B.k++; B.e=0;} if(kind==='stop'){MTN_STOP.wait.forEach((p,i)=>p.root.visible=B.e<3+i);}}
-    else {B.e=B.e<0?Math.min(0,B.e+dt):trafficRouteTime(B.g,v,B.e,dt,10.6,2.6); const q=routePos(v,Math.max(0,B.e)); B.g.rotation.y=lerpAng(B.g.rotation.y,q.ang,1-Math.exp(-dt*5)); B.g.position.set(q.x,onSlope(B.g,q.x,q.z,3.4,1.2)+(B.e>0?Math.abs(Math.sin(t*9))*.015:0),q.z); if(B.e>=v.T){B.k++; B.e=0;}}
-    if(B.k>=B.legs.length){B.k=0; B.e=0; B.away=25+Math.random()*25; MTN_STOP.wait.forEach(p=>p.root.visible=true);}}
-  // jeepneys
-  const q=JEEPS.filter(J=>J.state==='queue').sort((a,b)=>a.x-b.x);
-  q.forEach((J,i)=>{const tx=282+i*8; const nx=J.x+Math.max(-dt*3,Math.min(dt*3,tx-J.x));if(trafficCanMove(J.g,nx,-126,-Math.PI/2,6,2.1))J.x=nx; J.g.position.set(J.x,0,-126); J.g.rotation.y=-Math.PI/2;
-    J.tex.forEach((s,k)=>s.visible=k===J.trip); if(i===0&&Math.abs(J.x-282)<.05){J.timer+=dt; if(J.timer>12&&!COMMUTERS.some(w=>(w.state==='boarding'&&w.jeep===J)||(!w.busTrip&&!w.pickup&&['toBay','bayWait'].includes(w.state)))&&(J.riders>0||J.timer>30)){J.state='go'; J.e=0; J.timer=0;J.stopIndex=0; J.R=jRoutes[['palengke','factory','residential'][J.trip]];}} else if(i>0) J.timer=0;});
-  for(const J of JEEPS){if(J.state==='go'){J.e=trafficRouteTime(J.g,J.R,J.e,dt,6,2.1);if(J.trip===2&&J.stopIndex<RES_STOP_TIMES.length&&J.e>=RES_STOP_TIMES[J.stopIndex]){J.e=RES_STOP_TIMES[J.stopIndex];J.state='pickup';J.timer=0;} const p=routePos(J.R,J.e); J.g.position.set(p.x,0,p.z); J.g.rotation.y=lerpAng(J.g.rotation.y,p.ang,1-Math.exp(-dt*6)); if(J.e>=J.R.T){J.state='away'; J.timer=18+Math.random()*20; J.g.visible=false;}}
-    else if(J.state==='pickup'){J.timer+=dt;if(J.timer>=8&&!COMMUTERS.some(w=>w.state==='boarding'&&w.jeep===J)){J.stopIndex++;J.state='go';}}
-    else if(J.state==='away'){J.timer-=dt; if(J.timer<=0){J.state='back'; J.e=0; const last=JEEPS.filter(o=>o!==J&&(o.state==='queue'||o.state==='back')).length; J.R=jBack(J.trip===0||J.trip===2,282+last*8); J.g.visible=true; J.trip=(J.trip+1)%3;J.riders=0;}}
-    else if(J.state==='back'){J.e=trafficRouteTime(J.g,J.R,J.e,dt,6,2.1); const p=routePos(J.R,J.e); J.g.position.set(p.x,0,p.z); J.g.rotation.y=lerpAng(J.g.rotation.y,p.ang,1-Math.exp(-dt*6)); if(J.e>=J.R.T){J.state='queue'; J.x=p.x;}}}
-  // police patrol, lights flashing
-  const Pc=PATROL; if(Pc.state==='park'){Pc.g.position.set(TOWN.pol[0]-8,0,TOWN.pol[1]);Pc.g.rotation.y=-Math.PI/2;Pc.timer-=dt; if(Pc.timer<=0){Pc.state='go'; Pc.e=0; Pc.cops.forEach(p=>p.root.visible=false);}}
-  else {Pc.e=trafficRouteTime(Pc.g,Pc.loop,Pc.e,dt,4.6); const p=routePos(Pc.loop,Pc.e); Pc.g.position.set(p.x,0,p.z); Pc.g.rotation.y=lerpAng(Pc.g.rotation.y,p.ang,1-Math.exp(-dt*6)); if(Pc.e>=Pc.loop.T){Pc.state='park'; Pc.timer=25+Math.random()*20; Pc.cops.forEach(p=>p.root.visible=true);}}
+  for(const B of LINERS){
+    if(!B.lv) B.lv=lnVeh(B.g,{len:10.6,width:2.6,vmax:13,acc:1.2,place:(x,z,a,d)=>{B.g.rotation.y=d>=1?a:lerpAng(B.g.rotation.y,a,1-Math.exp(-d*5)); B.g.position.set(x,onSlope(B.g,x,z,3.4,1.2)+(B.lv.v>.3?Math.abs(Math.sin(LN.now*9))*.015:0),z);}});
+    const lv=B.lv;
+    if(B.away>0){B.away-=dt; if(lv.on) lnHide(lv); B.g.visible=false; continue;}
+    const next=()=>{B.k++; B.e=0; B.started=false; if(B.k>=B.legs.length){B.k=0; B.away=25+Math.random()*25; lnHide(lv); MTN_STOP.wait.forEach(p=>p.root.visible=true);}};
+    const [kind,arg,fresh]=B.legs[B.k];
+    if(kind==='in'&&!lv.on){if(B.e<0){B.e+=dt; continue;}   // one bus at a time heads for the bay, so nobody queues on the highway
+      if(LINERS.some(o=>o!==B&&o.away<=0&&o.lv&&o.lv.on&&(o.legs[o.k][0]==='in'||o.legs[o.k][0]==='wait'))) continue;
+      const P=lnPath(...arg); if(P&&lnFreeAt(P[0],5.3,10.6,lv,25)) lnGo(lv,P,null,{v:12,endOff:5.3}); continue;}
+    if(kind==='wait'||kind==='stop'){B.e+=dt; if(kind==='stop') MTN_STOP.wait.forEach((p,i)=>p.root.visible=B.e<3+i);
+      if(B.e>=arg&&!(kind==='wait'&&COMMUTERS.some(w=>(w.state==='busBoarding'&&w.bus===B)||w.state==='busWait'))) next();}
+    else if(kind==='go'&&!B.started) B.started=fresh?lnGo(lv,lnPath(...arg),0,{v:0}):lnNext(lv,lnPath(lv.path[lv.pi],...arg));
+    else if(lv.done) next();
+  }
+  // jeepneys: the queue is a lane in the terminal; the one in front loads, then drives its trip; they come back by the driveway at x = 300
+  const Q=LN.by['t:jq'];
+  for(const J of JEEPS){
+    if(!J.lv){J.lv=lnVeh(J.g,{len:6,width:2.1,vmax:12,acc:1.8}); if(J.state==='queue') lnGo(J.lv,[Q],Q.L-(J.x-282)); else lnGo(J.lv,lnPath('t:jin','t:jq'),LN.by['t:jin'].L-3.5);}
+    const v=J.lv; J.x=J.g.position.x;
+    if(J.state==='queue'){J.tex.forEach((s,k)=>s.visible=k===J.trip);
+      if(v.done&&Math.abs(J.x-282)<.05){J.timer+=dt;
+        if(J.timer>12&&!COMMUTERS.some(w=>(w.state==='boarding'&&w.jeep===J)||(!w.busTrip&&!w.pickup&&['toBay','bayWait'].includes(w.state)))&&(J.riders>0||J.timer>30)&&lnNext(v,lnPath(Q,...JEEP_TRIPS[J.trip]))){
+          J.state='go'; J.timer=0; J.stopIndex=0; if(J.trip===2) lnStopAt(v,JEEP_STOPS[0].x,JEEP_STOPS[0].z);}}
+      else J.timer=0;}
+    else if(J.state==='go'){if(J.trip===2&&v.stop&&v.atStop){J.state='pickup'; J.timer=0;} else if(v.done){J.state='away'; J.timer=18+Math.random()*20; lnHide(v);}}
+    else if(J.state==='pickup'){J.timer+=dt; if(J.timer>=8&&!COMMUTERS.some(w=>w.state==='boarding'&&w.jeep===J)){J.stopIndex++; J.state='go'; v.stop=null; v.atStop=false; if(J.stopIndex<JEEP_STOPS.length) lnStopAt(v,JEEP_STOPS[J.stopIndex].x,JEEP_STOPS[J.stopIndex].z);}}
+    else if(J.state==='away'){J.timer-=dt; if(J.timer<=0){const P=lnPath(J.trip===0||J.trip===2?'LE':'LW','t:jq');
+        if(P&&lnFreeAt(P[0],3,6,v,25)){lnGo(v,P,null,{v:11}); J.state='back'; J.trip=(J.trip+1)%3; J.riders=0;} else J.timer=.5;}}
+    else if(J.state==='back'){if(v.done||(v.path[v.pi]===Q||v.path[v.pi].name==='t:jin')&&v.v<.05) J.state='queue';}
+  }
+  // police patrol, lights flashing: out of the station, up the east road, along the barangay back road, down the side street, back by the highway
+  const Pc=PATROL;
+  if(!Pc.lv){Pc.lv=lnVeh(Pc.g,{len:4.6,width:2.2,vmax:11}); const Y=LN.by['pol:park']; lnGo(Pc.lv,[Y],Y.L);}
+  if(Pc.state==='park'){Pc.timer-=dt; if(Pc.timer<=0&&lnNext(Pc.lv,lnPath('pol:park','pol:out','sS','pol:park'))){Pc.state='go'; Pc.cops.forEach(p=>p.root.visible=false);}}
+  else if(Pc.lv.done){Pc.state='park'; Pc.timer=25+Math.random()*20; Pc.cops.forEach(p=>p.root.visible=true);}
   {const f=Math.floor(t*4)%2, on=Pc.state==='go'; Pc.red.material.color.setHex(on&&f?0xff2b2b:0x661111); Pc.blue.material.color.setHex(on&&!f?0x2b6bff:0x112266); Pc.gr.visible=on&&!!f; Pc.gb.visible=on&&!f;}
 }
 let townLast=performance.now(), terminalLast=-Infinity,commuterLast=null;
@@ -6956,7 +7202,7 @@ function frame(now){
   try{updateCam();followSun();mountains.position.set(camera.position.x,0,camera.position.z);drawFrame();}
   catch(error){reportGameError('render',error);}
 }
-if(/[?&]debug\b/.test(location.search)) window.SF={livestock:{stockFor,choose:chooseAnimalPickup,continue:continueAnimalHaul,process:processKatQueue,path:farmHaulPath},bodega:{world:farmBodega,open:openBodega,tick:updateBodega},farmDispatch:{loading:LOADING_DISPATCH,state:FARM_DISPATCH,tick:updateFarmDispatch,setSlots,simulate:(now,dt)=>{roadSnapshot();updateFarmDispatch(now,dt);updateVehicles(now);placeVehicles(now,dt);}},shop:{config:SHOP,world:farmShop,open:openFarmShop,unlock:shopUnlock,sale:shopSale,deliver:shopDeliver,dispatch:shopDispatch,refund:shopRefund,incoming:shopIncoming,setDraft:q=>{shopDraft=q;},tick:updateFarmShop},resCars,junctions:TRAFFIC_JUNCTIONS,health:gameHealth,trafficUpdate:updateTraffic,setTrafficUpdate:fn=>{updateTraffic=fn;},pointerCount:()=>ptrs.size,canvas,cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,holdPose,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,vans,traffic,shiftDays:n=>{TIME_SHIFT+=n*DAY_MS;},LINERS:()=>LINERS,PATROL:()=>PATROL,FIESTA:()=>FIESTA,loadWalkers,STOP,homeAct:(a,r)=>homeAct(a,{dataset:{r}}),openHome,FISH,startRain,dayAt:f=>{const g=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((f-g+1)%1)*DAY_MS;},step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
+if(/[?&]debug\b/.test(location.search)) window.SF={livestock:{stockFor,choose:chooseAnimalPickup,continue:continueAnimalHaul,process:processKatQueue,path:farmHaulPath},bodega:{world:farmBodega,open:openBodega,tick:updateBodega},farmDispatch:{loading:LOADING_DISPATCH,state:FARM_DISPATCH,tick:updateFarmDispatch,setSlots,simulate:(now,dt)=>{roadSnapshot();updateFarmDispatch(now,dt);updateVehicles(now);placeVehicles(now,dt);}},shop:{config:SHOP,world:farmShop,open:openFarmShop,unlock:shopUnlock,sale:shopSale,deliver:shopDeliver,dispatch:shopDispatch,refund:shopRefund,incoming:shopIncoming,setDraft:q=>{shopDraft=q;},tick:updateFarmShop},resCars,junctions:TRAFFIC_JUNCTIONS,health:gameHealth,trafficUpdate:updateTraffic,setTrafficUpdate:fn=>{updateTraffic=fn;},pointerCount:()=>ptrs.size,canvas,cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,holdPose,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,vans,traffic,lanes:LN,laneStep:lnStep,laneMs:()=>LN_MS,trikes,puvs,traders,JEEPS:()=>JEEPS,townStep:updateTownVehicles,transitStep:updateTransit,bizStep:updateBiz,trikeStep:updateTrikes,shiftDays:n=>{TIME_SHIFT+=n*DAY_MS;},LINERS:()=>LINERS,PATROL:()=>PATROL,FIESTA:()=>FIESTA,loadWalkers,STOP,homeAct:(a,r)=>homeAct(a,{dataset:{r}}),openHome,FISH,startRain,dayAt:f=>{const g=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((f-g+1)%1)*DAY_MS;},step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
 renderHUD();
 requestAnimationFrame(frame);
 if(!S.seenHelp){S.seenHelp=true; save(); setTimeout(()=>toast('Open 🧰 Tools, pick a tool, and drag across the field. Sell your harvest at the 🏪 Palengke!',4800),600);}

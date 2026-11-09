@@ -2446,7 +2446,10 @@ function updateTraffic(dt,t){
       const want=actualGap<2.5?0:actualGap<18?Math.min(c.vmax,(actualGap-2.5)*1.1):c.vmax; c.v+=(want-c.v)*Math.min(1,dt*(want<c.v?4:1.5)); if(actualGap<1) c.v=0;
       if(c.plan){const sh=c.plan, d=(sh.x-c.x)*c.dir; if(d<16){const sp=sh.spots.find(q=>!spotTaken.has(q)); if(sp){
             spotTaken.add(sp); c.spot=sp; c.state='in'; c.e=0; const lz=c.lane, px=sp[0], pz=sp[1], ez=sh.id==='palengke'?HZ-5:HZ-4.5;
-            c.R=mkRoute([[c.x,lz,Math.max(6,c.v)],[px-c.dir*5,lz,6],[px,ez,3],[px,pz]]); c.Rout=mkRoute([[px,pz,2.5,true],[px,ez,4],[px+c.dir*6,lz,10],[px+c.dir*14,lz]]);}
+            c.R=mkRoute([[c.x,lz,Math.max(6,c.v)],[px-c.dir*5,lz,6],[px,ez,3],[px,pz]]); c.Rout=mkRoute([[px,pz,2.5,true],[px,ez,4],[px+c.dir*6,lz,10],[px+c.dir*14,lz]]);if(sh.id==='palengke'){
+              c.R=mkRoute([[c.x,lz,Math.max(6,c.v)],[PX+2,HZ-5,3],[PX+2,-121,3],[px,pz]]);
+              c.Rout=mkRoute([[px,pz,2.5,true],[PX-3,-123,3],[PX-3,HZ-5,3],[PX+c.dir*7,lz,8],[PX+c.dir*15,lz]]);
+            }}
           else c.plan=null;}}
       if(c.state==='drive'){const nx=c.x+c.dir*c.v*dt;if(trafficCanMove(g,nx,g.position.z,c.dir>0?Math.PI/2:-Math.PI/2,4.6))c.x=nx;else c.v=0; g.position.set(c.x,Math.abs(Math.sin(t*11+c.x))*.012,g.position.z);
         if((c.dir>0&&c.x>TX1)||(c.dir<0&&c.x<TX0)) spawnCar(c);}
@@ -6291,6 +6294,11 @@ const jBack=(fromW,slot)=>mkRoute((fromW?[[TX0,LE,13],[291,LE,5],[300,-113,3]]:[
     b.push(P('box',0xf2cd46,x+side*2.8,.06,-116.4,.1,.02,4.8));}}
   const m=new THREE.Mesh(mergeGeo(b),VCMAT);m.receiveShadow=true;scene.add(m);
 })();
+// The market driveway crosses the roadside drain on a concrete culvert.
+(()=>{const b=[P('box',0xb6b3a8,PX,.025,-116.4,14,.07,6)];
+  for(const side of [-1,1]){b.push(P('box',0x96988f,PX+side*7,.15,-116.4,.25,.3,4.8));b.push(P('box',0xe8d19b,PX+side*6.5,.07,-116.4,.1,.02,5.4));}
+  const m=new THREE.Mesh(mergeGeo(b),VCMAT);m.receiveShadow=true;scene.add(m);
+})();
 // Terminal life stays on the raised platforms, separate from the vehicle lanes.
 const TERMINAL=(()=>{
   const folk=[], walkers=[], screens=[], r=rng(626), b=[];
@@ -6480,6 +6488,7 @@ const WWAYS=(()=>{
   const hr=(x,z,m)=>{for(const r of HROADS) for(const [a,c] of r.s) if(Math.hypot(x-a,z-c)<r.w/2+m) return true; return false;};
   const turn=(x,z,m)=>FARM.turning.some(t=>Math.hypot(x-t.x,z-t.z)<t.r+m);
   const covered=(x,z,m)=>(Math.abs(z-HZ)<5.2+m)||(Math.abs(z-STZ)<4.3+m&&x>35-m&&x<335+m)||(Math.abs(x-SRX)<4.3+m&&z>STZ&&z<HZ)||((Math.abs(x-40)<4.3+m||Math.abs(x-330)<4.3+m)&&z>STZ-4.3&&z<HZ)
+    ||(Math.abs(x-PX)<7+m&&Math.abs(z+116.4)<3+m) // palengke entrance culvert
     ||([273,300].some(a=>Math.abs(x-a)<3.5+m)&&Math.abs(z+116.4)<2.9+m)
     ||(Math.abs(x-TWN.wx)<TWN.w/2+1.3+m&&z>TWN.bz&&z<HZ)||(Math.abs(z-TWN.bz)<TWN.w/2+1.3+m&&x>TWN.wx&&x<SRX)||hr(x,z,m)||roadDist(x,z)<m||turn(x,z,m-.5);
   const gy=(x,z)=>{const h=hillH(x,z); return h>0?h+.08:0;};

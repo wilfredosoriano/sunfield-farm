@@ -2384,7 +2384,14 @@ function canPass(c){
 function updateTraffic(dt,t){
   roadSnapshot();
   if(typeof resCars!=='undefined'){ for(const c of resCars){ // neighbours drive in from the highway and back out
-      if(c.e<0){c.e+=dt; c.g.visible=false; continue;} c.g.visible=true;
+      if(c.e<0){c.e+=dt;c.spawnPending=true;c.g.visible=false;continue;}
+      if(c.spawnPending||!c.g.visible){
+        const p=routePos(RES_ROUTE,0),spawn={x:p.x,z:p.z,a:p.ang,len:4.6};
+        if(SNAP.some(o=>o.ref!==c.g&&o.ref.visible&&trafficOverlap(spawn,o,1.5))){c.e=0;c.spawnPending=true;c.g.visible=false;continue;}
+        c.e=0;c.spawnPending=false;c.g.position.set(p.x,0,p.z);c.g.rotation.y=p.ang;c.g.visible=true;
+        SNAP=SNAP.filter(o=>o.ref!==c.g);SNAP.push({ref:c.g,...spawn});
+      }
+      c.g.visible=true;
       // Follow the swept route and reserve the whole turn before entering the highway.
       // A forward-only gap check mistakes crossing traffic for a queue mid-turn.
       c.e=trafficRouteTime(c.g,RES_ROUTE,c.e,dt,4.6);
@@ -6714,7 +6721,7 @@ function frame(now){
   try{updateCam();followSun();mountains.position.set(camera.position.x,0,camera.position.z);drawFrame();}
   catch(error){reportGameError('render',error);}
 }
-if(/[?&]debug\b/.test(location.search)) window.SF={farmDispatch:{loading:LOADING_DISPATCH,state:FARM_DISPATCH,tick:updateFarmDispatch,setSlots,simulate:(now,dt)=>{roadSnapshot();updateFarmDispatch(now,dt);updateVehicles(now);placeVehicles(now,dt);}},shop:{config:SHOP,world:farmShop,open:openFarmShop,unlock:shopUnlock,sale:shopSale,deliver:shopDeliver,dispatch:shopDispatch,refund:shopRefund,incoming:shopIncoming,setDraft:q=>{shopDraft=q;},tick:updateFarmShop},health:gameHealth,trafficUpdate:updateTraffic,setTrafficUpdate:fn=>{updateTraffic=fn;},pointerCount:()=>ptrs.size,canvas,cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,holdPose,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,vans,traffic,shiftDays:n=>{TIME_SHIFT+=n*DAY_MS;},LINERS:()=>LINERS,PATROL:()=>PATROL,FIESTA:()=>FIESTA,loadWalkers,STOP,homeAct:(a,r)=>homeAct(a,{dataset:{r}}),openHome,FISH,startRain,dayAt:f=>{const g=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((f-g+1)%1)*DAY_MS;},step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
+if(/[?&]debug\b/.test(location.search)) window.SF={farmDispatch:{loading:LOADING_DISPATCH,state:FARM_DISPATCH,tick:updateFarmDispatch,setSlots,simulate:(now,dt)=>{roadSnapshot();updateFarmDispatch(now,dt);updateVehicles(now);placeVehicles(now,dt);}},shop:{config:SHOP,world:farmShop,open:openFarmShop,unlock:shopUnlock,sale:shopSale,deliver:shopDeliver,dispatch:shopDispatch,refund:shopRefund,incoming:shopIncoming,setDraft:q=>{shopDraft=q;},tick:updateFarmShop},resCars,junctions:TRAFFIC_JUNCTIONS,health:gameHealth,trafficUpdate:updateTraffic,setTrafficUpdate:fn=>{updateTraffic=fn;},pointerCount:()=>ptrs.size,canvas,cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,holdPose,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,vans,traffic,shiftDays:n=>{TIME_SHIFT+=n*DAY_MS;},LINERS:()=>LINERS,PATROL:()=>PATROL,FIESTA:()=>FIESTA,loadWalkers,STOP,homeAct:(a,r)=>homeAct(a,{dataset:{r}}),openHome,FISH,startRain,dayAt:f=>{const g=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((f-g+1)%1)*DAY_MS;},step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
 renderHUD();
 requestAnimationFrame(frame);
 if(!S.seenHelp){S.seenHelp=true; save(); setTimeout(()=>toast('Open 🧰 Tools, pick a tool, and drag across the field. Sell your harvest at the 🏪 Palengke!',4800),600);}

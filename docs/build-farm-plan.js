@@ -31,7 +31,7 @@ T(29,20,'ORCHARD',11); T(29,25,'mangga · saging · kalamansi',8,'#2f4a1c',400);
 s+=`<polyline points="${poly(spline(F.canal))}" fill="none" stroke="#5b9bb5" stroke-width="${1.4*K}" stroke-linecap="round" opacity=".85"/>`;
 // animal areas
 const COL={coop:'#f2e3b3',broiler:'#efd8a8',cows:'#c9dc9a',goat:'#d7e2a8',pig:'#e8cdbd',fish:'#a9d0d8',duck:'#bcd9c9'};
-F.areas.forEach((a,ai)=>{const [x0,z0,x1,z1]=a.fence; s+=`<polygon points="${poly(organic(a.fence,ai*7+3))}" fill="${COL[a.type]}" stroke="#7a5a3a" stroke-width="2" stroke-dasharray="5 2"/>`;
+F.areas.forEach((a,ai)=>{const [x0,z0,x1,z1]=a.fence; s+=`<polygon points="${poly(a.outline?spline(a.outline,true):organic(a.fence,ai*7+3))}" fill="${COL[a.type]}" stroke="#7a5a3a" stroke-width="2" stroke-dasharray="5 2"/>`;
   a.slots.forEach(([x,z,w,d],i)=>{const water=a.water&&a.type==='fish'; R(x-w/2,z-d/2,x+w/2,z+d/2,water?'#6fa9bf':'#fffaf0',water?'#3f7f97':'#5d4a36',1.2,water?5:1); T(x,z+3,`${i+1}`,9,'#3a2c1c',700);});
   T((x0+x1)/2,z0+2.6,a.name.toUpperCase(),9.5,'#2a1c10'); s+=`<circle cx="${px(a.gate[0])}" cy="${pz(a.gate[1])}" r="5" fill="#c0392b" stroke="#fff" stroke-width="1.5"/>`;});
 // crop field: 4 beds of 6 × 6 plots with soil tracks between them

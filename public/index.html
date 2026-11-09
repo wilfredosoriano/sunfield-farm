@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#a9d8ec">
 <meta name="color-scheme" content="only light">
 <meta name="screen-orientation" content="landscape">
@@ -11,9 +11,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Sunfield">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest?v=20261109">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=20261109">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261109">
 <title>Sunfield Farm</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -491,7 +491,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 
 <div id="market" role="dialog" aria-label="Palengke">
   <div class="sheet">
-    <div class="mhead"><h2>🏪 Palengke</h2><div class="mbtns"><button id="bizBtn">🏬 Bagsakan</button><button id="visitMkt">📍 Visit</button><button class="x" id="closeMkt" aria-label="Close">✕</button></div></div>
+    <div class="mhead"><h2>🏪 Palengke</h2><div class="mbtns"><button id="farmShopBtn">My shop</button><button id="bizBtn">🏬 Bagsakan</button><button id="visitMkt">📍 Visit</button><button class="x" id="closeMkt" aria-label="Close">✕</button></div></div>
     <p class="jstat" id="jeepStatus"></p>
     <h3>Delivery vehicle</h3>
     <div class="vchips" id="mktVehs"></div>
@@ -579,18 +579,18 @@ const ITEMS={
   pinya:  {name:'Pinya',        icon:'🍍',price:172,lvl:7},
   mango:  {name:'Mangga',       icon:'🥭',price:6,  lvl:1,from:'tree'},
   egg:    {name:'Itlog',        icon:'🥚',price:8,  lvl:2,from:'coop'},
-  chicken:{name:'Manok',        icon:'🍗',price:14, lvl:2,from:'broiler'},
+  chicken:{name:'Manok',        icon:'🍗',price:18, lvl:2,from:'broiler'},
   milk:   {name:'Gatas',        icon:'🥛',price:35, lvl:4,from:'cows'},
-  beef:   {name:'Karne ng baka',icon:'🥩',price:55, lvl:4,from:'cows'},
-  pork:   {name:'Karne ng baboy',icon:'🥓',price:40,lvl:2,from:'pig'},
+  beef:   {name:'Karne ng baka',icon:'🥩',price:65, lvl:4,from:'cows'},
+  pork:   {name:'Karne ng baboy',icon:'🥓',price:55,lvl:2,from:'pig'},
   duckegg:{name:'Itlog ng itik', icon:'🦆',price:10, lvl:4,from:'duck'},
   goatmilk:{name:'Gatas ng kambing',icon:'🍼',price:30,lvl:5,from:'goat'},
-  chevon: {name:'Karne ng kambing',icon:'🍖',price:60,lvl:5,from:'goat'},
+  chevon: {name:'Karne ng kambing',icon:'🍖',price:70,lvl:5,from:'goat'},
   tilapia:{name:'Tilapia',       icon:'🐟',price:28, lvl:6,from:'fish'},
-  live_chicken:{name:'Buhay na manok',icon:'🐔',price:90, lvl:2,from:'broiler',live:1},
-  live_pig:{name:'Buhay na baboy',icon:'🐖',price:1000,lvl:4,from:'pig',live:1},
-  live_cow:{name:'Buhay na baka',icon:'🐄',price:5000,lvl:5,from:'cows',live:1,noOrder:1},
-  live_goat:{name:'Buhay na kambing',icon:'🐐',price:1200,lvl:5,from:'goat',live:1,noOrder:1},
+  live_chicken:{name:'Buhay na manok',icon:'🐔',price:110, lvl:2,from:'broiler',live:1},
+  live_pig:{name:'Buhay na baboy',icon:'🐖',price:1200,lvl:4,from:'pig',live:1},
+  live_cow:{name:'Buhay na baka',icon:'🐄',price:5500,lvl:5,from:'cows',live:1,noOrder:1},
+  live_goat:{name:'Buhay na kambing',icon:'🐐',price:1400,lvl:5,from:'goat',live:1,noOrder:1},
 };
 const BUYERS=['Aling Nena','Mang Tonyo','Kuya Jun','Ate Liza','Lola Caring','Mang Ben (panaderya)','Aling Rosa (karinderya)','Tito Boy','Ate Joy (sari-sari store)','Kapitan Ramon','Manang Fe','Kuya Dodong'];
 const SVG={
@@ -660,6 +660,7 @@ const FARM = {
   ],
   canal: [[-58,-13],[-34,-14],[-17,-8],[-16,20.5],[14,20.5],[19,46]],
 };
+// Drive-through loading yards keep parked trucks and lowered ramps off the service road.
 /*END-FARM-LAYOUT*/
 // smooth curve (Catmull-Rom) through control points, sampled about every step metres; footpaths stay straight between their points
 function spline(pts,closed,step=1){const P=closed?[pts[pts.length-1],...pts,pts[0],pts[1]]:[pts[0],...pts,pts[pts.length-1]], out=[];
@@ -808,12 +809,14 @@ const hasWild=i=>i>=0&&i<NF&&S.wild.includes(i);
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 
 /* ---------- Three.js setup ---------- */
+// The game handles world zoom itself; repeated UI taps must not magnify the browser page.
+document.addEventListener('dblclick',e=>e.preventDefault(),{passive:false});
 const canvas=document.getElementById('c');
 // battery saver: on by default on phones and tablets; 30 frames a second, a lower drawing resolution and simpler shadows
 const PHONE=matchMedia('(pointer: coarse)').matches;
 let ECO=S.eco===undefined?PHONE:!!S.eco;
 const renderer=new THREE.WebGLRenderer({canvas,antialias:!ECO,powerPreference:ECO?'low-power':'default'});   // the picture is drawn through the ink pass anyway, so screen antialiasing adds little
-renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,ECO?1.5:2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,PHONE?1.25:ECO?1.5:2));
 renderer.shadowMap.enabled=true; renderer.shadowMap.type=ECO?THREE.PCFShadowMap:THREE.PCFSoftShadowMap;
 const scene=new THREE.Scene();
 const SKY=0xa9d8ec;
@@ -843,13 +846,15 @@ const POST=(()=>{
   // testing, gets a noise floor in the shader sized to one depth step, so the steps are ignored.
   const low=!gl2||/depth16/.test(location.search), dt=new THREE.DepthTexture(1,1); dt.type=low?(gl2?THREE.UnsignedShortType:THREE.UnsignedIntType):THREE.FloatType;
   const rt=new THREE.WebGLRenderTarget(1,1,{depthTexture:dt,depthBuffer:true,stencilBuffer:false});
+  // Depth samples need explicit highp sampler precision: Android Mali drivers otherwise
+  // quantize sampled depth even when the texture itself is 32-bit, producing ink bands.
   const mat=new THREE.ShaderMaterial({depthTest:false,depthWrite:false,
     uniforms:{qEps:{value:low?1/65535:0},tColor:{value:rt.texture},tDepth:{value:dt},px:{value:new THREE.Vector2()},near:{value:camera.near},far:{value:camera.far},
       ink:{value:new THREE.Color(STYLE.ink)},inkAmt:{value:STYLE.inkAmt},inkNear:{value:STYLE.inkNear},inkFull:{value:STYLE.inkFull},inkFar:{value:STYLE.inkFar},
       sat:{value:STYLE.sat},warm:{value:new THREE.Vector3(...STYLE.warm)},lift:{value:STYLE.lift},night:{value:0}},
-    vertexShader:'varying vec2 vUv; void main(){vUv=uv; gl_Position=vec4(position.xy,0.,1.);}',
-    fragmentShader:`precision highp float; varying vec2 vUv;
-      uniform sampler2D tColor, tDepth; uniform vec2 px; uniform float near, far, inkAmt, inkNear, inkFull, inkFar, sat, lift, night, qEps; uniform vec3 ink, warm;
+    vertexShader:'varying highp vec2 vUv; void main(){vUv=uv; gl_Position=vec4(position.xy,0.,1.);}',
+    fragmentShader:`precision highp float; varying highp vec2 vUv;
+      uniform sampler2D tColor; uniform highp sampler2D tDepth; uniform vec2 px; uniform float near, far, inkAmt, inkNear, inkFull, inkFar, sat, lift, night, qEps; uniform vec3 ink, warm;
       float W(vec2 uv){float d=texture2D(tDepth,uv).x; return (far-d*(far-near))/(near*far);}          // 1/z: changes linearly across any flat face
       void main(){
         vec3 c=texture2D(tColor,vUv).rgb;
@@ -866,12 +871,16 @@ const POST=(()=>{
     resize(){renderer.getDrawingBufferSize(sz); rt.setSize(sz.x,sz.y); const k=Math.max(1,renderer.getPixelRatio()*.75); mat.uniforms.px.value.set(k/sz.x,k/sz.y);},
     render(){   // pass 1: everything that gets ink (layer 0); pass 2: soft ground cover on layer 1, drawn without writing depth so it is never outlined
       const u=mat.uniforms; u.inkAmt.value=STYLE.outline?STYLE.inkAmt:0; u.night.value=NK;
-      renderer.setRenderTarget(rt); renderer.shadowMap.needsUpdate=true; renderer.render(scene,camera);
+      renderer.setRenderTarget(rt); renderer.render(scene,camera);
       syncCoverLights(); renderer.autoClear=false; renderer.render(coverScene,camera); renderer.autoClear=true;
       renderer.setRenderTarget(null); renderer.render(pscene,pcam);}};
 })();
-const drawFrame=()=>{if(POST) POST.render(); else {renderer.shadowMap.needsUpdate=true; renderer.render(scene,camera);}};
-renderer.shadowMap.autoUpdate=false;   // the shadow map is redrawn once per frame (drawFrame), not again for the ground-cover pass
+// Refresh shadows with the visible frame so moving casters and the light camera stay synchronized.
+const drawFrame=()=>{
+  renderer.shadowMap.needsUpdate=true;
+  if(POST)POST.render();else renderer.render(scene,camera);
+};
+renderer.shadowMap.autoUpdate=false;   // one shadow pass per visible frame; the cover pass reuses it
 // ground cover (grass tufts, rice, flowers) lives in its own small scene, drawn after the main pass without writing depth, so it never
 // gets ink lines and the second pass only walks these few meshes. It has its own copies of the two lights, kept in step every frame.
 const coverScene=new THREE.Scene(), cHemi=hemi.clone(), cSun=new THREE.DirectionalLight(); coverScene.add(cHemi,cSun,cSun.target);
@@ -880,13 +889,14 @@ function syncCoverLights(){coverScene.fog=scene.fog; cHemi.color.copy(hemi.color
 const softCover=o=>{if(!POST) return scene.add(o),o; o.traverse(m=>{if(m.material) m.material.depthWrite=false;}); coverScene.add(o); return o;};
 /* ---------- day and night: one game day lasts 13 minutes (day 6 AM–6 PM about 9 min, night about 4 min) ---------- */
 const DAY_MS=13*60*1000;
+const BALANCE={fluSeasonChance:.2,heatSeasonChance:.2,fluPerSecond:.00015,eventCooldownMonths:4,vaccineDays:24,recoveryDays:4,waterDays:1,stressWarningDays:1,stressLossDays:2,lossInterval:180,lossFraction:.05};
 let TIME_SHIFT=0;
 /* ---------- calendar: 2 game days per month (a game year is about 5 real hours); bird flu alerts in Dec–Feb, heat waves in Mar–May ---------- */
 const MONTHS=['Ene','Peb','Mar','Abr','May','Hun','Hul','Ago','Set','Okt','Nob','Dis'];
 const gameDayN=(now=Date.now())=>Math.floor((now+TIME_SHIFT)/DAY_MS), monthN=(now=Date.now())=>Math.floor(gameDayN(now)/2);
 if(!S.ev) S.ev={};
 const heatOn=(now=Date.now())=>(S.ev.heatEnd||0)>now, fluOn=(now=Date.now())=>S.ev.flu!=null&&S.ev.flu===monthN(now);
-const hotNow=(t,now=Date.now())=>heatOn(now)&&t.n>0&&now-(t.wet||0)>DAY_MS/4;   // in a heat wave animals need water every quarter of a day
+const hotNow=(t,now=Date.now())=>heatOn(now)&&t.n>0&&now-(t.wet||0)>DAY_MS*BALANCE.waterDays;   // in a heat wave animals need water once per game day
 const rainOn=(now=Date.now())=>(S.ev.rainEnd||0)>now;
 if(!S.me) S.me={hunger:100,energy:100};
 function gameHour(now=Date.now()+TIME_SHIFT){const f=(now%DAY_MS)/DAY_MS; return f<.7?6+f/.7*12:(18+(f-.7)/.3*12)%24;}
@@ -921,7 +931,7 @@ function updateDayNight(){
   const w=h>=6&&h<18; if(wasWork!==null&&w!==wasWork&&S.helpers&&S.helpers.length) toast(w?'🌅 Magandang umaga! Your trabahador are taking the bus back to work.':'🌇 Alas-sais na! Your trabahador are going home to rest.',3200); wasWork=w;
 }
 function followSun(){ // keep the shadow area centred on what you're looking at
-  const hs=Math.max(30,Math.min(85,cam.dist*1.25)), sc=sun.shadow.camera, snap=hs*2/2048;
+  const hs=Math.max(30,Math.min(85,cam.dist*1.25)), sc=sun.shadow.camera, snap=hs*2/sun.shadow.mapSize.x;
   const sx=Math.round(cam.target.x/snap)*snap, sz=Math.round(cam.target.z/snap)*snap;
   sun.position.set(sx+18,32,sz+14); sun.target.position.set(sx,0,sz);
   if(sc.right!==hs){sc.left=-hs; sc.right=hs; sc.top=hs; sc.bottom=-hs; sc.updateProjectionMatrix();}
@@ -2129,7 +2139,7 @@ const needHouse=n=>S.house<n?`<div class="pay">🏠 Needs your ${HOUSE[n].name} 
 const OWN=v=>v==='jeep'?S.veh.jeep.owned!==false:!!(S.veh[v]&&S.veh[v].owned);   // old farms keep their jeepney
 const STOCK_PRICE=12000, STOCK_LV=5, SEDAN_PRICE=4500, SEDAN_LV=2, VAN_PRICE=30000, VAN_LV=10;
 const JEEP_PRICE=3000, JEEP_LV=3, TRUCK_LV=7;
-const STOP={port:8,sari:9,pickup:12,mountain:8,palengke:8,hardware:9,poultry:9,seeds:9,warehouse:8,city:30,brgy:6};
+const STOP={farmshop:10,port:8,sari:9,pickup:12,mountain:8,palengke:8,hardware:9,poultry:9,seeds:9,warehouse:8,city:30,brgy:6};
 const MEATS=['chicken','beef','pork','chevon','tilapia'], CITY_RATE=1.8;
 const WHX=62, FX=395;   // the warehouse, and the factory far out east (its smoke stays away from the barangay)
 const WH_LV=9, WH_PRICE=15000, FAC_LV=14, FAC_PRICE=60000, VAN_CAP=60;
@@ -2154,7 +2164,7 @@ const ROUTES={};
 setSlots();   // bays for the garage level you have
 // a pickup at an animal area: out along the service road past the area's track, reverse down the track until the tailgate is at the gate;
 // back the same way, then reverse into the garage bay from the other side
-function pickupRoute(vid,type){
+function legacyPickupRoute(vid,type){
   const V=VEH[vid], sx=V.slot, sl=SPD.slow, d=SPD.dirt, A=FARM.areas.find(a=>a.type===type), [gx,gz]=A.gate;
   const tk=FARM.roads.find(r=>r.id.startsWith('t-')&&Math.hypot(r.pts[r.pts.length-1][0]-gx,r.pts[r.pts.length-1][1]-gz)<1.5);
   const T=tk?ROADS[tk.id].s:[[gx,gz]], J=nearestOn(SERVICE,T[0][0],T[0][1]);
@@ -2164,14 +2174,16 @@ function pickupRoute(vid,type){
   for(let q=1;q<=k;q++) out.push([T[q][0],T[q][1],sl,true]);
   const back=[]; for(let q=k;q>=1;q--) back.push([T[q][0],T[q][1],sl]); back.push([SERVICE[J][0],SERVICE[J][1],d]);
   const e=frontIdx(sx+3.5); for(let q=J-2;q>e;q-=2) back.push([SERVICE[q][0],SERVICE[q][1],d]);
-  const az=SVC0[e][1]; back.push([sx+3.5,az,sl,true],[sx,az-2.5,sl,true],[sx,G0]);
+  const az=SVC0[e][1]; back.push([sx+3.5,az,sl,true],[sx,az,sl,true],[sx,G0]);   // finish the turn on the apron before reversing straight into the bay
   return [out,back];}
+function pickupRoute(vid,type){return legacyPickupRoute(vid,type);}
 function routesFor(vid,dest,tr){
-  const key=vid+dest+(dest==='pickup'&&tr?tr.area:''); if(ROUTES[key]) return ROUTES[key];
+  const key=vid+dest+(dest==='pickup'&&tr?tr.area+':'+(tr.pickupLayout||1):''); if(ROUTES[key]) return ROUTES[key];
   const sx=VEH[vid].slot, sl=SPD.slow, d=SPD.dirt, h=SPD.hwy;
   const toGarage=fromHwy(sx,d,sl);
   let out,back;
-  if(dest==='pickup'){[out,back]=pickupRoute(vid,tr?tr.area:'broiler');}
+  if(dest==='farmshop'){out=[[sx,G0,sl],...toHwy(sx,d),[DX,LE,h],[106,LE,sl],[118,HZ-5.5,sl],[129,-119,sl],[129,-129]];back=[[129,-129,sl,true],[129,-119,sl],[135,LW,h],[DX,LW,d]].concat(toGarage);}
+  else if(dest==='pickup'){[out,back]=(tr&&tr.pickupLayout===2?pickupRoute:legacyPickupRoute)(vid,tr?tr.area:'broiler');}
   else if(dest==='port'){out=[[sx,G0,sl],...toHwy(sx,d),[DX,LE,h],[394,LE,sl],[400.5,HZ+6,sl],[400.5,-92]]; back=[[400.5,-92,sl],[404,-96,sl],[401,HZ+5,sl],[396,LW,h],[DX,LW,d]].concat(toGarage);}   // into the port yard, to the pantalan bodega
   else if(dest==='sari'){out=[[sx,G0,sl],...toHwy(sx,d),[30.5,-104.4,sl]]; back=[[30.5,-104.4,sl],[33.5,-102,sl],...fromHwy(sx,d,sl)];}   // up the farm road, park beside the sari-sari store
   else if(dest==='palengke'){
@@ -2243,7 +2255,7 @@ function updateTrikes(dt,t){
     }
     else if(k.state==='depart'){k.timer-=dt; if(k.timer<=0){k.R=trikeRoutes(k.spot,trr()<.5?1:-1); k.e=0; k.state='go';}}
     else if(k.state==='go'||k.state==='back'){
-      {const blk=aheadGap(k.g,k.g.position.x,k.g.position.z,k.g.rotation.y,2.4)<1.0; k.blk=blk?(k.blk||0)+dt:0; if(!blk||k.blk>8) k.e+=dt;} const R=k.state==='go'?k.R.go:k.R.back, p=routePos(R,k.e);
+      {const blk=aheadGap(k.g,k.g.position.x,k.g.position.z,k.g.rotation.y,2.4)<1.0; k.blk=blk?(k.blk||0)+dt:0; if(!blk)k.e=trafficRouteTime(k.g,k.state==='go'?k.R.go:k.R.back,k.e,dt,2.4,1.5);} const R=k.state==='go'?k.R.go:k.R.back, p=routePos(R,k.e);
       k.g.position.set(p.x,Math.abs(Math.sin(t*14))*.02,p.z); k.g.rotation.y=lerpAng(k.g.rotation.y,p.ang,1-Math.exp(-dt*8));
       if(k.e>=R.T){ if(k.state==='go'){k.state='away'; k.g.visible=false; k.pass.visible=false; k.timer=4+trr()*6;}
         else {k.state='wait'; k.timer=6+trr()*12; k.g.position.set(k.spot[0],0,k.spot[1]); k.g.rotation.y=0;} }
@@ -2291,14 +2303,15 @@ let SHOPS=null; const shopList=()=>SHOPS||(SHOPS=[ // where shoppers park and wh
   {id:'palengke',x:PX,spots:[[PX-9,-123],[PX-13,-123]],door:[PX+.5,-131.2]},
   {id:'hardware',x:HWX,spots:[[HWX-6,HZ-6.2],[HWX+6,HZ-6.2]],door:[HWX,HZ-8.8]},
   {id:'poultry',x:PSX,spots:[[PSX-6,HZ-7.5],[PSX+6,HZ-7.5]],door:[PSX,HZ-12.2]},
-  {id:'seeds',x:SSX,spots:[[SSX-5.5,HZ-7.5],[SSX+5.5,HZ-7.5]],door:[SSX,HZ-12.3]}]);
+  {id:'seeds',x:SSX,spots:[[SSX-5.5,HZ-7.5],[SSX+5.5,HZ-7.5]],door:[SSX,HZ-12.3]},
+  {id:'farmshop',x:118,spots:[[110,-121],[121,-121]],door:[118,-125.3]}]);
 const spotTaken=new Set();
 function spawnCar(c,x){
   if(!c.g){const types=['vios','innova','fortuner','hilux','l300']; c.type=types[traffic.indexOf(c)%types.length]; c.g=makeCar(c.type,CAR_COLS[(tfr()*CAR_COLS.length)|0]);}   // built once, reused
-  c.dir=tfr()<.5?1:-1; c.lane=c.dir>0?LE:LW; c.x=x!=null?x:(c.dir>0?TX0:TX1); c.v=c.vmax=12+tfr()*6; c.state='drive'; c.plan=null;
+  c.dir=tfr()<.5?1:-1; c.lane=c.dir>0?LE:LW; c.x=x!=null?x:(c.dir>0?TX0:TX1); c.v=c.vmax=12+tfr()*6; c.state='drive'; c.plan=null;c.pass=null;
   // about one in three stops to shop at a store ahead of it
-  if(tfr()<.35){const ahead=shopList().filter(sh=>(sh.x-c.x)*c.dir>30); if(ahead.length) c.plan=ahead[(tfr()*ahead.length)|0];}
-  c.g.position.set(c.x,0,c.lane); c.g.rotation.y=c.dir>0?Math.PI/2:-Math.PI/2;
+  if(tfr()<(S.shop&&S.shop.owned?.6:.35)){const ahead=shopList().filter(sh=>(sh.id!=='farmshop'||S.shop&&S.shop.owned)&&(sh.x-c.x)*c.dir>30); if(ahead.length) c.plan=ahead.find(sh=>sh.id==='farmshop')&&tfr()<.5?ahead.find(sh=>sh.id==='farmshop'):ahead[(tfr()*ahead.length)|0];}
+  c.g.position.set(c.x,0,c.lane); c.g.rotation.y=c.dir>0?Math.PI/2:-Math.PI/2;c.spawnWait=true;c.g.visible=false;
 }
 let SNAP=[];
 function roadSnapshot(){ // every moving vehicle on the roads: where it is, which way it faces, how long it is
@@ -2310,18 +2323,71 @@ function roadSnapshot(){ // every moving vehicle on the roads: where it is, whic
   for(const k of trikes) if(k.g.visible&&(k.state==='go'||k.state==='back')) L.push({ref:k.g,x:k.g.position.x,z:k.g.position.z,a:k.g.rotation.y,len:2.4});
   if(typeof traders!=='undefined') for(const T of traders) if(T.g.visible) L.push({ref:T.g,x:T.g.position.x,z:T.g.position.z,a:T.g.rotation.y,len:7.6});
   if(typeof resCars!=='undefined') for(const c of resCars) if(c.g.visible) L.push({ref:c.g,x:c.g.position.x,z:c.g.position.z,a:c.g.rotation.y,len:4.6});
+  if(typeof LINERS!=='undefined')for(const B of LINERS)if(B.g.visible)L.push({ref:B.g,x:B.g.position.x,z:B.g.position.z,a:B.g.rotation.y,len:10.6,width:2.6});
+  if(typeof JEEPS!=='undefined')for(const J of JEEPS)if(J.g.visible)L.push({ref:J.g,x:J.g.position.x,z:J.g.position.z,a:J.g.rotation.y,len:6,width:2.1});
+  if(typeof PATROL!=='undefined'&&PATROL.g.visible)L.push({ref:PATROL.g,x:PATROL.g.position.x,z:PATROL.g.position.z,a:PATROL.g.rotation.y,len:4.6});
   SNAP=L;}
-function aheadGap(ref,x,z,a,len){ // free road in front of a vehicle (same lane, same general direction)
-  const hx=Math.sin(a), hz=Math.cos(a); let best=1e9;
-  for(const o of SNAP){ if(o.ref===ref) continue; const dx=o.x-x, dz=o.z-z, f=dx*hx+dz*hz; if(f<=0||f>45) continue;
-    if(Math.abs(dx*hz-dz*hx)>1.4) continue; if(Math.sin(o.a)*hx+Math.cos(o.a)*hz<-.3) continue;
-    best=Math.min(best,f-(len+o.len)/2);}
-  return best;}
+function aheadGap(ref,x,z,a,len){
+  const hx=Math.sin(a),hz=Math.cos(a);let best=1e9;
+  for(const o of SNAP){if(o.ref===ref||!o.ref.visible)continue;const dx=o.x-x,dz=o.z-z,f=dx*hx+dz*hz;if(f<=0||f>65)continue;
+    if(Math.abs(dx*hz-dz*hx)>1.5)continue;best=Math.min(best,f-(len+o.len)/2);}return best;
+}
+function trafficOverlap(a,b,gap=.8){
+  const axes=[[Math.sin(a.a),Math.cos(a.a)],[Math.cos(a.a),-Math.sin(a.a)],[Math.sin(b.a),Math.cos(b.a)],[Math.cos(b.a),-Math.sin(b.a)]];
+  const radius=(v,n)=>Math.abs(Math.sin(v.a)*n[0]+Math.cos(v.a)*n[1])*(v.len/2+gap)+Math.abs(Math.cos(v.a)*n[0]-Math.sin(v.a)*n[1])*((v.width||2.2)/2+.12);
+  return axes.every(n=>Math.abs((b.x-a.x)*n[0]+(b.z-a.z)*n[1])<radius(a,n)+radius(b,n));
+}
+const TRAFFIC_JUNCTIONS=[-60,-18,40,62,92,118,170,212,236,273,300,330,395].map(x=>({x,z:HZ,r:13,owner:null,path:[],until:0,route:null,expires:0}));
+function activeJunctions(){const now=performance.now();for(const j of TRAFFIC_JUNCTIONS)if(j.owner&&(!j.owner.visible||now>j.expires)){j.owner=null;j.path=[];}return TRAFFIC_JUNCTIONS;}
+function trafficCanMove(ref,x,z,a,len,width=2.2){
+  const start={x:ref.position.x,z:ref.position.z,a:ref.rotation.y,len,width},end={x,z,a,len,width};
+  for(const j of activeJunctions())if(j.owner&&j.owner!==ref&&j.path.some(q=>trafficOverlap(end,q))){
+    const entering=!j.path.some(q=>trafficOverlap(start,q)),approaching=Math.hypot(x-j.owner.position.x,z-j.owner.position.z)<Math.hypot(start.x-j.owner.position.x,start.z-j.owner.position.z)-.001;
+    if(entering||approaching)return false;
+  }
+  const distance=Math.hypot(x-start.x,z-start.z),steps=distance>15?1:Math.max(1,Math.ceil(distance/.5));
+  for(const o of SNAP){if(o.ref===ref||!o.ref.visible||Math.hypot(o.x-x,o.z-z)>len+o.len+10)continue;
+    if(!TRAFFIC_JUNCTIONS.some(j=>j.owner===ref)&&Math.abs(start.z-HZ)>5.2&&Math.abs(z-HZ)<7&&Math.abs(o.z-HZ)<3.5&&Math.abs(Math.sin(o.a))>.85){
+      for(const seconds of [.5,1,1.5])if(trafficOverlap(end,{...o,x:o.x+Math.sin(o.a)*12*seconds,z:o.z+Math.cos(o.a)*12*seconds}))return false;}
+    const was=trafficOverlap(start,o);
+    for(let i=1;i<=steps;i++){const f=i/steps,q={...end,x:start.x+(x-start.x)*f,z:start.z+(z-start.z)*f};
+      if(trafficOverlap(q,o,0)&&!trafficOverlap(start,o,0))return false;
+      if(trafficOverlap(q,o)&&(!ref.visible||!was||Math.hypot(q.x-o.x,q.z-o.z)<Math.hypot(start.x-o.x,start.z-o.z)-.001))return false;}}
+  const entry=SNAP.find(o=>o.ref===ref);if(entry)Object.assign(entry,{x,z,a,len,width});return true;
+}
+function trafficRouteTime(ref,R,e,dt,len,width=2.2){
+  const next=Math.min(R.T,Math.max(0,e+dt)),q=routePos(R,next),now=performance.now();
+  for(const j of activeJunctions())if(j.owner===ref&&(j.route!==R||e>=j.until)){j.owner=null;j.path=[];}
+  const look=routePos(R,Math.min(R.T,Math.max(0,e)+6));
+  const turning=Math.abs(look.z-q.z)>2;
+  if(len>=7||turning){const j=TRAFFIC_JUNCTIONS.find(j=>Math.hypot(q.x-j.x,q.z-j.z)<j.r+len/2);
+    if(j&&!j.owner){
+      const data=ref.userData||(ref.userData={});if((data.junctionRetry||0)>now)return e;
+      const path=[];const until=Math.min(R.T,Math.max(0,e)+6);
+      for(let t=Math.max(0,e);t<=until+.001;t+=.1){const p=routePos(R,Math.min(until,t));path.push({x:p.x,z:p.z,a:p.ang,len,width});}
+      // Include both headings at every corner so a turning vehicle has room to straighten.
+      for(const seg of R.segs)if(seg.t0>=Math.max(0,e)&&seg.t0<=until){for(const d of [-.001,.001]){const p=routePos(R,Math.max(0,seg.t0+d));path.push({x:p.x,z:p.z,a:p.ang,len,width});}}
+      const blocked=SNAP.some(o=>o.ref!==ref&&o.ref.visible&&path.some(p=>trafficOverlap(p,o)&&(!trafficOverlap(path[0],o)||Math.hypot(p.x-o.x,p.z-o.z)<Math.hypot(path[0].x-o.x,path[0].z-o.z)-.001||trafficOverlap(p,o,0))));
+      if(blocked||TRAFFIC_JUNCTIONS.some(other=>other.owner&&other.owner!==ref&&path.some(p=>other.path.some(q=>trafficOverlap(p,q))))){data.junctionRetry=now+250;return e;}
+      j.owner=ref;j.path=path;j.until=until;j.route=R;j.expires=now+30000;
+    }
+  }
+  const clear=trafficCanMove(ref,q.x,q.z,q.ang,len,width);
+  if(clear&&next>=R.T)for(const j of TRAFFIC_JUNCTIONS)if(j.owner===ref){j.owner=null;j.path=[];}
+  return clear?e+dt:e;
+}
+function canPass(c){
+  if(c.plan||c.pass||Math.abs(c.g.position.z-c.lane)>.15)return false;
+  if([34,40,62,170,212,236,268,273,300,330,395].some(x=>Math.abs(x-c.x)<20))return false;
+  const lane=c.dir>0?LW:LE;return !SNAP.some(o=>o.ref!==c.g&&Math.abs(o.z-lane)<1.7&&(o.x-c.x)*c.dir> -28&&(o.x-c.x)*c.dir<110);
+}
 function updateTraffic(dt,t){
   roadSnapshot();
   if(typeof resCars!=='undefined'){ for(const c of resCars){ // neighbours drive in from the highway and back out
       if(c.e<0){c.e+=dt; c.g.visible=false; continue;} c.g.visible=true;
-      const blk=aheadGap(c.g,c.g.position.x,c.g.position.z,c.g.rotation.y,4.6)<1.2; c.blk=blk?c.blk+dt:0; if(!blk||c.blk>8) c.e+=dt;
+      // Follow the swept route and reserve the whole turn before entering the highway.
+      // A forward-only gap check mistakes crossing traffic for a queue mid-turn.
+      c.e=trafficRouteTime(c.g,RES_ROUTE,c.e,dt,4.6);
       if(c.e>RES_ROUTE.T){c.e=-(15+Math.random()*30); c.g.visible=false; continue;}
       const q=routePos(RES_ROUTE,c.e); c.g.position.set(q.x,0,q.z); c.g.rotation.y=lerpAng(c.g.rotation.y,q.ang,1-Math.exp(-dt*6));}
     updateStreetVendors(dt,t); if(typeof updatePark==='function') updatePark(dt,t);}
@@ -2330,15 +2396,22 @@ function updateTraffic(dt,t){
     if(c.state==='drive'){
       // keep a safe gap behind the car ahead in the same lane
       const gap=aheadGap(c.g,c.x,c.lane,c.dir>0?Math.PI/2:-Math.PI/2,4.6);
-      const want=gap<1.5?0:gap<12?Math.min(c.vmax,(gap-1.5)*1.4):c.vmax; c.v+=(want-c.v)*Math.min(1,dt*(want<c.v?4:1.5)); if(gap<1) c.v=0;
+      if(!c.pass&&gap>3&&gap<24&&c.v<c.vmax-2&&canPass(c)){
+        const lead=SNAP.filter(o=>o.ref!==g&&Math.abs(o.z-c.lane)<1.4&&(o.x-c.x)*c.dir>0).sort((a,b)=>Math.abs(a.x-c.x)-Math.abs(b.x-c.x))[0];if(lead)c.pass={leader:lead.ref,returning:false};}
+      if(c.pass){if((c.x-c.pass.leader.position.x)*c.dir>12||SNAP.some(o=>o.ref!==g&&Math.sin(o.a)*c.dir<-.8&&Math.abs(o.z-(c.dir>0?LW:LE))<1.5&&(o.x-c.x)*c.dir>0&&(o.x-c.x)*c.dir<80))c.pass.returning=true;
+        const target=c.pass.returning?c.lane:(c.dir>0?LW:LE),nz=g.position.z+Math.max(-dt*1.7,Math.min(dt*1.7,target-g.position.z));
+        if(trafficCanMove(g,c.x,nz,c.dir>0?Math.PI/2:-Math.PI/2,4.6))g.position.z=nz;
+        if(c.pass.returning&&Math.abs(g.position.z-c.lane)<.05)c.pass=null;}
+      const actualGap=aheadGap(g,c.x,g.position.z,c.dir>0?Math.PI/2:-Math.PI/2,4.6);
+      const want=actualGap<2.5?0:actualGap<18?Math.min(c.vmax,(actualGap-2.5)*1.1):c.vmax; c.v+=(want-c.v)*Math.min(1,dt*(want<c.v?4:1.5)); if(actualGap<1) c.v=0;
       if(c.plan){const sh=c.plan, d=(sh.x-c.x)*c.dir; if(d<16){const sp=sh.spots.find(q=>!spotTaken.has(q)); if(sp){
             spotTaken.add(sp); c.spot=sp; c.state='in'; c.e=0; const lz=c.lane, px=sp[0], pz=sp[1], ez=sh.id==='palengke'?HZ-5:HZ-4.5;
             c.R=mkRoute([[c.x,lz,Math.max(6,c.v)],[px-c.dir*5,lz,6],[px,ez,3],[px,pz]]); c.Rout=mkRoute([[px,pz,2.5,true],[px,ez,4],[px+c.dir*6,lz,10],[px+c.dir*14,lz]]);}
           else c.plan=null;}}
-      if(c.state==='drive'){c.x+=c.dir*c.v*dt; g.position.set(c.x,Math.abs(Math.sin(t*11+c.x))*.012,c.lane);
+      if(c.state==='drive'){const nx=c.x+c.dir*c.v*dt;if(trafficCanMove(g,nx,g.position.z,c.dir>0?Math.PI/2:-Math.PI/2,4.6))c.x=nx;else c.v=0; g.position.set(c.x,Math.abs(Math.sin(t*11+c.x))*.012,g.position.z);
         if((c.dir>0&&c.x>TX1)||(c.dir<0&&c.x<TX0)) spawnCar(c);}
     }else if(c.state==='in'||c.state==='out'){
-      c.e+=dt; const R=c.state==='in'?c.R:c.Rout, q=routePos(R,c.e);
+      const R=c.state==='in'?c.R:c.Rout;c.e=trafficRouteTime(g,R,c.e,dt,4.6); const q=routePos(R,Math.max(0,c.e));
       g.position.set(q.x,0,q.z); g.rotation.y=lerpAng(g.rotation.y,q.ang,1-Math.exp(-dt*6));
       if(c.e>=R.T){ if(c.state==='in'){ // park, the driver gets out and goes in
           g.userData.doorUntil=Date.now()+1400; if(g.userData.drv) g.userData.drv.visible=false; sfx('door',c.spot[0],c.spot[1]);   // the driver opens the door and gets out
@@ -2349,7 +2422,7 @@ function updateTraffic(dt,t){
           const L={...c.look,bag:['plastic','bayong','plastic'][(tfr()*3)|0]}; c.p=makePerson(L); c.p.root.position.set(c.plan.door[0],.08,c.plan.door[1]); scene.add(c.p.root); c.leg='back';}
         continue;}
       const tgt=c.leg==='go'?c.plan.door:[c.spot[0]+1.3,c.spot[1]], r=p.root, dx=tgt[0]-r.position.x, dz=tgt[1]-r.position.z, d=Math.hypot(dx,dz);
-      if(d<.12){ if(c.leg==='go'){scene.remove(r); disposePerson(p); c.leg='inside'; c.timer=5+tfr()*8;}
+      if(d<.12){ if(c.leg==='go'){if(c.plan.id==='farmshop')shopSale('Customer by car');scene.remove(r); disposePerson(p); c.leg='inside'; c.timer=5+tfr()*8;}
         else {scene.remove(r); disposePerson(p); c.p=null; c.state='out'; c.e=-1.2; g.userData.doorUntil=Date.now()+1100; if(g.userData.drv) g.userData.drv.visible=true; sfx('door',c.spot[0],c.spot[1]);} }
       else {const st=Math.min(d,1.3*dt); r.position.x+=dx/d*st; r.position.z+=dz/d*st; r.rotation.y=lerpAng(r.rotation.y,Math.atan2(dx,dz),.2); c.walk+=st*5.2; poseWalk(p,c.walk);}
     }
@@ -2731,13 +2804,13 @@ for(const k of ['cows','pig','duck','goat','fish']) POULTRY_LV[k].forEach((L,i)=
 /* ---------- living animals: every house keeps a herd (n animals) and an age (gp: 0 = young just bought, 1 = grown) ----------
    layers and dairy grow up first and then produce; meat animals grow, then the whole batch is harvested and the house is empty again */
 const LIFE={
-  coop:{kind:'layer',max:[20,84,126],young:'chick',adult:'pullet',grow:2,word:'hens'},
-  duck:{kind:'layer',max:[8,14,20],young:'duckling',adult:'itik',grow:2,word:'itik'},
-  cows:{kind:'dairy',max:[2,4,6],young:'calf',grow:3,word:'cows',one:'cow',cull:'live_cow'},
-  goat:{kind:'dairy',max:[4,7,10],young:'kid',grow:2,word:'goats',one:'goat',cull:'live_goat'},
-  broiler:{kind:'meat',max:[10,18,28],young:'chick',grow:2,word:'broilers',yield:{chicken:8},live:'live_chicken'},
-  pig:{kind:'meat',max:[4,8,12],young:'piglet',grow:4,word:'pigs',yield:{pork:30},live:'live_pig'},
-  fish:{kind:'meat',max:[60,120,200],young:'fingerling',grow:3,word:'tilapia',yield:{tilapia:1}}};
+  coop:{kind:'layer',max:[20,84,126],young:'chick',adult:'pullet',grow:1,word:'hens'},
+  duck:{kind:'layer',max:[8,14,20],young:'duckling',adult:'itik',grow:1,word:'itik'},
+  cows:{kind:'dairy',max:[2,4,6],young:'calf',grow:2,word:'cows',one:'cow',cull:'live_cow'},
+  goat:{kind:'dairy',max:[4,7,10],young:'kid',grow:1.5,word:'goats',one:'goat',cull:'live_goat'},
+  broiler:{kind:'meat',max:[10,18,28],young:'chick',grow:1.5,word:'broilers',yield:{chicken:8},live:'live_chicken'},
+  pig:{kind:'meat',max:[4,8,12],young:'piglet',grow:3,word:'pigs',yield:{pork:30},live:'live_pig'},
+  fish:{kind:'meat',max:[60,120,200],young:'fingerling',grow:2,word:'tilapia',yield:{tilapia:1}}};
 const LIVE_VEH={live_chicken:['sedan','truck'],live_pig:['stock','truck'],live_goat:['stock','truck'],live_cow:['stock']};   // which trucks may carry live animals
 const UNIT={chick:10,pullet:10,duckling:10,itik:10,fingerling:50,piglet:1,calf:1,kid:1}, POULTRY_B=['coop','broiler','duck'];
 const maxN=t=>LIFE[t.b].max[(t.lvl||1)-1];
@@ -2782,11 +2855,12 @@ function wwNear(x,z,m){for(const [w,...P] of WW_CLEAR) for(let i=0;i<P.length-1;
 (()=>{const rr=rng(42);
   const onRoad=(x,z,m)=>roadDist(x,z)<m||(z>HZ-5.4-m&&z<HZ+5.4+m);
   // inside the lot: keep clear of the field, buildings, yards and roads (grass may grow in between; trees only where planted on purpose)
-  const busyIn=(x,z)=>inField(x,z,1.8)||inRect(ORCH,x,z,.3)||inRect(UTIL,x,z,.3)||FARM.areas.some(a=>inRect([a.fence[0],a.fence[2],a.fence[1],a.fence[3]],x,z,1.5))||inRect([-27,-20,-6,2],x,z,1)
+  const busyIn=(x,z)=>FARM.areas.some(a=>a.loading&&inRect([a.loading.pad[0]-a.loading.pad[2]/2,a.loading.pad[0]+a.loading.pad[2]/2,a.loading.pad[1]-a.loading.pad[3]/2,a.loading.pad[1]+a.loading.pad[3]/2],x,z,2))||inField(x,z,1.8)||inRect(ORCH,x,z,.3)||inRect(UTIL,x,z,.3)||FARM.areas.some(a=>inRect([a.fence[0],a.fence[2],a.fence[1],a.fence[3]],x,z,1.5))||inRect([-27,-20,-6,2],x,z,1)
     ||inRect(lotRect('house',S.housePos.x,S.housePos.z),x,z,.5)||inRect([GX-12,GX+12,G0-4.5,G0+4.5],x,z,.5)||roadDist(x,z)<.4;
   const busy=(x,z,m)=>inLot(x,z)&&(m>=0||busyIn(x,z))   // the farm lot
     ||(x>116-m&&x<216+m&&z>-171-m&&z<-112+m)   // the poblacion block round the palengke (streets and shophouses)
-    ||(x>226-m&&x<330+m&&z>-162-m&&z<-113+m)   // the bus terminal, the jeepney terminal and the police station
+    ||(x>104-m&&x<135+m&&z>-141-m&&z<-114+m)   // your mini-mart, parking and delivery apron
+    ||(x>226-m&&x<361+m&&z>-162-m&&z<-113+m)   // the bus terminal, the jeepney terminal and the police station
     ||nearSea(x,z,m+2)||(x>366-m&&x<444+m&&z>-102-m&&z<-76+m)   // the beach, the sea and the port yard
     ||(x>PX-25-m&&x<PX+25+m&&z>PZ-19-m&&z<HZ-4)||(x>HWX-14-m&&x<HWX+14+m&&z>HZ-25-m&&z<HZ-4)||(x>PSX-14-m&&x<PSX+14+m&&z>HZ-25-m&&z<HZ-4)||(x>SSX-12-m&&x<SSX+12+m&&z>HZ-25-m&&z<HZ-4)||(x>DX+1-m&&x<DX+32+m&&z>HZ+3-m&&z<HZ+12+m)||(x>34-m&&x<336+m&&z>-218-m&&z<-164+m)||(x>34-m&&x<46+m&&z>-190&&z<HZ-4)||(x>324-m&&x<336+m&&z>-190&&z<HZ-4)||(x>PX+38-m&&x<PX+46+m&&z>-190-m&&z<HZ-4)||(x>WHX-14-m&&x<WHX+30+m&&z>HZ-32-m&&z<HZ-4)||(x>FX-30-m&&x<FX+30+m&&z>HZ-64-m&&z<HZ-4)   // sakayan, warehouse, factory
     ||inRect(ORCH,x,z,m)||inRect(UTIL,x,z,m)||inRect(SARI,x,z,m)||wwNear(x,z,Math.max(.6,m));
@@ -2961,12 +3035,14 @@ const C={grass:0x7fc15b,soil:0x8a5a3a,furrow:0x6e4429,locked:0x6b9548,yard:0xb8a
 const tileRoot=new THREE.Group(); scene.add(tileRoot);
 const tiles=[]; const markers=new Set(); const popping=new Set(), constructing=new Set();
 const underConstruction=(t,now)=>t.s==='bld'&&t.bd>0&&now<t.bs+t.bd*1000;
-const lvlOf=t=>t.lvl||1, feedNeed=t=>Math.ceil((BLDS[t.b].feed||0)*lvlOf(t)*herdFrac(t)), feedKey=t=>BLDS[t.b].feedType||'feed';
+const lvlOf=t=>t.lvl||1,feedRation=t=>(BLDS[t.b].feed||0)*lvlOf(t)*herdFrac(t),feedNeed=t=>Math.max(0,Math.ceil(feedRation(t)-(t.feedLeft||0)-1e-9)),feedKey=t=>BLDS[t.b].feedType||'feed';
+function feedMeal(t){const need=feedNeed(t),fk=feedKey(t);if((S.mats[fk]||0)<need)return false;
+  S.mats[fk]=(S.mats[fk]||0)-need;t.feedLeft=Math.max(0,(t.feedLeft||0)+need-feedRation(t));return true;}
 const FEED_NAME={feed:'patuka ng manok',feed_pig:'pakain sa baboy',feed_cow:'dayami at darak',feed_fish:'pakain sa isda'};
 function startCycle(i,quiet){ // each batch of eggs / broilers eats patuka from the bodega
   const t=S.tiles[i], need=feedNeed(t);
   const fk=feedKey(t);
-  if((S.mats[fk]||0)>=need){S.mats[fk]-=need; t.t=Date.now(); t.hungry=false; return true;}
+  if(feedMeal(t)){t.t=Date.now(); t.hungry=false; return true;}
   t.hungry=true; t.t=Date.now(); if(!quiet) toast(`${BLDS[t.b].icon} Gutom! Buy ${FEED_NAME[fk]} at the 🐣 Agrivet & Poultry Supply.`,3200); return false;
 }
 const tilePos=i=>i<NF?{x:fieldX(i%N), z:fieldZ((i/N)|0)}:slotOf(i)?{x:slotOf(i).x, z:slotOf(i).z}:{x:0, z:-900};   // unused old bakuran indexes sit far away, hidden
@@ -3072,9 +3148,7 @@ function produce(i,now){ // each period eats feed: young animals grow; grown lay
     if(L&&(t.gp||0)<1){t.gp=Math.min(1,(t.gp||0)+per/(L.grow*DAY_MS)); t.t+=per; changedAny=true; if(t.gp>=1&&meat){t.t=now; break;}}
     else if(meat){t.t=now; break;}
     else {if(isFull(t)) break; t.stored=(t.stored||0)+1; t.t+=per; changedAny=true; if(isFull(t)) break;}
-    const need=feedNeed(t), fk=feedKey(t);
-    if(need&&(S.mats[fk]||0)<need){t.hungry=true; t.t=now; break;}
-    S.mats[fk]=(S.mats[fk]||0)-need;
+    if(!feedMeal(t)){t.hungry=true;t.t=now;break;}
   }
   return changedAny;
 }
@@ -3084,18 +3158,18 @@ let lifeLast=performance.now();
 setInterval(()=>{const pn=performance.now(), dt=Math.min(5,(pn-lifeLast)/1000); lifeLast=pn; if(document.hidden) return;
   const now=Date.now(), m=monthN(now), M=m%12, houses=lifeTiles(), stocked=b=>houses.some(i=>(!b||b.includes(S.tiles[i].b))&&S.tiles[i].n>0);
   if(S.ev.m!==m){const first=S.ev.m==null; S.ev.m=m;
-    if(!first&&[11,0,1].includes(M)&&Math.random()<.5&&stocked(POULTRY_B)){S.ev.flu=m; sfx('nope'); toast('📻 Balita: bird flu found in a nearby province! Vaccinate your manukan and itikan with 💉 Bakuna from the Agrivet.',5200);}
+    if(!first&&[11,0,1].includes(M)&&Math.random()<BALANCE.fluSeasonChance&&m-(S.ev.lastFluMonth??-100)>=BALANCE.eventCooldownMonths&&stocked(POULTRY_B)){S.ev.flu=m;S.ev.lastFluMonth=m; sfx('nope'); toast('📻 Balita: bird flu found in a nearby province! Vaccinate your manukan and itikan with 💉 Bakuna from the Agrivet.',5200);}
     if(!first&&[5,6,7,8,9,10].includes(M)) toast('🌧️ Tag-ulan na: the rainy months. Rain waters all your crops for you.',3600);
-    if(!first&&[2,3,4].includes(M)&&Math.random()<.5&&stocked()){S.ev.heatEnd=now+DAY_MS; houses.forEach(i=>S.tiles[i].wet=now); toast('🥵 Heat wave today! Your animals need water every few hours: tap their house, then 🐾 Alaga → 💧 Painumin.',5200);}
+    if(!first&&[2,3,4].includes(M)&&Math.random()<BALANCE.heatSeasonChance&&m-(S.ev.lastHeatMonth??-100)>=BALANCE.eventCooldownMonths&&stocked()){S.ev.heatEnd=now+DAY_MS;S.ev.lastHeatMonth=m; houses.forEach(i=>S.tiles[i].wet=now); toast('🥵 Heat wave today! Your animals need water every few hours: tap their house, then 🐾 Alaga → 💧 Painumin.',5200);}
     save();}
   {const d=gameDayN(now); if(S.ev.d!==d){const first=S.ev.d==null; S.ev.d=d; if(!first&&[5,6,7,8,9,10].includes(M)&&Math.random()<.4) startRain(now);}}   // a rainy day in the rainy months
   needsTick(dt,now);
   for(const i of houses){const t=S.tiles[i]; if(!(t.n>0)||underConstruction(t,now)) continue;
-    if(fluOn(now)&&POULTRY_B.includes(t.b)&&!t.sick&&!((t.vaxUntil||0)>now)&&Math.random()<dt*.001){t.sick=true; sfx('nope'); toast(`🤒 Bird flu at your ${BLDS[t.b].name}! Give 💊 gamot soon or the birds will die.`,4200); save();}
+    if(fluOn(now)&&POULTRY_B.includes(t.b)&&!t.sick&&!((t.vaxUntil||0)>now)&&Math.random()<dt*BALANCE.fluPerSecond){t.sick=true; sfx('nope'); toast(`🤒 Bird flu at your ${BLDS[t.b].name}! Give 💊 gamot soon or the birds will die.`,4200); save();}
     const why=t.sick?'sick':hotNow(t,now)?'too hot, no water':t.hungry?'gutom, no feed':null;
     if(why){const was=t.ng||0; t.ng=was+dt;
-      if(was<180&&t.ng>=180) toast(`⚠️ The ${LIFE[t.b].word} at your ${BLDS[t.b].name} are suffering (${why}). Some will die soon!`,4000);
-      if(t.ng>360){t.dl=(t.dl||0)+dt; if(t.dl>=90){t.dl=0; const d=Math.max(1,Math.ceil(t.n*.1)); t.n=Math.max(0,t.n-d);
+      if(was<DAY_MS*BALANCE.stressWarningDays&&t.ng>=DAY_MS*BALANCE.stressWarningDays) toast(`⚠️ The ${LIFE[t.b].word} at your ${BLDS[t.b].name} are suffering (${why}). Some will die soon!`,4000);
+      if(t.ng>DAY_MS*BALANCE.stressLossDays){t.dl=(t.dl||0)+dt; if(t.dl>=BALANCE.lossInterval){t.dl=0; const d=Math.max(1,Math.ceil(t.n*BALANCE.lossFraction)); t.n=Math.max(0,t.n-d);
         if(!t.n){t.gp=0; t.sick=false; t.hungry=false; t.ng=0;} floatAt(i,`💀 -${d}`); toast(`💀 ${d} ${LIFE[t.b].word} died at your ${BLDS[t.b].name} (${why}).`,3800); updateTile(i,now); save();}}}
     else {t.ng=Math.max(0,(t.ng||0)-dt*3); t.dl=0;}}
 },1000);
@@ -3176,18 +3250,18 @@ function emptySlotSign(s){   // a dashed outline on the ground and a little boar
     EMPTY_TEX[s.type]=new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv),side:THREE.DoubleSide});}
   const q=new THREE.Mesh(new THREE.PlaneGeometry(1.5,.75),EMPTY_TEX[s.type]); q.position.set(0,1.55,s.d/2-.3); g.add(q); return g;}
 (()=>{const posts=[], pads=[];
-  FARM.areas.forEach((a,ai)=>{const pts=organic(a.fence,ai*7+3), [gx,gz]=a.gate;
+  FARM.areas.forEach((a,ai)=>{const pts=a.outline?spline(a.outline,true,1):organic(a.fence,ai*7+3), [gx,gz]=a.gate;
     // ground inside the fence
     const sh=new THREE.Shape(); pts.forEach(([x,z],k)=>k?sh.lineTo(x,-z):sh.moveTo(x,-z)); const geo=new THREE.ShapeGeometry(sh); geo.rotateX(-Math.PI/2);
     const gm=new THREE.Mesh(geo,worldGrass(AREA_GROUND[a.type])); gm.position.y=.024; gm.receiveShadow=true; scene.add(gm);
     // posts and two rails, with a gap at the gate
-    for(let k=0;k<pts.length-1;k++){const [x0,z0]=pts[k], [x1,z1]=pts[k+1]; if(Math.hypot((x0+x1)/2-gx,(z0+z1)/2-gz)<2.2||roadDist((x0+x1)/2,(z0+z1)/2)<.3) continue;
+    for(let k=0;k<pts.length-1;k++){const [x0,z0]=pts[k], [x1,z1]=pts[k+1]; if((!a.loading&&Math.hypot((x0+x1)/2-gx,(z0+z1)/2-gz)<2.2)||roadDist((x0+x1)/2,(z0+z1)/2)<.3) continue;
       const len=Math.hypot(x1-x0,z1-z0), ry=Math.atan2(x1-x0,z1-z0); posts.push([x0,.6,z0,.14,1.2,.14,0x6d4c41,ry]);
       for(const y of [.4,.9]) posts.push([(x0+x1)/2,y,(z0+z1)/2,.06,.07,len+.04,0x8d6e4b,ry]);}
     // gate posts and a name board beside the gate
-    const k=nearestOn(pts,gx,gz), [ax,az]=pts[Math.max(0,k-1)], [bx,bz]=pts[Math.min(pts.length-1,k+1)], al=Math.atan2(bx-ax,bz-az);
-    for(const s of [-1,1]) posts.push([gx+Math.sin(al)*s*1.7,.8,gz+Math.cos(al)*s*1.7,.22,1.6,.22,0x5d4037,al]);
-    boardSign([a.name.toUpperCase(),BLDS[a.type].icon+' '+BLDS[a.type].name],'#5d4037','#ffe082',gx+Math.sin(al)*3.4,gz+Math.cos(al)*3.4,al+Math.PI/2,2.6,.8,1.1);
+    const k=nearestOn(pts,gx,gz),[ax,az]=pts[Math.max(0,k-1)],[bx,bz]=pts[Math.min(pts.length-1,k+1)],al=Math.atan2(bx-ax,bz-az);
+    for(const side of [-1,1])posts.push([gx+Math.sin(al)*side*1.7,.8,gz+Math.cos(al)*side*1.7,.22,1.6,.22,0x5d4037,al]);
+    boardSign([a.name.toUpperCase()],'#5d4037','#ffe082',gx+Math.sin(al)*3,gz+Math.cos(al)*3,0,2.8,.8,1.3);
     // concrete pads under poultry and pig houses
     if(a.type==='coop'||a.type==='broiler'||a.type==='pig') a.slots.forEach(([x,z,w,d])=>pads.push(P('box',0xa39c8c,x,.05,z,w+.6,.1,d+.6)));});
   const pm=instR(PG.box,posts); pm.castShadow=true; scene.add(pm);
@@ -3329,6 +3403,12 @@ const flashBox=new THREE.LineSegments(new THREE.EdgesGeometry(box(T*.97,.24,T*.9
 scene.add(flashBox); let flashT=-1e9;
 function flash(i){const t=S.tiles[i], sz=(t&&t.s==='bld'&&BLDS[t.b].size)||1, sl=slotOf(i); if(sl) flashBox.scale.set(sl.w/T,1,sl.d/T); else flashBox.scale.set(sz,1,sz); const p=tilePos(i); flashBox.position.set(p.x,.12,p.z); flashT=performance.now();}
 
+const gameHealth={graphicsLost:false,errors:[],lastErrorAt:-Infinity};
+function reportGameError(stage,error){const now=performance.now(),message=String(error&&error.stack||error);
+  if(now-gameHealth.lastErrorAt<3000)return;gameHealth.lastErrorAt=now;
+  gameHealth.errors.push({stage,message,time:Date.now()});if(gameHealth.errors.length>12)gameHealth.errors.shift();console.error('[Sunfield '+stage+']',error);
+}
+window.sunfieldHealth=gameHealth;
 /* ---------- Camera controls ---------- */
 let follow=false, fly=null, followFarmer=false;
 const cam={target:new THREE.Vector3(0,0,1),dist:30,yaw:.6,pitch:.85};
@@ -3357,7 +3437,7 @@ const zoom=f=>{cam.dist=Math.max(10,Math.min(130,cam.dist*f));};
 const ptrs=new Map(); let down=null, moved=false, btn=0, pinch=null, moveCand=-1, moving=null;
 function pinchInfo(){const [a,b]=[...ptrs.values()]; return {d:Math.hypot(a.x-b.x,a.y-b.y)||1, ang:Math.atan2(b.y-a.y,b.x-a.x), mx:(a.x+b.x)/2, my:(a.y+b.y)/2};}
 canvas.addEventListener('pointerdown',e=>{
-  canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  try{canvas.setPointerCapture(e.pointerId);}catch(_){} ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(ptrs.size===1){down={x:e.clientX,y:e.clientY}; moved=false; btn=e.button;
     if(btn===0&&!e.shiftKey&&isBrush()) showHand(e.clientX,e.clientY);
     moveCand=-1;
@@ -3389,17 +3469,28 @@ canvas.addEventListener('pointermove',e=>{
 });
 function endPtr(e){
   if(!ptrs.has(e.pointerId)) return;
+  try{
   cancelHold();
   if(moving){ if(e.type==='pointerup') dropBuilding(e.clientX,e.clientY); else cancelMove(); }
   moveCand=-1;
   if(ptrs.size===1&&!moved&&e.type==='pointerup'){const x=e.clientX,y=e.clientY;
-    if(hitMarket(x,y)) openMarket(); else if(hitObj(hwG,x,y)) openHW('hardware'); else if(hitObj(psG,x,y)) openHW('poultry'); else if(hitObj(ssG,x,y)) openHW('seeds'); else if(hitObj(whG,x,y)||hitObj(facG,x,y)) openBiz(); else if(hitObj(houseG,x,y)) openHome(); else if(hitObj(katG,x,y)) openKat();
+    if(hitObj(farmShop.g,x,y))openFarmShop();else if(hitMarket(x,y)) openMarket(); else if(hitObj(hwG,x,y)) openHW('hardware'); else if(hitObj(psG,x,y)) openHW('poultry'); else if(hitObj(ssG,x,y)) openHW('seeds'); else if(hitObj(whG,x,y)||hitObj(facG,x,y)) openBiz(); else if(hitObj(houseG,x,y)) openHome(); else if(hitObj(katG,x,y)) openKat();
     else if(hitObj(garageG,x,y)||(OWN('jeep')&&!S.veh.jeep.trip&&hitObj(jeep,x,y))||(S.veh.truck.owned&&!S.veh.truck.trip&&hitObj(truck,x,y))) openUp('garage');
     else onTap(pick(x,y)); }
   if(stroke) endStroke();
   hideHand();
-  ptrs.delete(e.pointerId); if(ptrs.size<2) pinch=null;
+  }finally{ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=null;if(!ptrs.size)down=null;}
 }
+
+function resetMapInput(){
+  ptrs.clear();down=null;pinch=null;moved=false;moveCand=-1;
+  cancelHold();if(stroke)endStroke();if(moving)cancelMove();hideHand();
+}
+canvas.addEventListener('lostpointercapture',e=>{if(ptrs.has(e.pointerId))resetMapInput();});
+addEventListener('blur',resetMapInput);
+document.addEventListener('visibilitychange',()=>{resetMapInput();if(!document.hidden)lastFrame=performance.now();});
+canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();gameHealth.graphicsLost=true;resetMapInput();});
+canvas.addEventListener('webglcontextrestored',()=>{gameHealth.graphicsLost=false;lastFrame=performance.now();if(PHONE)renderer.setPixelRatio(1);resize();renderer.shadowMap.needsUpdate=true;});
 
 /* the hoe / seed bag / sickle that follows the finger */
 const HAND={plow:'hoe',plant:'seeds',harvest:'sickle'};
@@ -3862,8 +3953,8 @@ function doJob(j){
   if(j.type==='water'){if(t.s!=='crop'||!t.dry) return null; t.dry=false; t.t=now; const p=tilePos(i); floatAt(i,'💧'); sfx('splash',p.x,p.z); updateTile(i,now); changed(); return '';}
   if(j.type==='care'){if(t.s!=='bld'||!LIFE[t.b]) return null; const p=tilePos(i);   // water, vaccine or medicine for an animal house
     if(j.what==='water'){t.wet=now; floatAt(i,'💧 Salamat!'); sfx('splash',p.x,p.z);}
-    else if(j.what==='cure'){if(!t.sick||(S.mats.gamot||0)<1) return null; S.mats.gamot--; t.sick=false; t.ng=0; floatAt(i,'💊 Magaling na!'); sfx('collect',p.x,p.z);}
-    else if(j.what==='vax'){if((S.mats.bakuna||0)<1) return null; S.mats.bakuna--; t.vaxUntil=now+12*DAY_MS; floatAt(i,'💉 Protected'); sfx('collect',p.x,p.z);}
+    else if(j.what==='cure'){if(!t.sick||(S.mats.gamot||0)<1) return null; S.mats.gamot--; t.sick=false; t.ng=0;t.dl=0;t.vaxUntil=Math.max(t.vaxUntil||0,now+BALANCE.recoveryDays*DAY_MS); floatAt(i,'💊 Magaling na!'); sfx('collect',p.x,p.z);}
+    else if(j.what==='vax'){if((S.mats.bakuna||0)<1) return null; S.mats.bakuna--; t.vaxUntil=now+BALANCE.vaccineDays*DAY_MS; floatAt(i,'💉 Protected'); sfx('collect',p.x,p.z);}
     updateTile(i,now); changed(); return '';}
   if(j.type==='harvest'){
     const ok=(t.s==='crop'||(t.s==='bld'&&BLDS[t.b].period))&&progress(i,now)>=1&&!underConstruction(t,now); if(!ok) return null;
@@ -4325,29 +4416,41 @@ function hitMarket(x,y){
 /* ---------- Vehicles: deliveries to the palengke and shopping at the hardware ---------- */
 const MATS={wood:{name:'Kahoy',sub:'lumber',icon:'🪵',price:8,store:'hardware'},nails:{name:'Pako',sub:'1 kg of nails',icon:'🔩',price:6,store:'hardware'},
   yero:{name:'Yero',sub:'GI roof sheet',icon:'🔳',price:22,store:'hardware'},cement:{name:'Semento',sub:'40 kg bag',icon:'🪨',price:28,store:'hardware'},hollow:{name:'Hollow blocks',sub:'per piece',icon:'🧱',price:7,store:'hardware'},
-  feed:{name:'Patuka ng manok',sub:'50 kg sack for the itlogan and broilers',icon:'🐔',price:20,store:'poultry'},
-  feed_pig:{name:'Pakain sa baboy',sub:'50 kg sack of hog grower for the babuyan',icon:'🐷',price:24,store:'poultry'},
-  feed_fish:{name:'Pakain sa isda',sub:'sack of floating fish pellets for the palaisdaan',icon:'🐠',price:18,store:'poultry'},
-  feed_cow:{name:'Dayami at darak',sub:'bale of rice straw and bran for the bakahan',icon:'🐮',price:16,store:'poultry'},
-  chick:{name:'Sisiw',sub:'box of 10 day-old chicks, for the itlogan or the broilers',icon:'🐣',price:150,store:'poultry'},
-  pullet:{name:'Dumalaga',sub:'crate of 10 ready-to-lay hens',icon:'🐓',price:600,store:'poultry'},
-  duckling:{name:'Bibi',sub:'box of 10 ducklings',icon:'🐥',price:180,store:'poultry'},
-  itik:{name:'Itik na nangingitlog',sub:'crate of 10 laying ducks',icon:'🦆',price:700,store:'poultry'},
-  fingerling:{name:'Similya ng tilapia',sub:'bag of 50 fingerlings',icon:'🐟',price:120,store:'poultry'},
-  piglet:{name:'Biik',sub:'one weaned piglet',icon:'🐖',price:500,store:'poultry'},
-  calf:{name:'Guya',sub:'one young calf',icon:'🐄',price:1500,store:'poultry'},
-  kid:{name:'Batang kambing',sub:'one goat kid',icon:'🐐',price:450,store:'poultry'},
-  bakuna:{name:'Bakuna',sub:'bird-flu vaccine for one poultry house (lasts 6 game months)',icon:'💉',price:150,store:'poultry'},
-  gamot:{name:'Gamot',sub:'medicine that cures one sick house',icon:'💊',price:200,store:'poultry'},
-  bigas:{name:'Bigas',sub:'1 kilo of rice, for kanin',icon:'🍚',price:55,store:'sari',food:1},
-  sardinas:{name:'Sardinas',sub:'a can of sardines in tomato sauce',icon:'🥫',price:28,store:'sari',food:1},
-  canton:{name:'Pancit canton',sub:'a pack of instant pancit canton',icon:'🍜',price:18,store:'sari',food:1},
-  corned:{name:'Corned beef',sub:'a can of corned beef',icon:'🥘',price:45,store:'sari',food:1},
-  tuyo:{name:'Tuyo',sub:'a pack of dried fish',icon:'🍢',price:35,store:'sari',food:1},
-  pandesal:{name:'Pandesal',sub:'a bag of 5 bread rolls',icon:'🥖',price:25,store:'sari',food:1},
-  kape:{name:'Kape',sub:'a sachet of 3-in-1 coffee: wakes your farmer up',icon:'☕',price:8,store:'sari',food:1}};
+  feed:{name:'Patuka ng manok',sub:'50 kg sack for the itlogan and broilers',icon:'🐔',price:12,store:'poultry'},
+  feed_pig:{name:'Pakain sa baboy',sub:'50 kg sack of hog grower for the babuyan',icon:'🐷',price:14,store:'poultry'},
+  feed_fish:{name:'Pakain sa isda',sub:'sack of floating fish pellets for the palaisdaan',icon:'🐠',price:10,store:'poultry'},
+  feed_cow:{name:'Dayami at darak',sub:'bale of rice straw and bran for the bakahan',icon:'🐮',price:10,store:'poultry'},
+  chick:{name:'Sisiw',sub:'box of 10 day-old chicks, for the itlogan or the broilers',icon:'🐣',price:100,store:'poultry'},
+  pullet:{name:'Dumalaga',sub:'crate of 10 ready-to-lay hens',icon:'🐓',price:400,store:'poultry'},
+  duckling:{name:'Bibi',sub:'box of 10 ducklings',icon:'🐥',price:120,store:'poultry'},
+  itik:{name:'Itik na nangingitlog',sub:'crate of 10 laying ducks',icon:'🦆',price:450,store:'poultry'},
+  fingerling:{name:'Similya ng tilapia',sub:'bag of 50 fingerlings',icon:'🐟',price:80,store:'poultry'},
+  piglet:{name:'Biik',sub:'one weaned piglet',icon:'🐖',price:300,store:'poultry'},
+  calf:{name:'Guya',sub:'one young calf',icon:'🐄',price:1100,store:'poultry'},
+  kid:{name:'Batang kambing',sub:'one goat kid',icon:'🐐',price:300,store:'poultry'},
+  bakuna:{name:'Bakuna',sub:'bird-flu vaccine for one poultry house (lasts 12 game months)',icon:'💉',price:50,store:'poultry'},
+  gamot:{name:'Gamot',sub:'medicine that cures one sick house',icon:'💊',price:60,store:'poultry'},
+  bigas:{name:'Bigas',sub:'1 kilo of rice, for kanin',icon:'🍚',price:30,store:'sari',food:1},
+  sardinas:{name:'Sardinas',sub:'a can of sardines in tomato sauce',icon:'🥫',price:20,store:'sari',food:1},
+  canton:{name:'Pancit canton',sub:'a pack of instant pancit canton',icon:'🍜',price:12,store:'sari',food:1},
+  corned:{name:'Corned beef',sub:'a can of corned beef',icon:'🥘',price:32,store:'sari',food:1},
+  tuyo:{name:'Tuyo',sub:'a pack of dried fish',icon:'🍢',price:22,store:'sari',food:1},
+  pandesal:{name:'Pandesal',sub:'a bag of 5 bread rolls',icon:'🥖',price:15,store:'sari',food:1},
+  kape:{name:'Kape',sub:'a sachet of 3-in-1 coffee: wakes your farmer up',icon:'☕',price:6,store:'sari',food:1}};
 for(const id in CROPS){const c=CROPS[id]; MATS['seed_'+id]={name:`Binhi ng ${c.name}`,sub:`seeds for 1 plot · ready in ${fmt(c.time)}`,icon:c.icon,price:c.cost,store:'seeds',crop:id};}
-const TRUCK_PRICE=15000, PLACE={brgy:'barangay',city:'city',palengke:'palengke',hardware:'hardware',poultry:'poultry supply',seeds:'Binhi store',warehouse:'warehouse',pickup:'animal pens',mountain:'mountain barangay',sari:'sari-sari store',port:'pantalan'};
+
+if((S.balanceVersion||0)<1){
+  if(lifeTiles().some(i=>S.tiles[i].n>0)){
+    S.coins+=1500;for(const k of ['feed','feed_pig','feed_cow','feed_fish'])S.mats[k]=(S.mats[k]||0)+12;
+    S.mats.bakuna=(S.mats.bakuna||0)+2;S.mats.gamot=(S.mats.gamot||0)+2;
+    S.me.hunger=Math.max(80,S.me.hunger);S.me.energy=Math.max(80,S.me.energy);
+    for(const i of lifeTiles()){const t=S.tiles[i];t.ng=0;t.dl=0;t.sick=false;t.vaxUntil=Math.max(t.vaxUntil||0,Date.now()+2*DAY_MS);}
+  }
+  for(const o of [...(S.orders||[]),...(S.missions||[])])if(o.items)o.reward=Math.max(o.reward||0,Math.round(Object.entries(o.items).reduce((n,[k,q])=>n+(ITEMS[k]?.price||0)*q,0)*1.2));
+  if(S.ev.flu!=null)S.ev.lastFluMonth=monthN();if(heatOn())S.ev.lastHeatMonth=monthN();
+  S.balanceVersion=1;save();
+}
+const TRUCK_PRICE=15000, PLACE={farmshop:'your mini-mart',brgy:'barangay',city:'city',palengke:'palengke',hardware:'hardware',poultry:'poultry supply',seeds:'Binhi store',warehouse:'warehouse',pickup:'animal pens',mountain:'mountain barangay',sari:'sari-sari store',port:'pantalan'};
 const matsLabel=m=>Object.entries(m).filter(([,n])=>n>0).map(([k,n])=>`${n} ${MATS[k].name}`).join(', ');
 const farmerBusyDriving=()=>{const F=farmer; return !!(S.pasa||F.riding||F.jobs.some(j=>j.type==='board')||(F.cur&&F.cur.type==='board'));};
 const driverFree=()=>!!freeDriver()||!farmerBusyDriving();   // every vehicle needs someone to drive it
@@ -4367,7 +4470,7 @@ function openDriverPick(vid){drvVid=vid; const V=VEH[vid];
   $('drvSheet').classList.add('open');}
 function closeDriverPick(pick){const vid=drvVid; drvVid=null; $('drvSheet').classList.remove('open'); if(!vid) return; const tr=S.veh[vid].trip; if(!tr||tr.driver!=='pending') return;
   const free=driverChoices().filter(c=>c.free); if(pick&&free.some(c=>c.id===pick)) assignDriver(vid,pick); else if(free.length) assignDriver(vid,(free.find(c=>c.id!=='farmer')||free[0]).id); else {S.veh[vid].trip=null; noDriver(); refundTrip(tr);}}
-function refundTrip(tr){if(tr.cargo) S.load.push(...tr.cargo); if(tr.goods) for(const k in tr.goods) S.inv[k]=(S.inv[k]||0)+tr.goods[k]; changed();}
+function refundTrip(tr){shopRefund(tr);if(tr.cargo) S.load.push(...tr.cargo); if(tr.goods) for(const k in tr.goods) S.inv[k]=(S.inv[k]||0)+tr.goods[k]; changed();}
 function beginTrip(vid,tr,by){ // you choose who drives when more than one person is free (a Biyahero delivering on his own drives himself)
   const st=S.veh[vid], free=driverChoices().filter(c=>c.free);
   if(!free.length){noDriver(); return false;}
@@ -4378,8 +4481,60 @@ function beginTrip(vid,tr,by){ // you choose who drives when more than one perso
 }
 function departAt(vid){const tr=S.veh[vid].trip, V=VEH[vid]; let t0=Date.now(); sfx('engine',V.slot,G0+V.doorZ); setTimeout(()=>sfx('horn',V.slot,G0+V.doorZ),700);
   for(const o in S.veh){const ot=S.veh[o].trip; if(o!==vid&&ot&&ot.t0&&ot.dest===tr.dest&&t0-ot.t0<7000) t0=Math.max(t0,ot.t0+7000);} return t0;}
-function vehPhase(vid,now){
-  const tr=S.veh[vid].trip, R=routesFor(vid,tr.dest,tr); if(!tr.t0) return {ph:'board',R};
+// Only one pickup uses the narrow farm service road at a time. Others wait in their bays.
+const FARM_DISPATCH={owner:null,initialized:false};
+function farmYieldRoute(vid,phase){const V=VEH[vid],R=phase.R.out,e=Math.max(0,phase.e||0),segments=R.segs;
+  let k=segments.findIndex(seg=>e<=seg.t0+seg.dur);if(k<0)k=segments.length-1;
+  const pts=[[V.obj.position.x,V.obj.position.z,SPD.slow,!segments[k].rev]];
+  for(let i=k;i>=0;i--){const seg=segments[i];pts.push([seg.a[0],seg.a[1],SPD.slow,i>0?!segments[i-1].rev:!seg.rev]);}
+  return mkRoute(pts);
+}
+const LOADING_DISPATCH={owners:{}};
+function updateLoadingBayDispatch(now){
+  for(const A of FARM.areas){const ids=Object.keys(VEH).filter(v=>{const tr=S.veh[v].trip;if(!tr||tr.dest!=='pickup'||(tr.pickupLayout!==2&&tr.pickupLayout!==3)||tr.area!==A.type||!tr.t0||tr.driver==='pending')return false;
+      const P=vehPhase(v,now,true);return tr.farmHold||!(P.ph==='done'||P.ph==='back'&&P.e>6);});
+    if(!ids.includes(LOADING_DISPATCH.owners[A.type]))delete LOADING_DISPATCH.owners[A.type];
+    if(!LOADING_DISPATCH.owners[A.type]&&ids.length){ids.sort((a,b)=>S.veh[a].trip.t0-S.veh[b].trip.t0);const v=ids[0],tr=S.veh[v].trip;
+      if(tr.farmHold){delete tr.farmHold;tr.t0=now;}LOADING_DISPATCH.owners[A.type]=v;}
+    for(const v of ids){const tr=S.veh[v].trip;tr.farmBlocked=false;if(v!==LOADING_DISPATCH.owners[A.type])tr.farmHold=true;}
+  }
+}
+function updateFarmDispatch(now,dt){
+  updateLoadingBayDispatch(now); // Only requests for the same pen queue; different pens run together.
+  const active=Object.keys(VEH).filter(v=>{const tr=S.veh[v].trip;return tr&&tr.dest==='pickup'&&tr.pickupLayout!==2&&tr.pickupLayout!==3&&tr.t0&&tr.driver!=='pending';});
+  if(!FARM_DISPATCH.initialized){FARM_DISPATCH.initialized=true;
+    for(const vid of active){const tr=S.veh[vid].trip,V=VEH[vid];if(tr.farmHold)continue;const P=vehPhase(vid,now,true);
+      const R=tr.farmYield?tr.farmYield.R:P.ph==='out'?P.R.out:P.ph==='back'?P.R.back:null;
+      if(R){const q=routePos(R,tr.farmYield?tr.farmYield.e:P.e);V.obj.position.set(q.x,V.obj.position.y,q.z);V.obj.rotation.y=q.ang;}}
+  }
+  const owner=FARM_DISPATCH.owner;
+  if(owner&&(!active.includes(owner)||vehPhase(owner,now,true).ph==='done'))FARM_DISPATCH.owner=null;
+  if(!FARM_DISPATCH.owner){const ready=active.filter(v=>!S.veh[v].trip.farmYield);
+    ready.sort((a,b)=>{const A=vehPhase(a,now,true),B=vehPhase(b,now,true);return (B.ph==='back'?1:0)-(A.ph==='back'?1:0)||(S.veh[a].trip.farmQueuedAt||S.veh[a].trip.t0)-(S.veh[b].trip.farmQueuedAt||S.veh[b].trip.t0);});
+    const next=ready[0];if(next){const tr=S.veh[next].trip;if(tr.farmHold){tr.farmHold=false;tr.t0=now;}FARM_DISPATCH.owner=next;}
+  }
+  for(const vid of active){const tr=S.veh[vid].trip,V=VEH[vid];if(vid===FARM_DISPATCH.owner)continue;
+    if(tr.farmYield){const Y=tr.farmYield,q=routePos(Y.R,Math.min(Y.R.T,Y.e+dt));
+      if(trafficCanMove(V.obj,q.x,q.z,q.ang,V.len||6)){Y.e+=dt;V.obj.position.set(q.x,V.obj.position.y,q.z);V.obj.rotation.y=lerpAng(V.obj.rotation.y,q.ang,1-Math.exp(-dt*7));}
+      if(Y.e>=Y.R.T){delete tr.farmYield;tr.farmHold=true;tr.t0=now;save();}continue;}
+    if(tr.farmHold)continue;
+    tr.farmQueuedAt=tr.farmQueuedAt||now;
+    const phase=vehPhase(vid,now,true);
+    if(phase.ph==='out'&&Math.hypot(V.obj.position.x-V.slot,V.obj.position.z-G0)>1){tr.farmYield={R:farmYieldRoute(vid,phase),e:0};}
+    else if(phase.ph==='board'||phase.ph==='out'){tr.farmHold=true;}
+    else if(phase.ph==='back'||phase.ph==='stop'){
+      // Loaded vehicles already away from the garage finish first; do not undo animal collection.
+      const previous=FARM_DISPATCH.owner;FARM_DISPATCH.owner=vid;
+      if(previous&&previous!==vid){const p=S.veh[previous].trip,P=vehPhase(previous,now,true);if(P.ph==='out')p.farmYield={R:farmYieldRoute(previous,P),e:0};}
+    }
+  }
+  const lead=FARM_DISPATCH.owner&&S.veh[FARM_DISPATCH.owner].trip;
+  if(lead){lead.farmBlocked=active.some(v=>v!==FARM_DISPATCH.owner&&S.veh[v].trip.farmYield);if(lead.farmBlocked)lead.t0+=dt*1000;}
+}
+function vehPhase(vid,now,raw=false){
+  const tr=S.veh[vid].trip, R=routesFor(vid,tr.dest,tr);
+  if(!raw&&tr.farmYield)return {ph:'yield',e:tr.farmYield.e,R,yieldRoute:tr.farmYield.R};
+  if(!raw&&tr.farmHold)return {ph:'queued',R}; if(!tr.t0) return {ph:'board',R};
   const e=(now-tr.t0)/1000, st=tr.stopT||STOP[tr.dest];
   if(e<R.out.T) return {ph:'out',e,R};
   if(e<R.out.T+st) return {ph:'stop',e:e-R.out.T,R};
@@ -4398,6 +4553,7 @@ function updateVehicles(now){
   for(const vid in VEH){
     const st=S.veh[vid], tr=st.trip; if(!tr) continue;
     const ph=vehPhase(vid,now);
+    if(tr.dest==='farmshop'&&!tr.shopDelivered&&['stop','back','done'].includes(ph.ph))shopDeliver(tr);
     if(tr.dest==='city'&&!tr.paid&&ph.ph!=='out'&&ph.ph!=='board'){tr.paid=true; let n=0, coins=0;
       for(const k in (tr.goods||{})){n+=tr.goods[k]; coins+=tr.goods[k]*ITEMS[k].price*CITY_RATE;} let xpB=0; for(const c of (tr.cargo||[])){coins+=c.coins; xpB+=c.xp||0; n+=c.n||0; if(c.mission) S.stats.missions=(S.stats.missions||0)+1;}
       coins=Math.round(coins); S.coins+=coins; sfx('cash'); gainXP(Math.max(2,Math.round(coins/50))+xpB);
@@ -4433,10 +4589,43 @@ function updateVehicles(now){
 function vehText(vid,now){
   const tr=S.veh[vid].trip; if(!tr) return '';
   const ph=vehPhase(vid,now), place=PLACE[tr.dest];
+  if(tr.farmBlocked)return 'Waiting for the other truck to back clear';
+  if(ph.ph==='queued')return (tr.pickupLayout===2||tr.pickupLayout===3)?'Waiting for the animal pickup spot':'Waiting at the farm for the narrow road';
+  if(ph.ph==='yield')return 'Backing up to let the returning truck pass';
   if(ph.ph==='board') return tr.driver==='farmer'?'Waiting for your farmer…':`Waiting for ${driverName(tr)}…`;
   if(ph.ph==='out') return VEH[vid].waitBay?'Waiting for its turn at the bagsakan…':`To ${place} ${fmt(ph.R.out.T-ph.e)}`;
   if(ph.ph==='stop') return tr.dest==='palengke'?'Unloading…':`Loading at ${place}…`;
   return `Coming home ${fmt(ph.R.back.T-ph.e)}`;
+}
+// Temporary grass-shoulder maneuver; no extra road meshes or lot changes.
+function farmPassPose(V,tr,p,now,dt){
+  const o=V.obj,ph=vehPhase(Object.keys(VEH).find(v=>VEH[v]===V),now),R=ph.ph==='out'?ph.R.out:ph.ph==='back'?ph.R.back:null;
+  if(!R){delete V.farmPass;return p;}
+  if(!V.farmPass&&!trafficCanMove(o,p.x,p.z,p.ang,V.len||6)){
+    const target=Math.min(R.T,ph.e+5),q=routePos(R,target),dx=q.x-o.position.x,dz=q.z-o.position.z,L=Math.hypot(dx,dz);
+    if(L>3)for(const side of [1,-1]){const nx=dz/L*side,nz=-dx/L*side,offset=5.5;
+      const points=[[o.position.x+nx*offset,o.position.z+nz*offset],[q.x+nx*offset,q.z+nz*offset],[q.x,q.z]];
+      const samples=[];let last=[o.position.x,o.position.z];for(const point of points){const n=Math.ceil(Math.hypot(point[0]-last[0],point[1]-last[1]));for(let k=1;k<=n;k++)samples.push([last[0]+(point[0]-last[0])*k/n,last[1]+(point[1]-last[1])*k/n]);last=point;}
+      const clear=samples.every(([x,z])=>!SLOTS.some(s=>Math.abs(x-s.x)<s.w/2+1.5&&Math.abs(z-s.z)<s.d/2+1.5));
+      if(clear&&trafficCanMove(o,points[0][0],points[0][1],Math.atan2(nx,nz),V.len||6)){V.farmPass={points,k:0,target,phase:ph.ph};break;}
+    }
+  }
+  const D=V.farmPass;if(!D)return p;
+  tr.t0+=dt*1000;
+  const goal=D.points[D.k],dx=goal[0]-o.position.x,dz=goal[1]-o.position.z,d=Math.hypot(dx,dz),step=Math.min(d,SPD.slow*dt);
+  const q={x:o.position.x+(d?dx/d*step:0),z:o.position.z+(d?dz/d*step:0),ang:d?Math.atan2(dx,dz):o.rotation.y};
+  if(!trafficCanMove(o,q.x,q.z,q.ang,V.len||6))return {x:o.position.x,z:o.position.z,ang:o.rotation.y};
+  if(d<=step+.01&&++D.k===D.points.length){const wait=tr.stopT||STOP.pickup;tr.t0=now-(D.target+(D.phase==='back'?ph.R.out.T+wait:0))*1000;delete V.farmPass;}
+  return q;
+}
+// Player errands share the same turn reservations as NPC traffic, not a front-only proximity check.
+function advancePlayerTraffic(vid,now,dt){
+  const V=VEH[vid],tr=S.veh[vid].trip,P=vehPhase(vid,now);
+  if(P.ph!=='out'&&P.ph!=='back')return;
+  const R=P.ph==='out'?P.R.out:P.R.back,elapsed=Math.min(dt,Math.max(0,P.e)),before=Math.max(0,P.e-elapsed);
+  const allowed=trafficRouteTime(V.obj,R,before,elapsed,V.len||6);
+  const wait=Math.max(0,P.e-allowed);if(wait>0)tr.t0+=wait*1000;
+  V.blk=wait>0?(V.blk||0)+dt:0;
 }
 function placeVehicles(now,dt){
   for(const vid in VEH){
@@ -4444,13 +4633,17 @@ function placeVehicles(now,dt){
     if(!OWN(vid)){o.visible=false; continue;} o.visible=true;
     let p={x:V.slot,z:G0,ang:0}, goods=false, mats=0;
     V.waitBay=false; if(st.trip&&st.trip.t0&&st.trip.dest==='warehouse'){const P0=vehPhase(vid,now); if(P0.ph==='out'&&P0.R.out.T-P0.e<1.2&&traders.some(T=>T.state==='dock'||T.state==='unload')){st.trip.t0+=dt*1000; V.waitBay=true; if(!V.saidWait){V.saidWait=true; toast(`🚛 ${traders.find(T=>T.state==='dock'||T.state==='unload').label}'s truck is unloading at the bagsakan. Your ${vname(vid)} waits for its turn.`,3400);}} else if(P0.ph!=='out') V.saidWait=false;}
-    if(st.trip&&st.trip.t0){const ph0=vehPhase(vid,now).ph; const blk=(ph0==='out'||ph0==='back')&&aheadGap(o,o.position.x,o.position.z,o.rotation.y,V.len||6)<1.2;
-      V.blk=blk?(V.blk||0)+dt:0; if(blk&&V.blk<8) st.trip.t0+=dt*1000;}   // wait behind whoever stopped in front
+    if(st.trip&&st.trip.t0&&st.trip.dest!=='pickup')advancePlayerTraffic(vid,now,dt);
     if(st.trip){const ph=vehPhase(vid,now), R=ph.R;
-      if(ph.ph==='out'){p=routePos(R.out,ph.e); goods=['palengke','warehouse','city','brgy','mountain','port'].includes(st.trip.dest)?Math.max(.2,st.trip.fill||1):false;}
-      else if(ph.ph==='stop'){p=routePos(R.out,R.out.T); if(!['palengke','warehouse','city','brgy','mountain','pickup','port'].includes(st.trip.dest)) mats=Math.min(1,ph.e/STOP[st.trip.dest])*matsFrac(st.trip,vid); else if(st.trip.dest!=='pickup') goods=Math.max(.2,st.trip.fill||1)*(1-Math.min(1,ph.e/(STOP.palengke*.85)));}   // pickups load inside the vehicle, nothing on the roof
-      else if(ph.ph==='back'){p=routePos(R.back,ph.e); if(!['palengke','warehouse','city','brgy','mountain','pickup','port'].includes(st.trip.dest)) mats=matsFrac(st.trip,vid);}
+      if(st.trip.farmBlocked)p={x:o.position.x,z:o.position.z,ang:o.rotation.y};
+      else if(ph.ph==='yield')p=routePos(ph.yieldRoute,Math.min(ph.e,ph.yieldRoute.T));
+      else if(ph.ph==='queued')p={x:V.slot,z:G0,ang:0};
+      else if(ph.ph==='out'){p=routePos(R.out,ph.e); goods=['farmshop','palengke','warehouse','city','brgy','mountain','port'].includes(st.trip.dest)?Math.max(.2,st.trip.fill||1):false;}
+      else if(ph.ph==='stop'){p=routePos(R.out,R.out.T); if(!['farmshop','palengke','warehouse','city','brgy','mountain','pickup','port'].includes(st.trip.dest)) mats=Math.min(1,ph.e/STOP[st.trip.dest])*matsFrac(st.trip,vid); else if(st.trip.dest!=='pickup') goods=Math.max(.2,st.trip.fill||1)*(1-Math.min(1,ph.e/(STOP.palengke*.85)));}   // pickups load inside the vehicle, nothing on the roof
+      else if(ph.ph==='back'){p=routePos(R.back,ph.e); if(!['farmshop','palengke','warehouse','city','brgy','mountain','pickup','port'].includes(st.trip.dest)) mats=matsFrac(st.trip,vid);}
     }
+    if(st.trip&&st.trip.dest==='pickup'&&(st.trip.pickupLayout===2||st.trip.pickupLayout===3))p=farmPassPose(V,st.trip,p,now,dt);
+    if(st.trip&&!trafficCanMove(o,p.x,p.z,p.ang,V.len||6)){if(st.trip.t0)st.trip.t0+=dt*1000;p={x:o.position.x,z:o.position.z,ang:o.rotation.y};}
     if(V.prev){const d=Math.hypot(p.x-V.prev.x,p.z-V.prev.z); if(d<5) V.wheels.forEach(w=>w.rotation.y-=d/V.r);} V.prev={x:p.x,z:p.z};
     const moving=st.trip&&p.x!==V.slot;
     o.position.set(p.x,moving?Math.abs(Math.sin(now/90))*.03:0,p.z); o.rotation.y=lerpAng(o.rotation.y,p.ang,1-Math.exp(-dt*7)); suspend(V,p.x,p.z,o.rotation.y,dt,moving);
@@ -4476,7 +4669,7 @@ function placeVehicles(now,dt){
 // what you see on the roof or bed matches what you bought: a few small things ride in the cab, food never shows as lumber
 function matsFrac(tr,vid){if(!tr||tr.dest==='sari') return 0; const n=Object.values(tr.mats||{}).reduce((a,b)=>a+b,0); return Math.min(1,n/VEH[vid].cap*1.6);}
 // the driver gets out: into a store and back with a bag, or to the broiler house and back with crates of chickens, again and again
-const ERRAND_AT={sari:[22,-102.8],hardware:[HWX,HZ-8.8],poultry:[PSX,HZ-12.2],seeds:[SSX,HZ-9.5]};
+const ERRAND_AT={farmshop:[126,-128],sari:[22,-102.8],hardware:[HWX,HZ-8.8],poultry:[PSX,HZ-12.2],seeds:[SSX,HZ-9.5]};
 function errandPerson(V,tr){const key=tr.driver;
   if(V.erKey!==key||!V.er){if(V.er){scene.remove(V.er.root); disposePerson(V.er);} const H=helpers.find(H=>'h'+H.h.id===tr.driver);
     const L={...(tr.driver==='farmer'?FARMER_LOOK:H&&H.look?H.look:randLook(Math.random)),bag:null}; const p=makePerson(L);
@@ -4493,7 +4686,7 @@ function errandStep(V,vid,tr,now){V.out=false; V.pickIn=null; const hide=()=>{if
   const chick=tr.dest==='pickup'&&(tr.eggs||AREA_LIVE[tr.area]==='live_chicken'), shop=ERRAND_AT[tr.dest];
   if(!chick&&!shop){hide(); return;} if(e<.9||e>sd-.7){hide(); return;}   // still opening the door / already back in the seat
   const p=errandPerson(V,tr); p.root.visible=true; V.out=true; const t=e-.9, T=sd-1.6, sp=chick?3.2:1.6;
-  if(chick){const rear=[o.position.x-Math.sin(ry)*(V.rear+.7),o.position.z-Math.cos(ry)*(V.rear+.7)], A=FARM.areas.find(a=>a.type===tr.area), h=jobSpot(tr.i), loop=[rear,A.gate,h,A.gate,rear];
+  if(chick){const rear=[o.position.x-Math.sin(ry)*(V.rear+.7),o.position.z-Math.cos(ry)*(V.rear+.7)], A=FARM.areas.find(a=>a.type===tr.area), h=jobSpot(tr.i),gate=A.gate, loop=[rear,gate,h,gate,rear];
     // a whole number of trips (truck, house, truck), so the last crate goes in at the truck and he walks back to his door from there, no jump
     const d0=Math.hypot(rear[0]-door[0],rear[1]-door[1])/sp, L=pathLen(loop), loopT=Math.max(.1,T-2*d0), n=Math.max(1,Math.round(loopT*sp/L)), per=loopT/n;
     let c=false, inV=0, outH=0;
@@ -4504,8 +4697,8 @@ function errandStep(V,vid,tr,now){V.out=false; V.pickIn=null; const hide=()=>{if
     V.pickIn=inV; const ht=S.tiles[tr.i]; if(ht&&!tr.eggs&&!tr.loaded) OUTF.set(ht,outH);   // the flock in the house thins out crate by crate
     p.bag.visible=false; return;}
   const d=Math.hypot(shop[0]-door[0],shop[1]-door[1]), wt=Math.min(T/2.4,d/sp);
-  if(t<wt){walkAlong(p,[door,shop],t/wt,now); p.bag.visible=false;}
-  else if(t>T-wt){walkAlong(p,[shop,door],(t-(T-wt))/wt,now); p.bag.visible=true;}
+  if(t<wt){walkAlong(p,[door,shop],t/wt,now); p.bag.visible=tr.dest==='farmshop';}
+  else if(t>T-wt){walkAlong(p,[shop,door],(t-(T-wt))/wt,now); p.bag.visible=tr.dest!=='farmshop';}
   else p.root.visible=false;   // inside the store, buying
   p.crate.visible=false;}
 // a stack of cardboard egg trays full of eggs (n trays high)
@@ -4515,13 +4708,14 @@ function makeEggSet(V){const g=new THREE.Group(), bb=new THREE.Box3(); V.goods.c
   for(let k=0;k<8;k++){const m=new THREE.Mesh(eggTrayGeo(3),VCMAT); m.position.set(cx+((k%2)-.5)*.6,y+((k/4)|0)*.24,cz-hl*.6+((k>>1)%2)*hl*1.2); g.add(m);} g.visible=false; V.obj.add(g); return g;}
 const eggVeh=()=>['jeep','truck'].filter(v=>OWN(v));
 function startEggRun(i){const t=S.tiles[i], vs=eggVeh(), v=vs.find(vehFree); if(!v||pickupPending(i)) return false;
-  if(!beginTrip(v,{dest:'pickup',i,area:t.b,eggs:true,paid:true,stopT:20})) return true;
+  if(!beginTrip(v,{dest:'pickup',pickupLayout:3,i,area:t.b,eggs:true,paid:true,stopT:20})) return true;
   toast(`${VEH[v].icon} The ${vname(v)} goes to the ${FARM.areas.find(a=>a.type===t.b).name.toLowerCase()} gate; the driver carries the egg trays out to it.`,3400); buzz(); changed(); return true;}
 function loadWalkers(V,tr,P,now){const kind=AREA_LIVE[tr.area]||'live_chicken';
-  if(kind==='live_chicken'){if(V.walk) for(const k in V.walk) V.walk[k].visible=false; return;}   // chickens are carried in crates by the driver (errandStep) if(!V.walk) V.walk={};
+  if(kind==='live_chicken'){if(V.walk) for(const k in V.walk) V.walk[k].visible=false; return;}   // chickens are carried in crates by the driver (errandStep)
+  if(!V.walk)V.walk={};
   if(!V.walk[kind]){const g=new THREE.Group(); for(let k=0;k<5;k++) g.add(miniAnimal(kind)); g.visible=false; scene.add(g); V.walk[kind]=g;}
   for(const k in V.walk) V.walk[k].visible=false; if(P.ph!=='stop'||P.e>STOP.pickup-1.2) return;
-  const g=V.walk[kind], o=V.obj, rx=o.position.x-Math.sin(o.rotation.y)*V.rear, rz=o.position.z-Math.cos(o.rotation.y)*V.rear, h=tilePos(tr.i), A=FARM.areas.find(a=>a.type===tr.area), [gx,gz]=A?A.gate:[rx,rz], sp=kind==='live_cow'?.18:kind==='live_pig'||kind==='live_goat'?.28:.5;
+  const g=V.walk[kind], o=V.obj, rx=o.position.x-Math.sin(o.rotation.y)*V.rear, rz=o.position.z-Math.cos(o.rotation.y)*V.rear, h=tilePos(tr.i), A=FARM.areas.find(a=>a.type===tr.area), [gx,gz]=A?(A.gate):[rx,rz], sp=kind==='live_cow'?.18:kind==='live_pig'||kind==='live_goat'?.28:.5;
   g.visible=true; g.children.forEach((m,k)=>{const u=(P.e*sp+k/5)%1, a=u<.6?[h.x,h.z,gx,gz,u/.6]:[gx,gz,rx,rz,(u-.6)/.4], x=a[0]+(a[2]-a[0])*a[4], z=a[1]+(a[3]-a[1])*a[4];
     m.position.set(x,Math.abs(Math.sin(now/90+k*2))*.06,z); m.rotation.y=Math.atan2(a[2]-a[0],a[3]-a[1]);});}
 function hideWalkers(V){if(V.walk) for(const k in V.walk) V.walk[k].visible=false;}
@@ -4641,8 +4835,10 @@ const bldOpen=()=>$('bldSheet').classList.contains('open');
 function restock(i,k){const t=S.tiles[i], L=LIFE[t.b]; if(!L) return; const now=Date.now(), adult=k===L.adult, hn=t.n||0, grown=(t.gp||0)>=1;
   if(hn&&(adult!==grown||(L.kind==='meat'&&grown))) return toast(L.kind==='meat'&&grown?'Harvest the grown ones first.':adult?'They are still growing: add young ones.':'Your hens are grown: add ready-to-lay ones, or wait until the house is empty.',3000);
   const space=maxN(t)-hn; if(space<=0) return toast('The house is full.');
-  const u=UNIT[k], use=Math.min(S.mats[k]||0,Math.ceil(space/u)); if(!use) return toast(`No ${MATS[k].name} in your bodega. Buy at the 🐣 Agrivet.`);
-  const add=Math.min(space,use*u); S.mats[k]-=use; t.n=hn+add;
+  const u=UNIT[k],loose=S.youngLoose||(S.youngLoose={}),available=loose[k]||0;
+  const use=Math.min(S.mats[k]||0,Math.max(0,Math.ceil((space-available)/u)));
+  const add=Math.min(space,available+use*u);if(!add)return toast('No young animals available. Buy at the Agrivet.');
+  S.mats[k]=(S.mats[k]||0)-use;loose[k]=available+use*u-add;t.n=hn+add;
   if(!hn){t.gp=adult?1:0; t.ng=0; t.dl=0; t.sick=false; t.hungry=false; startCycle(i,true);}
   const p=tilePos(i); sfx(ANIMAL_OF[t.b]||'collect',p.x,p.z); buzz(); floatAt(i,`+${add} ${MATS[k].icon}`);
   toast(`${MATS[k].icon} ${add} ${adult?'':'young '}${L.word} are in their new house${t.hungry?', but there is no feed! Buy some at the Agrivet.':'.'}`,3000);
@@ -4652,7 +4848,7 @@ function bldStateText(t,now){
   if(t.b==='incubator') return incText(t,now);
   if(underConstruction(t,now)) return `🔨 Workers are building… ${fmt((t.bs+t.bd*1000-now)/1000)}`;
   const L=LIFE[t.b];
-  if(L){if(t.sick) return '🤒 May sakit! Production stopped. Give them gamot.'; if(hotNow(t,now)) return '🥵 Init! They need water.';
+  if(L){if(t.sick) return '🤒 May sakit! Production paused. Give them gamot when you can.'; if(hotNow(t,now)) return '🥵 Init! They need water.';
     if(!(t.n>0)) return t.stored?'Empty house · harvest what is left, then restock.':'🚫 Empty. Restock with young animals.';
     if((t.gp||0)<1) return `🌱 ${t.n} young ${L.word} growing ${Math.floor((t.gp||0)*100)}% · ready in ${fmtG(growLeft(t,now))}${t.hungry?' · 😟 Gutom!':''}`;
     if(L.kind==='meat') return `✅ ${t.n} ${L.word} are grown. Harvest them!`;}
@@ -4672,6 +4868,7 @@ function bldFill(t,now){const L=LIFE[t.b];
   return Math.min(1,(t.stored||0)/capOf(t));}
 const needsCare=t=>!!LIFE[t.b]&&!underConstruction(t,Date.now())&&(t.sick||hotNow(t)||(t.hungry&&t.n>0)||(!(t.n>0)&&!t.stored));
 function renderBld(){
+  if(bldIdx===-4)return renderFarmShop();
   if(bldIdx===-2) return renderKat();
   if(bldIdx===-3) return renderHome();
   const t=S.tiles[bldIdx]; if(t&&t.s==='bld'&&t.b==='incubator') return renderInc(t);
@@ -4689,19 +4886,19 @@ function renderBld(){
     :`<button class="gbtn green" data-act="collect" ${n&&!queued?'':'disabled'}>🧺<b>${queued?'On the way':'Collect'}</b><small>${n?what:L&&hn&&!grown?`growing ${pct}%`:'nothing yet'}</small></button>`;
   let care='';
   if(L){const have=k=>S.mats[k]||0, warn=[], gm=have('gamot');
-    if(t.sick) warn.push(`<div class="alert">🤒 <b>May sakit!</b> Bird flu: production stopped and they will die without medicine.</div><button class="gbtn gold row" data-care="cure" ${gm?'':'disabled'}>💊 <b>Give gamot</b><small>have ${gm}${gm?'':' · buy at the Agrivet'}</small></button>`);
+    if(t.sick) warn.push(`<div class="alert">🤒 <b>May sakit!</b> Bird flu: production paused. Give medicine to recover; you have at least 26 active minutes before losses begin.</div><button class="gbtn gold row" data-care="cure" ${gm?'':'disabled'}>💊 <b>Give gamot</b><small>have ${gm}${gm?'':' · buy at the Agrivet'}</small></button>`);
     if(hotNow(t,now)) warn.push(`<div class="alert">🥵 <b>Init!</b> Heat wave: they need water now.</div><button class="gbtn gold row" data-care="water">💧 <b>Painumin</b><small>your farmer brings water</small></button>`);
     if(t.hungry&&hn) warn.push(`<div class="alert">😟 <b>Gutom!</b> No ${MATS[fk].name} left in your bodega.</div>`);
     const growing=hn&&!grown?`🌱 growing ${pct}% · ${meat?'ready to harvest':'starts producing'} in <b>${fmtG(growLeft(t,now))}</b>`:'';
     const line=`<div class="pay"><b>${hn}/${max}</b> ${L.word} · ${!hn?'empty':growing||(meat?'✅ grown, ready to harvest':'grown and producing')}</div>`;
     const opts=[L.young,...(L.adult?[L.adult]:[])].map(k=>{const adult=k===L.adult, ok=hn<max&&(!hn||(adult===grown&&!(meat&&grown)));
-      return `<button class="gbtn row" data-restock="${k}" ${ok&&have(k)?'':'disabled'}>${MATS[k].icon} <b>${MATS[k].name}</b><small>${adult?'start laying now':`grow ${L.grow} days`} · have ${have(k)}</small></button>`;}).join('');
+      return `<button class="gbtn row" data-restock="${k}" ${ok&&(have(k)||(S.youngLoose||{})[k])?'':'disabled'}>${MATS[k].icon} <b>${MATS[k].name}</b><small>${adult?'start laying now':`grow ${L.grow} days`} · have ${have(k)} packs${(S.youngLoose||{})[k]?` + ${S.youngLoose[k]} spare animals`:""}</small></button>`;}).join('');
     const pv=pickupVeh(t), cull=L.cull&&hn&&grown?`<button class="gbtn row" data-cull="1" ${pv.some(vehFree)&&!pickupPending(bldIdx)?'':'disabled'}>🚛 <b>Sell 1 ${L.one} live</b><small>${pv.length?`${ITEMS[L.cull].icon} for palengke buyers or the 🔪 katayan`:`needs the ${L.cull==='live_cow'?'🚛 livestock truck':'🚛 livestock or 🚚 Elf truck'}`}</small></button>`:'';
     const vax=POULTRY_B.includes(t.b)?((t.vaxUntil||0)>now?`<div class="pay">💉 Vaccinated against bird flu for ${fmtG(t.vaxUntil-now)}.</div>`
       :`<button class="gbtn row" data-care="vax" ${have('bakuna')&&hn?'':'disabled'}>💉 <b>Vaccinate</b><small>${fluOn(now)?'⚠️ bird flu now! · ':''}have ${have('bakuna')}</small></button>`):'';
     care=warn.join('')+line+(hn<max?`<div class="pay">${hn?'Add more':'Restock'}: young ones grow for ${L.grow} game days (1 game day ≈ 13 minutes).</div>${opts}`:'')+vax+cull
       +`<button class="gbtn" data-act="buyfeed">🐣 <b>Agrivet</b><small>feeds · young · bakuna · gamot</small></button>`;}
-  const info=`<div class="pay">${cur.desc}</div><div class="pay">${meat?(L.live?`Grown ${L.word} leave the house alive (${ITEMS[L.live].icon} ${ITEMS[L.live].name}). Sell them live at the palengke, or turn each into ${Object.entries(L.yield).map(([k,y])=>`${y} ${ITEMS[k].icon} ${ITEMS[k].name}`).join(', ')} at the 🔪 Katayan. ${pickupVeh(t).length?'Your truck backs up to the gate to load them.':`Until you own ${L.live==='live_pig'?'the 🚚 Elf truck':'the 🛻 chicken truck or the 🚚 Elf truck'}, your farmer carries them out.`}`:`Grown ${L.word} give ${Object.entries(L.yield).map(([k,y])=>`${y} ${ITEMS[k].icon} ${ITEMS[k].name}`).join(', ')} each when harvested.`):`Each batch makes ${gives} and goes into storage (holds ${capOf(t)} batches).`}${B.feed?` Every ${B.period}s they eat ${feedNeed(t)} ${MATS[fk].icon} ${MATS[fk].name}.`:''}</div>
+  const info=`<div class="pay">${cur.desc}</div><div class="pay">${meat?(L.live?`Grown ${L.word} leave the house alive (${ITEMS[L.live].icon} ${ITEMS[L.live].name}). Sell them live at the palengke, or turn each into ${Object.entries(L.yield).map(([k,y])=>`${y} ${ITEMS[k].icon} ${ITEMS[k].name}`).join(', ')} at the 🔪 Katayan. ${pickupVeh(t).length?'Your truck backs up to the gate to load them.':`Until you own ${L.live==='live_pig'?'the 🚚 Elf truck':'the 🛻 chicken truck or the 🚚 Elf truck'}, your farmer carries them out.`}`:`Grown ${L.word} give ${Object.entries(L.yield).map(([k,y])=>`${y} ${ITEMS[k].icon} ${ITEMS[k].name}`).join(', ')} each when harvested.`):`Each batch makes ${gives} and goes into storage (holds ${capOf(t)} batches).`}${B.feed?` Every ${B.period}s they use ${Number(feedRation(t).toFixed(2))} sacks of ${MATS[fk].icon} ${MATS[fk].name}. Opened sacks last across meals; smaller herds eat less.`:''}</div>
       ${B.feed?`<div class="pay">${MATS[fk].icon} ${MATS[fk].name} in your bodega: <b>${S.mats[fk]||0}</b></div>`:''}`;
   const panel=bldTab==='up'?(next?`<div class="pay">Next: <b>${next.name}</b> · ${next.desc}${L?` Room for ${L.max[lv]} ${L.word}.`:` Storage grows to ${next.cap} batches.`}</div><div class="need">${needHTML(next)}</div>
       <button class="gbtn gold" data-act="upgrade" ${canAfford(next)&&!uc?'':'disabled'}>🔨 <b>Upgrade</b><small>${next.dur}s</small></button>`:'<div class="pay">✅ Fully upgraded</div>')
@@ -4964,7 +5161,8 @@ function makeVan(){const b=[], D=0x1b1b1b, GL=0x2b3a48;
   const rm=new THREE.MeshBasicMaterial({map:liveryTex('rear')}), rear=[];
   [-1,1].forEach(sd=>{const h=new THREE.Group(); h.position.set(sd*1.05,1.85,-3.08); const pnl=new THREE.Mesh(new THREE.BoxGeometry(1.04,2.28,.05),new THREE.MeshStandardMaterial({color:0xf2f2f2})); pnl.position.x=-sd*.52; h.add(pnl);
     const face=new THREE.Mesh(new THREE.PlaneGeometry(1.0,2.2),rm); face.position.set(-sd*.52,0,-.03); face.rotation.y=Math.PI; if(sd>0){face.material=rm.clone(); face.material.map=liveryTex('rearR');} h.add(face);
-    h.add(new THREE.Mesh(new THREE.BoxGeometry(.05,2.0,.06),new THREE.MeshStandardMaterial({color:0x90a4ae}))).position.set(-sd*.95,0,-.05); g.add(h); rear.push([h,sd]);});
+    const lockBar=new THREE.Mesh(new THREE.BoxGeometry(.05,2.0,.06),new THREE.MeshStandardMaterial({color:0x90a4ae}));
+    lockBar.position.set(-sd*.95,0,-.05);h.add(lockBar);g.add(h);rear.push([h,sd]);});
   g.userData.rear=rear; g.userData.door=cabDoor(g,1.01,1.45,3.0,1.2,.9,0xf5f5f5); DOOR_OBJS.push(g);
   g.scale.setScalar(1.3); scene.add(g); return g;}
 // a made-up Filipino processed-meat brand from the factory: BIDA PINOY by Mega Foods (pig-chef mascot, tocino · longganisa · hotdog)
@@ -5020,10 +5218,16 @@ function bayTaken(){ // someone is backing into or unloading at the bay
   if(traders.some(t=>t.state==='dock'||t.state==='unload')) return 'npc';
   for(const v in VEH){const tr=S.veh[v]&&S.veh[v].trip; if(tr&&tr.dest==='warehouse'&&tr.t0){const ph=vehPhase(v,Date.now()); if(ph.ph==='stop'||(ph.ph==='out'&&ph.R.out.T-ph.e<1.4)) return 'me';}}
   return null;}
+// Keep the shared warehouse entrance clear for one delivery circuit at a time.
+function warehouseDispatchClear(ref){
+  if(vans.some(v=>v.g!==ref&&v.state!=='home'))return false;
+  if(traders.some(v=>v.g!==ref&&v.state!=='away'))return false;
+  return !Object.keys(VEH).some(v=>{const tr=S.veh[v].trip;return tr&&tr.dest==='warehouse';});
+}
 function updateTraders(dt,t){
   traders.forEach((T,k)=>{const g=T.g;
-    if(T.state==='away'){g.visible=false; T.timer-=dt; if(T.timer<=0){T.state='in'; T.e=0; T.q=k&&traders[0].state!=='away'?[QX+5.5,QZ]:[QX,QZ]; T.R=TR_IN(T.q); g.visible=true;} return;}
-    const move=R=>{const blk=aheadGap(g,g.position.x,g.position.z,g.rotation.y,7.6)<1.2; T.blk=blk?T.blk+dt:0; if(!blk||T.blk>8) T.e+=dt; const q=routePos(R,Math.min(T.e,R.T)); g.position.set(q.x,0,q.z); g.rotation.y=lerpAng(g.rotation.y,q.ang,1-Math.exp(-dt*6)); return T.e>=R.T;};
+    if(T.state==='away'){g.visible=false; T.timer-=dt; if(T.timer<=0&&warehouseDispatchClear(g)){T.state='in'; T.e=0; T.q=k&&traders[0].state!=='away'?[QX+5.5,QZ]:[QX,QZ]; T.R=TR_IN(T.q); g.visible=true;} return;}
+    const move=R=>{T.e=trafficRouteTime(g,R,T.e,dt,7.6); const q=routePos(R,Math.min(T.e,R.T)); g.position.set(q.x,0,q.z); g.rotation.y=lerpAng(g.rotation.y,q.ang,1-Math.exp(-dt*6)); return T.e>=R.T;};
     if(T.state==='in'){if(move(T.R)){T.state='queue'; T.e=0;}}
     else if(T.state==='queue'){ if(T.q[0]===QX&&!bayTaken()){T.state='dock'; T.e=0;} else if(T.q[0]!==QX&&!traders.some(o=>o!==T&&(o.state==='queue'&&o.q[0]===QX))&&!bayTaken()){T.q=[QX,QZ]; T.state='dock'; T.e=0;} }
     else if(T.state==='dock'){if(move(TR_DOCK)){T.state='unload'; T.timer=9;}}
@@ -5040,8 +5244,8 @@ function updateBiz(dt,t){
   for(const V of vans){
     if((V.state==='load'||V.state==='unload')!==!!V.g.userData.rearOpen){V.g.userData.rearOpen=V.state==='load'||V.state==='unload'; V.g.userData.doorUntil=Date.now()+1300; sfx('door',V.g.position.x,V.g.position.z);}   // rear doors open at the docks; the driver hops out
     if(V.state==='home'){V.g.position.set(V.sx,0,HZ-25); V.g.rotation.y=Math.PI; V.timer-=dt;
-      if(own&&V.timer<=0&&vans.filter(v=>v.state!=='home').length<needVans){V.state='out'; V.e=0;} continue;}
-    if(V.state==='out'||V.state==='back'){const blk=aheadGap(V.g,V.g.position.x,V.g.position.z,V.g.rotation.y,8.4)<1.2; V.blk=blk?(V.blk||0)+dt:0; if(!blk||V.blk>8) V.e+=dt; const R=V.state==='out'?V.out:V.back, q=routePos(R,V.e);
+      if(own&&V.timer<=0&&warehouseDispatchClear(V.g)&&vans.filter(v=>v.state!=='home').length<needVans){V.state='out'; V.e=0;} continue;}
+    if(V.state==='out'||V.state==='back'){V.e=trafficRouteTime(V.g,V.state==='out'?V.out:V.back,V.e,dt,8.4); const R=V.state==='out'?V.out:V.back, q=routePos(R,V.e);
       V.g.position.set(q.x,Math.abs(Math.sin(t*9+q.x))*.012,q.z); V.g.rotation.y=lerpAng(V.g.rotation.y,q.ang,1-Math.exp(-dt*6));
       if(V.e>=R.T){ if(V.state==='out'){V.state='load'; V.timer=6;} else {V.state='unload'; V.timer=6;} }}
     else if(V.state==='load'){V.timer-=dt; if(V.timer<=0){ // fill the van from the warehouse
@@ -5069,6 +5273,90 @@ function updateBiz(dt,t){
     const door=[lv.wx+(k?2.0:-2.0),HZ-14.3], tail=[lv.wx+(k?1.9:-1.9),HZ-12.6], c=(t*.5+b.ph)%1, go=c<.5, u=go?c/.5:(c-.5)/.5, a=go?door:tail, z=go?tail:door;
     r.position.set(a[0]+(z[0]-a[0])*u,.08,a[1]+(z[1]-a[1])*u); r.rotation.y=Math.atan2(z[0]-a[0],z[1]-a[1]); poseWalk(b.p,t*9+k*2); b.box.visible=go; if(go){b.p.aR.rotation.x=b.p.aL.rotation.x=-1.3;}});
 }
+/* ---------- Player-owned mini-mart: real stock, paid staff and arrival-based sales ---------- */
+const SHOP={x:118,z:-130,level:4,cost:6000,salary:60,capacity:180,perProduct:60,door:[118,-125.3],dock:[129,-129],
+  prices:{bigas:45,egg:12,chicken:25,pork:75,beef:90,milk:50,goatmilk:42,chevon:95,tilapia:40,mango:10,pechay:15,kamatis:46}};
+if(!S.shop)S.shop={owned:false,stock:{},payroll:0,revenue:0,sold:0,wages:0,visits:0,log:[]};
+for(const k of ['stock','log'])if(!S.shop[k])S.shop[k]=k==='stock'?{}:[];
+for(const k of ['payroll','revenue','sold','wages','visits'])if(!Number.isFinite(S.shop[k]))S.shop[k]=0;
+let shopDraft={},shopUiAt=0,shopSaveAt=0;
+const shopName=k=>k==='bigas'?'Bigas':ITEMS[k].name;
+const shopIcon=k=>k==='bigas'?MATS.bigas.icon:ITEMS[k].icon;
+const shopUnits=()=>Object.values(S.shop.stock).reduce((n,q)=>n+q,0);
+function shopIncoming(){const counts={};for(const v in VEH){const tr=S.veh[v].trip;if(tr&&tr.dest==='farmshop'&&!tr.shopDelivered&&!tr.shopRefunded)for(const[k,q]of Object.entries(tr.shopGoods||{}))counts[k]=(counts[k]||0)+q;}return counts;}
+function shopOpen(){const h=gameHour();return S.shop.owned&&h>=6&&h<22&&S.shop.payroll>0;}
+function shopAvailable(k){return k==='bigas'?(S.mats.bigas||0)+Math.floor((S.inv.wheat||0)/2):(S.inv[k]||0);}
+function shopSale(visitor){if(document.hidden||!shopOpen())return 0;const keys=Object.keys(SHOP.prices).filter(k=>(S.shop.stock[k]||0)>0);if(!keys.length)return 0;
+  const k=keys[Math.floor(Math.random()*keys.length)],n=Math.min(S.shop.stock[k],1+Math.floor(Math.random()*3)),money=n*SHOP.prices[k];
+  S.shop.stock[k]-=n;S.coins+=money;S.shop.revenue+=money;S.shop.sold+=n;S.shop.visits++;
+  S.shop.log.unshift({item:k,n,money,visitor});S.shop.log=S.shop.log.slice(0,8);changed();return money;}
+function shopPayWage(dt){if(document.hidden||!shopOpen())return 0;const wage=Math.min(S.shop.payroll,Math.max(0,dt)*SHOP.salary/(DAY_MS/1000));S.shop.payroll=Math.max(0,S.shop.payroll-wage);S.shop.wages+=wage;return wage;}
+function shopUnlock(){if(S.shop.owned||S.level<SHOP.level||S.coins<SHOP.cost)return false;
+  S.coins-=SHOP.cost;S.shop.owned=true;S.shop.payroll=SHOP.salary*3;farmShop.worker.root.visible=true;
+  toast('Your mini-mart is open! Ate Lorna is your shopkeeper. Deliver stock to start selling.',4200);changed();return true;}
+function shopRefund(tr){if(tr.dest!=='farmshop'||tr.shopDelivered||tr.shopRefunded)return;for(const source of ['inv','mats'])for(const[k,q]of Object.entries(tr.shopSources&&tr.shopSources[source]||{}))S[source][k]=(S[source][k]||0)+q;tr.shopRefunded=true;}
+function shopDeliver(tr){if(tr.dest!=='farmshop'||tr.shopDelivered||tr.shopRefunded)return false;
+  for(const[k,q]of Object.entries(tr.shopGoods||{}))S.shop.stock[k]=(S.shop.stock[k]||0)+q;
+  tr.shopDelivered=true;tr.paid=true;changed();toast('Delivery unloaded: your mini-mart shelves are restocked.',3000);return true;}
+function shopDispatch(vid){if(!S.shop.owned||!vehFree(vid))return false;const incoming=shopIncoming(),goods={},sources={inv:{},mats:{}};let total=0;
+  for(const k of Object.keys(SHOP.prices)){const q=Math.max(0,Math.floor(Number(shopDraft[k])||0));if(!q)continue;
+    if(q>shopAvailable(k)||q+(S.shop.stock[k]||0)+(incoming[k]||0)>SHOP.perProduct){toast('Check farm stock and shelf space for '+shopName(k)+'.',3000);return false;}goods[k]=q;total+=q;}
+  if(!total||total>VEH[vid].cap||total+shopUnits()+Object.values(incoming).reduce((a,b)=>a+b,0)>SHOP.capacity){toast('Choose stock within your vehicle and shelf capacity.',3000);return false;}
+  for(const[k,q]of Object.entries(goods)){if(k==='bigas'){const rice=Math.min(q,S.mats.bigas||0);if(rice)sources.mats.bigas=rice;if(q>rice)sources.inv.wheat=(q-rice)*2;}else sources.inv[k]=q;}
+  const tr={dest:'farmshop',shopGoods:goods,shopSources:sources,paid:false,fill:total/VEH[vid].cap};
+  if(!beginTrip(vid,tr))return false;
+  for(const source of ['inv','mats'])for(const[k,q]of Object.entries(sources[source]))S[source][k]-=q;
+  shopDraft={};changed();toast('Stock loaded. Choose you or a hired driver to deliver to your mini-mart.',3200);return true;}
+const farmShop=(()=>{const g=new THREE.Group(),b=[],x=SHOP.x,z=SHOP.z;
+  b.push(P('box',0xc9c1a8,x,.08,z+3,22,.16,17));
+  b.push(P('box',0xf4ead5,x,1.7,z-4.4,14,3.4,.25));for(const side of [-1,1])b.push(P('box',0xf4ead5,x+side*6.9,1.7,z,.25,3.4,9));
+  for(const dx of [-6.7,-2.5,2.5,6.7])b.push(P('box',0x577b55,x+dx,1.7,z+4.3,.24,3.4,.24));
+  b.push(P('box',0x2f3c43,x+2,1.57,z+2.8,.5,.4,.4));
+  b.push(P('box',0x8a5e38,x,.72,z+2.8,9,1,.85));b.push(P('box',0xd9bd8a,x,1.3,z+2.8,9,.14,1));
+  for(const dx of [-4.6,4.6]){b.push(P('box',0x66855a,x+dx,1.2,z-2,2.4,2.4,1));for(let k=0;k<3;k++)b.push(P('box',0xc2a275,x+dx,.4+k*.75,z-1.7,2.2,.08,1.1));}
+  for(const px of [110,121])for(const side of [-1,1])b.push(P('box',0xf4edce,px+side*1.8,.18,-121,.1,.02,4.5));
+  b.push(P('box',0x8e999b,129,.04,-124,5,.08,13));
+  const body=new THREE.Mesh(mergeGeo(b),VCMAT);body.castShadow=body.receiveShadow=true;g.add(body);
+  const roofMat=VCMAT.clone();roofMat.transparent=true;const roof=new THREE.Mesh(mergeGeo([P('box',0x4d7651,x,3.65,z+.3,15,.22,10.4)]),roofMat);roof.castShadow=true;g.add(roof);
+  const label=signPlane(['SUNFIELD MINI-MART','Bigas - Itlog - Karne - Gulay'],'#244e38','#fff4cf',11,1.25);label.position.set(x,3.25,z+4.52);g.add(label);
+  const L=randLook(rng(118));Object.assign(L,{f:true,top:0xeab95a,bottom:0x315642,bag:null,style:'bun'});const worker=makePerson(L);worker.root.position.set(x,.17,z+1.4);worker.root.visible=S.shop.owned;g.add(worker.root);
+  const stockDisplay=new THREE.Group();for(let k=0;k<12;k++)stockDisplay.add(part(.45,.38,.42,[0xd3b175,0xb7d581,0xf2e4b9][k%3],x-3.8+(k%6)*1.5,1.56,z+2.8-Math.floor(k/6)*.3));g.add(stockDisplay);
+  const closed=signPlane(['UNLOCK YOUR SHOP','Level 4 - 6,000 pesos'],'#b47138','#fff',6,1);closed.position.set(x,1.8,z+4.65);g.add(closed);
+  const openSign=signPlane(['OPEN'],'#287342','#ffffff',1.8,.45),shutSign=signPlane(['CLOSED'],'#8b4636','#ffffff',1.8,.45);
+  for(const q of [openSign,shutSign]){q.position.set(x-4.7,2.7,z+4.55);g.add(q);}
+  scene.add(g);return {g,roofMat,worker,stockDisplay,closed,openSign,shutSign,customers:[],lastSpawn:0};})();
+function openFarmShop(){$('bizSheet').classList.remove('open');closeMarket();bldIdx=-4;bldTab=null;renderFarmShop();$('bldSheet').classList.add('open');}
+function renderFarmShop(){const own=S.shop.owned,inc=shopIncoming(),free=Object.keys(VEH).filter(vehFree);$('bldTitle').textContent='Sunfield Mini-Mart';
+  if(!own){$('bldBody').innerHTML='<div class="pay">Your own farm shop with Ate Lorna as shopkeeper. Customers pay automatically when they buy from stocked shelves. Open 6 AM-10 PM.</div><div class="pay">Level '+SHOP.level+' - '+SHOP.cost.toLocaleString()+' pesos. Includes a shopkeeper and three working days of salary.</div><button class="gbtn gold row" data-shop="unlock" '+(S.level>=SHOP.level&&S.coins>=SHOP.cost?'':'disabled')+'>Unlock my mini-mart</button><button class="gbtn row" data-shop="visit">Visit shop site</button>';return;}
+  const rows=Object.keys(SHOP.prices).map(k=>{const n=S.shop.stock[k]||0,arriving=inc[k]||0;return '<tr><td>'+shopIcon(k)+' '+shopName(k)+'<br><small>'+SHOP.prices[k]+' pesos each</small></td><td><b>'+n+'</b>'+(n<5?'<br><small style="color:#a33">'+(n?'Low stock':'Restock')+'</small>':'')+(arriving?'<br><small>+'+arriving+' incoming</small>':'')+'</td><td>'+shopAvailable(k)+'</td><td><span class="qty" role="group" aria-label="Restock '+shopName(k)+'">'+[-10,-1,1,10].map((step,i)=>(i===2?'<b aria-live="polite">'+(shopDraft[k]||0)+'</b>':'')+'<button type="button" data-shop-qty="'+k+'" data-shop-step="'+step+'" aria-label="'+(step>0?'Add ':'Remove ')+Math.abs(step)+' '+shopName(k)+'" '+((step<0?!(shopDraft[k]||0):(shopDraft[k]||0)>=60)?'disabled':'')+'>'+({'-10':'?10','-1':'?','1':'+','10':'+10'}[step])+'</button>').join('')+'</span></td></tr>';}).join('');
+  const trips=Object.keys(VEH).filter(v=>S.veh[v].trip&&S.veh[v].trip.dest==='farmshop').map(v=>VEH[v].name+': '+(S.veh[v].trip.shopDelivered?'unloaded, returning':'stock on the way')).join('<br>');
+  $('bldBody').innerHTML='<div class="pay"><b>'+(shopOpen()?'OPEN':S.shop.payroll<=0?'PAUSED - pay salary':'CLOSED - opens at 6 AM')+'</b> - '+shopUnits()+'/'+SHOP.capacity+' shelf units</div><div class="pay">Sales revenue: <b>'+S.shop.revenue.toLocaleString()+' pesos</b> - '+S.shop.sold+' items sold - '+S.shop.visits+' purchases<br>Wages paid: '+Math.floor(S.shop.wages)+' pesos. Stock costs are separate.</div><div class="pay">Ate Lorna - '+SHOP.salary+' pesos per working day.<br>Prepaid salary: <b>'+Math.floor(S.shop.payroll)+' pesos</b> ('+(S.shop.payroll/SHOP.salary).toFixed(1)+' working days). No salary or sales while you are away.</div><button class="gbtn row" data-shop="salary" '+(S.coins>=SHOP.salary*3?'':'disabled')+'>Pay 180 pesos - add 3 days of salary</button><h3>Products and restocking</h3><div class="pay">Choose quantities from your farm. Bigas uses purchased rice first, then 2 palay per pack. Stock only reaches shelves after your driver unloads.</div><table style="width:100%;text-align:left;border-spacing:4px"><thead><tr><th>Product</th><th>Shelf</th><th>Farm</th><th>Send</th></tr></thead><tbody>'+rows+'</tbody></table><div class="pay">'+(trips||'No delivery in progress')+'</div><div class="gtabs">'+(free.length?free.map(v=>'<button class="gbtn" data-shop-send="'+v+'">'+VEH[v].icon+' Deliver with '+VEH[v].name+'<br><small>Up to '+VEH[v].cap+' units - choose driver next</small></button>').join(''):'<div class="pay">Buy a delivery vehicle in your garage, or wait for one to return.</div>')+'</div><button class="gbtn row" data-shop="visit">Visit my shop</button><h3>Recent purchases</h3><div class="pay">'+(S.shop.log.map(l=>l.visitor+': '+l.n+' '+shopName(l.item)+' - +'+l.money+' pesos').join('<br>')||'Deliver stock and wait for your first customer.')+'</div>';
+}
+$('bldSheet').addEventListener('click',e=>{const b=e.target.closest('[data-shop-step]');if(!b||b.disabled)return;const k=b.dataset.shopQty;if(!Object.hasOwn(SHOP.prices,k))return;shopDraft[k]=Math.max(0,Math.min(60,(shopDraft[k]||0)+Number(b.dataset.shopStep)));renderFarmShop();});
+$('bldSheet').addEventListener('click',e=>{const b=e.target.closest('[data-shop]'),d=e.target.closest('[data-shop-send]');if(!b&&!d)return;if((b||d).disabled)return;
+  if(d){shopDispatch(d.dataset.shopSend);renderFarmShop();return;}
+  if(b.dataset.shop==='unlock')shopUnlock();
+  if(b.dataset.shop==='salary'&&S.shop.owned&&S.coins>=SHOP.salary*3){S.coins-=SHOP.salary*3;S.shop.payroll+=SHOP.salary*3;changed();}
+  if(b.dataset.shop==='visit'){$('bldSheet').classList.remove('open');flyTo(SHOP.x,SHOP.z,30);return;}renderFarmShop();});
+$('farmShopBtn').addEventListener('click',openFarmShop);
+$('bizSheet').addEventListener('click',e=>{if(e.target.closest('[data-shop-open]'))openFarmShop();});
+function updateFarmShop(dt,t){const own=S.shop.owned,open=shopOpen();farmShop.closed.visible=!own;farmShop.openSign.visible=own&&open;farmShop.shutSign.visible=own&&!open;farmShop.worker.root.visible=own&&open;farmShop.stockDisplay.visible=own&&shopUnits()>0;
+  const close=Math.hypot(cam.target.x-SHOP.x,cam.target.z-SHOP.z)<28&&cam.dist<45;farmShop.roofMat.opacity+=((close?.12:1)-farmShop.roofMat.opacity)*.15;farmShop.roofMat.depthWrite=farmShop.roofMat.opacity>.9;
+  if(!own||document.hidden)return;shopPayWage(dt);
+  poseStand(farmShop.worker,t*.25);if(!open)farmShop.worker.aR.rotation.x=-.1;
+  if(!farmShop.customers.length)for(let k=0;k<2;k++){const L=randLook(rng(518+k));L.bag=null;const p=makePerson(L);p.root.visible=false;p.root.traverse(o=>{if(o.isMesh)o.castShadow=false;});scene.add(p.root);farmShop.customers.push({p,k,state:'idle',wait:k*12+4,path:[],i:0,bought:false});}
+  for(const c of farmShop.customers){const p=c.p;p.root.visible=c.state!=='idle'&&Math.hypot(cam.target.x-p.root.position.x,cam.target.z-p.root.position.z)<100;
+    if(c.state==='idle'){c.wait-=dt;if(!open||c.wait>0||!shopUnits())continue;const h=HOUSES.filter(h=>h.side===-1)[c.k?5:1];
+      c.path=c.k?[h.door,h.gate,h.walk,[SRX-3.6,h.walk[1]],[SRX-3.6,-118.5],[133,-118.5],[133,-123],[118,-123],SHOP.door]:[[PX+12,-131.2],[PX+18,-118.5],[133,-118.5],[133,-123],[118,-123],SHOP.door];
+      p.root.position.set(c.path[0][0],.16,c.path[0][1]);c.i=1;c.state='arrive';c.bought=false;continue;}
+    if(c.state==='browse'){poseStand(p,t+c.k);c.wait-=dt;if(c.wait<=0){if(!c.bought){shopSale('Walk-in customer');c.bought=true;}c.path=[SHOP.door,[118,-123],[133,-123],[133,-118.5]];c.i=1;c.state='leave';}continue;}
+    let left=dt*1.6;while(c.i<c.path.length){const[x,z]=c.path[c.i],dx=x-p.root.position.x,dz=z-p.root.position.z,d=Math.hypot(dx,dz);if(d<=left+.001){p.root.position.set(x,.16,z);left=Math.max(0,left-d);c.i++;}else{p.root.position.x+=dx/d*left;p.root.position.z+=dz/d*left;p.root.rotation.y=Math.atan2(dx,dz);break;}}poseWalk(p,t*6+c.k);
+    if(c.i>=c.path.length){if(c.state==='arrive'){c.state='browse';c.wait=3;}else{c.state='idle';c.wait=12+c.k*8;p.root.visible=false;}}
+  }
+  if(t-shopSaveAt>15){shopSaveAt=t;save();}
+  if(bldIdx===-4&&bldOpen()&&t-shopUiAt>1&&!document.activeElement?.hasAttribute('data-shop-qty')){shopUiAt=t;renderFarmShop();}
+}
+/* ---------- End player-owned mini-mart ---------- */
 const bizOpen=()=>$('bizSheet').classList.contains('open');
 function openBiz(){renderBiz(); $('bizSheet').classList.add('open');}
 function renderBiz(){
@@ -5086,7 +5374,7 @@ function renderBiz(){
   const facCard=fac?`<div class="ucard"><div class="who">🏭 Mega Foods supply deal ✅</div><div class="pay">The factory buys only from the bagsakan. With your deal, the bagsakan pays you 130% for ${good}. You still deliver to the bagsakan, never to the factory.</div></div>`
     :`<div class="ucard"><div class="who">🏭 Mega Foods Corp. · supply deal</div><div class="pay">The factory never buys from farmers directly; it only buys from the bagsakan. A supply deal makes the bagsakan pay you 130% (instead of 70%) for ${good}.</div>
       <div class="pay">${!own?'Needs the trader\'s permit first. ':''}${S.level<FAC_LV?`🔒 Unlocks at level ${FAC_LV}.`:''}</div>${needHouse(4)}<button class="go" data-biz="fac" ${own&&S.level>=FAC_LV&&S.house>=4&&S.coins>=FAC_PRICE?'':'disabled'}>Sign the supply deal for ₱${FAC_PRICE.toLocaleString()}</button></div>`;
-  $('bizCards').innerHTML=whCard+facCard+bayCard(free);
+  $('bizCards').innerHTML='<div class="ucard"><div class="who">Sunfield Mini-Mart</div><div class="pay">'+(S.shop.owned?'Your shop: '+shopUnits()+' shelf units. Manage stock, deliveries and salary.':'Unlock your own shop at level 4 for 6,000 pesos, including a shopkeeper.')+'</div><button class="go" data-shop-open>My shop</button></div>'+whCard+facCard+bayCard(free);
 }
 $('bizBtn').addEventListener('click',()=>{closeMarket(); openBiz();});
 $('bizSheet').addEventListener('click',e=>{
@@ -5127,6 +5415,7 @@ for(let k=6;k<ACCESS.length-4;k+=13){const [x,z]=ACCESS[k], [a,b]=ACCESS[k+1], L
 trikes.forEach(k=>glow(k.g,0,.98,.9,1.0,GM.head));
 
 /* ---------- barangay: Filipino houses where the people you see walking live ---------- */
+const COURT={players:[],fans:[],seated:[],ball:null};
 const SRX=PX+42, STZ=-186;   // side street off the highway (between the palengke and the factory) and the new road behind them
 (()=>{
   const L=[], R=(x,y,z,sx,sy,sz,c)=>L.push([x,y,z,sx,sy,sz,c]);
@@ -5164,7 +5453,8 @@ const SRX=PX+42, STZ=-186;   // side street off the highway (between the palengk
     sari(b,c){TYPES.bung(b,[c[0],c[1],null]); b.push(P('box',0x2b2b2b,1.1,1.5,2.53,1.9,1.1,.06)); b.push(P('box',0xfbc02d,1.1,.95,2.85,2.2,.1,.6));
       for(let i=0;i<7;i++) b.push(P('box',[0xe53935,0x1e88e5,0x43a047,0xfdd835][i%4],.25+i*.28,1.8,2.6,.16,.3,.04)); b.push(P('box',0x8d6e4b,3.6,.45,3.4,2.2,.1,.5));}
   };
-  const lots=[[124,1,'bung',[0xfff3e0,0xc62828,0xf5f5f5]],[138,1,'two',[0xe3f2fd,0x1565c0,0x7b1e2b]],[152,1,'sari',[0xfffde7,0x2e7d32]],[166,1,'bung',[0xfce4ec,0x6d4c41,0x2d3436]],[180,1,'kubo'],
+  // Keep the mountain road entrance at x=150 clear; the green-roofed sari-sari lot sits east of the basketball court.
+  const lots=[[124,1,'bung',[0xfff3e0,0xc62828,0xf5f5f5]],[138,1,'two',[0xe3f2fd,0x1565c0,0x7b1e2b]],[292,1,'sari',[0xfffde7,0x2e7d32]],[166,1,'bung',[0xfce4ec,0x6d4c41,0x2d3436]],[180,1,'kubo'],
               [194,1,'two',[0xf1f8e9,0xd84315,0xbfc5ca]],[208,1,'bung',[0xe0f2f1,0x00838f,0x16a085]],[222,1,'two',[0xfff8e1,0x5d4037,0xf1c40f]],[236,1,'bung',[0xede7f6,0x4527a0,0xf5f5f5]],[250,1,'kubo'],
               [124,-1,'two',[0xfff8e1,0x37474f,0x2e5e9e]],[138,-1,'bung',[0xe0f7fa,0x00695c,null]],[152,-1,'bung',[0xf3e5f5,0x8e24aa,0xc0392b]],[166,-1,'kubo'],[180,-1,'two',[0xfbe9e7,0x4e342e,0xf5f5f5]],
               [194,-1,'bung',[0xfffde7,0xbf360c,0x2d3436]],[234,-1,'two',[0xe8f5e9,0x2e7d32,0xc0392b]],[248,-1,'bung',[0xfce4ec,0xad1457,0xf5f5f5]],[262,-1,'bung',[0xe3f2fd,0x283593,null]]];
@@ -5177,6 +5467,24 @@ const SRX=PX+42, STZ=-186;   // side street off the highway (between the palengk
     if(type==='sari'){const cv=document.createElement('canvas'); cv.width=512; cv.height=96; const k=cv.getContext('2d'); k.fillStyle='#d32f2f'; k.fillRect(0,0,512,96); k.fillStyle='#fff'; k.font='900 54px Arial, sans-serif'; k.textAlign='center'; k.textBaseline='middle'; k.fillText('SARI-SARI STORE',256,50);
       const sg=new THREE.Mesh(new THREE.PlaneGeometry(3.4,.64),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)})); const q=W(1.1,2.62); sg.position.set(q[0],2.45,q[1]); sg.rotation.y=rot; scene.add(sg);}
   }
+  // Benches behind the court face the game, away from the residential road.
+  for(const bx of [275.5,280.5]){
+    const seat=new THREE.Mesh(mergeGeo([
+      P('box',0x9a6b3d,bx,.5,STZ-15.5,3,.12,.65),
+      P('box',0x9a6b3d,bx,.95,STZ-15.8,3,.7,.1),
+      ...[-1,1].map(d=>P('box',0x455a64,bx+d*1.1,.25,STZ-15.5,.15,.5,.55))]),VCMAT);
+    seat.castShadow=seat.receiveShadow=true; scene.add(seat);
+    for(const dx of [-.75,.75]){const L=randLook(rng((bx+dx)*100)); L.bag=null;
+      const q=bakePerson(L,poseSit); q.position.set(bx+dx,.1,STZ-15.5); scene.add(q);COURT.seated.push(q);}
+  }
+  const cr=rng(278);
+  for(let k=0;k<4;k++){const L=randLook(cr); L.f=false; L.bag=null; L.skirt=false; L.style='none'; L.h=.9; L.shorts=true;
+    L.top=k%2?0xfafafa:0xe74c3c; L.bottom=k%2?0x234e91:0x333333;
+    const p=makePerson(L); scene.add(p.root); COURT.players.push(p);}
+  for(let k=0;k<3;k++){const L=randLook(cr); L.bag=null; const p=makePerson(L);
+    p.root.position.set(272.6,.08,STZ-12+k*1.5); p.root.rotation.y=Math.PI/2; scene.add(p.root); COURT.fans.push(p);}
+  COURT.ball=new THREE.Mesh(new THREE.SphereGeometry(.19,10,8),new THREE.MeshLambertMaterial({color:0xd87524}));
+  COURT.ball.castShadow=true; scene.add(COURT.ball);
   // basketball court where the kids play
   const b=[], cx=278, cz=STZ-10; b.push(P('box',0x9e9e9e,cx,.04,cz,9,.06,8)); b.push(P('box',0xffffff,cx,.075,cz,8.6,.01,.08)); b.push(P('box',0xffffff,cx,.075,cz+3.4,3.6,.01,.08));
   b.push(P('box',0x546e7a,cx,1.7,cz+4.6,.16,3.4,.16)); b.push(P('box',0xffffff,cx,3.3,cz+4.2,1.8,1.1,.08)); b.push(P('cyl',0xff5722,cx,3.0,cz+3.75,.5,.04,.5));
@@ -5285,7 +5593,128 @@ const FOUNT={jets:[],glows:[],mat:null}, skaters=[], watchers=[];
     const board=new THREE.Mesh(mergeGeo([P('box',0x5d4037,0,.1,0,.28,.04,.95),...[-.3,.3].flatMap(z=>[-.1,.1].map(x=>P('cyl',0xfafafa,x,.05,z,.08,.06,.08,0,0,Math.PI/2)))]),VCMAT);
     const g=new THREE.Group(); g.add(board); p.root.position.y=.12; p.root.rotation.y=Math.PI/2; g.add(p.root); scene.add(g); skaters.push({g,p,ph:k*Math.PI,lane:sz+(k?-1.6:1.6)});}
 })();
+// A repeatable two-on-two possession: size up, cross over, pass, drive, return pass,
+// jump shot, rebound and check the ball back out. Offsets are relative to the court.
+const COURT_PLAY=[
+  [0, [[-1,-2.5],[-.8,-1.1],[2,-1],[1.8,.2]]],
+  [3, [[.2,-2.3],[.1,-.9],[2,-.7],[1.8,.5]]],
+  [5, [[-1.5,-1.9],[-.9,-.8],[2,-.6],[1.6,.6]]],
+  [6, [[-1.3,-1.8],[-.7,-.6],[1.8,-.5],[1.5,.8]]],
+  [8, [[-2,-.8],[-1.4,.2],[.9,.4],[.8,1.5]]],
+  [9, [[-1.4,-1.3],[-.9,-.1],[.7,.6],[.7,1.6]]],
+  [10, [[-.7,-1.4],[-.6,-.2],[1.5,.7],[1.1,1.6]]],
+  [12, [[-.7,-1.4],[-.5,-.1],[1.1,1.9],[.5,2.6]]],
+  [14, [[-1,-1],[-.3,.2],[.6,2],[0,2.8]]],
+  [15, [[-1,-1],[-.3,.2],[.8,1.5],[0,2.5]]],
+  [16, [[-1.2,-1.5],[-.4,-.2],[1.2,.5],[.5,1.4]]],
+  [18, [[-1,-2.5],[-.8,-1.1],[2,-1],[1.8,.2]]],
+  [20, [[-1,-2.5],[-.8,-1.1],[2,-1],[1.8,.2]]]
+];
+// Basketball players use nearby residential doors and the north-side footpath.
+const COURT_DAY={last:null,awake:null,people:[]};
+function updateCourtRoutine(t){
+  const D=COURT_DAY,h=gameHour(),awake=h>=8&&h<22;
+  const dt=D.last===null?0:Math.min(.5,Math.max(0,t-D.last));D.last=t;
+  if(!D.people.length){const homes=HOUSES.filter(h=>h.side===1&&h.door[0]<252).slice(-4);
+    D.people=COURT.players.map((p,k)=>({p,home:homes[k],state:awake?'play':'sleep',path:[],i:0}));D.awake=awake;
+    if(!awake)D.people.forEach(w=>{w.p.root.position.set(w.home.door[0],.08,w.home.door[1]);w.p.root.visible=false;});
+  }
+  const pathFor=w=>{const k=COURT.players.indexOf(w.p),court=COURT_PLAY[0][1][k];
+    return [w.home.door,w.home.gate,w.home.walk,[283.5,w.home.walk[1]],[283.5,STZ-12],[278+court[0],STZ-10+court[1]]];};
+  if(awake!==D.awake){D.awake=awake;
+    for(const w of D.people){const route=pathFor(w);w.path=awake?route:route.slice().reverse();w.i=awake?1:0;
+      w.state=awake?'arriving':'leaving';w.p.root.visible=true;
+      if(awake)w.p.root.position.set(w.home.door[0],.08,w.home.door[1]);}
+  }
+  for(const w of D.people){if(w.state==='sleep'){w.p.root.visible=false;continue;}
+    if(w.state==='play')continue;
+    const p=w.p;p.root.visible=true;p.aL.scale.y=p.aR.scale.y=1;p.aL.rotation.z=.06;p.aR.rotation.z=-.06;
+    p.lL.g.rotation.z=p.lR.g.rotation.z=0;
+    let left=dt*1.35;
+    while(w.i<w.path.length){const [x,z]=w.path[w.i],dx=x-p.root.position.x,dz=z-p.root.position.z,d=Math.hypot(dx,dz);
+      if(d<=left+.001){p.root.position.set(x,.08,z);left=Math.max(0,left-d);w.i++;}
+      else {p.root.position.x+=dx/d*left;p.root.position.z+=dz/d*left;p.root.position.y=.08;p.root.rotation.y=Math.atan2(dx,dz);break;}}
+    poseWalk(p,t*7);if(w.i>=w.path.length){w.state=awake?'play':'sleep';p.root.visible=awake;}
+  }
+  const playing=awake&&D.people.every(w=>w.state==='play');if(playing&&!D.playing)D.playStart=t;D.playing=playing;COURT.ball.visible=playing;
+  COURT.fans.forEach(p=>p.root.visible=playing);COURT.seated.forEach(p=>p.visible=playing);return playing;
+}
+function updateCourt(t){
+  if(!updateCourtRoutine(t))return;
+  t-=COURT_DAY.playStart;
+  const u=((t%20)+20)%20, lerp=(a,b,v)=>a+(b-a)*v;
+  const positions=time=>{let i=0;while(i<COURT_PLAY.length-2&&time>=COURT_PLAY[i+1][0])i++;
+    const A=COURT_PLAY[i],B=COURT_PLAY[i+1],f=(time-A[0])/(B[0]-A[0]),e=f*f*(3-2*f);
+    return A[1].map((v,k)=>[278+lerp(v[0],B[1][k][0],e),STZ-10+lerp(v[1],B[1][k][1],e)]);};
+  const points=positions(u), next=positions(Math.min(19.999,u+.01));
+  const floor=.08, ground=new THREE.Vector3(), down=new THREE.Vector3(0,-1,0);
+  const facing=(k,pts)=>Math.atan2((k%2?pts[k-1][0]:278)-pts[k][0],(k%2?pts[k-1][1]:STZ-6.25)-pts[k][1]);
+  COURT.players.forEach((p,k)=>{
+    poseStand(p,0);p.aL.rotation.set(0,0,.06);p.aR.rotation.set(0,0,-.06);
+    const speed=Math.hypot(next[k][0]-points[k][0],next[k][1]-points[k][1])/.01;
+    const stride=Math.min(1,speed/1.1), step=Math.sin(u*7+k*Math.PI);
+    // A defensive shuffle uses alternating steps, bent knees and a stable stance.
+    p.lL.g.rotation.set(-.16-step*.3*stride,0,k%2?.12:.03);
+    p.lR.g.rotation.set(-.16+step*.3*stride,0,k%2?-.12:-.03);
+    p.lL.k.rotation.x=.2+Math.max(0,step)*.4*stride;
+    p.lR.k.rotation.x=.2+Math.max(0,-step)*.4*stride;
+    if(k%2){p.aL.rotation.set(-.55,0,.8);p.aR.rotation.set(-.55,0,-.8);}
+    p.root.rotation.y=facing(k,points);p.root.position.set(points[k][0],0,points[k][1]);
+    // Put the lower shoe sole on the court after posing, instead of sliding a fixed-height crouch.
+    // Three.js r128 coordinate conversions use cached matrices: refresh only the required joint chain.
+    p.root.updateWorldMatrix(true,false);
+    let sole=Infinity;for(const leg of [p.lL,p.lR]){leg.k.updateWorldMatrix(true,false);leg.k.localToWorld(ground.set(0,-.44,.05));sole=Math.min(sole,ground.y);}
+    let jump=0;if(k===0&&u>=9.15&&u<10)jump=Math.sin((u-9.15)/.85*Math.PI)*.32;
+    if(k===1&&u>=9.35&&u<10.05){jump=Math.sin((u-9.35)/.7*Math.PI)*.23;p.aL.rotation.x=p.aR.rotation.x=-2.5;}
+    p.root.position.y=floor-sole+jump;
+  });
+  const localBall=(k,time,shot=false)=>{
+    const pts=positions(time),yaw=facing(k,pts),h=COURT.players[k].L.h;
+    const y=shot?1.72:1.05,z=shot?.34:.52;
+    const jump=shot?Math.sin((9.6-9.15)/.85*Math.PI)*.32:0;
+    return [pts[k][0]+Math.sin(yaw)*z*h,floor+y*h+jump,pts[k][1]+Math.cos(yaw)*z*h];};
+  const flight=(a,b,q,arc)=>[lerp(a[0],b[0],q),lerp(a[1],b[1],q)+4*q*(1-q)*arc,lerp(a[2],b[2],q)];
+  let ball,owner=-1,dribble=false;
+  if(u>=5&&u<6)ball=flight(localBall(0,5),localBall(2,6),u-5,.12);
+  else if(u>=8.5&&u<9)ball=flight(localBall(2,8.5),localBall(0,9),(u-8.5)*2,.1);
+  else if(u>=9.6&&u<11.3)ball=flight(localBall(0,9.6,true),[278,3.04,STZ-6.25],(u-9.6)/1.7,1.65);
+  else if(u>=11.3&&u<12)ball=flight([278,3.04,STZ-6.25],localBall(3,12),(u-11.3)/.7,0);
+  else if(u>=15&&u<16)ball=flight(localBall(3,15),localBall(2,16),u-15,.12);
+  else if(u>=16&&u<18)ball=flight(localBall(2,16),localBall(0,18),(u-16)/2,.15);
+  else {owner=u<5?0:u<8.5?2:u<9.6?0:u<15?3:0;ball=localBall(owner,u);
+    const p=COURT.players[owner];
+    // Gather with both hands before each pass; the shot rises from chest to forehead.
+    if(u>=9&&u<9.6){const f=(u-9)/.6;ball=flight(localBall(0,u),localBall(0,u,true),f,0);}
+    dribble=u<4.5||u>=6.5&&u<8;
+    if(dribble){const beat=(u*2)%1,cross=Math.floor(u*2)%2?1:-1,r=p.root.rotation.y;
+      const side=cross*.32*Math.cos(beat*Math.PI)*Math.min(1,u/.2),bounce=Math.sin(beat*Math.PI);
+      ball[0]+=Math.cos(r)*side;ball[2]-=Math.sin(r)*side;ball[1]=lerp(ball[1],floor+.19,bounce);}
+  }
+  const aimHand=(p,arm,target)=>{
+    p.root.updateWorldMatrix(true,false);
+    const local=p.root.worldToLocal(new THREE.Vector3(...target));
+    const delta=local.sub(arm.position),length=delta.length();
+    arm.quaternion.setFromUnitVectors(down,delta.normalize());arm.scale.y=length/.62;
+  };
+  COURT.players.forEach((p,k)=>{p.aL.scale.y=p.aR.scale.y=1;
+    if(k===owner){const yaw=p.root.rotation.y,spread=.13;
+      const target=side=>[ball[0]+Math.cos(yaw)*spread*side,ball[1],ball[2]-Math.sin(yaw)*spread*side];
+      if(dribble){const arm=Math.floor(u*2)%2?p.aL:p.aR;
+        // Reach only as far as the arm can: the ball leaves the palm during the bounce.
+        const contact=target(0);contact[1]=Math.max(contact[1]+.16,p.root.position.y+.75);aimHand(p,arm,contact);
+      }else {aimHand(p,p.aL,target(1));aimHand(p,p.aR,target(-1));}
+    }else if(k===0&&u>=9.6&&u<10.4){p.aL.rotation.set(-2.8,0,.12);p.aR.rotation.set(-2.8,0,-.12);}
+    else {const catching=(k===2&&(u>=5.7&&u<6||u>=15.7&&u<16))||(k===0&&(u>=8.8&&u<9||u>=17.7&&u<18));
+      const passing=(k===0&&u>=5&&u<5.35)||(k===2&&u>=8.5&&u<8.8)||(k===3&&u>=15&&u<15.3)||(k===2&&u>=16&&u<16.3);
+      if(catching||passing){const target=localBall(k,u);aimHand(p,p.aL,[target[0]+.12,target[1],target[2]]);aimHand(p,p.aR,[target[0]-.12,target[1],target[2]]);}}
+  });
+  COURT.ball.position.set(...ball);COURT.ball.rotation.set(u*4,0,u*2);
+  COURT.fans.forEach(p=>{poseStand(p,0);p.aL.rotation.x=-.08;p.aR.rotation.x=-.12;p.root.rotation.y=Math.atan2(ball[0]-p.root.position.x,ball[2]-p.root.position.z);});
+}
+let courtLast=-Infinity;
 function updatePark(dt,t){
+  const courtNear=Math.hypot(cam.target.x-278,cam.target.z-(STZ-10))<75;
+  if(t-courtLast>(courtNear?1/30:1/5)){updateCourt(t);courtLast=t;}
   const night=NK>.4, beat=Math.floor(t/4)%4;
   for(const j of FOUNT.jets){const u=j.userData, h=u.k<0?2.6+Math.sin(t*2.2)*1.6:
       beat===0?1.2+Math.max(0,Math.sin(t*3+u.a*2))*2.2:beat===1?(u.k%2?2.8:.6)+Math.sin(t*4)*.5:beat===2?1+Math.abs(Math.sin(t*2.5+u.k*.5))*2.6:1.6+Math.sin(t*6+u.a)*1.0;
@@ -5425,7 +5854,7 @@ function updateTransit(dt,t){
     if(R.kind==='helper'&&work&&(R.state==='walkin'||R.state==='wait')){dropRider(R); R.H.state='arrive'; R.H.path=walkIn().slice(1).concat([helperHome(helpers.indexOf(R.H))]); continue;}   // morning came before a ride
     if(R.state==='walkin'&&R.path&&R.path.length){if(stepTo(R,R.p,R.path[0][0],R.path[0][1],dt,1.4)) R.path.shift(); slot++; continue;}   // still walking from their house
     if(R.state==='walkin'||R.state==='wait'){const x=STOPX-2.4+(slot%7)*.8, z=STOPZ+(slot>=7?.6:0); slot++;
-      if(stepTo(R,R.p,x,z,dt,1.3)){R.state='wait'; R.p.root.rotation.y=Math.PI; poseStand(R.p,t+slot);}}
+      if(stepTo(R,R.p,x,z,dt,1.3)){R.state='wait'; R.p.root.rotation.y=Math.atan2(STOPX-R.p.root.position.x,LE-R.p.root.position.z); poseStand(R.p,t+slot);}}
     else if(R.state==='board'){if(stepTo(R,R.p,R.tx,R.tz,dt,1.6)){ if(R.kind==='helper'){R.p.root.visible=false; R.H.state='gone'; const i=riders.indexOf(R); if(i>=0) riders.splice(i,1);} else if(R.kind==='farmer'){R.p.root.visible=false; const i=riders.indexOf(R); if(i>=0) riders.splice(i,1); if(S.pasa){S.pasa.phase='away'; S.pasa.t0=Date.now(); save();}} else dropRider(R);}}
     else if(R.state==='off'){if(R.path){if(stepTo(R,R.p,R.path[0][0],R.path[0][1],dt,1.3)){R.path.shift(); if(!R.path.length) dropRider(R);}} else if(stepTo(R,R.p,R.tx,STOPZ-.1,dt,1.3)) dropRider(R);}
   }
@@ -5450,6 +5879,7 @@ function updateTransit(dt,t){
     }else if(V.state==='stop'){V.timer-=dt; if(V.timer<=0&&!riders.some(R=>R.state==='board')){V.state='drive'; V.v=.5;}}
     const tgt=STOPX-V.door, inBay=V.state==='stop'?1:V.slowing?Math.max(0,Math.min(1,1-(tgt-V.x-2)/16)):V.stopped&&V.x>tgt?Math.max(0,1-(V.x-tgt)/16):0;
     const z=LE+(BAYZ-LE)*inBay, pz=V.g.position.z, px=V.g.position.x;
+    if(!trafficCanMove(V.g,V.x,z,Math.PI/2,V.len)){V.x=px;V.v=0;continue;}
     V.g.position.set(V.x,V.state==='stop'?0:Math.abs(Math.sin(t*9+V.x))*.015,z); V.z=z;
     if(V.x-px>.01) V.g.rotation.y=lerpAng(V.g.rotation.y,Math.atan2(V.x-px,z-pz),.3); else if(V.state==='stop') V.g.rotation.y=lerpAng(V.g.rotation.y,Math.PI/2,.1);
   }
@@ -5457,7 +5887,7 @@ function updateTransit(dt,t){
 if(S.pasa&&S.pasa.phase==='done-on-load'){const P=S.pasa; S.pasa=null; settlePasabay(P); if(P.mats) for(const k in P.mats) S.mats[k]=(S.mats[k]||0)+P.mats[k]; save();}
 /* ---------- 📰 news: what changed in each update ---------- */
 /* ---------- the katayan: your own small slaughterhouse beside the farm road; butchers turn live animals into meat ---------- */
-const KAT={x:10,z:64}, KAT_LV=2, KAT_PRICE=3000, KAT_FEE={live_chicken:5,live_pig:150,live_goat:200,live_cow:600}, KAT_SEC={live_chicken:2,live_pig:15,live_goat:15,live_cow:40};
+const KAT={x:10,z:64}, KAT_LV=2, KAT_PRICE=3000, KAT_FEE={live_chicken:5,live_pig:75,live_goat:80,live_cow:300}, KAT_SEC={live_chicken:2,live_pig:15,live_goat:15,live_cow:40};
 const KAT_MEAT={live_chicken:{chicken:8},live_pig:{pork:30},live_goat:{chevon:25},live_cow:{beef:110}};
 const AREA_LIVE={broiler:'live_chicken',pig:'live_pig',cows:'live_cow',goat:'live_goat'};
 if(!S.kat) S.kat={owned:false,q:{},t0:0,dur:0};
@@ -5511,7 +5941,7 @@ function pickupVeh(t){const L=LIFE[t.b], k=L&&(L.live||L.cull); if(!k) return []
 function pickupPending(i){return Object.keys(VEH).some(v=>{const tr=S.veh[v]&&S.veh[v].trip; return tr&&tr.dest==='pickup'&&tr.i===i&&!tr.loaded;});}
 function startPickup(i,cnt){const t=S.tiles[i], L=LIFE[t.b], vs=pickupVeh(t); if(pickupPending(i)) return toast('A truck is already on its way to these animals.',2600);
   const v=vs.find(vehFree); if(!v) return toast(`${vs.map(x=>VEH[x].icon+' '+VEH[x].name).join(' and ')} ${vs.length>1?'are both':'is'} on the road. Try again when ${vs.length>1?'one':'it'} is back.`,3200);
-  const n=L.live?t.n:Math.min(t.n,cnt||1); if(!beginTrip(v,{dest:'pickup',i,area:t.b,cnt:n,paid:true,stopT:t.b==='broiler'?24:12})) return;
+  const n=L.live?t.n:Math.min(t.n,cnt||1); if(!beginTrip(v,{dest:'pickup',pickupLayout:3,i,area:t.b,cnt:n,paid:true,stopT:t.b==='broiler'?24:12})) return;
   toast(`${VEH[v].icon} The ${VEH[v].name.toLowerCase()} will back up to the ${FARM.areas.find(a=>a.type===t.b).name.toLowerCase()} gate and load ${n} ${n===1&&L.one?L.one:L.word}.`,3400); buzz(); changed();}
 /* ---------- watering, rain, the farmer's hunger and energy, home and fishing ---------- */
 const needsWater=i=>!rainOn()&&growMult(i)<=1;   // plots next to a poso stay moist, and rain waters everything
@@ -5534,7 +5964,7 @@ setInterval(()=>{const want=rainOn()&&AC&&SND.amb&&AC.state==='running';
     for(let k=0;k<7;k++) tone(BUS.amb,{f:2200+Math.random()*3800,type:'sine',a:.001,d:.018,v:.012+Math.random()*.018,t:Math.random()});
     if(Math.random()<.035) noise(BUS.amb,{d:3.8,a:.5,v:.2,f:110,f2:45,q:.7,type:'lowpass'});}},1000);
 // the farmer gets hungry and tired: slower when low, refuses work when exhausted; rest, sleep or eat at home
-const HOME_T={rest:20,cook:10,sleep:1e9}, COST={plow:1.4,plant:.6,harvest:.7,chop:3,water:.4,care:.6};
+const HOME_T={rest:12,cook:8,sleep:1e9}, COST={plow:.45,plant:.2,harvest:.25,chop:1,water:.15,care:.2};
 const homeDoor=()=>[S.housePos.x,S.housePos.z+4.75];   // the foot of the front steps
 // inside the house: up the three steps, across the veranda, through the door, to the stove or the papag
 function homePath(sub){const hx=S.housePos.x, hz=S.housePos.z, p=(x,z,y)=>[hx+x,hz+z,y];
@@ -5561,7 +5991,7 @@ function homeStep(F,dt,t){const j=F.cur, r=F.p.root, p=F.p, now=Date.now();
   if(q.stage==='in'){if(walk(q.pts)){q.stage='act'; q.u=0; F.timer=jobTime(j); if(j.sub!=='cook') lieDown(F,true,j.sub==='sleep');}}
   else if(q.stage==='act'){F.timer-=dt; const h=gameHour();
     if(j.sub==='cook'){r.rotation.y=Math.PI; poseStand(p,t); p.aR.rotation.x=-1.2+Math.sin(t*7)*.35; p.aL.rotation.x=-.8; cookingT=now+300;}
-    if(j.sub==='sleep'){S.me.energy=Math.min(100,S.me.energy+dt*1.4); if(h>=5&&h<21||F.jobs.some(q2=>q2.type==='board')) F.timer=0;} else if(j.sub==='rest') S.me.energy=Math.min(100,S.me.energy+dt*2.6);
+    if(j.sub==='sleep'){S.me.energy=Math.min(100,S.me.energy+dt*2); if(h>=5&&h<21||F.jobs.some(q2=>q2.type==='board')) F.timer=0;} else if(j.sub==='rest') S.me.energy=Math.min(100,S.me.energy+dt*6);
     if(F.timer<=0){if(j.sub==='cook'){q.stage='table'; q.u=0; q.pts=homePath('table');}   // carries the meal to the table
       else {lieDown(F,false); r.rotation.set(0,Math.PI/2,0); finishHome(j); q.stage='out'; q.u=0; q.pts=q.pts.slice().reverse();}}}
   else if(q.stage==='table'){if(walk(q.pts)){q.stage='eat'; q.u=0; F.timer=7; BED.plate.visible=true;}}
@@ -5577,31 +6007,32 @@ let houseDoorT=0, cookingT=0;
   const cook=now<cookingT; U.flame.visible=cook; U.flame.scale.setScalar(.9+Math.sin(t*20)*.1);
   U.steam.forEach((s,k)=>{s.visible=cook; if(cook){const u=(t*.6+k/5)%1; s.position.set(2.28+Math.sin(k*2+t)*.08,1.6+u*.9,-3.1); s.scale.setScalar(.6+u*1.4); s.material.opacity=.5*(1-u);}});})();
 const needSpd=()=>S.me.energy<=0?.5:(S.me.energy<20||S.me.hunger<15)?.72:1;
-function spendNeeds(type){const c=COST[type]||.5; S.me.energy=Math.max(0,S.me.energy-c*(S.me.hunger<=0?2:1)); S.me.hunger=Math.max(0,S.me.hunger-c*.5); renderNeeds();}
+function spendNeeds(type){const c=COST[type]||.5; S.me.energy=Math.max(0,S.me.energy-c*(S.me.hunger<=0?1.3:1)); S.me.hunger=Math.max(0,S.me.hunger-c*.25); renderNeeds();}
 let needWarn={};
 function needsTick(dt,now){const M=S.me, h=gameHour(), F=farmer, inside=F.cur&&F.cur.type==='home';
-  M.hunger=Math.max(0,M.hunger-dt*60/(DAY_MS/1000)); if(!inside) M.energy=Math.max(0,M.energy-dt*(M.hunger<=0?3:1)*25/(DAY_MS/1000));
+  M.hunger=Math.max(0,M.hunger-dt*25/(DAY_MS/1000)); if(!inside) M.energy=Math.max(0,M.energy-dt*(M.hunger<=0?1.5:1)*8/(DAY_MS/1000));
   for(const [k,lv,msg] of [['hunger',20,'🍚 Your farmer is getting hungry. Cook something at home: tap 🏠 Bahay.'],['energy',20,'⚡ Your farmer is getting tired. Rest at home, or sleep tonight.']]){
     if(M[k]<lv&&!needWarn[k]){needWarn[k]=1; toast(msg,3600);} if(M[k]>lv+10) needWarn[k]=0;}
   const idle=!F.cur&&!F.jobs.length&&!F.riding&&!S.pasa&&!FISH.on;
   if(idle&&(h>=21.5||h<4.5)&&M.energy<95&&!F.jobs.some(j=>j.type==='home')){F.jobs.push({type:'home',i:-1,sub:'sleep'}); toast('🌙 Gabi na. Your farmer goes home to sleep.',2600);}
+  if(idle&&h>=5&&h<21.5)M.energy=Math.min(100,M.energy+dt*.12);
   renderNeeds(); if(bldIdx===-3&&$('bldSheet').classList.contains('open')&&Math.random()<.34) renderHome();}
 function renderNeeds(){const M=S.me, hb=$('hungerBar'), eb=$('energyBar'); if(!hb) return; hb.style.width=Math.round(M.hunger)+'%'; eb.style.width=Math.round(M.energy)+'%';
   $('needPill').classList.toggle('low',M.hunger<15||M.energy<15); $('needPill').title=`Busog ${Math.round(M.hunger)} · Lakas ${Math.round(M.energy)}`;}
 const RECIPES=[
-  {id:'kaninP',name:'Kanin (from your palay)',icon:'🍚',need:{wheat:2},h:25,e:4},
-  {id:'kaninB',name:'Kanin (from bigas)',icon:'🍚',need:{bigas:1},h:25,e:4},
-  {id:'kamote',name:'Nilagang kamote',icon:'🍠',need:{kamote:2},h:20,e:4},
-  {id:'itlog',name:'Kanin at pritong itlog',icon:'🍳',need:{wheat:1,egg:2},h:35,e:6},
-  {id:'ginisa',name:'Ginisang pechay',icon:'🥬',need:{pechay:2,bawang:1,wheat:1},h:35,e:6},
-  {id:'torta',name:'Tortang talong',icon:'🍆',need:{talong:1,egg:1,wheat:1},h:45,e:6},
-  {id:'tilapia',name:'Pritong tilapia',icon:'🐟',need:{tilapia:1,wheat:1},h:50,e:8},
+  {id:'kaninP',name:'Kanin (from your palay)',icon:'🍚',need:{wheat:2},h:25,e:10},
+  {id:'kaninB',name:'Kanin (from bigas)',icon:'🍚',need:{bigas:1},h:25,e:10},
+  {id:'kamote',name:'Nilagang kamote',icon:'🍠',need:{kamote:2},h:20,e:10},
+  {id:'itlog',name:'Kanin at pritong itlog',icon:'🍳',need:{wheat:1,egg:2},h:35,e:14},
+  {id:'ginisa',name:'Ginisang pechay',icon:'🥬',need:{pechay:2,bawang:1,wheat:1},h:35,e:14},
+  {id:'torta',name:'Tortang talong',icon:'🍆',need:{talong:1,egg:1,wheat:1},h:45,e:14},
+  {id:'tilapia',name:'Pritong tilapia',icon:'🐟',need:{tilapia:1,wheat:1},h:50,e:18},
   {id:'sinigang',name:'Sinigang na isda',icon:'🍲',need:{tilapia:1,kamatis:2,sitaw:1,wheat:1},h:70,e:15},
   {id:'adobo',name:'Adobong manok',icon:'🍗',need:{chicken:2,bawang:1,wheat:1},h:75,e:12},
   {id:'kape',name:'Kape at pandesal',icon:'☕',need:{kape:1,pandesal:1},h:20,e:30},
   {id:'canton',name:'Pancit canton',icon:'🍜',need:{canton:2},h:35,e:5},
-  {id:'sardinas',name:'Kanin at sardinas',icon:'🥫',need:{bigas:1,sardinas:1},h:55,e:8},
-  {id:'tuyo',name:'Tuyo at kanin',icon:'🍢',need:{bigas:1,tuyo:1},h:50,e:8},
+  {id:'sardinas',name:'Kanin at sardinas',icon:'🥫',need:{bigas:1,sardinas:1},h:55,e:18},
+  {id:'tuyo',name:'Tuyo at kanin',icon:'🍢',need:{bigas:1,tuyo:1},h:50,e:18},
   {id:'cornsilog',name:'Cornsilog',icon:'🥘',need:{bigas:1,corned:1,egg:1},h:75,e:12}];
 const haveFood=k=>(S.mats[k]||0)+(S.inv[k]||0), foodIcon=k=>(ITEMS[k]||MATS[k]).icon;
 const canCook=r=>Object.entries(r.need).every(([k,n])=>haveFood(k)>=n);
@@ -5698,7 +6129,7 @@ function spray(W,i,t){if(!W.spr){W.spr=new THREE.Group(); for(let k=0;k<10;k++) 
   if(REEL.g) REEL.g.userData.coil.scale.setScalar([farmer,...helpers].some(W=>W.hose)?.55:1);})();
 /* ---------- Stage G: town life. Sinag Liner buses and their terminal, a stop up in the mountain barangay with people walking its roads,
    a jeepney terminal with a queue, the police station and its patrol car, and fiesta days with banderitas and a parade ---------- */
-const TOWN={bus:[250,-122], jx:[280,-126], pol:[316,-150]};
+const TOWN={bus:[250,-122], jx:[280,-126], pol:[350,-150]};
 const hy=(x,z)=>Math.max(0,hillH(x,z));
 // sit a vehicle on the hillside: height and tilt (front to back and side to side) from the ground under its four wheels, so no wheel sinks in
 function onSlope(g,x,z,hl,hw){const a=g.rotation.y, s=Math.sin(a), c=Math.cos(a), H=(f,l)=>hy(x+s*f+c*l,z+c*f-s*l);
@@ -5709,25 +6140,32 @@ function signPlane(lines,bg,fg,w,h,cw=512,ch=128){const cv=document.createElemen
   x.fillStyle=fg; x.textAlign='center'; x.textBaseline='middle'; lines.forEach((s,k)=>{x.font=`900 ${k?ch*.22:ch*.42}px Arial, sans-serif`; x.fillText(s,cw/2,lines.length>1?(k?ch*.76:ch*.36):ch/2,cw-16);});
   return new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)}));}
 // the terminal buildings
-(()=>{const b=[], [bx,bz]=TOWN.bus, [jx,jz]=TOWN.jx;
+(()=>{const b=[], roofs=[], [bx,bz]=TOWN.bus, [jx,jz]=TOWN.jx;
   b.push(P('box',0x8f969b,250,.03,-128,40,.05,22)); b.push(P('box',0xf1c40f,250,.06,-119.4,40,.02,.12)); b.push(P('box',0xf1c40f,250,.06,-124.6,40,.02,.12));   // bus apron and bay lines
-  b.push(P('box',0xd9d2c0,250,.25,-131.5,34,.5,7)); for(let k=0;k<7;k++) b.push(P('box',0x7f8c8d,236+k*4.6,2.2,-128.4,.25,4,.25)); b.push(P('box',0xe67e22,250,4.35,-131.2,36,.3,9));   // platform, posts, orange roof
-  b.push(P('box',0xd35400,250,4.55,-131.2,34,.15,7)); for(let k=0;k<6;k++) b.push(P('box',0x6d4c41,238+k*4.6,.75,-133,3.2,.12,.7)); b.push(P('box',0xe8e2d0,262,1.6,-133.5,4,2.6,3)); b.push(P('box',0x2b3a48,262,1.9,-131.95,3,.8,.05));   // benches, ticket booth
+  b.push(P('box',0xd9d2c0,250,.25,-131.5,34,.5,7)); for(let k=0;k<7;k++) b.push(P('box',0x7f8c8d,236+k*4.6,2.2,-128.4,.25,4,.25)); b.push(...[]);   // platform, posts, orange roof
+  b.push(...[]); for(let k=0;k<6;k++) b.push(P('box',0x6d4c41,238+k*4.6,.75,-133,3.2,.12,.7)); b.push(P('box',0xe8e2d0,262,1.6,-133.5,4,2.6,3)); b.push(P('box',0x2b3a48,262,1.9,-131.95,3,.8,.05));   // benches, ticket booth
   b.push(P('box',0x8f969b,292,.03,-129,32,.05,18)); b.push(P('box',0xf1c40f,292,.06,-123.6,28,.02,.1)); b.push(P('box',0xf1c40f,292,.06,-128.4,28,.02,.1));   // jeepney apron and queue lane
-  b.push(P('box',0xd9d2c0,290,.22,-134,22,.44,5)); for(let k=0;k<5;k++) b.push(P('box',0x7f8c8d,281+k*4.5,1.8,-132,.2,3.2,.2)); b.push(P('box',0x1f7a4d,290,3.5,-133.6,24,.25,6.4));
+  b.push(P('box',0xd9d2c0,290,.22,-134,22,.44,5)); for(let k=0;k<5;k++) b.push(P('box',0x7f8c8d,281+k*4.5,1.8,-132,.2,3.2,.2)); b.push(...[]);
   for(let k=0;k<4;k++) b.push(P('box',0x6d4c41,283+k*4.6,.7,-135,3.2,.12,.6));
   // police station facing the east road: blue and white with a flag pole
-  const [px,pz]=TOWN.pol; b.push(P('box',0xbdb6a6,px+4,.05,pz,18,.1,16)); b.push(P('box',0xf2f2ee,px,2,pz,9,4,11)); b.push(P('box',0x1f4e9a,px,.6,pz,9.04,1.2,11.04)); b.push(P('box',0x1f4e9a,px,4.2,pz,9.6,.4,11.6));
-  b.push(P('box',0x2b3a48,px+4.53,1.5,pz,.05,2.4,1.8)); [-3,3].forEach(dz=>b.push(P('box',0x2b3a48,px+4.53,2.3,pz+dz,.05,1.1,1.6))); b.push(P('box',0xbdb6a6,px+5.6,.15,pz,2.4,.3,3));
-  b.push(P('cyl',0xd0d0d0,px+7.5,3.5,pz-5,.12,7,.12));
+  const [px,pz]=TOWN.pol; b.push(P('box',0xbdb6a6,px-4,.05,pz,18,.1,16)); b.push(P('box',0xf2f2ee,px,2,pz,9,4,11)); b.push(P('box',0x1f4e9a,px,.6,pz,9.04,1.2,11.04)); b.push(P('box',0x1f4e9a,px,4.2,pz,9.6,.4,11.6));
+  b.push(P('box',0x2b3a48,px-4.53,1.5,pz,.05,2.4,1.8)); [-3,3].forEach(dz=>b.push(P('box',0x2b3a48,px-4.53,2.3,pz+dz,.05,1.1,1.6))); b.push(P('box',0xbdb6a6,px-5.6,.15,pz,2.4,.3,3));
+  b.push(P('cyl',0xd0d0d0,px-7.5,3.5,pz-5,.12,7,.12));
+  for(const dz of [-1.6,1.6])b.push(P('box',0xf4edce,px-8,.12,pz+dz,5.8,.02,.1));
+  b.push(P('box',0xbdb6a6,337.5,.03,pz,6,.06,4));
+  roofs.push(P('box',0xe67e22,250,4.35,-131.2,36,.3,9));
+  roofs.push(P('box',0xd35400,250,4.55,-131.2,34,.15,7));
+  roofs.push(P('box',0x1f7a4d,290,3.5,-133.6,24,.25,6.4));
   const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.castShadow=m.receiveShadow=true; scene.add(m);
+  const canopyMat=VCMAT.clone(); canopyMat.transparent=true;canopyMat.opacity=1;canopyMat.depthWrite=true;TOWN.canopyMat=canopyMat;
+  const canopy=new THREE.Mesh(mergeGeo(roofs),canopyMat);canopy.receiveShadow=true;scene.add(canopy);
   const flag=signPlane([''],'#fff','#fff',1.6,1); const fc=flag.material.map.image.getContext('2d'); fc.fillStyle='#0038a8'; fc.fillRect(0,0,512,64); fc.fillStyle='#ce1126'; fc.fillRect(0,64,512,64); fc.fillStyle='#fff'; fc.beginPath(); fc.moveTo(0,0); fc.lineTo(200,64); fc.lineTo(0,128); fc.fill(); fc.fillStyle='#fcd116'; fc.beginPath(); fc.arc(60,64,20,0,7); fc.fill(); flag.material.map.needsUpdate=true; flag.material.side=THREE.DoubleSide;
-  flag.position.set(px+7.5,6.4,pz-4.15); scene.add(flag); TOWN.flag=flag;
+  flag.position.set(px-7.5,6.4,pz-4.15); scene.add(flag); TOWN.flag=flag;
   const s1=signPlane(['SINAG LINER','Bus Terminal · Maynila · Bundok'],'#e67e22','#fff',14,2.2); s1.position.set(250,5.1,-126.6); scene.add(s1);
   const s2=signPlane(['JEEPNEY TERMINAL','Palengke · Mega Foods'],'#1f7a4d','#ffd23f',12,2); s2.position.set(290,4.3,-130.35); scene.add(s2);
-  const s3=signPlane(['POLICE STATION','Pambansang Pulisya'],'#1f4e9a','#fff',6,1.4); s3.position.set(px+4.58,3.3,pz); s3.rotation.y=Math.PI/2; scene.add(s3);
+  const s3=signPlane(['POLICE STATION','Pambansang Pulisya'],'#1f4e9a','#fff',6,1.4); s3.position.set(px-4.58,3.3,pz); s3.rotation.y=-Math.PI/2; scene.add(s3);
   for(const [x,z,s] of [[262,-131.9,1],[300,-131.4,.8]]) glow(scene,x,3.2,z,5*s,GM.white);
-  glow(scene,TOWN.pol[0]+4.6,3.6,TOWN.pol[1],3,GM.white);})();
+  glow(scene,TOWN.pol[0]-4.6,3.6,TOWN.pol[1],3,GM.white);})();
 // the mountain bus stop: a waiting shed at the end of the bus climb, with people who wait for it
 const MTN_STOP=(()=>{const up=HROADS[0].s, k=nearestOn(up,232,-262), [x,z]=up[k], [a,c]=up[Math.min(up.length-1,k+1)], L=Math.hypot(a-x,c-z)||1, ox=x-(c-z)/L*4.4, oz=z+(a-x)/L*4.4, y=hy(ox,oz);
   const g=new THREE.Group(); g.position.set(ox,y,oz); g.rotation.y=Math.atan2(a-x,c-z); scene.add(g);
@@ -5751,23 +6189,137 @@ function makeLiner(dest){const b=[], GL=0x22303c, D=0x1b1b1b, g=new THREE.Group(
   const d=bakePerson(randLook(Math.random),poseSit); d.position.set(-.75,.95,4.4); g.add(d); scene.add(g); return g;}
 const LINERS=(()=>{const sl=4, d=SPD.dirt||6, h=13, up=HROADS[0].s, climb=[]; for(let q=0;q<=MTN_STOP.k;q+=3) climb.push([up[q][0],up[q][1],sl]);
   const via=mkRoute([[TX0,LE,h],[226,LE,6],[236,-122,3],[250,-122]]), thru=mkRoute([[250,-122,3],[266,-122,5],[274,LE,h],[TX1,LE]]);
-  const upR=mkRoute([[250,-122,3],[266,-122,5],[274,LE,10],[326,LE,5],[333.5,-114,6],[333.5,-182,6],[328,-187.75,5],[154,-187.75,5],...climb]);
-  const downR=mkRoute([...climb.slice().reverse(),[154,-184.25,5],[328,-184.25,6],[330,-180,6],[330,-116,5],[326,LW,10],[TX0,LW]]);
+  const upR=mkRoute([[250,-122,3],[266,-122,5],[274,LE,10],[326,LE,5],[331.75,-114,6],[331.75,-182,6],[328,-187.75,5],[154,-187.75,5],...climb]);
+  const downR=mkRoute([...climb.slice().reverse(),[154,-184.25,5],[328,-184.25,6],[328.25,-180,6],[328.25,-120,5],[322,LW,10],[TX0,LW]]);
   return [{g:makeLiner('Maynila'),legs:[['in',via],['wait',14],['go',thru]],k:0,e:0,away:30},
           {g:makeLiner('Bundok'),legs:[['in',via],['wait',14],['go',upR],['stop',14],['go',downR]],k:0,e:-55,away:20}];})();
 // jeepneys queue at the terminal; the one in front loads riders, then goes to the palengke (west) or the Mega Foods gate (east)
-const JEEPS=(()=>{const list=[]; for(let k=0;k<4;k++){const g=makePUJ(); g.visible=true; const tex=['PALENGKE','MEGA FOODS'].map(s=>signPlane([s],'#fff','#c62828',1.5,.32,256,56));
-    tex.forEach((q,i)=>{q.position.set(0,2.08,1.16); q.visible=false; g.add(q);}); list.push({g,tex,state:'queue',x:282+k*6,trip:k%2,e:0,R:null,timer:0});} return list;})();
-const jRoutes={palengke:mkRoute([[280,-126,3],[273,-121,4],[268,LW,8],[PX+12,LW,10],[PX+4,LW,2],[PX-2,LW,10],[TX0,LW]]),
-  factory:mkRoute([[280,-126,3],[273,-121,4],[268,LE,8],[FX-12,LE,10],[FX-4,LE,2],[FX+2,LE,10],[TX1,LE]])};
-const jBack=(fromW,slot)=>mkRoute(fromW?[[TX0,LE,13],[306,LE,6],[312,-118,3],[312,-126,3],[slot,-126]]:[[TX1,LW,13],[316,LW,6],[312,-118,3],[312,-126,3],[slot,-126]]);
+const JEEPS=(()=>{const list=[]; for(let k=0;k<3;k++){const g=makePUJ();g.position.set(282+k*8,0,-126);g.rotation.y=-Math.PI/2; g.visible=true; const tex=['PALENGKE','MEGA FOODS','RESIDENTIAL'].map(s=>signPlane([s],'#fff','#c62828',1.5,.32,256,56));
+    tex.forEach((q,i)=>{q.position.set(0,2.08,1.16); q.visible=false; g.add(q);}); list.push({g,tex,state:'queue',x:282+k*8,trip:k%3,e:0,R:null,timer:0,riders:0,stopIndex:0});} return list;})();
+const jRoutes={palengke:mkRoute([[282,-126,3],[273,-121,4],[268,LW,8],[PX+12,LW,10],[PX+4,LW,2],[PX-2,LW,10],[TX0,LW]]),
+  factory:mkRoute([[282,-126,3],[273,-121,4],[268,LE,8],[FX-12,LE,10],[FX-4,LE,2],[FX+2,LE,10],[TX1,LE]]),
+  residential:mkRoute([[282,-126,3],[273,-121,4],[268,LW,8],[45,LW,6],[41.75,-119,5],[41.75,STZ+5,4],[48,STZ+1.75,5],[124,STZ+1.75,4],[180,STZ+1.75,4],[248,STZ+1.75,4],[324,STZ+1.75,5],[328.25,-180,5],[328.25,-120,4],[322,LW,8],[TX0,LW]])};
+const JEEP_STOPS=[124,180,248].map(x=>({x,z:STZ+1.75,home:HOUSES.find(h=>h.side===-1&&Math.abs(h.door[0]-x)<3)}));
+const RES_STOP_TIMES=JEEP_STOPS.map(stop=>jRoutes.residential.segs.find(seg=>seg.b[0]===stop.x&&seg.b[1]===stop.z)).map(seg=>seg.t0+seg.dur);
+// Return through the west-bank driveway; the river at x=307.6 is crossed only on the highway bridge.
+const jBack=(fromW,slot)=>mkRoute((fromW?[[TX0,LE,13],[291,LE,5],[300,-113,3]]:[[TX1,LW,13],[304,LW,5],[300,-113,3]])
+  .concat([[300,-119,3],[300,-126,2],[Math.min(300,slot),-126]]));
+// Concrete culvert driveways carry the terminal entry and exit over the roadside drain.
+(()=>{const b=[];for(const x of [273,300]){
+  b.push(P('box',0xa6a49d,x,.025,-116.4,7,.05,5.8));
+  for(const side of [-1,1]){b.push(P('box',0x8d918f,x+side*3.35,.16,-116.4,.3,.32,2.4));
+    b.push(P('box',0xf2cd46,x+side*2.8,.06,-116.4,.1,.02,4.8));}}
+  const m=new THREE.Mesh(mergeGeo(b),VCMAT);m.receiveShadow=true;scene.add(m);
+})();
+// Terminal life stays on the raised platforms, separate from the vehicle lanes.
+const TERMINAL=(()=>{
+  const folk=[], walkers=[], screens=[], r=rng(626), b=[];
+  const person=()=>{const L=randLook(r);L.bag=null;return makePerson(L);};
+  // Fill the existing benches; some passengers eat merienda while waiting.
+  for(const [x,z,y] of [...Array.from({length:5},(_,k)=>[238+k*4.6,-133,.75]),...Array.from({length:4},(_,k)=>[283+k*4.6,-135,.7])]){
+    for(const dx of [-.4]){const look=randLook(r);look.bag=null;const p=makeVendor(look);poseSit(p);p.root.position.set(x+dx,y-.88*p.L.h,z);scene.add(p.root);
+      const eat=r()<.4;
+      if(eat){const food=part(.14,.11,.14,0xd5a15a,0,-.59,.06);p.aR.add(food);
+        const cup=part(.12,.18,.12,0xfaf1d9,x+dx+.28,y+.16,z+.12);scene.add(cup);}
+      folk.push({p,eat,seatY:y,phase:r()*6});}
+  }
+  // Ticket counter attendant and a short queue: each customer pays, takes a ticket and returns to the waiting area.
+  const clerk=person();clerk.root.position.set(262,.5,-133);scene.add(clerk.root);folk.push({p:clerk,phase:0,eat:false});
+  const label=signPlane(['TICKETS / BILIHAN'],'#24313b','#fff',3,.4);label.position.set(262,2.85,-131.9);scene.add(label);
+  // A small merienda counter under the bus shelter.
+  b.push(P('box',0x8d603d,234.6,1,-133.7,2.1,1,1));b.push(P('box',0xeee3cc,234.6,1.54,-133.7,2.3,.08,1.1));
+  for(let k=0;k<4;k++)b.push(P('sph',0xd7a15a,234+k*.35,1.65,-133.5,.22,.13,.17));
+  const snack=signPlane(['MERIENDA'],'#a33d27','#fff2ca',2.4,.45);snack.position.set(234.6,2.25,-133.1);scene.add(snack);
+  const vendor=person();vendor.root.position.set(234.6,.5,-134.6);scene.add(vendor.root);folk.push({p:vendor,eat:false,phase:1});
+  // Platform display boards use emissive materials so destinations remain readable at night.
+  for(const [x,z,kind] of [[248,-132,'bus'],[291,-134,'jeep']]){
+    const cv=document.createElement('canvas');cv.width=768;cv.height=240;const tex=new THREE.CanvasTexture(cv);
+    const screen=new THREE.Mesh(new THREE.PlaneGeometry(7,2.1),new THREE.MeshBasicMaterial({map:tex}));screen.position.set(x,2.9,z);scene.add(screen);
+    b.push(P('box',0x172029,x,2.9,z-.08,7.2,2.3,.14));screens.push({cv,tex,kind,last:-1});
+  }
+  const L=randLook(r);Object.assign(L,{top:0xf2f3f5,bottom:0x152c46,style:'cap',capC:0x152c46,bag:null,skirt:false});
+  const guard=makePerson(L);scene.add(guard.root);
+  const badge=part(.06,.09,.025,0xd9b653,.1,1.25,.13);guard.root.add(badge);
+  const mesh=new THREE.Mesh(mergeGeo(b),VCMAT);mesh.castShadow=mesh.receiveShadow=true;scene.add(mesh);
+  // Crowd bodies use baked geometry; small people do not need separate shadow draws.
+  for(const p of [...folk.map(f=>f.p),...walkers.map(w=>w.p),guard])p.root.traverse(o=>{if(o.isMesh)o.castShadow=false;});
+  const crowd=new THREE.Group();scene.add(crowd);
+  for(const p of [...folk.map(f=>f.p),...walkers.map(w=>w.p),guard])crowd.add(p.root);
+  crowd.visible=false;
+  return {folk,walkers,screens,guard,crowd};
+})();
+function updateTerminal(t){
+  const move=(p,route,u,height)=>{const i=Math.floor(u)% (route.length-1), f=u-Math.floor(u), a=route[i],b=route[i+1];
+    p.root.position.set(a[0]+(b[0]-a[0])*f,height,a[1]+(b[1]-a[1])*f);p.root.rotation.y=Math.atan2(b[0]-a[0],b[1]-a[1]);poseWalk(p,t*5);};
+  for(const f of TERMINAL.folk){if(f.eat){poseSit(f.p);f.p.root.position.y+=f.seatY;f.p.aR.rotation.x=-1.25-.75*Math.max(0,Math.sin(t*.9+f.phase));}
+    else {poseStand(f.p,t*.25+f.phase);f.p.aL.rotation.x=-.3;f.p.aR.rotation.x=-.35;}}
+  move(TERMINAL.guard,[[233,-129],[257,-129],[257,-130],[233,-130],[233,-129]],(t*.07)%4,.5);
+  for(const d of TERMINAL.screens){const tick=Math.floor(t);if(d.last===tick)continue;d.last=tick;const c=d.cv.getContext('2d');
+    c.fillStyle='#081718';c.fillRect(0,0,768,240);c.textAlign='left';c.font='bold 29px monospace';c.fillStyle='#6bddbd';c.fillText('DESTINATION       BAY   STATUS',24,42);
+    const rows=d.kind==='bus'?[['MAYNILA','01',(LINERS[0].k===1&&LINERS[0].g.visible)?'BOARDING':'WAITING'],['BUNDOK','02',LINERS[1].k===1&&LINERS[1].g.visible?'BOARDING':'WAITING']]:[['PALENGKE','01',JEEPS.some(j=>j.state==='queue'&&j.trip===0)?'LOADING':'EN ROUTE'],['MEGA FOODS','02',JEEPS.some(j=>j.state==='queue'&&j.trip===1)?'LOADING':'EN ROUTE'],['BARANGAY','03',JEEPS.some(j=>j.state==='queue'&&j.trip===2)?'LOADING':'EN ROUTE']];
+    c.font='bold 28px monospace';rows.forEach((v,k)=>{c.fillStyle=k?'#f6d267':'#b7f59a';c.fillText(v[0].padEnd(18)+v[1]+'   '+v[2],24,88+k*44);});
+    c.font='19px monospace';c.fillStyle='#9ab8ba';c.fillText('PLEASE BUY TICKETS AT THE COUNTER',24,227);d.tex.needsUpdate=true;}
+}
+const TSUPER=(()=>{const L=randLook(rng(938));Object.assign(L,{f:false,top:0xe6d9ba,bottom:0x334b67,style:'cap',capC:0x24496b,bag:null,skirt:false});
+  const p=makePerson(L);p.root.position.set(279.5,.44,-130.4);scene.add(p.root);TERMINAL.crowd.add(p.root);
+  p.root.add(part(.15,.08,.35,0xf5f3df,.19,1.43,-.01),part(.15,.37,.055,0xf5f3df,.19,1.23,.17));
+  p.root.traverse(o=>{if(o.isMesh)o.castShadow=false;});const bubble=makeBubble();return {p,bubble,next:0,until:0};})();
+function updateTsuper(t){const T=TSUPER,J=JEEPS.find(j=>j.state==='queue'&&Math.abs(j.x-282)<.1);
+  const near=Math.hypot(cam.target.x-282,cam.target.z+130)<55&&cam.dist<65;
+  poseStand(T.p,t*.35);T.p.root.rotation.y=Math.PI;
+  if(near&&J&&t>=T.next){const lines=['Dagupan! Palengke! Sakay na!','Mega Foods! Sakay na po!','Manaoag! Barangay! Sakay na!'];
+    const text=lines[J.trip];T.bubble.set(text);T.until=t+3.5;T.next=t+14;
+    if(SND.sfx&&typeof speechSynthesis!=='undefined'&&!speechSynthesis.speaking){const voices=speechSynthesis.getVoices(),voice=voices.find(v=>/^(fil|tl)(-|$)/i.test(v.lang));
+      if(voice){const call=new SpeechSynthesisUtterance(text);call.voice=voice;call.lang=voice.lang;call.rate=1.05;call.volume=.55;speechSynthesis.speak(call);}}}
+  T.bubble.sp.visible=near&&!!J&&t<T.until;T.bubble.sp.position.set(279.5,2.65,-130.4);
+  if(T.bubble.sp.visible){T.p.aR.rotation.x=-2.1;T.p.aL.rotation.x=-1.2;}
+}
+// Reuse a small commuter pool. A passenger disappears only after reaching a stopped jeep's rear step.
+const COMMUTERS=(()=>{const list=[],r=rng(827);for(let k=0;k<7;k++){
+  const L=randLook(r);L.bag=k%2?'bayong':null;const p=makePerson(L);p.root.visible=false;p.root.traverse(o=>{if(o.isMesh)o.castShadow=false;});scene.add(p.root);
+  const ticket=part(.15,.09,.02,0xffe8a3,0,-.58,.06);ticket.visible=false;p.aR.add(ticket);
+  list.push({p,ticket,k,state:'rest',wait:k*7,path:[],i:0,jeep:null,pickup:k>=4,stop:k-4,serial:0});}return list;})();
+function commuterPath(w,path,state){w.path=path;w.i=0;w.state=state;}
+function updateCommuters(dt,t){
+  const walk=w=>{let left=dt*1.3,p=w.p;while(w.i<w.path.length){const [x,z]=w.path[w.i],dx=x-p.root.position.x,dz=z-p.root.position.z,d=Math.hypot(dx,dz);
+    if(d<=left+.001){p.root.position.x=x;p.root.position.z=z;left=Math.max(0,left-d);w.i++;}
+    else{p.root.position.x+=dx/d*left;p.root.position.z+=dz/d*left;p.root.rotation.y=Math.atan2(dx,dz);break;}}
+    const z=p.root.position.z,x=p.root.position.x;p.root.position.y=z< -128&&z> -136&&x>231&&x<302?.5:.08;poseWalk(p,t*6+w.k);return w.i>=w.path.length;};
+  const rear=J=>[J.g.position.x-Math.sin(J.g.rotation.y)*3.1,J.g.position.z-Math.cos(J.g.rotation.y)*3.1];
+  for(const w of COMMUTERS){const p=w.p;
+    // Commuters outside the terminal remain visible; roofs cover people inside when zoomed out.
+    p.root.visible=w.state!=='rest'&&w.state!=='riding'&&w.state!=='busRiding'&&(p.root.position.x<231||p.root.position.x>304||p.root.position.z> -128||p.root.position.z< -138||Math.hypot(cam.target.x-267,cam.target.z+132)<55&&cam.dist<65);
+    if(w.state==='rest'){w.wait-=dt;if(w.wait>0)continue;w.ticket.visible=false;w.jeep=null;w.bus=null;
+      if(w.pickup){const h=JEEP_STOPS[w.stop].home;p.root.position.set(h.door[0],.08,h.door[1]);commuterPath(w,[h.gate,h.walk],'toStop');}
+      else{w.serial++;w.busTrip=(w.k+w.serial)%2===0;const h=HOUSES.filter(h=>h.side===-1)[(w.k*3+w.serial)%HOUSES.filter(h=>h.side===-1).length];
+        const market=(w.k+w.serial)%2===0;
+        const start=market?[PX+12,-131]:h.door;p.root.position.set(start[0],.08,start[1]);
+        const path=market?[[PX+18,-131],[PX+30,-138],[226,-138],[230,-130],[259,-130],[260-w.k*.65,-130.8]]:[h.gate,h.walk,[SRX+3.6,h.walk[1]],[SRX+3.6,-138],[226,-138],[230,-130],[259,-130],[260-w.k*.65,-130.8]];
+        commuterPath(w,path,'toTicket');}continue;}
+    if(w.state==='toTicket'){if(walk(w))w.state='ticketWait';continue;}
+    if(w.state==='ticketWait'){poseStand(p,0);if(!COMMUTERS.some(o=>o!==w&&(o.state==='counter'||o.state==='ticket')))commuterPath(w,[[262,-130.8]],'counter');continue;}
+    if(w.state==='counter'){if(walk(w)){w.state='ticket';w.wait=3;}continue;}
+    if(w.state==='ticket'){poseStand(p,0);p.aR.rotation.x=-1.1;w.wait-=dt;if(w.wait<=0){w.ticket.visible=true;commuterPath(w,w.busTrip?[[258,-130],[248+w.k*.65,-130]]:[[267,-130],[276,-130],[281+w.k*.65,-130]],'toBay');}continue;}
+    if(w.state==='toBay'||w.state==='toStop'){if(walk(w))w.state=w.pickup?'stopWait':w.busTrip?'busWait':'bayWait';continue;}
+    if(w.state==='busWait'){poseStand(p,t*.15+w.k);p.root.rotation.y=Math.atan2(250-p.root.position.x,-122-p.root.position.z);const B=LINERS.find(b=>b.away<=0&&b.g.visible&&b.legs[b.k][0]==='wait');
+      if(B&&!COMMUTERS.some(o=>o!==w&&o.state==='busBoarding'&&o.bus===B)){w.bus=B;const a=B.g.rotation.y,x=B.g.position.x+Math.cos(a)*1.45+Math.sin(a)*3.9,z=B.g.position.z-Math.sin(a)*1.45+Math.cos(a)*3.9;
+        commuterPath(w,[[x,-127],[x,z]],'busBoarding');}continue;}
+    if(w.state==='busBoarding'){if(walk(w)){w.state='busRiding';p.root.visible=false;w.ticket.visible=false;}continue;}
+    if(w.state==='busRiding'){p.root.visible=false;if(w.bus.away>0){w.state='rest';w.wait=18+w.k*3;w.bus=null;}continue;}
+    if(w.state==='bayWait'||w.state==='stopWait'){poseStand(p,t*.15+w.k);const facing=w.pickup?JEEP_STOPS[w.stop]:{x:282,z:-126};p.root.rotation.y=Math.atan2(facing.x-p.root.position.x,facing.z-p.root.position.z);
+      const J=w.pickup?JEEPS.find(j=>j.state==='pickup'&&j.stopIndex===w.stop):JEEPS.find(j=>j.state==='queue'&&Math.abs(j.x-282)<.05);
+      if(J&&J.riders<8&&!COMMUTERS.some(o=>o!==w&&o.state==='boarding'&&o.jeep===J)){w.jeep=J;const [x,z]=rear(J);commuterPath(w,[[x,z+1.6],[x,z]],'boarding');}continue;}
+    if(w.state==='boarding'){if(walk(w)){w.jeep.riders++;w.state='riding';p.root.visible=false;w.ticket.visible=false;}continue;}
+    if(w.state==='riding'){p.root.visible=false;if(w.jeep.state==='away'||w.jeep.state==='back'){w.state='rest';w.wait=12+w.k*3;w.jeep=null;}}
+  }
+}
 // the police patrol: out of the station, west on the highway, up the side street, along the barangay back road and down the east road
 const PATROL=(()=>{const g=makeCar('sedan',0xf4f4f4), [px,pz]=TOWN.pol; g.add(new THREE.Mesh(mergeGeo([P('box',0x1f4e9a,0,.75,0,1.82,.18,4.3),P('box',0x222222,0,1.5,-.2,1.0,.1,.3)]),VCMAT));
   const red=new THREE.Mesh(new THREE.BoxGeometry(.4,.14,.24),new THREE.MeshBasicMaterial({color:0xff2b2b})), blue=new THREE.Mesh(new THREE.BoxGeometry(.4,.14,.24),new THREE.MeshBasicMaterial({color:0x2b6bff}));
   red.position.set(-.25,1.62,-.2); blue.position.set(.25,1.62,-.2); g.add(red,blue); const gr=glow(g,-.3,1.66,-.2,2.2,glowMat(0xff3030,1)), gb=glow(g,.3,1.66,-.2,2.2,glowMat(0x3060ff,1));
-  const loop=mkRoute([[px+8,pz,3],[330,pz+4,5],[330,-116,6],[326,LW,10],[217,LW,6],[213.75,-116,6],[213.75,-182,7],[218,-184.25,6],[328,-184.25,7],[330,-180,6],[330,pz-4,4],[px+8,pz]]);
+  const loop=mkRoute([[px-8,pz,3],[338,pz,3],[331.75,pz-6,4],[331.75,-180,5],[328,-187.75,5],[218,-187.75,6],[210.25,-181,4],[210.25,-118,5],[217,LE,6],[326,LE,6],[331.75,-116,4],[331.75,pz+10,4],[338,pz+4,3],[px-8,pz]]);
   const s=signPlane(['PULIS'],'#1f4e9a','#fff',1.2,.3,256,64); [-1,1].forEach(sd=>{const q=s.clone(); q.position.set(sd*.93,.95,-.2); q.rotation.y=sd*Math.PI/2; g.add(q);});
-  g.position.set(px+8,0,pz); g.rotation.y=Math.PI/2; const cops=[0,1].map(k=>{const L=randLook(Math.random); L.top=0x1f4e9a; L.bottom=0x1b2a4a; L.bag=null; const p=makePerson(L); p.root.position.set(px+5.5,.1,pz+(k?1:-1)); p.root.rotation.y=Math.PI/2; scene.add(p.root); poseStand(p,k); return p;});
+  g.position.set(px-8,0,pz); g.rotation.y=-Math.PI/2; const cops=[0,1].map(k=>{const L=randLook(Math.random); L.top=0x1f4e9a; L.bottom=0x1b2a4a; L.bag=null; const p=makePerson(L); p.root.position.set(px-5.5,.1,pz+(k?1:-1)); p.root.rotation.y=-Math.PI/2; scene.add(p.root); poseStand(p,k); return p;});
   return {g,red,blue,gr,gb,loop,state:'park',timer:20,e:0,cops};})();
 // people living up in the mountain barangay, walking its roads
 const HILLFOLK=(()=>{const list=[], r=rng(91); for(let k=0;k<10;k++){const R=HROADS[k%HROADS.length].s, p=makePerson(randLook(r)); scene.add(p.root); list.push({p,R,u:r()*R.length,dir:r()<.5?1:-1,sp:1.1+r()*.4,ph:r()*6,pause:0});} return list;})();
@@ -5784,23 +6336,29 @@ const FIESTA=(()=>{const g=new THREE.Group(), b=[], C=[0xe74c3c,0xf1c40f,0x2e86d
   const car=new THREE.Group(); car.add(new THREE.Mesh(mergeGeo([P('box',0xf5f5f5,0,.6,0,2.4,.8,3.6),...Array.from({length:22},(_,q)=>P('sph',[0xff7f9f,0xffffff,0xf1c40f,0xe74c3c][q%4],-1+(q%5)*.5,1.1,-1.5+((q/5)|0)*.75,.35,.35,.35)),P('box',0xf2d16b,0,2.4,0,1.6,.1,1.6),...[[-.7,-.7],[.7,-.7],[-.7,.7],[.7,.7]].map(([x,z])=>P('box',0xf2d16b,x,1.7,z,.08,1.4,.08))]),VCMAT));
   const reyna=makePerson({...randLook(r),f:true,top:0xffffff,bottom:0xffffff,skirt:true,bag:null}); reyna.root.position.y=1.0; car.add(reyna.root); parade.add(car); mem.push({p:{root:car},off:-24,lane:0,kind:'carroza'});
   return {g,parade,mem,x:60,dir:1,beat:0,was:false};})();
-let townLast=performance.now();
+let townLast=performance.now(), terminalLast=-Infinity,commuterLast=null;
 (function townLoop(){requestAnimationFrame(townLoop); const n=performance.now(), dt=Math.min(.05,(n-townLast)/1000); townLast=n; if(document.hidden) return; const t=n/1000, now=Date.now();
+  roadSnapshot();updateTsuper(t);
+  const terminalNear=Math.hypot(cam.target.x-267,cam.target.z+132)<55&&cam.dist<65;
+  TERMINAL.crowd.visible=terminalNear;
+  if(terminalNear&&t-terminalLast>1/24){updateTerminal(t);terminalLast=t;}
+  if(commuterLast===null||t-commuterLast>=.05){updateCommuters(commuterLast===null?0:Math.min(.5,t-commuterLast),t);commuterLast=t;}
   // buses
-  for(const B of LINERS){if(B.away>0){B.away-=dt; B.g.visible=false; continue;} B.g.visible=true; const [kind,v]=B.legs[B.k];
-    if(kind==='wait'||kind==='stop'){B.e+=dt; if(B.e>=v){B.k++; B.e=0;} if(kind==='stop'){MTN_STOP.wait.forEach((p,i)=>p.root.visible=B.e<3+i);}}
-    else {B.e+=dt*(B.e<0?1:1); const q=routePos(v,Math.max(0,B.e)); B.g.rotation.y=lerpAng(B.g.rotation.y,q.ang,1-Math.exp(-dt*5)); B.g.position.set(q.x,onSlope(B.g,q.x,q.z,3.4,1.2)+(B.e>0?Math.abs(Math.sin(t*9))*.015:0),q.z); if(B.e>=v.T){B.k++; B.e=0;}}
+  for(const B of LINERS){if(B.away>0){B.away-=dt; B.g.visible=false; continue;} const [kind,v]=B.legs[B.k];if(kind==='in'&&B.e===0){const entry=routePos(v,0);if(!trafficCanMove(B.g,entry.x,entry.z,entry.ang,10.6,2.6)){B.g.visible=false;continue;}}B.g.visible=true;
+    if(kind==='wait'||kind==='stop'){B.e+=dt; if(B.e>=v&&!(kind==='wait'&&COMMUTERS.some(w=>(w.state==='busBoarding'&&w.bus===B)||w.state==='busWait'))){B.k++; B.e=0;} if(kind==='stop'){MTN_STOP.wait.forEach((p,i)=>p.root.visible=B.e<3+i);}}
+    else {B.e=B.e<0?Math.min(0,B.e+dt):trafficRouteTime(B.g,v,B.e,dt,10.6,2.6); const q=routePos(v,Math.max(0,B.e)); B.g.rotation.y=lerpAng(B.g.rotation.y,q.ang,1-Math.exp(-dt*5)); B.g.position.set(q.x,onSlope(B.g,q.x,q.z,3.4,1.2)+(B.e>0?Math.abs(Math.sin(t*9))*.015:0),q.z); if(B.e>=v.T){B.k++; B.e=0;}}
     if(B.k>=B.legs.length){B.k=0; B.e=0; B.away=25+Math.random()*25; MTN_STOP.wait.forEach(p=>p.root.visible=true);}}
   // jeepneys
   const q=JEEPS.filter(J=>J.state==='queue').sort((a,b)=>a.x-b.x);
-  q.forEach((J,i)=>{const tx=282+i*6; J.x+=Math.max(-dt*3,Math.min(dt*3,tx-J.x)); J.g.position.set(J.x,0,-126); J.g.rotation.y=-Math.PI/2;
-    J.tex.forEach((s,k)=>s.visible=k===J.trip); if(i===0&&Math.abs(J.x-282)<.05){J.timer+=dt; if(J.timer>12){J.state='go'; J.e=0; J.timer=0; J.R=jRoutes[J.trip?'factory':'palengke'];}} else if(i>0) J.timer=0;});
-  for(const J of JEEPS){if(J.state==='go'){J.e+=dt; const p=routePos(J.R,J.e); J.g.position.set(p.x,0,p.z); J.g.rotation.y=lerpAng(J.g.rotation.y,p.ang,1-Math.exp(-dt*6)); if(J.e>=J.R.T){J.state='away'; J.timer=18+Math.random()*20; J.g.visible=false;}}
-    else if(J.state==='away'){J.timer-=dt; if(J.timer<=0){J.state='back'; J.e=0; const last=JEEPS.filter(o=>o.state==='queue').length; J.R=jBack(!J.trip,282+last*6+6); J.g.visible=true; J.trip=1-J.trip;}}
-    else if(J.state==='back'){J.e+=dt; const p=routePos(J.R,J.e); J.g.position.set(p.x,0,p.z); J.g.rotation.y=lerpAng(J.g.rotation.y,p.ang,1-Math.exp(-dt*6)); if(J.e>=J.R.T){J.state='queue'; J.x=p.x;}}}
+  q.forEach((J,i)=>{const tx=282+i*8; const nx=J.x+Math.max(-dt*3,Math.min(dt*3,tx-J.x));if(trafficCanMove(J.g,nx,-126,-Math.PI/2,6,2.1))J.x=nx; J.g.position.set(J.x,0,-126); J.g.rotation.y=-Math.PI/2;
+    J.tex.forEach((s,k)=>s.visible=k===J.trip); if(i===0&&Math.abs(J.x-282)<.05){J.timer+=dt; if(J.timer>12&&!COMMUTERS.some(w=>(w.state==='boarding'&&w.jeep===J)||(!w.busTrip&&!w.pickup&&['toBay','bayWait'].includes(w.state)))&&(J.riders>0||J.timer>30)){J.state='go'; J.e=0; J.timer=0;J.stopIndex=0; J.R=jRoutes[['palengke','factory','residential'][J.trip]];}} else if(i>0) J.timer=0;});
+  for(const J of JEEPS){if(J.state==='go'){J.e=trafficRouteTime(J.g,J.R,J.e,dt,6,2.1);if(J.trip===2&&J.stopIndex<RES_STOP_TIMES.length&&J.e>=RES_STOP_TIMES[J.stopIndex]){J.e=RES_STOP_TIMES[J.stopIndex];J.state='pickup';J.timer=0;} const p=routePos(J.R,J.e); J.g.position.set(p.x,0,p.z); J.g.rotation.y=lerpAng(J.g.rotation.y,p.ang,1-Math.exp(-dt*6)); if(J.e>=J.R.T){J.state='away'; J.timer=18+Math.random()*20; J.g.visible=false;}}
+    else if(J.state==='pickup'){J.timer+=dt;if(J.timer>=8&&!COMMUTERS.some(w=>w.state==='boarding'&&w.jeep===J)){J.stopIndex++;J.state='go';}}
+    else if(J.state==='away'){J.timer-=dt; if(J.timer<=0){J.state='back'; J.e=0; const last=JEEPS.filter(o=>o!==J&&(o.state==='queue'||o.state==='back')).length; J.R=jBack(J.trip===0||J.trip===2,282+last*8); J.g.visible=true; J.trip=(J.trip+1)%3;J.riders=0;}}
+    else if(J.state==='back'){J.e=trafficRouteTime(J.g,J.R,J.e,dt,6,2.1); const p=routePos(J.R,J.e); J.g.position.set(p.x,0,p.z); J.g.rotation.y=lerpAng(J.g.rotation.y,p.ang,1-Math.exp(-dt*6)); if(J.e>=J.R.T){J.state='queue'; J.x=p.x;}}}
   // police patrol, lights flashing
-  const Pc=PATROL; if(Pc.state==='park'){Pc.timer-=dt; if(Pc.timer<=0){Pc.state='go'; Pc.e=0; Pc.cops.forEach(p=>p.root.visible=false);}}
-  else {Pc.e+=dt; const p=routePos(Pc.loop,Pc.e); Pc.g.position.set(p.x,0,p.z); Pc.g.rotation.y=lerpAng(Pc.g.rotation.y,p.ang,1-Math.exp(-dt*6)); if(Pc.e>=Pc.loop.T){Pc.state='park'; Pc.timer=25+Math.random()*20; Pc.cops.forEach(p=>p.root.visible=true);}}
+  const Pc=PATROL; if(Pc.state==='park'){Pc.g.position.set(TOWN.pol[0]-8,0,TOWN.pol[1]);Pc.g.rotation.y=-Math.PI/2;Pc.timer-=dt; if(Pc.timer<=0){Pc.state='go'; Pc.e=0; Pc.cops.forEach(p=>p.root.visible=false);}}
+  else {Pc.e=trafficRouteTime(Pc.g,Pc.loop,Pc.e,dt,4.6); const p=routePos(Pc.loop,Pc.e); Pc.g.position.set(p.x,0,p.z); Pc.g.rotation.y=lerpAng(Pc.g.rotation.y,p.ang,1-Math.exp(-dt*6)); if(Pc.e>=Pc.loop.T){Pc.state='park'; Pc.timer=25+Math.random()*20; Pc.cops.forEach(p=>p.root.visible=true);}}
   {const f=Math.floor(t*4)%2, on=Pc.state==='go'; Pc.red.material.color.setHex(on&&f?0xff2b2b:0x661111); Pc.blue.material.color.setHex(on&&!f?0x2b6bff:0x112266); Pc.gr.visible=on&&!!f; Pc.gb.visible=on&&!f;}
   if(TOWN.flag) TOWN.flag.rotation.y=Math.sin(t*1.7)*.15;
   // hillside walkers
@@ -5833,9 +6391,16 @@ const WWAYS=(()=>{
     {id:'bukid',kind:'kanal',w:1.0,sp:.16,pts:straight([[-46,-19.4],[-46,-15.6],[-16.4,-15.6],[-16.4,20.95],[-14.6,20.95]],.8)},
     {id:'tubigan',kind:'bare',w:1.4,sp:.14,pts:straight([[-14.6,20.95],[14.6,20.95]],.8)},   // the field canal (its banks are already built)
   ];
+  // Meet the actual curved river bank instead of ending the roadside drain at a guessed x.
+  const river=list.find(w=>w.id==='ilog'),barangayDrain=list.find(w=>w.id==='brgy'),joinZ=STZ-8;
+  const joinSegment=river.pts.findIndex((p,i)=>i+1<river.pts.length&&p[1]<=joinZ&&river.pts[i+1][1]>=joinZ);
+  const ja=river.pts[joinSegment],jb=river.pts[joinSegment+1];
+  const joinX=ja[0]+(jb[0]-ja[0])*(joinZ-ja[1])/(jb[1]-ja[1]);
+  barangayDrain.pts=straight([[45,-191.3],[joinX-river.w/2-4,-191.3],[joinX-river.w/2-1.2,joinZ],[joinX-river.w/2+.15,joinZ]],.45);
   const hr=(x,z,m)=>{for(const r of HROADS) for(const [a,c] of r.s) if(Math.hypot(x-a,z-c)<r.w/2+m) return true; return false;};
   const turn=(x,z,m)=>FARM.turning.some(t=>Math.hypot(x-t.x,z-t.z)<t.r+m);
   const covered=(x,z,m)=>(Math.abs(z-HZ)<5.2+m)||(Math.abs(z-STZ)<4.3+m&&x>35-m&&x<335+m)||(Math.abs(x-SRX)<4.3+m&&z>STZ&&z<HZ)||((Math.abs(x-40)<4.3+m||Math.abs(x-330)<4.3+m)&&z>STZ-4.3&&z<HZ)
+    ||([273,300].some(a=>Math.abs(x-a)<3.5+m)&&Math.abs(z+116.4)<2.9+m)
     ||(Math.abs(x-TWN.wx)<TWN.w/2+1.3+m&&z>TWN.bz&&z<HZ)||(Math.abs(z-TWN.bz)<TWN.w/2+1.3+m&&x>TWN.wx&&x<SRX)||hr(x,z,m)||roadDist(x,z)<m||turn(x,z,m-.5);
   const gy=(x,z)=>{const h=hillH(x,z); return h>0?h+.08:0;};
   const tex=(rough)=>{const cv=document.createElement('canvas'); cv.width=64; cv.height=256; const c=cv.getContext('2d'); c.fillStyle=rough?'#e6e6e6':'#d4d4d4'; c.fillRect(0,0,64,256); const r=rng(rough?5:3);
@@ -5847,19 +6412,49 @@ const WWAYS=(()=>{
   const all=[], col=new THREE.Color(), WWMAT=VCMAT.clone(); WWMAT.side=THREE.DoubleSide;
   for(const W of list){const hw=W.w/2, pts=W.pts, n=pts.length, cov=[], nor=[], dist=[0];
     for(let i=0;i<n;i++){const a=pts[Math.max(0,i-1)], b=pts[Math.min(n-1,i+1)], dx=b[0]-a[0], dz=b[1]-a[1], L=Math.hypot(dx,dz)||1; nor.push([-dz/L,dx/L]); if(i) dist.push(dist[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]));
-      cov.push(W.kind!=='bare'&&covered(pts[i][0],pts[i][1],hw+.25));}
+      cov.push(W.kind!=='bare'&&covered(pts[i][0],pts[i][1],W.kind==='creek'?1.1:hw+.25));}
     const bp=[], bc=[], wp=[], wu=[], parts=[];
     const at=(i,o,h)=>{const [x,z]=pts[i], [nx,nz]=nor[i]; return [x+nx*o,gy(x+nx*o,z+nz*o)+h,z+nz*o];};
     const prof=PROF[W.kind]?PROF[W.kind].map(([o,h,c])=>[o<=0?-hw+o:o>=1?hw+(o-1):0,h,c]):null;
     for(let i=0;i<n-1;i++){if(cov[i]||cov[i+1]){if(W.kind==='kanal'&&cov[i]&&cov[i+1]){const e=hw+.2, A=at(i,-e,.07), B=at(i,e,.07), C=at(i+1,-e,.07), D=at(i+1,e,.07); bp.push(...A,...C,...B,...B,...C,...D); col.setHex(i%3?0xa6a297:0x8f8b80); for(let q=0;q<6;q++) bc.push(col.r,col.g,col.b);} continue;}   // concrete covers where a road runs over a kanal
-      if(prof) for(let k=0;k<prof.length-1;k++){const [o1,h1]=prof[k], [o2,h2,c]=prof[k+1], A=at(i,o1,h1), B=at(i,o2,h2), C=at(i+1,o1,h1), D=at(i+1,o2,h2); bp.push(...A,...C,...B,...B,...C,...D); col.setHex(prof[k][1]>h2?prof[k][2]:c); for(let q=0;q<6;q++) bc.push(col.r,col.g,col.b);}
+      if(prof) for(let k=0;k<prof.length-1;k++){
+        // End the small drain's side walls at the outside bank; only its floor continues through the outlet.
+        if(W.id==='brgy'&&(pts[i][0]+pts[i+1][0])/2>joinX-river.w/2-.4&&k!==3)continue;
+        // Keep a low drain outlet beneath a continuous concrete lintel and wall cap.
+        let [o1,h1]=prof[k], [o2,h2,c]=prof[k+1];
+        const mouth=W.id==='ilog'&&Math.abs((pts[i][1]+pts[i+1][1])/2-joinZ)<barangayDrain.w/2+.3;
+        if(mouth&&o1>=hw&&o2>=hw){h1=Math.max(.42,h1);h2=Math.max(.42,h2);}
+        const A=at(i,o1,h1), B=at(i,o2,h2), C=at(i+1,o1,h1), D=at(i+1,o2,h2); bp.push(...A,...C,...B,...B,...C,...D); col.setHex(prof[k][1]>h2?prof[k][2]:c); for(let q=0;q<6;q++) bc.push(col.r,col.g,col.b);}
       const A=at(i,-hw+.03,0), B=at(i,hw-.03,0), C=at(i+1,-hw+.03,0), D=at(i+1,hw-.03,0), v1=dist[i]/4, v2=dist[i+1]/4; wp.push(...A,...C,...B,...B,...C,...D); wu.push(0,v1,0,v2,1,v1,1,v1,0,v2,1,v2);}
     // where the water goes under a road: concrete headwalls for a kanal, a bridge parapet with a railing for the ilog
     for(let i=1;i<n;i++) if(cov[i]!==cov[i-1]){const j=cov[i]?i-1:i, [x,z]=pts[j], g=gy(x,z), ry=Math.atan2(-nor[j][1],nor[j][0]);
-      if(W.kind==='creek'){parts.push(P('box',0xb9b4a8,x,g+.45,z,W.w+3.4,.9,.45,0,ry,0)); parts.push(P('box',0xd8d3c6,x,g+.95,z,W.w+3.6,.12,.55,0,ry,0)); for(const s of [-1,1]) parts.push(P('box',0xa39e92,x+nor[j][0]*s*(hw+1.9),g+.55,z+nor[j][1]*s*(hw+1.9),.5,1.1,.6,0,ry,0));}
-      else parts.push(P('box',0xb3afa4,x,g+.2,z,W.w+.7,.4,.28,0,ry,0));}
-    if(W.kind==='creek') for(let i=0;i<n;i+=3){if(cov[i]) continue; for(const s of [-1,1]){const o=s*(hw+.2), [x,z]=pts[i], px=x+nor[i][0]*o, pz=z+nor[i][1]*o; parts.push(P('box',0x8a8f94,px,gy(px,pz)+1.35,pz,.07,.8,.07));   // railing posts on the canal walls
-        if(i+3<n&&!cov[i+3]){const [x2,z2]=pts[i+3], qx=x2+nor[i+3][0]*o, qz=z2+nor[i+3][1]*o, L=Math.hypot(qx-px,qz-pz); parts.push(P('box',0x9aa0a6,(px+qx)/2,(gy(px,pz)+gy(qx,qz))/2+1.72,(pz+qz)/2,.06,.06,L,0,Math.atan2(qx-px,qz-pz),0));}}}
+      if(W.kind==='creek'){
+        // Join the wall caps with a compact parapet, clear of the pavement.
+        const width=W.w+.8;
+        const clear=[-1,1].every(side=>!covered(x+nor[j][0]*side*width/2,z+nor[j][1]*side*width/2,.3));
+        if(clear){parts.push(P('box',0xb9b4a8,x,g+.45,z,width,.9,.3,0,ry,0));
+          parts.push(P('box',0xd8d3c6,x,g+.95,z,width+.08,.12,.38,0,ry,0));}
+        for(const side of [-1,1]){const px=x+nor[j][0]*side*(hw+.2),pz=z+nor[j][1]*side*(hw+.2);
+          if(!covered(px,pz,.35))parts.push(P('box',0xb9b4a8,px,gy(px,pz)+.48,pz,.44,.96,.44));}
+      }else if(!(W.id==='brgy'&&x>joinX-river.w/2-4.5))parts.push(P('box',0xb3afa4,x,g+.2,z,W.w+.7,.4,.28,0,ry,0));}
+    if(W.kind==='creek'){
+      const bankPoint=(i,side)=>{const [x,z]=pts[i],o=side*(hw+.2);return [x+nor[i][0]*o,z+nor[i][1]*o];};
+      const railOpen=(i,side)=>{if(i<0||i>=n-1||cov[i]||cov[i+1])return false;
+        const A=bankPoint(i,side),B=bankPoint(i+1,side);
+        if(covered(A[0],A[1],.3)||covered(B[0],B[1],.3))return false;
+        return true;   // the drain outlet sits beneath the continuous cap and railing
+      };
+      for(const side of [-1,1])for(let i=0;i<n-1;i++){
+        if(!railOpen(i,side))continue;
+        const [ax,az]=bankPoint(i,side),[bx,bz]=bankPoint(i+1,side),ay=gy(ax,az),by=gy(bx,bz);
+        const dx=bx-ax,dz=bz-az,dy=by-ay,L=Math.hypot(dx,dz,dy),yaw=Math.atan2(dx,dz),pitch=-Math.atan2(dy,Math.hypot(dx,dz));
+        // Continuous rails follow exactly the same bank offsets as the concrete cap.
+        for(const h of [1.35,1.7])parts.push(P('box',0x9aa0a6,(ax+bx)/2,(ay+by)/2+h,(az+bz)/2,.06,.06,L,pitch,yaw,0));
+        const post=(x,z,y)=>parts.push(P('box',0x8a8f94,x,y+1.3,z,.07,.82,.07));
+        if(i%3===0||!railOpen(i-1,side))post(ax,az,ay);
+        if(!railOpen(i+1,side))post(bx,bz,by);
+      }
+    }
     if(bp.length){const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(bp,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(bc,3)); g.computeVertexNormals(); const m=new THREE.Mesh(g,WWMAT); m.receiveShadow=true; scene.add(m);}
     if(parts.length){const m=new THREE.Mesh(mergeGeo(parts),VCMAT); m.castShadow=m.receiveShadow=true; scene.add(m);}
     const wg=new THREE.BufferGeometry(); wg.setAttribute('position',new THREE.Float32BufferAttribute(wp,3)); wg.setAttribute('uv',new THREE.Float32BufferAttribute(wu,2)); wg.computeVertexNormals();
@@ -5942,6 +6537,8 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:24,date:'Nov 9, 2026',title:'Your own Sunfield Mini-Mart',items:['Unlock your own shop at level 4 for 6,000 pesos, with Ate Lorna as shopkeeper and three prepaid salary days.','Choose rice, eggs, meat, milk, fruit and vegetables to deliver from your farm. Your farmer or hired driver brings them to the shop.','Walk-in customers and people arriving by car buy real shelf stock. Their payments go straight to your money balance.','Tap the shop or My shop in the palengke to see stock, incoming deliveries, sales, low-stock warnings and staff salary. Empty or unpaid shops pause; there is no wage debt or offline stock loss.']},
+  {v:23,date:'Nov 9, 2026',title:'A calmer farm and better earnings',items:['Cheaper young animals, feeds and veterinary care; better live-animal and meat prices. Small herds use only their share of an opened feed sack.','Animals left in an opened crate stay available for your next restock.','Flu and heat waves are less frequent, vaccines last twice as long, and animals have a much longer care window.','Farm work uses much less energy. Hunger builds more slowly, short rests restore more energy, and idle farmers recover gently.','Existing stocked farms receive one recovery package: 1,500 pesos, feeds, two vaccines and two medicines.']},
   {v:23,date:'Nov 9, 2026',title:'Better cows and pigs',items:['🐄 New cows: one smooth barrel body with a real back line (withers, hip bones, tailhead), a neck and dewlap, tapered legs with knees and hooves; the Brahman keeps its hump and the Holstein its patches and udder.','🐖 New pigs: plump round bodies with hams and shoulders, big snouts, floppy ears and a curly tail.','🚶 They walk more naturally now: a four-beat walk, easing into and out of each step, turning in smooth arcs, heads bobbing in time.']},
   {v:22,date:'Nov 9, 2026',title:'The sea and the pantalan',items:['🌊 The map now reaches the sea in the south-east corner: a beach, shallow turquoise water, bangkas bobbing near the shore and a parola on the point. Pan over and listen to the waves.','⚓ Pantalan ng San Isidro: a port with a bodega, container stacks, a crane and a pier, where the cargo ship MV Sinag Dagat docks.','🚢 Bay trading (level 12, in the 🏬 Bagsakan & Factory sheet): haul any goods to the pantalan with your trucks. When 40 items are waiting (or when you say so) the ship sails to the islands and comes back with 160% of the palengke price.']},
   {v:21,date:'Nov 9, 2026',title:'Town life: buses, jeepneys, police and fiesta',items:['🚌 Sinag Liner buses now stop at their new terminal beside the highway. One goes on to Maynila; the Bundok bus climbs the hill road to a waiting shed in the mountain barangay, where people live and walk along the roads.','🚙 A jeepney terminal with a queue: the jeepney in front fills up with riders, then leaves for the palengke or the Mega Foods gate, and the others move up.','🚓 A police station by the east road. Its patrol car makes rounds day and night through the highway, the side street and the barangay, lights flashing.','🎉 Fiesta days: every other month the barangay back road gets banderitas, and a parade with a band, dancers, two higantes and a carroza marches up and down it (Santacruzan in May).','🔍 You can now pan to every corner of the map, zoom out further and look over the mountain barangay.']},
@@ -6074,15 +6671,18 @@ function resize(){renderer.setSize(innerWidth,innerHeight,false); camera.aspect=
 addEventListener('resize',resize); resize();
 const easeBack=x=>{const c1=1.70158,c3=c1+1;return 1+c3*Math.pow(x-1,3)+c1*Math.pow(x-1,2);};
 let lastTick=0, lastFrame=performance.now();
-function applyEco(){ECO=S.eco===undefined?PHONE:!!S.eco; renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,ECO?1.5:2)); resize();
+function applyEco(){ECO=S.eco===undefined?PHONE:!!S.eco; renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,PHONE?1.25:ECO?1.5:2)); resize();
   const n=ECO?1024:2048; if(sun.shadow.mapSize.x!==n){sun.shadow.mapSize.set(n,n); if(sun.shadow.map){sun.shadow.map.dispose(); sun.shadow.map=null;}}
   const ty=ECO?THREE.PCFShadowMap:THREE.PCFSoftShadowMap; if(renderer.shadowMap.type!==ty){renderer.shadowMap.type=ty; scene.traverse(o=>{if(o.material) (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.needsUpdate=true);});}}
 const portraitMQ=matchMedia('(orientation: portrait) and (pointer: coarse)');
 function frame(now){
   requestAnimationFrame(frame);
+  if(gameHealth.graphicsLost){lastFrame=now;return;}
   if(portraitMQ.matches){lastFrame=now; return;} // game is blocked while the phone is upright
   if(ECO&&now-lastFrame<31) return;               // battery saver: about 30 frames a second
   const rawDt=(now-lastFrame)/1000, dt=Math.min(.05,rawDt); lastFrame=now; const t=now/1000;
+  try{
+  updateFarmDispatch(Date.now(),dt);
   if(now-lastTick>300){lastTick=now; const d=Date.now(); updateVehicles(d); updateTravelHUD(d); for(let i=0;i<NT;i++){const s=S.tiles[i].s; if(s==='crop'||s==='bld') updateTile(i,d);}}
   popping.forEach(g=>{const k=Math.min(1,(now-g.userData.born)/380), e=easeBack(k);
     g.scale.set((g.userData.sx||1)*e,(g.userData.sy||1)*e,(g.userData.sx||1)*e); if(k>=1) popping.delete(g);});
@@ -6092,9 +6692,12 @@ function frame(now){
   marketMark.position.y=13.5+Math.sin(t*3)*.3; marketMark.rotation.y=t*2;
   {const d=Date.now(), fdt=Math.min(.3,rawDt); placeVehicles(d,fdt); updateTrikes(fdt,t); updateTraffic(fdt,t); updateBoys(t); updatePalBoys(t); updatePsBoys(t); updateBuild(d,t);}
   {const near=Math.hypot(cam.target.x-PX,cam.target.z-PZ)<30&&cam.dist<48;
+   const terminalClose=Math.hypot(cam.target.x-267,cam.target.z+132)<55&&cam.dist<65;
+   if(TOWN.canopyMat){const m=TOWN.canopyMat;m.opacity+=((terminalClose?.12:1)-m.opacity)*.12;
+     if(!terminalClose&&m.opacity>.995)m.opacity=1;m.depthWrite=m.opacity>.9;}
    roofMat.opacity+=((near?.12:1)-roofMat.opacity)*.12; roofMat.depthWrite=roofMat.opacity>.9; signG.visible=roofMat.opacity>.5;
 }
-  {const fd=Math.min(.3,rawDt); for(let left=fd;left>1e-4;left-=.05){const d=Math.min(.05,left); updateFarmer(d,t); updateHelpers(d,t);} updateSplash(fd); updateKubo(t); updateTransit(fd,t); updateBiz(fd,t); updateDayNight(); garageLamp.position.set(GX,2.9,G0+3.9);}
+  {const fd=Math.min(.3,rawDt); for(let left=fd;left>1e-4;left-=.05){const d=Math.min(.05,left); updateFarmer(d,t); updateHelpers(d,t);} updateSplash(fd); updateKubo(t); updateTransit(fd,t); updateBiz(fd,t);updateFarmShop(fd,t); updateDayNight(); garageLamp.position.set(GX,2.9,G0+3.9);}
   {const wdt=Math.min(.3,rawDt); for(let left=wdt;left>1e-4;left-=.05) updateWalkers(Math.min(.05,left),t);} updateVendors(t);
   {const a=t*.12; carabao.position.x=-20+Math.sin(a)*2.2; carabao.rotation.y=Math.cos(a)>0?0:Math.PI; carabaoHead.rotation.z=Math.sin(t*1.2)*.1-.3;}
   ducks.forEach(o=>{const a=t*.25+o.ph; o.d.position.set(o.px+Math.cos(a)*2.6,.05+Math.sin(t*2+o.ph)*.03,o.pz+Math.sin(a)*1.6);
@@ -6105,9 +6708,13 @@ function frame(now){
     if(p>=1){constructing.delete(i); if(t.up){t.lvl=t.up; delete t.up;} if(BLDS[t.b].feed) startCycle(i,true); refreshTile(i,true); flash(i); const b=BLDS[t.b]; toast(`${b.icon} ${b.name}${lvlOf(t)>1?' level '+lvlOf(t):''} is finished!`); buzz(); changed(); if(bldOpen()&&bldIdx===i) renderBld(); continue;}
     o.bld.g.scale.set(1,.08+.92*p,1); o.barFill.scale.x=Math.max(.02,p); o.barFill.position.x=-.8+.8*p;}}
   flashBox.material.opacity=Math.max(0,1-(now-flashT)/600);
-  syncGrid(); updateRoofs(); updateCam(); followSun(); mountains.position.set(camera.position.x,0,camera.position.z); drawFrame();
+  syncGrid();updateRoofs();
+  }catch(error){reportGameError('simulation',error);}
+  // Render independently: camera gestures remain responsive if a world update fails.
+  try{updateCam();followSun();mountains.position.set(camera.position.x,0,camera.position.z);drawFrame();}
+  catch(error){reportGameError('render',error);}
 }
-if(/[?&]debug\b/.test(location.search)) window.SF={cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,holdPose,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,vans,traffic,shiftDays:n=>{TIME_SHIFT+=n*DAY_MS;},LINERS:()=>LINERS,PATROL:()=>PATROL,FIESTA:()=>FIESTA,loadWalkers,STOP,homeAct:(a,r)=>homeAct(a,{dataset:{r}}),openHome,FISH,startRain,dayAt:f=>{const g=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((f-g+1)%1)*DAY_MS;},step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
+if(/[?&]debug\b/.test(location.search)) window.SF={farmDispatch:{loading:LOADING_DISPATCH,state:FARM_DISPATCH,tick:updateFarmDispatch,setSlots,simulate:(now,dt)=>{roadSnapshot();updateFarmDispatch(now,dt);updateVehicles(now);placeVehicles(now,dt);}},shop:{config:SHOP,world:farmShop,open:openFarmShop,unlock:shopUnlock,sale:shopSale,deliver:shopDeliver,dispatch:shopDispatch,refund:shopRefund,incoming:shopIncoming,setDraft:q=>{shopDraft=q;},tick:updateFarmShop},health:gameHealth,trafficUpdate:updateTraffic,setTrafficUpdate:fn=>{updateTraffic=fn;},pointerCount:()=>ptrs.size,canvas,cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,holdPose,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,vans,traffic,shiftDays:n=>{TIME_SHIFT+=n*DAY_MS;},LINERS:()=>LINERS,PATROL:()=>PATROL,FIESTA:()=>FIESTA,loadWalkers,STOP,homeAct:(a,r)=>homeAct(a,{dataset:{r}}),openHome,FISH,startRain,dayAt:f=>{const g=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((f-g+1)%1)*DAY_MS;},step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
 renderHUD();
 requestAnimationFrame(frame);
 if(!S.seenHelp){S.seenHelp=true; save(); setTimeout(()=>toast('Open 🧰 Tools, pick a tool, and drag across the field. Sell your harvest at the 🏪 Palengke!',4800),600);}

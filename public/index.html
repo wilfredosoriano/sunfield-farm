@@ -498,7 +498,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
     <div class="loadbox"><div class="lbar"><i id="mktFill"></i></div><p id="mktLoad"></p><div class="lacts"><button class="go" id="mktGo">🚚 Drive to the palengke</button><button class="skip" id="mktUnload">↩︎ Unload</button></div></div>
     <h3>Orders</h3>
     <div id="orders"></div>
-    <h3>Your bodega</h3>
+    <h3>Farm goods and live animals</h3>
     <div id="goods"></div>
   </div>
 </div>
@@ -805,6 +805,10 @@ if(S.mats.feed_pig==null) S.mats.feed_pig=8; if(S.mats.feed_cow==null) S.mats.fe
 if(!Array.isArray(S.wild)) S.wild=[];
 if(!S.seedMig){S.seedMig=1; S.mats.seed_wheat=(S.mats.seed_wheat||0)+12; S.mats.seed_carrot=(S.mats.seed_carrot||0)+4;}   // a few starter seeds; buy more at the Binhi store
 if(S.wildMig!==3){S.wildMig=3; S.wild=[];}   // back to the old look: no wild trees on the farm plots
+// Live animals have their own holding inventory, never warehouse shelf storage.
+function stockFor(k){return k.startsWith('live_')?(S.livestock||(S.livestock={})):S.inv;}
+if(!S.livestock)S.livestock={};
+for(const k of Object.keys(S.inv))if(k.startsWith('live_')){S.livestock[k]=(S.livestock[k]||0)+(S.inv[k]||0);delete S.inv[k];}
 const hasWild=i=>i>=0&&i<NF&&S.wild.includes(i);
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 
@@ -1214,7 +1218,7 @@ const farmBodega=(()=>{const g=new THREE.Group();g.position.set(-24,0,-2);g.rota
   scene.add(g);return {g,roofMats,displays,signature:'',uiAt:0};})();
 function updateBodega(t){const close=Math.hypot(cam.target.x+24,cam.target.z+2)<21&&cam.dist<43;for(const m of farmBodega.roofMats){m.opacity+=((close?.1:1)-m.opacity)*.15;m.depthWrite=m.opacity>.9;}
   if(t-farmBodega.uiAt<1)return;farmBodega.uiAt=t;
-  const counts={grain:(S.inv.wheat||0)+(S.inv.corn||0)+Object.entries(S.mats).filter(([k])=>k.startsWith('feed')).reduce((n,[,v])=>n+v,0),eggs:(S.inv.egg||0)+(S.inv.duckegg||0),cold:['chicken','pork','beef','chevon','tilapia','milk'].reduce((n,k)=>n+(S.inv[k]||0),0),produce:Object.entries(S.inv).filter(([k])=>!['wheat','corn','egg','duckegg','chicken','pork','beef','chevon','tilapia','milk'].includes(k)&&!ITEMS[k]?.live).reduce((n,[,v])=>n+v,0)};
+  const counts={grain:(S.inv.wheat||0)+(S.inv.corn||0)+Object.entries(S.mats).filter(([k])=>k.startsWith('feed')).reduce((n,[,v])=>n+v,0),eggs:(S.inv.egg||0)+(S.inv.duckegg||0),cold:['chicken','pork','beef','chevon','tilapia','milk'].reduce((n,k)=>n+(stockFor(k)[k]||0),0),produce:Object.entries(S.inv).filter(([k])=>!['wheat','corn','egg','duckegg','chicken','pork','beef','chevon','tilapia','milk'].includes(k)&&!ITEMS[k]?.live).reduce((n,[,v])=>n+v,0)};
   const signature=JSON.stringify([S.inv,S.mats]);if(signature!==farmBodega.signature){farmBodega.signature=signature;for(const d of farmBodega.displays)d.g.visible=d.index<Math.min(6,Math.ceil(counts[d.kind]/5));if(bldIdx===-5&&bldOpen())renderBodega();}
 }
 const blades=new THREE.Group();
@@ -2155,7 +2159,7 @@ const needHouse=n=>S.house<n?`<div class="pay">🏠 Needs your ${HOUSE[n].name} 
 const OWN=v=>v==='jeep'?S.veh.jeep.owned!==false:!!(S.veh[v]&&S.veh[v].owned);   // old farms keep their jeepney
 const STOCK_PRICE=12000, STOCK_LV=5, SEDAN_PRICE=4500, SEDAN_LV=2, VAN_PRICE=30000, VAN_LV=10;
 const JEEP_PRICE=3000, JEEP_LV=3, TRUCK_LV=7;
-const STOP={farmshop:10,port:8,sari:9,pickup:12,mountain:8,palengke:8,hardware:9,poultry:9,seeds:9,warehouse:8,city:30,brgy:6};
+const STOP={katayan:8,farmshop:10,port:8,sari:9,pickup:12,mountain:8,palengke:8,hardware:9,poultry:9,seeds:9,warehouse:8,city:30,brgy:6};
 const MEATS=['chicken','beef','pork','chevon','tilapia'], CITY_RATE=1.8;
 const WHX=62, FX=395;   // the warehouse, and the factory far out east (its smoke stays away from the barangay)
 const WH_LV=9, WH_PRICE=15000, FAC_LV=14, FAC_PRICE=60000, VAN_CAP=60;
@@ -2176,7 +2180,7 @@ function routePos(R,t){
   let ang=Math.atan2(s.b[0]-s.a[0],s.b[1]-s.a[1]); if(s.rev) ang+=Math.PI;
   return {x:s.a[0]+(s.b[0]-s.a[0])*u, z:s.a[1]+(s.b[1]-s.a[1])*u, ang};
 }
-const ROUTES={};
+const ROUTES={},HAUL_ROUTES=new WeakMap();
 setSlots();   // bays for the garage level you have
 // a pickup at an animal area: out along the service road past the area's track, reverse down the track until the tailgate is at the gate;
 // back the same way, then reverse into the garage bay from the other side
@@ -2194,6 +2198,7 @@ function legacyPickupRoute(vid,type){
   return [out,back];}
 function pickupRoute(vid,type){return legacyPickupRoute(vid,type);}
 function routesFor(vid,dest,tr){
+  if(tr&&tr.haulRoute){if(!HAUL_ROUTES.has(tr))HAUL_ROUTES.set(tr,{out:mkRoute(tr.haulRoute.out),back:mkRoute(tr.haulRoute.back)});return HAUL_ROUTES.get(tr);}
   const key=vid+dest+(dest==='pickup'&&tr?tr.area+':'+(tr.pickupLayout||1):''); if(ROUTES[key]) return ROUTES[key];
   const sx=VEH[vid].slot, sl=SPD.slow, d=SPD.dirt, h=SPD.hwy;
   const toGarage=fromHwy(sx,d,sl);
@@ -3892,7 +3897,7 @@ function status(i,now){
   else toast(isYard(i)?'Empty spot in your bakuran. Drag a Manukan or Bakahan here.':'Open grass');
 }
 function addItems(g,i){
-  for(const k in g) S.inv[k]=(S.inv[k]||0)+g[k];
+  for(const k in g) stockFor(k)[k]=(stockFor(k)[k]||0)+g[k];
   floatAt(i,Object.entries(g).map(([k,n])=>`+${n} ${ITEMS[k].icon}`).join(' '));
 }
 function harvest(i){
@@ -4046,10 +4051,10 @@ function updateFarmer(dt,t){
     else if(j.type==='water'){p.aR.rotation.x=-1.15+Math.sin(t*5)*.12; p.aL.rotation.x=-.9; spray(F,j.i,t);}
     else if(tile.s==='bld'){p.aL.rotation.x=p.aR.rotation.x=-1.3+Math.sin(t*6)*.25; const k=CARRY[tile.b]||'basket'; if(F.timer<jobTime(j)*.6&&k!=='lead'){showCarry(k); holdPose(p,k,F.props);}}
     else {p.aR.rotation.x=-1.4; p.aR.rotation.z=-.4+Math.sin(t*14)*.7; p.aL.rotation.x=-.5;}
-    if(F.timer<=0){const got=doJob(j); dropPin(j.i); spendNeeds(j.type); if(got) {F.carry=got; showCarry(got); buzz(); if(got==='lead') startLead(F,lastLeadN);} else if(!F.carry) showCarry(null); F.cur=null; F.state=F.jobs.length?'idle':(F.carry?'deposit':'home');}
+    if(F.timer<=0){const lt=S.tiles[j.i],LL=lt&&LIFE[lt.b];F.liveDrop=j.type==='harvest'&&!!LL?.live&&(lt.gp||0)>=1&&lt.n>0&&!pickupVeh(lt).length;const got=doJob(j); dropPin(j.i); spendNeeds(j.type); if(got) {F.carry=got; showCarry(got); buzz(); if(got==='lead') startLead(F,lastLeadN);} else if(!F.carry) showCarry(null); F.cur=null; F.state=F.jobs.length?'idle':(F.carry?'deposit':'home');}
   }
-  else if(F.state==='deposit'){if(goTo(BODEGA[0],BODEGA[1],F.carry==='lead'?1.9:4.2)){F.state='drop'; F.timer=.6; r.rotation.y=-Math.PI/2;}}
-  else if(F.state==='drop'){stand(); holdPose(p,F.carry==='lead'?null:F.carry,F.props); F.timer-=dt; if(F.timer<=0){F.carry=null; showCarry(null); holdPose(p,null); F.state='home';}}
+  else if(F.state==='deposit'){if(goTo(F.liveDrop?14.4:BODEGA[0],F.liveDrop?60.6:BODEGA[1],F.carry==='lead'?1.9:4.2)){F.state='drop'; F.timer=.6; r.rotation.y=-Math.PI/2;}}
+  else if(F.state==='drop'){stand(); holdPose(p,F.carry==='lead'?null:F.carry,F.props); F.timer-=dt; if(F.timer<=0){F.carry=null;F.liveDrop=false; showCarry(null); holdPose(p,null); F.state='home';}}
   else if(F.state==='home'){if(goTo(FARM_HOME[0],FARM_HOME[1],2.6)){F.state='idle'; r.rotation.y=seatWorld(0)[2];}}
   else {if(!F.carry&&Math.hypot(r.position.x-FARM_HOME[0],r.position.z-FARM_HOME[1])<.25) sitChat(p,r,0,t); else {stand(); poseStand(p,t);} if(F.carry&&!F.jobs.length) F.state='deposit';}
   const pill=$('farmPill'); const busy=F.jobs.length+(F.cur?1:0);
@@ -4129,13 +4134,13 @@ function biyaheTick(H){ // auto-deliver: ready orders first, then bodega goods o
   const v=['truck','van','jeep','sedan'].find(vehFree)||null; if(!v){H.msg='All vehicles are on the road.'; return;}
   const cap=VEH[v].cap; let n=loadN(), guard=0;
   for(let k=0;k<S.orders.length&&guard<12;k++){const o=S.orders[k]; if(!hasAll(o)) continue; const need=Object.values(o.items).reduce((a,b)=>a+b,0); if(n+need>cap||!liveOK(v,o.items)) continue;
-    for(const id in o.items) S.inv[id]-=o.items[id]; S.orders.splice(k,1); fillOrders(); guard++;
+    for(const id in o.items) stockFor(id)[id]-=o.items[id]; S.orders.splice(k,1); fillOrders(); guard++;
     S.load.push({label:`${o.who.split(' (')[0]}'s order`,coins:o.reward,xp:o.xp,n:need,ret:{...o.items},order:o}); n+=need; k=-1;}
   if(n>0&&(S.load.some(c=>c.order)||n>=Math.min(12,cap))){mktVeh=v; if(!beginTrip(v,{dest:'palengke',cargo:S.load,paid:false,fill:n/cap},'h'+h.id)) return; S.load=[];
     toast(`${VEH[v].icon} ${h.name} is delivering ${n} items to the palengke in the ${vname(v)}.`,3000); changed(); return;}
-  const keep=(OWN('van')?MEATS:[]).concat(...(S.missions||[]).map(m=>Object.keys(m.items))), spare=bodegaN()-keep.reduce((a,k)=>a+(S.inv[k]||0),0);   // meat waits for the closed van and the city
+  const keep=(OWN('van')?MEATS:[]).concat(...(S.missions||[]).map(m=>Object.keys(m.items))), spare=bodegaN()-keep.reduce((a,k)=>a+(stockFor(k)[k]||0),0);   // meat waits for the closed van and the city
   if(n===0&&S.wh.owned&&spare>=20){const g=takeGoods(cap,keep); const m=Object.values(g).reduce((a,b)=>a+b,0);
-    if(m&&beginTrip(v,{dest:'warehouse',goods:g,paid:false,fill:m/cap},'h'+h.id)){toast(`${VEH[v].icon} ${h.name} is hauling ${m} items to the bagsakan.`,3000); changed();} else for(const k in g) S.inv[k]+=g[k];}
+    if(m&&beginTrip(v,{dest:'warehouse',goods:g,paid:false,fill:m/cap},'h'+h.id)){toast(`${VEH[v].icon} ${h.name} is hauling ${m} items to the bagsakan.`,3000); changed();} else for(const k in g) stockFor(k)[k]+=g[k];}
 }
 let payT=0;
 function payWages(){ // sweldo every 5 minutes of work time; no sweldo at night while they are home
@@ -4161,7 +4166,7 @@ function updateHelpers(dt,t){
     const stand=()=>{p.lL.g.rotation.x=p.lR.g.rotation.x=p.lL.k.rotation.x=p.lR.k.rotation.x=0; r.position.y=farmerY(r.position.x,r.position.z);};
     if(H.state==='gone'||H.state==='wait') return;            // home asleep, or at the bus stop (the commuter code moves them)
     if(!isWork()&&H.state!=='leave'){if(H.hose) hoseToggle(H,'drop');                          // quitting time: drop the task and walk to the sakayan
-      if(H.cur&&H.cur.type==='board') releaseTrip(H); r.visible=true; H.cur=null; H.carry=false; showProps(H.props,null); H.msg='';
+      if(H.cur&&H.cur.type==='board') releaseTrip(H); r.visible=true; H.cur=null; H.carry=false;H.liveDrop=false; showProps(H.props,null); H.msg='';
       H.state='leave'; H.path=walkOut();}
     if(H.state==='leave'||H.state==='arrive'){const q=H.path[0];
       if(!q){ if(H.state==='leave'){H.state='wait'; riders.push({kind:'helper',H,p,state:'walkin',ph:0});} else {H.state='idle'; H.timer=.3; r.rotation.y=seatWorld(k+1)[2];} return;}
@@ -4184,10 +4189,10 @@ function updateHelpers(dt,t){
       else if(j.type==='hose'){p.aL.rotation.x=p.aR.rotation.x=-1.2+Math.sin(t*8)*.3;}
       else {p.aL.rotation.x=p.aR.rotation.x=-1.3+Math.sin(t*6)*.25;}
       if(H.timer<=0&&j.type==='hose'){hoseToggle(H,j.sub); H.cur=null; H.state='idle'; H.timer=.15; return;}
-      if(H.timer<=0){const got=doJob(j); H.cur=null;
+      if(H.timer<=0){const lt=S.tiles[j.i],LL=lt&&LIFE[lt.b];H.liveDrop=j.type==='harvest'&&!!LL?.live&&(lt.gp||0)>=1&&lt.n>0&&!pickupVeh(lt).length;const got=doJob(j); H.cur=null;
         if(got===null) H.skip.set(j.i,Date.now()+8000);
         if(got){H.carry=true; H.carryK=got==='lead'?null:got; showProps(H.props,H.carryK); H.leadOn=got==='lead'; if(H.leadOn) startLead(H,lastLeadN); H.state='deposit';} else {H.state='idle'; H.timer=.15;}}}
-    else if(H.state==='deposit'){if(goTo(BODEGA[0]+1.2,BODEGA[1]+.4,H.leadOn?1.9:3.9)){H.state='drop'; H.timer=.5;}}
+    else if(H.state==='deposit'){if(goTo(H.liveDrop?14.4:BODEGA[0]+1.2,H.liveDrop?60.6:BODEGA[1]+.4,H.leadOn?1.9:3.9)){H.state='drop'; H.timer=.5;}}
     else if(H.state==='drop'){stand(); holdPose(p,H.carryK,H.props); H.timer-=dt; if(H.timer<=0){H.carry=false; showProps(H.props,null); holdPose(p,null); H.carryK=null; H.state='idle'; H.timer=.1;}}
     else if(H.state==='home'){const hm=helperHome(k); if(goTo(hm[0],hm[1],2.8)){H.state='idle'; r.rotation.y=seatWorld(k+1)[2]; H.timer=.4;}}
     else {H.state='idle';}
@@ -4373,7 +4378,7 @@ function genOrder(){
   return {who:BUYERS[(Math.random()*BUYERS.length)|0],items,reward:Math.max(10,Math.round(worth*1.5/5)*5),xp:Math.max(3,Math.round(worth/10))};
 }
 function fillOrders(){while(S.orders.length<4) S.orders.push(genOrder());}
-function hasAll(o){return Object.entries(o.items).every(([id,n])=>(S.inv[id]||0)>=n);}
+function hasAll(o){return Object.entries(o.items).every(([id,n])=>(stockFor(id)[id]||0)>=n);}
 function openMarket(){renderMarket(); $('market').classList.add('open');}
 function closeMarket(){$('market').classList.remove('open');}
 /* load the vehicle first, then drive: the Elf truck carries 80, the jeepney 25, so bigger loads mean fewer trips */
@@ -4398,10 +4403,10 @@ function loadCargo(c){S.load.push(c); buzz(); changed(); renderMarket();}
 function renderMarket(){
   updateTravelHUD(Date.now()); renderLoad();
   $('orders').innerHTML=S.orders.map((o,k)=>`<div class="order"><div class="who">${o.who}</div>
-    <div class="need">${Object.entries(o.items).map(([id,n])=>{const have=S.inv[id]||0; return `<span class="${have>=n?'got':''}" title="${ITEMS[id].name}">${ITEMS[id].icon} ${Math.min(have,n)}/${n}</span>`;}).join('')}</div>
+    <div class="need">${Object.entries(o.items).map(([id,n])=>{const have=stockFor(id)[id]||0; return `<span class="${have>=n?'got':''}" title="${ITEMS[id].name}">${ITEMS[id].icon} ${Math.min(have,n)}/${n}</span>`;}).join('')}</div>
     <div class="pay">₱${o.reward} · ⭐${o.xp} XP</div>
     <div class="oacts"><button class="go" data-deliver="${k}" ${hasAll(o)?'':'disabled'}>📦 Load</button><button class="skip" data-skip="${k}" aria-label="Replace this order">↻</button></div></div>`).join('');
-  const goods=Object.entries(S.inv).filter(([,n])=>n>0);
+  const goods=Object.entries({...S.inv,...S.livestock}).filter(([,n])=>n>0);
   $('goods').innerHTML=goods.length?goods.map(([id,n])=>`<div class="good"><span class="gi" aria-hidden="true">${ITEMS[id].icon}</span><span class="gn">${ITEMS[id].name}<b>×${n}</b></span></div>`).join('')+`<p class="empty">🙅 Palengke buyers only take what they ordered. ${S.wh&&S.wh.owned?'Sell extra goods in bulk at the 🏬 bagsakan.':'Get a trader’s permit for the 🏬 bagsakan (level 9) to sell extra goods in bulk.'}</p>`
     :'<p class="empty">Your bodega is empty. Harvest crops and collect from your animals, then bring them here.</p>';
 }
@@ -4409,7 +4414,7 @@ $('market').addEventListener('click',e=>{
   if(e.target.id==='market'||e.target.closest('#closeMkt')) return closeMarket();
   const d=e.target.closest('[data-deliver]'), s=e.target.closest('[data-sell]'), sk=e.target.closest('[data-skip]'), mv=e.target.closest('[data-mveh]');
   if(mv){mktVeh=mv.dataset.mveh; return renderMarket();}
-  if(e.target.closest('#mktUnload')){S.load.forEach(c=>{for(const id in (c.ret||{})) S.inv[id]=(S.inv[id]||0)+c.ret[id]; if(c.order) S.orders.unshift(c.order);}); S.orders=S.orders.slice(0,Math.max(3,S.orders.length)); S.load=[]; changed(); return renderMarket();}
+  if(e.target.closest('#mktUnload')){S.load.forEach(c=>{for(const id in (c.ret||{})) stockFor(id)[id]=(stockFor(id)[id]||0)+c.ret[id]; if(c.order) S.orders.unshift(c.order);}); S.orders=S.orders.slice(0,Math.max(3,S.orders.length)); S.load=[]; changed(); return renderMarket();}
   if(e.target.closest('#mktGo')){const v=pickMktVeh(), n=loadN();
     if(v==='pasabay'&&S.load.some(c=>!liveOK('pasabay',c.ret))) return toast('🐔 Live animals cannot ride the bus. Use the 🛻 chicken truck or the 🚚 Elf truck.',3400);
     if(v!=='pasabay'&&S.load.some(c=>!liveOK(v,c.ret))) return toast(liveMsg(Object.assign({},...S.load.map(c=>c.ret||{}))),3600);
@@ -4423,12 +4428,12 @@ $('market').addEventListener('click',e=>{
     const need=Object.values(o.items).reduce((a,b)=>a+b,0);
     if(!liveOK(pickMktVeh(),o.items)) return toast(liveMsg(o.items),3600);
     if(need>capLeft()) return toast(`📦 No room: this order is ${need} items, the ${vname(pickMktVeh())} has ${Math.max(0,capLeft())} left.${S.veh.truck.owned?'':' An Elf truck carries 150.'}`,3000);
-    for(const id in o.items) S.inv[id]-=o.items[id];
+    for(const id in o.items) stockFor(id)[id]-=o.items[id];
     S.orders.splice(k,1); fillOrders();
     loadCargo({label:`${o.who.split(' (')[0]}'s order`,coins:o.reward,xp:o.xp,n:need,ret:{...o.items},order:o});}
-  else if(s){const id=s.dataset.sell, have=S.inv[id]||0, n=Math.min(have,capLeft()); if(!have) return;
+  else if(s){const id=s.dataset.sell, have=stockFor(id)[id]||0, n=Math.min(have,capLeft()); if(!have) return;
     if(n<=0) return toast(`📦 The ${vname(pickMktVeh())} is full. Drive this load first${S.veh.truck.owned?' or switch to the Elf truck':''}.`,2800);
-    S.inv[id]-=n; loadCargo({label:`${n} ${ITEMS[id].name}`,coins:n*ITEMS[id].price,xp:0,n,ret:{[id]:n}});}
+    stockFor(id)[id]-=n; loadCargo({label:`${n} ${ITEMS[id].name}`,coins:n*ITEMS[id].price,xp:0,n,ret:{[id]:n}});}
   else if(sk){S.orders[+sk.dataset.skip]=genOrder(); save(); renderMarket();}
 });
 function hitMarket(x,y){
@@ -4473,7 +4478,7 @@ if((S.balanceVersion||0)<1){
   if(S.ev.flu!=null)S.ev.lastFluMonth=monthN();if(heatOn())S.ev.lastHeatMonth=monthN();
   S.balanceVersion=1;save();
 }
-const TRUCK_PRICE=15000, PLACE={farmshop:'your mini-mart',brgy:'barangay',city:'city',palengke:'palengke',hardware:'hardware',poultry:'poultry supply',seeds:'Binhi store',warehouse:'warehouse',pickup:'animal pens',mountain:'mountain barangay',sari:'sari-sari store',port:'pantalan'};
+const TRUCK_PRICE=15000, PLACE={katayan:'katayan',farmshop:'your mini-mart',brgy:'barangay',city:'city',palengke:'palengke',hardware:'hardware',poultry:'poultry supply',seeds:'Binhi store',warehouse:'warehouse',pickup:'animal pens',mountain:'mountain barangay',sari:'sari-sari store',port:'pantalan'};
 const matsLabel=m=>Object.entries(m).filter(([,n])=>n>0).map(([k,n])=>`${n} ${MATS[k].name}`).join(', ');
 const farmerBusyDriving=()=>{const F=farmer; return !!(S.pasa||F.riding||F.jobs.some(j=>j.type==='board')||(F.cur&&F.cur.type==='board'));};
 const driverFree=()=>!!freeDriver()||!farmerBusyDriving();   // every vehicle needs someone to drive it
@@ -4493,7 +4498,7 @@ function openDriverPick(vid){drvVid=vid; const V=VEH[vid];
   $('drvSheet').classList.add('open');}
 function closeDriverPick(pick){const vid=drvVid; drvVid=null; $('drvSheet').classList.remove('open'); if(!vid) return; const tr=S.veh[vid].trip; if(!tr||tr.driver!=='pending') return;
   const free=driverChoices().filter(c=>c.free); if(pick&&free.some(c=>c.id===pick)) assignDriver(vid,pick); else if(free.length) assignDriver(vid,(free.find(c=>c.id!=='farmer')||free[0]).id); else {S.veh[vid].trip=null; noDriver(); refundTrip(tr);}}
-function refundTrip(tr){shopRefund(tr);if(tr.cargo) S.load.push(...tr.cargo); if(tr.goods) for(const k in tr.goods) S.inv[k]=(S.inv[k]||0)+tr.goods[k]; changed();}
+function refundTrip(tr){shopRefund(tr);if(tr.cargo) S.load.push(...tr.cargo); if(tr.goods) for(const k in tr.goods) stockFor(k)[k]=(stockFor(k)[k]||0)+tr.goods[k]; changed();}
 function beginTrip(vid,tr,by){ // you choose who drives when more than one person is free (a Biyahero delivering on his own drives himself)
   const st=S.veh[vid], free=driverChoices().filter(c=>c.free);
   if(!free.length){noDriver(); return false;}
@@ -4597,9 +4602,15 @@ function updateVehicles(now){
         t.stored=0; if(g.egg) S.stats.egg+=g.egg; gainXP(B.xp*lvlOf(t)*n); if(wasFull||t.hungry) startCycle(tr.i,true); tr.got=g; tr.word='itlog'; updateTile(tr.i,Date.now());}
       else if(L&&(L.live||L.cull)&&t.n>0&&(t.gp||0)>=1){const k=L.live||L.cull, take=L.live?t.n:Math.min(t.n,tr.cnt||1); tr.got={[k]:take}; tr.word=take===1&&L.one?L.one:L.word;
         gainXP(Math.round(BLDS[t.b].xp*lvlOf(t)*capOf(t)*take/maxN(t))); OUTF.delete(t); t.n-=take; if(!t.n){t.gp=0; t.hungry=false; t.ng=0; t.sick=false;} t.t=Date.now(); updateTile(tr.i,Date.now());}
-      else tr.got={}; if(t) OUTF.delete(t); changed();}
+      else tr.got={}; if(t) OUTF.delete(t); changed();
+      if(tr.pickupTarget&&Object.values(tr.got).some(n=>n>0)){continueAnimalHaul(vid,tr,now);continue;}
+    }
+    if(tr.dest==='katayan'&&!tr.paid&&ph.ph!=='out'&&ph.ph!=='board'){
+      tr.paid=true;for(const [k,n]of Object.entries(tr.animals||{}))stockFor(k)[k]=(stockFor(k)[k]||0)+n;
+      S.kat.awaiting=S.kat.awaiting||{};for(const [k,n]of Object.entries(tr.animals||{}))S.kat.awaiting[k]=(S.kat.awaiting[k]||0)+n;S.kat.autoQueue=true;processKatQueue(now);changed();toast('Animals unloaded into the katayan holding pen. Meat goes to the bodega after processing.',3500);
+    }
     if(ph.ph==='done'){
-      if(tr.dest==='pickup'&&tr.got){let m=0; for(const k in tr.got){S.inv[k]=(S.inv[k]||0)+tr.got[k]; m+=tr.got[k];}
+      if(tr.dest==='pickup'&&tr.got){let m=0; for(const k in tr.got){stockFor(k)[k]=(stockFor(k)[k]||0)+tr.got[k]; m+=tr.got[k];}
         if(m) toast(tr.eggs?`${VEH[vid].icon} Back with ${m} ${Object.keys(tr.got).map(k=>ITEMS[k].icon).join(' ')} in egg trays. They are in your bodega.`:`${VEH[vid].icon} Back with ${m} live ${tr.word}! Sell them live at the palengke, or turn them into meat at the 🔪 Katayan.`,4000);}
       if(tr.mats){for(const k in tr.mats) S.mats[k]=(S.mats[k]||0)+tr.mats[k];
         toast(`${VEH[vid].icon} Back from the ${PLACE[tr.dest]}! ${matsLabel(tr.mats)} ${tr.dest==='poultry'?'are in your bodega.':tr.dest==='seeds'?'are ready to plant.':tr.dest==='sari'?'are in your kusina: cook them at 🏠 Bahay.':'are ready for building.'}`,3600);}
@@ -4683,7 +4694,7 @@ function placeVehicles(now,dt){
       if(V.ramp){let open=0; if(tr&&tr.dest==='pickup'){const P3=vehPhase(vid,now); if(P3.ph==='stop') open=Math.max(0,Math.min(1,P3.e/1.2,(STOP.pickup-P3.e)/1.2));} V.ramp.rotation.x+=(-2.2*open-V.ramp.rotation.x)*Math.min(1,dt*6);}
       if(tr&&tr.dest==='pickup'){const P2=vehPhase(vid,now), set=V.liveSets[AREA_LIVE[tr.area]]; kind=AREA_LIVE[tr.area]; const fr=set?Math.min(1,(tr.cnt||99)/set.children.length):1;
         lf=fr*(P2.ph==='stop'?(kind==='live_chicken'&&V.pickIn!=null?V.pickIn:Math.min(1,P2.e/(tr.stopT||STOP.pickup))):P2.ph==='back'?(tr.got&&Object.keys(tr.got).length?1:0):0); loadWalkers(V,tr,P2,now);}
-      else {hideWalkers(V); if(tr&&tr.cargo&&['palengke','brgy','mountain','city'].includes(tr.dest)){const ids=tr.cargo.flatMap(c=>Object.keys(c.ret||c.live||{})); kind=['live_cow','live_pig','live_goat','live_chicken'].find(k=>ids.includes(k))||null; if(kind) lf=Math.max(.3,+goods||0);}}
+      else {hideWalkers(V); if(tr&&tr.cargo&&['palengke','brgy','mountain','city','katayan'].includes(tr.dest)){const ids=tr.cargo.flatMap(c=>Object.keys(c.ret||c.live||{})); kind=['live_cow','live_pig','live_goat','live_chicken'].find(k=>ids.includes(k))||null; if(kind) lf=tr.animals?(tr.paid?0:1):Math.max(.3,+goods||0);}}
       for(const k in V.liveSets){const g=V.liveSets[k], ln=g.children.length, ls=k===kind?Math.ceil(lf*ln):0; g.visible=ls>0;
         if(ls) g.children.forEach((c,q)=>{c.visible=q<ls; c.position.y=c.userData.y0+Math.abs(Math.sin(now/170+q*1.7))*.05;});}}
   }
@@ -5001,7 +5012,7 @@ function renderUp(){
     :`<div class="ucard"><div class="who">🚚 Elf truck</div><div class="pay">Carries ${VEH.truck.cap} items, more than 3× the jeepney.</div>
       ${S.level<TRUCK_LV?`<div class="pay">🔒 Unlocks at level ${TRUCK_LV}.</div>`:''}${S.garage<2?'<div class="pay">Needs the covered garage first.</div>':''}${needHouse(2)}<button class="go" data-up="truck" ${S.level>=TRUCK_LV&&S.garage>=2&&S.house>=2&&S.coins>=TRUCK_PRICE?'':'disabled'}>Buy for ₱${TRUCK_PRICE.toLocaleString()}</button></div>`;
   $('upStock').innerHTML=stock;
-  const meatN=MEATS.reduce((a,k)=>a+(S.inv[k]||0),0);
+  const meatN=MEATS.reduce((a,k)=>a+(stockFor(k)[k]||0),0);
   const sedanCard=OWN('sedan')?`<div class="ucard"><div class="who">🛻 Chicken truck</div><div class="pay">✅ In your garage. Backs up to the broiler gate to load live manok, takes live chickens to the palengke, and runs errands (${VEH.sedan.cap} items).</div></div>`
     :`<div class="ucard"><div class="who">🛻 Chicken truck</div><div class="pay">A small truck with stacked plastic crates. It backs up to the broiler gate to load your grown manok alive, and carries live chickens to palengke buyers (${VEH.sedan.cap} items).</div>
       ${S.level<SEDAN_LV?`<div class="pay">🔒 Unlocks at level ${SEDAN_LV}.</div>`:''}<button class="go" data-up="sedan" ${S.level>=SEDAN_LV&&S.coins>=SEDAN_PRICE?'':'disabled'}>Buy for ₱${SEDAN_PRICE.toLocaleString()}</button></div>`;
@@ -5026,8 +5037,8 @@ $('upSheet').addEventListener('click',e=>{
   const what=u.dataset.up;
   if(what==='sedan'){if(OWN('sedan')||S.level<SEDAN_LV||S.coins<SEDAN_PRICE) return; S.coins-=SEDAN_PRICE; S.veh.sedan.owned=true; toast('🛻 Your chicken truck is parked at the garage!',3000); buzz(); changed(); return renderUp();}
   if(what==='van'){if(OWN('van')||S.level<VAN_LV||S.garage<3||S.house<3||S.coins<VAN_PRICE) return; S.coins-=VAN_PRICE; S.veh.van.owned=true; toast('🚐 Your closed van is ready! Load it with meat and send it to the city.',3400); buzz(); changed(); return renderUp();}
-  if(what==='city'){if(!vehFree('van')) return; const g={}; let n=0; for(const k of MEATS){const q=Math.min(S.inv[k]||0,VEH.van.cap-n); if(q>0){g[k]=q; S.inv[k]-=q; n+=q;}} if(!n) return;
-    if(!beginTrip('van',{dest:'city',goods:g,paid:false,fill:n/VEH.van.cap})){for(const k in g) S.inv[k]+=g[k]; return;}
+  if(what==='city'){if(!vehFree('van')) return; const g={}; let n=0; for(const k of MEATS){const q=Math.min(stockFor(k)[k]||0,VEH.van.cap-n); if(q>0){g[k]=q; stockFor(k)[k]-=q; n+=q;}} if(!n) return;
+    if(!beginTrip('van',{dest:'city',goods:g,paid:false,fill:n/VEH.van.cap})){for(const k in g) stockFor(k)[k]+=g[k]; return;}
     toast(`🚐 ${driverName(S.veh.van.trip,true)} is taking ${n} chilled meats to the city. They pay 180%!`,3400); buzz(); changed(); return renderUp();}
   if(what==='jeep'){if(OWN('jeep')||S.level<JEEP_LV||S.coins<JEEP_PRICE) return; S.coins-=JEEP_PRICE; S.veh.jeep.owned=true; toast('🚙 Your own jeepney is parked in the garage! No more waiting for the bus.',3200); buzz(); changed(); return renderUp();}
   if(what==='stock'){if(OWN('stock')||S.level<STOCK_LV||S.coins<STOCK_PRICE) return; S.coins-=STOCK_PRICE; S.veh.stock.owned=true; buildGarage(); toast('🚛 Your livestock truck is parked in its new carport!',3200); changed(); return renderUp();}
@@ -5060,7 +5071,7 @@ $('reset').addEventListener('click',e=>{
 
 /* ---------- 🏬 warehouse (sell any goods in bulk) and 🏭 factory (closed vans haul the goods there) ---------- */
 const bodegaN=()=>Object.values(S.inv).reduce((a,b)=>a+Math.max(0,b),0);
-function takeGoods(cap,skip=[]){const g={}; let n=0; for(const id of Object.keys(S.inv).filter(k=>!skip.includes(k)&&!(ITEMS[k]&&ITEMS[k].live)).sort((a,b)=>(S.inv[b]||0)-(S.inv[a]||0))){const q=Math.min(S.inv[id]||0,cap-n); if(q>0){g[id]=q; S.inv[id]-=q; n+=q;}} return g;}
+function takeGoods(cap,skip=[]){const g={}; let n=0; for(const id of Object.keys(S.inv).filter(k=>!skip.includes(k)&&!(ITEMS[k]&&ITEMS[k].live)).sort((a,b)=>(stockFor(b)[b]||0)-(stockFor(a)[a]||0))){const q=Math.min(stockFor(id)[id]||0,cap-n); if(q>0){g[id]=q; stockFor(id)[id]-=q; n+=q;}} return g;}
 const whN=()=>Object.values(S.wh.stock).reduce((a,b)=>a+Math.max(0,b),0);
 const whG=new THREE.Group(), facG=new THREE.Group(); scene.add(whG,facG);
 function signTex(lines,bg,fg){const cv=document.createElement('canvas'); cv.width=1024; cv.height=200; const x=cv.getContext('2d'); x.fillStyle=bg; x.fillRect(0,0,1024,200);
@@ -5354,7 +5365,7 @@ function renderBodega(){
   $('bldTitle').textContent='Bodega - Your stored goods';
   const rows=(source,catalog)=>Object.entries(source).filter(([,n])=>n>0).sort(([a],[b])=>(catalog[a]?.name||a).localeCompare(catalog[b]?.name||b)).map(([k,n])=>'<div class="pay" style="display:flex;justify-content:space-between;gap:16px"><span>'+(catalog[k]?.icon||'')+' '+(catalog[k]?.name||k)+'</span><b>'+n.toLocaleString()+'</b></div>').join('');
   const goods=rows(S.inv,ITEMS),supplies=rows(S.mats,MATS);
-  $('bldBody').innerHTML='<div class="pay">Your farm storage. Shelf displays follow your stored goods; the counts below show every item.</div><h3>Harvests, animal products and livestock</h3>'+(goods||'<p class="empty">No goods stored yet. Harvest crops or collect from your animals.</p>')+'<h3>Feed, seeds and supplies</h3>'+(supplies||'<p class="empty">No supplies stored yet.</p>');
+  $('bldBody').innerHTML='<div class="pay">Your farm storage. Shelf displays follow your stored goods; the counts below show every item.</div><h3>Harvests and animal products</h3>'+(goods||'<p class="empty">No goods stored yet. Harvest crops or collect from your animals.</p>')+'<h3>Feed, seeds and supplies</h3>'+(supplies||'<p class="empty">No supplies stored yet.</p>');
 }
 function openFarmShop(){$('bizSheet').classList.remove('open');closeMarket();bldIdx=-4;bldTab=null;renderFarmShop();$('bldSheet').classList.add('open');}
 function renderFarmShop(){const own=S.shop.owned,inc=shopIncoming(),free=Object.keys(VEH).filter(vehFree);$('bldTitle').textContent='Sunfield Mini-Mart';
@@ -5418,10 +5429,10 @@ $('bizSheet').addEventListener('click',e=>{
   if(bb){const a=bb.dataset.bay; if(a==='buy'){if(S.bay.owned||S.level<BAY_LV||S.coins<BAY_PRICE) return; S.coins-=BAY_PRICE; S.bay.owned=true; sfx('cash'); toast('⚓ Bay trading permit! Haul goods to the pantalan and the MV Sinag Dagat ships them to the islands.',3600); changed(); return renderBiz();}
     if(a==='sail'){shipSail(); return renderBiz();} if(a==='visit'){$('bizSheet').classList.remove('open'); return flyTo(405,-70,60);}}
   if(bs){const v=bs.dataset.baysend; if(!vehFree(v)||!bodegaN()||!S.bay.owned) return; const g=takeGoods(VEH[v].cap), n=Object.values(g).reduce((a,b)=>a+b,0);
-    if(!beginTrip(v,{dest:'port',goods:g,paid:false,fill:n/VEH[v].cap})){for(const k in g) S.inv[k]+=g[k]; return;}
+    if(!beginTrip(v,{dest:'port',goods:g,paid:false,fill:n/VEH[v].cap})){for(const k in g) stockFor(k)[k]+=g[k]; return;}
     toast(`${VEH[v].icon} ${driverName(S.veh[v].trip,true)} is hauling ${n} items to the pantalan.`,3000); buzz(); changed(); return renderBiz();}
   if(w){const v=w.dataset.whsend; if(!vehFree(v)||!bodegaN()) return; const g=takeGoods(VEH[v].cap), n=Object.values(g).reduce((a,b)=>a+b,0);
-    if(!beginTrip(v,{dest:'warehouse',goods:g,paid:false,fill:n/VEH[v].cap})){for(const k in g) S.inv[k]+=g[k]; return;}
+    if(!beginTrip(v,{dest:'warehouse',goods:g,paid:false,fill:n/VEH[v].cap})){for(const k in g) stockFor(k)[k]+=g[k]; return;}
     toast(`${VEH[v].icon} ${driverName(S.veh[v].trip,true)} is hauling ${n} items to the bagsakan.`,3000); buzz(); changed(); renderBiz();}
 });
 paintSigns();
@@ -5938,27 +5949,29 @@ const katG=new THREE.Group(); katG.position.set(KAT.x,0,KAT.z); scene.add(katG);
   const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.castShadow=m.receiveShadow=true; katG.add(m);
 })();
 boardSign(['KATAYAN','Sunfield Farm'],'#7b1e1e','#ffffff',KAT.x-1,KAT.z-4.6,Math.PI,3.2,.9,1.3);
+const katHoldingModels=[];for(const kind of Object.keys(KAT_FEE))for(let i=0;i<4;i++){const m=miniAnimal(kind);m.scale.multiplyScalar(.65);m.position.set(13.95+(i%2)*.9,.18,60.1+Math.floor(i/2)*.9);m.visible=false;scene.add(m);katHoldingModels.push({m,kind});}
+function updateKatHolding(){let left=4;for(const kind of Object.keys(KAT_FEE)){let n=Math.min(left,S.livestock[kind]||0);left-=n;for(const d of katHoldingModels)if(d.kind===kind){d.m.visible=n-->0;}}}
 function openKat(){bldIdx=-2; bldTab=null; renderKat(); $('bldSheet').classList.add('open');}
 const katStage=now=>{const K=S.kat; if(!K.t0) return 'idle'; return now>=K.t0+K.dur*1000?'done':'run';};
 const katMeat=q=>Object.entries(q).flatMap(([k,n])=>Object.entries(KAT_MEAT[k]).map(([m,y])=>`${y*n} ${ITEMS[m].icon} ${ITEMS[m].name}`)).join(', ');
 function renderKat(){const K=S.kat, now=Date.now(), st=katStage(now); $('bldTitle').textContent='🔪 Katayan';
-  const live=Object.keys(KAT_FEE).filter(k=>(S.inv[k]||0)>0), fee=live.reduce((s,k)=>s+S.inv[k]*KAT_FEE[k],0), sec=live.reduce((s,k)=>s+S.inv[k]*KAT_SEC[k],0);
+  const live=Object.keys(KAT_FEE).filter(k=>(stockFor(k)[k]||0)>0), fee=live.reduce((s,k)=>s+stockFor(k)[k]*KAT_FEE[k],0), sec=live.reduce((s,k)=>s+stockFor(k)[k]*KAT_SEC[k],0);
   let state, body;
   if(!K.owned){state='Closed. Hire the butchers to open it.'; body=`<div class="pay">Your own slaughterhouse beside the farm road. Bring live 🐔 manok and 🐖 baboy, and the butchers turn them into clean, chilled meat for the palengke, the bagsakan and the city.</div>${S.level<KAT_LV?`<div class="pay">🔒 Opens at level ${KAT_LV}.</div>`:''}<button class="gbtn gold row" data-act="kat-open" ${S.level>=KAT_LV&&S.coins>=KAT_PRICE?'':'disabled'}>🔪 <b>Open the katayan</b><small>₱${KAT_PRICE.toLocaleString()}</small></button>`;}
   else if(st==='run'){state=`🔪 Butchers at work… ${fmt((K.t0+K.dur*1000-now)/1000)}`; body=`<div class="pay">Processing ${Object.entries(K.q).map(([k,n])=>`${n} ${ITEMS[k].icon}`).join(' + ')} into ${katMeat(K.q)}.</div>`;}
   else if(st==='done'){state='✅ The meat is ready.'; body=`<button class="gbtn green row" data-act="kat-take">🧺 <b>Take the meat to the bodega</b><small>${katMeat(K.q)}</small></button>`;}
-  else {state=live.length?`${live.map(k=>`${S.inv[k]} ${ITEMS[k].icon}`).join(' + ')} live in your bodega.`:'Waiting for live animals.';
-    body=`<div class="pay">Butchers' fee and what each animal gives: ${Object.keys(KAT_FEE).map(k=>`${ITEMS[k].icon} ₱${KAT_FEE[k]} → ${Object.entries(KAT_MEAT[k]).map(([m,y])=>`${y} ${ITEMS[m].icon}`).join('')}`).join(' · ')}. Live animals sell for less, but need no butcher.</div>
+  else {state=live.length?`${live.map(k=>`${stockFor(k)[k]} ${ITEMS[k].icon}`).join(' + ')} live in the katayan holding pen.`:'Waiting for live animals.';
+    body=`<div class="pay">${K.autoQueue?'A delivery is waiting in the holding pen. Processing starts automatically when the katayan is free and the fee is available.<br>':''}Butchers' fee and what each animal gives: ${Object.keys(KAT_FEE).map(k=>`${ITEMS[k].icon} ₱${KAT_FEE[k]} → ${Object.entries(KAT_MEAT[k]).map(([m,y])=>`${y} ${ITEMS[m].icon}`).join('')}`).join(' · ')}. Live animals sell for less, but need no butcher.</div>
     <button class="gbtn gold row" data-act="kat-start" ${live.length&&S.coins>=fee?'':'disabled'}>🔪 <b>Katayin lahat</b><small>${live.length?`₱${fee.toLocaleString()} · ${fmt(Math.max(10,sec))}`:'no live animals'}</small></button>`;}
   const fill=st==='run'?(now-K.t0)/(K.dur*1000):st==='done'?1:0;
   $('bldBody').innerHTML=`<div class="bstat"><span id="bldState">${state}</span></div><div class="meter"><i style="width:${Math.round(100*Math.min(1,fill))}%"></i></div>${body}`;
   renderKat.st=st+K.owned;}
 function katAct(a){const K=S.kat, now=Date.now();
   if(a==='kat-open'){if(K.owned||S.level<KAT_LV||S.coins<KAT_PRICE) return; S.coins-=KAT_PRICE; K.owned=true; sfx('cash'); toast('🔪 Your katayan is open! Bring live animals here to turn them into meat.',3200);}
-  else if(a==='kat-start'){if(!K.owned||katStage(now)!=='idle') return; const live=Object.keys(KAT_FEE).filter(k=>(S.inv[k]||0)>0); if(!live.length) return; const fee=live.reduce((s,k)=>s+S.inv[k]*KAT_FEE[k],0); if(S.coins<fee) return;
-    S.coins-=fee; K.q={}; let sec=0; for(const k of live){K.q[k]=S.inv[k]; sec+=S.inv[k]*KAT_SEC[k]; S.inv[k]=0;} K.t0=now; K.dur=Math.max(10,sec); sfx('hammer',KAT.x,KAT.z); toast(`🔪 The butchers started. Ready in ${fmt(K.dur)}.`,2600);}
+  else if(a==='kat-start'){if(!K.owned||katStage(now)!=='idle') return; const live=Object.keys(KAT_FEE).filter(k=>(stockFor(k)[k]||0)>0); if(!live.length) return; const fee=live.reduce((s,k)=>s+stockFor(k)[k]*KAT_FEE[k],0); if(S.coins<fee) return;
+    S.coins-=fee; K.q={}; let sec=0; for(const k of live){K.q[k]=stockFor(k)[k]; sec+=stockFor(k)[k]*KAT_SEC[k]; stockFor(k)[k]=0;} K.awaiting={};K.autoQueue=false;K.t0=now; K.dur=Math.max(10,sec); sfx('hammer',KAT.x,KAT.z); toast(`🔪 The butchers started. Ready in ${fmt(K.dur)}.`,2600);}
   else if(a==='kat-take'){if(katStage(now)!=='done') return; const g={}; for(const [k,n] of Object.entries(K.q)) for(const [m,y] of Object.entries(KAT_MEAT[k])) g[m]=(g[m]||0)+y*n;
-    for(const m in g) S.inv[m]=(S.inv[m]||0)+g[m]; K.q={}; K.t0=0; K.dur=0; sfx('collect'); gainXP(Math.max(1,Object.values(g).reduce((a,b)=>a+b,0)>>2));
+    for(const m in g) stockFor(m)[m]=(stockFor(m)[m]||0)+g[m]; K.q={}; K.t0=0; K.dur=0; sfx('collect'); gainXP(Math.max(1,Object.values(g).reduce((a,b)=>a+b,0)>>2));
     toast(`🍗 ${Object.entries(g).map(([m,n])=>`${n} ${ITEMS[m].icon} ${ITEMS[m].name}`).join(', ')} in your bodega.`,3000);}
   buzz(); changed(); renderKat();}
 setInterval(()=>{if(bldIdx!==-2||!$('bldSheet').classList.contains('open')) return; const K=S.kat, now=Date.now(), st=katStage(now);   // keep the countdown moving
@@ -5970,9 +5983,32 @@ function liveMsg(items){const ids=Object.keys(items||{}).filter(id=>ITEMS[id]&&I
   return ids.includes('live_cow')?'🐄 Live cows ride only in the 🚛 livestock truck.':ids.includes('live_pig')||ids.includes('live_goat')?'🐖 Live pigs and goats ride only in the 🚛 livestock truck or the 🚚 Elf truck.':'🐔 Live chickens ride only in the 🛻 chicken truck or the 🚚 Elf truck.';}
 function pickupVeh(t){const L=LIFE[t.b], k=L&&(L.live||L.cull); if(!k) return []; return LIVE_VEH[k].filter(v=>OWN(v));}
 function pickupPending(i){return Object.keys(VEH).some(v=>{const tr=S.veh[v]&&S.veh[v].trip; return tr&&tr.dest==='pickup'&&tr.i===i&&!tr.loaded;});}
-function startPickup(i,cnt){const t=S.tiles[i], L=LIFE[t.b], vs=pickupVeh(t); if(pickupPending(i)) return toast('A truck is already on its way to these animals.',2600);
+function farmHaulPath(from,to){
+  const nodes=[],edges=[];for(const id of LIVE_ROADS){if(ROADS[id].kind.startsWith('footpath'))continue;let last=-1;for(const p of ROADS[id].s){const i=nodes.length;nodes.push(p);edges.push([]);if(last>=0){const d=Math.hypot(p[0]-nodes[last][0],p[1]-nodes[last][1]);edges[i].push([last,d]);edges[last].push([i,d]);}last=i;}}
+  for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++){const d=Math.hypot(nodes[i][0]-nodes[j][0],nodes[i][1]-nodes[j][1]);if(d<2.5){edges[i].push([j,d]);edges[j].push([i,d]);}}
+  const start=nearestOn(nodes,...from),end=nearestOn(nodes,...to),dist=nodes.map(()=>Infinity),prev=[],seen=new Set();dist[start]=0;
+  while(seen.size<nodes.length){let u=-1;for(let i=0;i<nodes.length;i++)if(!seen.has(i)&&(u<0||dist[i]<dist[u]))u=i;if(u<0||!Number.isFinite(dist[u]))break;if(u===end)break;seen.add(u);for(const [v,d]of edges[u])if(dist[u]+d<dist[v]){dist[v]=dist[u]+d;prev[v]=u;}}
+  const path=[];for(let u=end;u!==undefined;u=prev[u]){path.push(nodes[u]);if(u===start)break;}path.reverse();return [from,...path,to].map(p=>[p[0],p[1],SPD.slow]);
+}
+function continueAnimalHaul(vid,tr,now){const V=VEH[vid],R=routesFor(vid,'pickup',tr),p=routePos(R.out,R.out.T),from=[p.x,p.z],driver=tr.driver,animals={...tr.got},n=Object.values(animals).reduce((a,b)=>a+b,0);
+  let out,back,dest=tr.pickupTarget;
+  if(dest==='katayan'){out=farmHaulPath(from,[10,57]);const i=frontIdx(V.slot+3.5),a=SVC0[i];back=farmHaulPath([10,57],a);back.push([V.slot+3.5,a[1],SPD.slow,true],[V.slot,a[1],SPD.slow,true],[V.slot,G0]);}
+  else{dest='palengke';out=farmHaulPath(from,ACCESS[0]);out.push([DX,LE,SPD.hwy],[PX-4,LE,SPD.slow],[PX+2,HZ-5,SPD.slow],[PX+2,-124]);const normal=routesFor(vid,'palengke');back=normal.back.segs.map(s=>[s.a[0],s.a[1],s.a[2]||SPD.slow,s.rev]);const last=normal.back.segs.at(-1).b;back.push([last[0],last[1]]);}
+  const remaining={...animals},cargo=[];
+  if(dest==='palengke'){for(let i=S.orders.length-1;i>=0;i--){const order=S.orders[i];if(Object.entries(order.items).every(([k,q])=>ITEMS[k]?.live&&(remaining[k]||0)>=q)){for(const [k,q]of Object.entries(order.items))remaining[k]-=q;cargo.push({label:order.who+': live animal order',n:Object.values(order.items).reduce((a,b)=>a+b,0),ret:{...order.items},live:{...order.items},order,coins:order.reward,xp:order.xp});S.orders.splice(i,1);}}fillOrders();}
+  const rest=Object.fromEntries(Object.entries(remaining).filter(([,q])=>q>0));if(Object.keys(rest).length)cargo.push({label:Object.values(rest).reduce((a,b)=>a+b,0)+' live animals',n:Object.values(rest).reduce((a,b)=>a+b,0),ret:rest,live:rest,coins:Object.entries(rest).reduce((sum,[k,q])=>sum+q*ITEMS[k].price,0),xp:0});
+  S.veh[vid].trip={dest,animals,haulRoute:{out,back},cargo,t0:now,driver,paid:false,stopT:8,fill:1};
+  changed();toast(dest==='katayan'?'Loaded - driving straight to the katayan.':'Loaded - delivering live animals straight to the palengke.',3000);
+}
+function processKatQueue(now){const K=S.kat;if(!K.autoQueue||!K.owned||katStage(now)!=='idle')return;const live=Object.keys(KAT_FEE).filter(k=>Math.min(S.livestock[k]||0,K.awaiting?.[k]||0)>0),fee=live.reduce((a,k)=>a+Math.min(S.livestock[k],K.awaiting[k])*KAT_FEE[k],0);if(!live.length){K.autoQueue=false;return;}if(S.coins<fee)return;
+  S.coins-=fee;K.q={};let seconds=0;for(const k of live){K.q[k]=Math.min(S.livestock[k],K.awaiting[k]);seconds+=K.q[k]*KAT_SEC[k];S.livestock[k]-=K.q[k];delete K.awaiting[k];}K.t0=now;K.dur=Math.max(10,seconds);K.autoQueue=false;save();
+}
+let pickupChoice=null;
+function chooseAnimalPickup(i,cnt){const t=S.tiles[i],L=t&&LIFE[t.b];if(!L||!(L.live||L.cull)||!(t.n>0)||(t.gp||0)<1)return;pickupChoice={i,cnt};const n=L.live?t.n:Math.min(t.n,cnt||1),kind=L.live||L.cull,fee=n*KAT_FEE[kind];bldIdx=-6;$('bldTitle').textContent='Where should the animals go?';$('bldBody').innerHTML='<div class="pay">'+n+' '+ITEMS[kind].name+'. Your truck keeps them aboard and drives to the destination. Live animals never go inside the bodega.</div><button class="gbtn green row" data-animal-route="katayan" '+(S.kat.owned?'':'disabled')+'>Straight to Katayan<small>Butchers fee: '+fee+' pesos. '+(S.kat.owned?'Wait in the holding pen if processing is busy or funds are short.':'Open your katayan first.')+'</small></button><button class="gbtn gold row" data-animal-route="palengke">Deliver Live to Palengke<small>Sell this batch live for '+(n*ITEMS[kind].price).toLocaleString()+' pesos base value. Matching live buyer orders are filled first.</small></button><button class="gbtn row" data-animal-route="cancel">Keep animals in their pen</button>';$('bldSheet').classList.add('open');}
+$('bldSheet').addEventListener('click',e=>{const b=e.target.closest('[data-animal-route]');if(!b||b.disabled||!pickupChoice)return;const choice=pickupChoice;pickupChoice=null;$('bldSheet').classList.remove('open');if(b.dataset.animalRoute!=='cancel')startPickup(choice.i,choice.cnt,b.dataset.animalRoute);});
+function startPickup(i,cnt,target){if(!target)return chooseAnimalPickup(i,cnt);const t=S.tiles[i], L=t&&LIFE[t.b];if(!L||!(t.n>0)||(t.gp||0)<1)return toast('These animals are not ready for pickup.');if(target==='katayan'&&!S.kat.owned)return toast('Open the katayan first.');const vs=pickupVeh(t); if(pickupPending(i)) return toast('A truck is already on its way to these animals.',2600);
   const v=vs.find(vehFree); if(!v) return toast(`${vs.map(x=>VEH[x].icon+' '+VEH[x].name).join(' and ')} ${vs.length>1?'are both':'is'} on the road. Try again when ${vs.length>1?'one':'it'} is back.`,3200);
-  const n=L.live?t.n:Math.min(t.n,cnt||1); if(!beginTrip(v,{dest:'pickup',pickupLayout:3,i,area:t.b,cnt:n,paid:true,stopT:t.b==='broiler'?24:12})) return;
+  const n=L.live?t.n:Math.min(t.n,cnt||1); if(!beginTrip(v,{dest:'pickup',pickupLayout:3,pickupTarget:target,i,area:t.b,cnt:n,paid:true,stopT:t.b==='broiler'?24:12})) return;
   toast(`${VEH[v].icon} The ${VEH[v].name.toLowerCase()} will back up to the ${FARM.areas.find(a=>a.type===t.b).name.toLowerCase()} gate and load ${n} ${n===1&&L.one?L.one:L.word}.`,3400); buzz(); changed();}
 /* ---------- watering, rain, the farmer's hunger and energy, home and fishing ---------- */
 const needsWater=i=>!rainOn()&&growMult(i)<=1;   // plots next to a poso stay moist, and rain waters everything
@@ -6065,9 +6101,9 @@ const RECIPES=[
   {id:'sardinas',name:'Kanin at sardinas',icon:'🥫',need:{bigas:1,sardinas:1},h:55,e:18},
   {id:'tuyo',name:'Tuyo at kanin',icon:'🍢',need:{bigas:1,tuyo:1},h:50,e:18},
   {id:'cornsilog',name:'Cornsilog',icon:'🥘',need:{bigas:1,corned:1,egg:1},h:75,e:12}];
-const haveFood=k=>(S.mats[k]||0)+(S.inv[k]||0), foodIcon=k=>(ITEMS[k]||MATS[k]).icon;
+const haveFood=k=>(S.mats[k]||0)+(stockFor(k)[k]||0), foodIcon=k=>(ITEMS[k]||MATS[k]).icon;
 const canCook=r=>Object.entries(r.need).every(([k,n])=>haveFood(k)>=n);
-function useFood(need){for(const [k,n] of Object.entries(need)){const a=Math.min(n,S.mats[k]||0); if(a) S.mats[k]-=a; if(n-a) S.inv[k]-=n-a;}}
+function useFood(need){for(const [k,n] of Object.entries(need)){const a=Math.min(n,S.mats[k]||0); if(a) S.mats[k]-=a; if(n-a) stockFor(k)[k]-=n-a;}}
 const homeBusy=()=>farmer.jobs.some(j=>j.type==='home'||j.type==='fish')||(farmer.cur&&(farmer.cur.type==='home'||farmer.cur.type==='fish'));
 function openHome(){bldIdx=-3; bldTab=null; renderHome(); $('bldSheet').classList.add('open');}
 function renderHome(){const M=S.me, F=farmer, cur=F.cur&&F.cur.type==='home'?F.cur:null, q=F.jobs.find(j=>j.type==='home');
@@ -6621,7 +6657,7 @@ const misOpen=()=>$('misSheet').classList.contains('open');
 function renderMissions(){fillMissions();
   $('misList').innerHTML=S.missions.length?S.missions.map((m,k)=>{const n=Object.values(m.items).reduce((a,b)=>a+b,0);
     return `<div class="order"><div class="who">${m.icon} ${m.giver}</div><div class="dest">${DEST_LABEL[m.dest]} · ${n} items</div>
-      <div class="need">${Object.entries(m.items).map(([id,q])=>{const h=S.inv[id]||0; return `<span class="${h>=q?'got':''}" title="${ITEMS[id].name}">${ITEMS[id].icon} ${Math.min(h,q)}/${q}</span>`;}).join('')}</div>
+      <div class="need">${Object.entries(m.items).map(([id,q])=>{const h=stockFor(id)[id]||0; return `<span class="${h>=q?'got':''}" title="${ITEMS[id].name}">${ITEMS[id].icon} ${Math.min(h,q)}/${q}</span>`;}).join('')}</div>
       <div class="pay">₱${m.reward.toLocaleString()} · ⭐${m.xp} XP</div>
       <div class="oacts"><button class="go" data-mis="${k}" ${hasAll(m)?'':'disabled'}>🚚 Deliver</button><button class="skip" data-misskip="${k}" aria-label="Replace this mission">↻</button></div></div>`;}).join('')
     :'<p class="empty">Build more farms to get missions: people ask for what you can produce.</p>';}
@@ -6636,8 +6672,8 @@ $('misSheet').addEventListener('click',e=>{
   if(!v&&!Object.keys(VEH).some(v=>OWN(v)&&liveOK(v,m.items))) return toast(liveMsg(m.items),3400);
   if(!v) return toast(`🚚 No free vehicle can carry ${n} items. Wait for one to come home${S.veh.truck.owned?'':', or buy a bigger one'}.`,3000);
   if(!driverFree()) return noDriver();
-  for(const id in m.items) S.inv[id]-=m.items[id];
-  if(!beginTrip(v,{dest:m.dest,cargo:[{label:`${m.giver}'s order`,coins:m.reward,xp:m.xp,n,mission:true}],paid:false,fill:n/VEH[v].cap})){for(const id in m.items) S.inv[id]+=m.items[id]; return;}
+  for(const id in m.items) stockFor(id)[id]-=m.items[id];
+  if(!beginTrip(v,{dest:m.dest,cargo:[{label:`${m.giver}'s order`,coins:m.reward,xp:m.xp,n,mission:true}],paid:false,fill:n/VEH[v].cap})){for(const id in m.items) stockFor(id)[id]+=m.items[id]; return;}
   S.missions.splice(k,1); fillMissions(); toast(`${VEH[v].icon} ${driverName(S.veh[v].trip,true)} is taking ${m.giver}'s order to the ${PLACE[m.dest]} in the ${vname(v)}.`,3200); buzz(); changed(); renderMissions();});
 /* ---------- 🏆 achievements: goals that pay coins and XP, from your first harvest to the factory deal ---------- */
 const st=()=>S.stats;
@@ -6728,7 +6764,7 @@ function frame(now){
      if(!terminalClose&&m.opacity>.995)m.opacity=1;m.depthWrite=m.opacity>.9;}
    roofMat.opacity+=((near?.12:1)-roofMat.opacity)*.12; roofMat.depthWrite=roofMat.opacity>.9; signG.visible=roofMat.opacity>.5;
 }
-  {const fd=Math.min(.3,rawDt); for(let left=fd;left>1e-4;left-=.05){const d=Math.min(.05,left); updateFarmer(d,t); updateHelpers(d,t);} updateSplash(fd); updateKubo(t); updateTransit(fd,t); updateBiz(fd,t);updateFarmShop(fd,t);updateBodega(t); updateDayNight(); garageLamp.position.set(GX,2.9,G0+3.9);}
+  {const fd=Math.min(.3,rawDt); for(let left=fd;left>1e-4;left-=.05){const d=Math.min(.05,left); updateFarmer(d,t); updateHelpers(d,t);} updateSplash(fd); updateKubo(t); updateTransit(fd,t); updateBiz(fd,t);updateFarmShop(fd,t);updateBodega(t);processKatQueue(Date.now());updateKatHolding(); updateDayNight(); garageLamp.position.set(GX,2.9,G0+3.9);}
   {const wdt=Math.min(.3,rawDt); for(let left=wdt;left>1e-4;left-=.05) updateWalkers(Math.min(.05,left),t);} updateVendors(t);
   {const a=t*.12; carabao.position.x=-20+Math.sin(a)*2.2; carabao.rotation.y=Math.cos(a)>0?0:Math.PI; carabaoHead.rotation.z=Math.sin(t*1.2)*.1-.3;}
   ducks.forEach(o=>{const a=t*.25+o.ph; o.d.position.set(o.px+Math.cos(a)*2.6,.05+Math.sin(t*2+o.ph)*.03,o.pz+Math.sin(a)*1.6);
@@ -6745,7 +6781,7 @@ function frame(now){
   try{updateCam();followSun();mountains.position.set(camera.position.x,0,camera.position.z);drawFrame();}
   catch(error){reportGameError('render',error);}
 }
-if(/[?&]debug\b/.test(location.search)) window.SF={bodega:{world:farmBodega,open:openBodega,tick:updateBodega},farmDispatch:{loading:LOADING_DISPATCH,state:FARM_DISPATCH,tick:updateFarmDispatch,setSlots,simulate:(now,dt)=>{roadSnapshot();updateFarmDispatch(now,dt);updateVehicles(now);placeVehicles(now,dt);}},shop:{config:SHOP,world:farmShop,open:openFarmShop,unlock:shopUnlock,sale:shopSale,deliver:shopDeliver,dispatch:shopDispatch,refund:shopRefund,incoming:shopIncoming,setDraft:q=>{shopDraft=q;},tick:updateFarmShop},resCars,junctions:TRAFFIC_JUNCTIONS,health:gameHealth,trafficUpdate:updateTraffic,setTrafficUpdate:fn=>{updateTraffic=fn;},pointerCount:()=>ptrs.size,canvas,cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,holdPose,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,vans,traffic,shiftDays:n=>{TIME_SHIFT+=n*DAY_MS;},LINERS:()=>LINERS,PATROL:()=>PATROL,FIESTA:()=>FIESTA,loadWalkers,STOP,homeAct:(a,r)=>homeAct(a,{dataset:{r}}),openHome,FISH,startRain,dayAt:f=>{const g=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((f-g+1)%1)*DAY_MS;},step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
+if(/[?&]debug\b/.test(location.search)) window.SF={livestock:{stockFor,choose:chooseAnimalPickup,continue:continueAnimalHaul,process:processKatQueue,path:farmHaulPath},bodega:{world:farmBodega,open:openBodega,tick:updateBodega},farmDispatch:{loading:LOADING_DISPATCH,state:FARM_DISPATCH,tick:updateFarmDispatch,setSlots,simulate:(now,dt)=>{roadSnapshot();updateFarmDispatch(now,dt);updateVehicles(now);placeVehicles(now,dt);}},shop:{config:SHOP,world:farmShop,open:openFarmShop,unlock:shopUnlock,sale:shopSale,deliver:shopDeliver,dispatch:shopDispatch,refund:shopRefund,incoming:shopIncoming,setDraft:q=>{shopDraft=q;},tick:updateFarmShop},resCars,junctions:TRAFFIC_JUNCTIONS,health:gameHealth,trafficUpdate:updateTraffic,setTrafficUpdate:fn=>{updateTraffic=fn;},pointerCount:()=>ptrs.size,canvas,cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,holdPose,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,vans,traffic,shiftDays:n=>{TIME_SHIFT+=n*DAY_MS;},LINERS:()=>LINERS,PATROL:()=>PATROL,FIESTA:()=>FIESTA,loadWalkers,STOP,homeAct:(a,r)=>homeAct(a,{dataset:{r}}),openHome,FISH,startRain,dayAt:f=>{const g=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((f-g+1)%1)*DAY_MS;},step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
 renderHUD();
 requestAnimationFrame(frame);
 if(!S.seenHelp){S.seenHelp=true; save(); setTimeout(()=>toast('Open 🧰 Tools, pick a tool, and drag across the field. Sell your harvest at the 🏪 Palengke!',4800),600);}

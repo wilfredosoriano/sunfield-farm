@@ -6359,7 +6359,7 @@ const STOPX=DX+14, STOPZ=HZ+7.4, BAYZ=HZ+4.5;   // the bus and jeepney pull out 
   glow(scene,STOPX,2.35,STOPZ+.9,3.2,GM.white);})();
 function makeBus(){const b=[], col=[0x1565c0,0xc62828,0x2e7d32][(Math.random()*3)|0], GL=0x2b3a48, D=0x1b1b1b;
   vkBus(b,{zf:4.8,zr:-4.8,w:2.4,h:2.5,yb:.42,col,wheels:[-3.2,3.2],ra:.56,r:.45,win:[1.42,2.15]});
-  for(const sd of [-1,1]) b.push(P('box',0xf5f5f5,sd*1.205,.88,0,.015,.26,8.9));
+  for(const sd of [-1,1]) for(const [z0,z1] of [[-4.6,-3.82],[-2.58,2.58],[3.82,4.6]]) b.push(P('box',0xf5f5f5,sd*1.205,.88,(z0+z1)/2,.015,.26,z1-z0));
   b.push(RB(VK.glass,1.21,1.55,3.75,.04,1.15,.8,.02)); b.push(P('box',VK.trim,1.225,1.55,3.75,.012,1.15,.02));   // door on the right side, front
   const g=new THREE.Group(), m=new THREE.Mesh(mergeGeo(b),PAINT); m.castShadow=true; g.add(m);
   [-.8,.8].forEach(x=>{glow(g,x,.85,4.9,1.4,GM.head); glow(g,x,.85,-4.85,.8,GM.tail);}); glow(g,0,2.2,0,4,GM.white);
@@ -6758,10 +6758,10 @@ function linerTex(dest){const cv=document.createElement('canvas'); cv.width=1024
   return new THREE.CanvasTexture(cv);}
 function makeLiner(dest){const b=[], GL=0x22303c, D=0x1b1b1b, g=new THREE.Group();
   vkBus(b,{zf:5.2,zr:-5.2,w:2.5,h:2.65,yb:.42,col:0xfffaf0,wheels:[-3.3,3.4],ra:.6,r:.48,win:[1.58,2.38],pitch:1.3});
-  for(const sd of [-1,1]) b.push(P('box',0xe65100,sd*1.255,.56,0,.015,.22,9.8));
+  for(const sd of [-1,1]) for(const [z0,z1] of [[-5.05,-3.95],[-2.65,2.75],[4.05,5.05]]) b.push(P('box',0xe65100,sd*1.255,.56,(z0+z1)/2,.015,.22,z1-z0));   // stripe broken by the wheel arches
   b.push(RB(0x263238,1.26,1.6,4.1,.04,1.3,.9,.02));
   const m=new THREE.Mesh(mergeGeo(b),PAINT); m.castShadow=true; g.add(m); const lm=new THREE.MeshBasicMaterial({map:linerTex(dest)});
-  [-1,1].forEach(sd=>{const q=new THREE.Mesh(new THREE.PlaneGeometry(8.8,1.3),lm); q.position.set(sd*1.265,.95,-.4); q.rotation.y=sd*Math.PI/2; g.add(q);});
+  [-1,1].forEach(sd=>{const q=new THREE.Mesh(new THREE.PlaneGeometry(5.4,1.2),lm); q.position.set(sd*1.265,.98,.05); q.rotation.y=sd*Math.PI/2; g.add(q);});
   const ds=signPlane([dest.toUpperCase()],'#111','#ffb300',1.8,.32,256,48); ds.position.set(0,2.45,5.23); g.add(ds);
   [-.85,.85].forEach(x=>{glow(g,x,.9,5.25,1.4,GM.head); glow(g,x,.9,-5.25,.8,GM.tail);}); glow(g,0,2.3,0,4.5,GM.white);
   const d=bakePerson(randLook(Math.random),poseSit,true); d.position.set(-.75,.95,4.4); g.add(d); scene.add(g); return g;}

@@ -1335,9 +1335,9 @@ function vkRound(w,h,d,r){ // a box with every edge rounded (radius r), cached b
   r=Math.min(r,w/2-.001,h/2-.001,d/2-.001); const iw=w/2-r, ih=h/2-r, s=new THREE.Shape(); s.moveTo(-iw,-ih); s.lineTo(iw,-ih); s.lineTo(iw,ih); s.lineTo(-iw,ih); s.lineTo(-iw,-ih);
   const g=new THREE.ExtrudeGeometry(s,{depth:Math.max(.001,d-2*r),bevelEnabled:true,bevelThickness:r,bevelSize:r,bevelSegments:r<.035?1:2,curveSegments:1}); g.translate(0,0,-(d-2*r)/2); return VKG[k]=g;}
 const RB=(c,x,y,z,w,h,d,r=.06,rx=0,ry=0,rz=0)=>[vkRound(w,h,d,r),Mx(x,y,z,1,1,1,rx,ry,rz),c];
-function vkSlope(b,p0,p1,w,col,inset=.06,t=.02){ // a flat panel (windscreen, rear glass) lying on the line p0→p1 of a side profile, pushed out a little
+function vkSlope(b,p0,p1,w,col,inset=.06,t=.02,out=.012){ // a flat panel (windscreen, rear glass) lying on the line p0→p1 of a side profile, pushed out a little
   const dz=p1[0]-p0[0], dy=p1[1]-p0[1], l=Math.hypot(dz,dy), ny=-dz/l, nz=dy/l, s=dz<0?1:-1;
-  b.push(RB(col,0,(p0[1]+p1[1])/2+ny*s*.012,(p0[0]+p1[0])/2+nz*s*.012,w,t,Math.max(.05,l-2*inset),.008,Math.atan2(-dy,dz)));}
+  b.push(RB(col,0,(p0[1]+p1[1])/2+ny*s*out,(p0[0]+p1[0])/2+nz*s*out,w,t,Math.max(.05,l-2*inset),.008,Math.atan2(-dy,dz)));}
 function vkWheel(b,x,y,z,r,w,side,o={}){ // tyre (rounded), dark inner, rim with spokes and hub on the outer face
   const sd=side, ox=x+sd*w/2;
   const C=VKG.wc||(VKG.wc=new THREE.CylinderGeometry(.5,.5,1,9)), W=(c,xx,rr,hh)=>b.push([C,Mx(xx,y,z,rr,hh,rr,0,0,Math.PI/2),c]);
@@ -2152,22 +2152,40 @@ const palBoys=[];
 })();
 // ---- the Elf truck (cab-over light truck with dropside bed)
 const truck=new THREE.Group(), truckGoods=new THREE.Group(), truckMats=new THREE.Group(), truckWheels=[];
-(()=>{const b=[], W=0xf4f6f7, D=0x22262a, BL=0x2e5e9e, WD=0x8d6e4b;
-  b.push(P('box',0x2a2a2a,0,.6,-.3,1.3,.25,5.8));
-  vkCab(b,{zf:2.92,zr:1.42,w:1.95,h:2.42,yb:.62,col:W,wz:2.15,ra:.48,lampY:1.05});                      // Elf-type cab
-  b.push(P('cyl',0xbfc5ca,-.72,.62,.3,.45,.9,.45,Math.PI/2));
-  b.push(P('box',0x5d4037,0,.98,-1.15,2.0,.12,4.3));
-  [-1,1].forEach(s=>{b.push(P('box',WD,s*1.0,1.33,-1.15,.06,.58,4.3)); b.push(P('box',BL,s*1.01,1.63,-1.15,.07,.08,4.32)); b.push(P('box',BL,s*1.01,1.04,-1.15,.07,.08,4.32));
-    for(const z of [-3.25,-2.15,-1.1,0,1.0]) b.push(P('box',BL,s*1.01,1.33,z,.08,.62,.08));});
-  b.push(P('box',WD,0,1.33,1.0,2.0,.58,.06)); b.push(P('box',WD,0,1.33,-3.28,2.0,.58,.06));
-  b.push(P('box',BL,0,1.95,1.02,2.0,.08,.08)); [-.95,.95].forEach(x=>b.push(P('box',BL,x,1.65,1.02,.08,.62,.08)));
-  [-.85,.85].forEach(x=>{b.push(P('box',0xd63031,x,.88,-3.31,.25,.15,.04)); b.push(P('box',0x111111,x,.4,-2.7,.3,.36,.03));});
+(()=>{const b=[], W=0x1e88e5, D=0x22262a, K=0x1c1c1c, BED=0x1f86dc;   // an Elf as you see them here: bright blue cab with a black face panel, steel dropside bed
+  const zf=2.95, zr=1.45, cw=1.95, h=2.45, yb=.62;
+  b.push(RB(K,0,.62,-.35,1.0,.18,5.9,.04)); for(const x of [-.42,.42]) b.push(RB(K,x,.66,-.35,.1,.22,5.9,.03));          // chassis rails
+  b.push(vkSide([[zr,yb],{arc:[2.15,yb,.5]},[zf-.02,yb],[zf+.06,yb+.12],[zf+.05,1.2],[zf+.02,1.62],[zf-.22,2.34],[zf-.36,h],[zr+.05,h],[zr,h-.12]],cw,W,.07));
+  vkSlope(b,[zf+.05,1.2],[zf+.02,1.62],cw-.14,K,.0,.03,.06);                                                               // the black face panel under the windscreen
+  vkSlope(b,[zf+.02,1.64],[zf-.22,2.34],cw-.24,VK.glass,.03,.025,.06);                                                            // windscreen
+  for(const x of [-.38,.32]) b.push(RB(K,x,1.69,zf+.09,.6,.025,.03,.01,0,0,x<0?.08:-.08));                               // wipers
+  b.push(vkSide([[zf-.2,1.6],[zf-.36,2.28],[zr+.22,2.28],[zr+.22,1.5],[zr+.6,1.5]],cw+.03,VK.glass,0));                  // door windows
+  for(const sd of [-1,1]){
+    b.push(RB(0x2a3640,sd*(cw/2+.03),2.33,(zf+zr)/2-.08,.06,.04,1.0,.015,0,0,sd*.4));                                     // rain visor
+    b.push(P('box',VK.trim,sd*(cw/2+.002),1.45,zr+.18,.012,1.55,.012)); b.push(RB(VK.chrome,sd*(cw/2+.012),1.55,zr+.35,.03,.05,.16,.012));   // door seam, handle
+    b.push(RB(K,sd*(cw/2-.05),.5,zr+.65,.18,.05,.6,.02));                                                                 // step
+    b.push(P('box',K,sd*(cw/2+.2),1.62,zf-.05,.05,.04,.5,0,sd*.6,0)); b.push(RB(K,sd*(cw/2+.36),1.95,zf+.18,.07,.36,.2,.03)); b.push(RB(VK.glassHi,sd*(cw/2+.36),1.95,zf+.07,.05,.3,.01,.005));   // big mirrors on arms
+    vkLight(b,sd*.6,.98,zf+.07,.42,.18,VK.head,1); b.push(RB(0xff8f2a,sd*.64,1.12,zf+.06,.34,.08,.05,.02)); b.push(RB(0xff8f2a,sd*(cw/2-.03),1.04,zf-.04,.07,.24,.12,.02));   // headlamps, orange turn lamps
+  }
+  b.push(RB(0x2b2b2b,0,.98,zf+.07,.72,.2,.03,.02)); for(let k=0;k<3;k++) b.push(RB(VK.chrome,0,.91+k*.07,zf+.09,.74,.025,.02,.008));   // grille
+  b.push(RB(W,0,.72,zf+.12,cw+.04,.26,.2,.08)); b.push(RB(K,0,.58,zf+.14,cw-.1,.06,.16,.02)); b.push(RB(VK.plate,0,.72,zf+.23,.4,.13,.015,.008));   // bumper, plate
+  for(const x of [-.62,.62]) b.push(RB(K,x,.7,zf+.22,.18,.07,.02,.01));
+  // the dropside bed: steel floor, blue drop sides with pressed ribs and hinges, head board and tail gate
+  const z0=1.0, z1=-3.3, zc=(z0+z1)/2, BL=z0-z1, y0=1.02;
+  b.push(RB(K,0,y0-.07,zc,2.0,.12,BL,.03)); b.push(P('box',0x3c4044,0,y0+.002,zc,1.92,.012,BL-.06));
+  for(const sd of [-1,1]){b.push(RB(BED,sd*.985,y0+.24,zc,.05,.46,BL,.015)); for(const y of [y0+.14,y0+.32]) b.push(RB(0x1a78c6,sd*1.01,y,zc,.02,.04,BL-.2,.01));
+    for(const z of [z0-.6,zc,z1+.6]) b.push(RB(K,sd*1.0,y0+.02,z,.06,.06,.12,.015));                                      // hinges
+    b.push(RB(BED,sd*.98,y0+.3,z1+.02,.08,.6,.08,.02)); b.push(RB(BED,sd*.98,y0+.3,z0-.02,.08,.6,.08,.02));}               // corner posts
+  b.push(RB(BED,0,y0+.27,z0,2.0,.5,.05,.015)); b.push(RB(BED,0,y0+.24,z1,2.0,.46,.05,.015)); b.push(RB(0x1a78c6,0,y0+.24,z1-.03,1.6,.04,.02,.01));
+  for(const sd of [-1,1]){b.push(RB(K,sd*.93,.86,-1.9,.5,.06,1.0,.02)); b.push(RB(K,sd*.93,.45,-2.5,.42,.48,.02,.01));}  // rear fenders and mud flaps
+  b.push(RB(K,-.72,.66,.3,.36,.3,.5,.04)); b.push([VKG.tyre||(VKG.tyre=new THREE.TorusGeometry(.7,.3,6,12).rotateY(Math.PI/2)),Mx(0,.55,-1.0,.5,.36,.36,0,0,Math.PI/2),VK.rubber]);   // battery box, spare tyre under the bed
+  [-.85,.85].forEach(x=>vkLight(b,x,.88,-3.36,.24,.14,VK.tail,-1));
   const body=new THREE.Mesh(mergeGeo(b),PAINT); body.castShadow=true; truck.add(body);
   [[-.92,2.15],[.92,2.15],[-.8,-1.9],[.8,-1.9],[-1.06,-1.9],[1.06,-1.9]].forEach(([x,z])=>{
-    const w=new THREE.Mesh(VKG.tw||(VKG.tw=vkWheelGeo(.4,.24)),PAINT);
+    const w=new THREE.Mesh(VKG.tw||(VKG.tw=vkWheelGeo(.4,.24,0x2e3236)),PAINT);
     const h=new THREE.Group(); h.position.set(x,.4,z); h.rotation.z=Math.PI/2; h.add(w); truck.add(h); truckWheels.push(w);});
   const L=randLook(rng(21)); L.f=false; L.style='short'; L.bag=null; L.h=1; const d=bakePerson(L,poseSit,true); d.position.set(.45,.78,2.15); truck.add(d); truck.userData.driver=d; d.visible=false;
-  {const td=new THREE.Group(); td.position.set(1.0,1.45,2.85); td.add(part(.04,1.05,.82,0xf4f6f7,0,0,-.41)); td.add(part(.045,.42,.55,0x3d5a73,0,.24,-.41)); truck.add(td); truck.userData.door=td;}
+  {const td=new THREE.Group(); td.position.set(.99,1.45,2.78); td.add(part(.04,1.05,.95,0x1e88e5,0,0,-.47)); td.add(part(.045,.55,.7,0x2f4252,0,.4,-.45)); td.visible=true; truck.add(td); truck.userData.door=td;}
   [[-.5,-2.4,0xe8dcc0],[.5,-2.4,0xe8dcc0],[-.5,-1.3,0xc79a5b],[.5,-1.3,0x2e86de],[0,-.2,0xc0392b],[-.5,.6,0x27ae60],[.5,.6,0xe8dcc0]].forEach(([x,z,c])=>truckGoods.add(part(.75,.45,.8,c,x,1.27,z)));
   // everything sits on the bed floor (y 1.04), inside the side rails (x ±0.95) and between the end gates (z -3.2 … 0.95)
   for(let k=0;k<2;k++) for(let i=0;i<5;i++) truckMats.add(part(.15,.1,3.8,k?0xc29a62:0xb08850,-.8+i*.17,1.1+k*.11,-1.15));   // kahoy on the left
@@ -2248,6 +2266,7 @@ function miniAnimal(kind){if(!MINI[kind]){const b=[];
   VEH.sedan={...sd,slot:GX-8.25,cap:30,icon:'🛻',name:'Chicken truck',rear:3.6,prev:null,len:7.2,doorZ0:2.55,wf:2.35,wr:1.9,tw:.85};   // (saved as 'sedan': the chicken truck took the sedan's bay)
   VEH.van={...vn,slot:GX+8.25,cap:60,icon:'🚐',name:'Closed van',rear:3.7,prev:null,len:7.4,doorZ0:2.4,wf:2.2,wr:2.4,tw:.95};
   VEH.jeep.len=5.5; VEH.truck.len=6.4;
+  VEH.truck.loadArea={x0:-.9,x1:.9,z0:.92,z1:-3.22,y:1.03}; VEH.jeep.loadArea={x0:-.78,x1:.78,z0:.85,z1:-2.45,y:1.87};   // where the load sits (built from the trip, see buildLoad)
   // pigs or chickens standing in the Elf truck's bed when it brings animals out of their pens
   const mk=(kind,spots)=>{const g=new THREE.Group(); spots.forEach(([x,y,z])=>{const m=miniAnimal(kind); if(kind==='live_chicken') m.scale.setScalar(.85); m.position.set(x,y,z); m.rotation.y=(x>0?.3:-.3); m.userData.y0=y; g.add(m);}); g.visible=false; VEH.truck.obj.add(g); return g;};
   const gb=new THREE.Box3(); VEH.truck.goods.children.forEach(c=>gb.expandByPoint(c.position)); const gq=VEH.truck.goods.position;
@@ -5183,6 +5202,7 @@ function placeVehicles(now,dt){
       errandStep(V,vid,st.trip,now); if(V.seat) V.seat.visible=onRoad&&!V.out&&st.trip.driver==='farmer'; if(o.userData.driver) o.userData.driver.visible=onRoad&&!V.out&&st.trip.driver!=='farmer';
       if(o.userData.door){if(st.trip&&st.trip.t0){const P4=vehPhase(vid,now), sd=st.trip.stopT||STOP[st.trip.dest]||8; if(P4.ph==='stop'&&(P4.e<1.1||P4.e>sd-1.1)){if(now>(V.doorUntil||0)) sfx('door',o.position.x,o.position.z); V.doorUntil=now+250;}}   // the driver gets out on arrival and back in before leaving
   const open=now<(V.doorUntil||0); o.userData.door.rotation.y+=((open?-1.25:0)-o.userData.door.rotation.y)*Math.min(1,dt*8);}}
+    if(V.loadArea){V.loadHas=placeLoad(V,vid,st.trip,st.trip&&st.trip.t0?vehPhase(vid,now):null); if(V.loadHas||(st.trip&&st.trip.dest!=='sari')){goods=false; mats=0;}}
     const gn=V.goods.children.length, gshow=goods===true?gn:Math.ceil((+goods||0)*gn); V.goods.visible=gshow>0; V.goods.children.forEach((c,i)=>c.visible=i<gshow);
     const useFeed=!!(st.trip&&(st.trip.dest==='poultry'||st.trip.dest==='seeds')), MG=useFeed?V.feed:V.mats; (useFeed?V.mats:V.feed).visible=false;
     const n=MG.children.length, show=Math.round(mats*n); MG.visible=show>0; MG.children.forEach((c,i)=>c.visible=i<show);
@@ -5191,14 +5211,93 @@ function placeVehicles(now,dt){
     if(V.liveSets){let kind=null, lf=0; const tr=st.trip;   // live animals in the cages: loading at a pen, riding home, or going to the palengke
       if(V.ramp){let open=0; if(tr&&tr.dest==='pickup'){const P3=vehPhase(vid,now); if(P3.ph==='stop') open=Math.max(0,Math.min(1,P3.e/1.2,(STOP.pickup-P3.e)/1.2));} V.ramp.rotation.x+=(-2.2*open-V.ramp.rotation.x)*Math.min(1,dt*6);}
       if(tr&&tr.dest==='pickup'){const P2=vehPhase(vid,now), set=V.liveSets[AREA_LIVE[tr.area]]; kind=AREA_LIVE[tr.area]; const fr=set?Math.min(1,(tr.cnt||99)/set.children.length):1;
-        lf=fr*(P2.ph==='stop'?(kind==='live_chicken'&&V.pickIn!=null?V.pickIn:Math.min(1,P2.e/(tr.stopT||STOP.pickup))):P2.ph==='back'?(tr.got&&Object.keys(tr.got).length?1:0):0); loadWalkers(V,tr,P2,now);}
+        lf=fr*(P2.ph==='stop'?(kind==='live_chicken'&&V.pickIn!=null?V.pickIn:Math.min(1,P2.e/(tr.stopT||STOP.pickup))):P2.ph==='back'?(tr.got&&Object.keys(tr.got).length?1:0):0); if(V.loadHas||V.cartOn) hideWalkers(V); else loadWalkers(V,tr,P2,now);}
       else {hideWalkers(V); if(tr&&tr.cargo&&['palengke','brgy','mountain','city','katayan'].includes(tr.dest)){const ids=tr.cargo.flatMap(c=>Object.keys(c.ret||c.live||{})); kind=['live_cow','live_pig','live_goat','live_chicken'].find(k=>ids.includes(k))||null; if(kind) lf=tr.animals?(tr.paid?0:1):Math.max(.3,+goods||0);}}
+      if(V.loadHas) kind=null;
       for(const k in V.liveSets){const g=V.liveSets[k], ln=g.children.length, ls=k===kind?Math.ceil(lf*ln):0; g.visible=ls>0;
         if(ls) g.children.forEach((c,q)=>{c.visible=q<ls; c.position.y=c.userData.y0+Math.abs(Math.sin(now/170+q*1.7))*.05;});}}
   }
 }
 // animals walking out of their house, through the area gate and up into the truck while it is parked there
 // what you see on the roof or bed matches what you bought: a few small things ride in the cab, food never shows as lumber
+/* ---------- the load: what rides in the Elf's bed and on the jeepney's roof is built from the trip's own contents and counts.
+   Each kind of goods has its own model (a crate of that vegetable, a rice sack, egg trays, milk cans, a cooler of meat, feed sacks,
+   lumber, roof sheets, cement, hollow blocks, chick boxes) and live animals are the same pigs, goats and cows as on the farm, one per animal. */
+const PROD_COL={carrot:0xe67e22,corn:0xf1c40f,pechay:0x6ab04c,kamatis:0xd63031,talong:0x6c3483,sitaw:0x58a83a,ampalaya:0x3e8e41,sili:0xc0392b,mango:0xf0b429,kamote:0x8e5a3c,sibuyas:0xb0506e,bawang:0xeee6d8};
+const CG_={};
+function cgUnit(kind){ // [geometry, footprint w, footprint d, height, stack layers]
+  if(CG_[kind]) return CG_[kind]; const b=[]; let fp=[.5,.4,.32,2];
+  const crate=c=>{b.push(RB(0xb08850,0,.13,0,.5,.26,.4,.02)); for(const y of [.06,.19]) for(const sd of [-1,1]) b.push(P('box',0x8d6e4b,sd*.252,y,0,.01,.04,.4)); for(let i=0;i<6;i++) b.push(P('sph',c,-.15+(i%3)*.15,.27,-.09+((i/3)|0)*.18,.17,.12,.17));};
+  const sack=(c,band)=>{b.push(RB(c,0,.15,0,.5,.3,.36,.1)); b.push(P('sph',c,0,.3,-.12,.14,.1,.12)); if(band) b.push(P('box',band,0,.16,.181,.4,.1,.005));};
+  const bag=(c,band)=>{b.push(RB(c,0,.08,0,.5,.16,.34,.06)); if(band) b.push(P('box',band,0,.08,.171,.36,.06,.004));};
+  if(PROD_COL[kind]) crate(PROD_COL[kind]);
+  else if(kind==='wheat') sack(0xefe7d2,0x2e86de);
+  else if(kind==='egg'||kind==='duckegg'){b.push([eggTrayGeo(4),Mx(0,0,0,1,1,1),null]); fp=[.5,.5,.3,2];}
+  else if(kind==='milk'||kind==='goatmilk'){b.push(P('cylHi',0xcfd6dc,0,.22,0,.3,.44,.3)); b.push(P('cylHi',0xb0b8be,0,.47,0,.18,.08,.18)); fp=[.34,.34,.5,1];}
+  else if(['chicken','pork','beef','chevon','tilapia'].includes(kind)){b.push(RB(0xf2f2ee,0,.15,0,.54,.3,.38,.03)); b.push(RB(kind==='tilapia'?0x2e86de:0xd63031,0,.31,0,.56,.04,.4,.015)); fp=[.56,.4,.34,2];}
+  else if(kind==='pumpkin'){b.push(P('sph',0xe67e22,0,.18,0,.4,.34,.4)); b.push(P('cyl',0x5d7a32,0,.37,0,.04,.08,.04)); fp=[.42,.42,.36,2];}
+  else if(kind==='pakwan'){b.push(P('sph',0x2e7d32,0,.17,0,.36,.32,.5)); for(const x of [-.08,.08]) b.push(P('sph',0x1b5e20,x,.17,0,.08,.32,.5)); fp=[.38,.52,.33,2];}
+  else if(kind==='pinya'){b.push(P('sph',0xd4a017,0,.14,0,.2,.28,.2)); b.push(P('cone',0x2e7d32,0,.34,0,.16,.18,.16)); fp=[.24,.24,.42,1];}
+  else if(kind==='wood'){for(let i=0;i<4;i++) for(let j=0;j<2;j++) b.push(P('box',[0xc29a62,0xb08850][(i+j)%2],-.18+i*.12,.05+j*.1,0,.11,.09,2.4)); fp=[.5,2.4,.2,3];}
+  else if(kind==='yero'){for(let i=0;i<4;i++) b.push(P('box',[0xa9b3b8,0x98a3a9][i%2],0,.02+i*.03,0,.8,.025,1.8)); for(let k=-3;k<=3;k++) b.push(P('box',0xbac3c7,k*.11,.13,0,.02,.02,1.8)); fp=[.8,1.8,.15,3];}
+  else if(kind==='cement') bag(0xbfbab0,0xd63031);
+  else if(kind==='hollow'){for(let i=0;i<2;i++) for(let j=0;j<2;j++) for(let k=0;k<2;k++) b.push(RB(0x9e9e9e,-.1+i*.2,.1+k*.2,-.1+j*.2,.19,.19,.19,.02)); fp=[.42,.42,.4,1];}
+  else if(kind==='nails'){b.push(RB(0x5d4037,0,.08,0,.26,.16,.2,.02)); b.push(P('box',0xf1c40f,0,.08,.101,.2,.06,.004)); fp=[.28,.22,.17,3];}
+  else if(kind==='feed') sack(0xf5f5f5,0xd63031); else if(kind==='feed_pig') sack(0xf5f5f5,0xe84393); else if(kind==='feed_fish') sack(0xf5f5f5,0x2e86de);
+  else if(kind==='feed_cow'){b.push(RB(0xd8b65a,0,.18,0,.55,.36,.42,.03)); for(const z of [-.1,.1]) b.push(P('box',0x8d6e4b,0,.18,z,.56,.37,.015)); fp=[.56,.43,.37,2];}
+  else if(['chick','duckling','fingerling'].includes(kind)){b.push(RB(kind==='fingerling'?0x81c7e8:0xc8a27a,0,.11,0,.44,.22,.34,.02)); for(let i=0;i<3;i++) b.push(P('cyl',0x3a2a1c,-.12+i*.12,.17,.171,.04,.004,.04,Math.PI/2)); fp=[.45,.35,.23,3];}
+  else if(['pullet','itik','live_chicken'].includes(kind)){b.push(RB(0xe74c3c,0,.17,0,.5,.34,.42,.02)); b.push(P('box',0x2b2b2b,0,.2,0,.52,.1,.3)); fp=[.52,.44,.36,3];}
+  else if(kind.startsWith('seed_')){b.push(RB(0x8bc34a,0,.07,0,.3,.14,.22,.05)); b.push(P('box',0xffffff,0,.07,.111,.2,.06,.004)); fp=[.32,.24,.15,3];}
+  else if(kind==='bakuna'){b.push(RB(0x2e86de,0,.1,0,.34,.2,.26,.03)); b.push(P('box',0xffffff,0,.1,.131,.12,.12,.004)); fp=[.36,.28,.21,2];}
+  else {b.push(RB(0xc8a27a,0,.15,0,.5,.3,.4,.02)); b.push(P('box',0x8d6e4b,0,.15,.201,.5,.04,.004));}   // a carton
+  return CG_[kind]=[mergeGeo(b),...fp];}
+const LOAD_PER={wheat:10,egg:120,duckegg:120,milk:5,goatmilk:5,chicken:10,pork:10,beef:10,chevon:10,tilapia:10,pumpkin:1,pakwan:1,pinya:2,mango:20,
+  wood:8,yero:4,cement:1,hollow:8,nails:5,feed:1,feed_pig:1,feed_fish:1,feed_cow:1,chick:1,duckling:1,fingerling:1,pullet:1,itik:1,live_chicken:4,bakuna:1};
+const AN_GEO={};
+function animalGeo(kind,v){ // the farm's own pigs, goats and cows, standing still, merged into one piece (piglets, kids and calves are smaller ones)
+  const key=kind+v; if(AN_GEO[key]) return AN_GEO[key];
+  const [gf,piv,s]={live_pig:[pigGeo,PIVP,.82],piglet:[pigGeo,PIVP,.48],live_goat:[goatGeo,PIVG,.78],kid:[goatGeo,PIVG,.5],live_cow:[cowGeo,PIVC,.78],calf:[cowGeo,PIVC,.5]}[kind];
+  const K=gf()[v%gf().length], S_=new THREE.Matrix4().makeScale(s,s,s), list=[[K.body,S_.clone(),null],[K.head,S_.clone().multiply(piv).multiply(new THREE.Matrix4().makeRotationX(.12)),null]];
+  for(const hp of K.hips) list.push([K.leg,S_.clone().multiply(new THREE.Matrix4().makeTranslation(...hp)),null]);
+  if(K.tail) list.push([K.tail,S_.clone().multiply(new THREE.Matrix4().makeTranslation(...K.tailAt)).multiply(new THREE.Matrix4().makeRotationX(.25)),null]);
+  const g=mergeGeo(list); g.computeBoundingBox(); return AN_GEO[key]=g;}
+const LIVE_LOAD=['live_pig','live_goat','live_cow','piglet','kid','calf'];
+function buildLoad(items,area){ // a Group with the goods laid out over area {x0,x1,z0,z1,y} (z0 by the cab), animals first, heavy and long things low
+  const g=new THREE.Group(), W=area.x1-area.x0, D=area.z0-area.z1, list=[], anim=[];
+  for(const [k,q] of Object.entries(items)) if(q>0){if(LIVE_LOAD.includes(k)) for(let i=0;i<Math.min(q,12);i++) anim.push(k); else{const n=Math.min(24,Math.ceil(q/(LOAD_PER[k]||10))); for(let i=0;i<n;i++) list.push(k);}}
+  let zc=area.z0;
+  if(anim.length){ // animals stand in rows across the bed, squeezing up if there are many
+    const g0=animalGeo(anim[0],0).boundingBox, al=g0.max.z-g0.min.z, aw=g0.max.x-g0.min.x, across=Math.max(1,Math.floor(W/(aw+.08)));
+    const rows=Math.ceil(anim.length/across), pitch=Math.min(al+.1,(D-.1)/rows), b=[];
+    anim.forEach((k,i)=>{const r=(i/across)|0, c=i%across, n=Math.min(across,anim.length-r*across), x=area.x0+W/2+(c-(n-1)/2)*(W/Math.max(n,across)), z=area.z0-.05-pitch*(r+.5);
+      b.push([animalGeo(k,i),Mx(x,area.y,z,1,1,1,0,(i%2?.12:-.12)+(r%2?Math.PI:0),0),null]);});
+    const m=new THREE.Mesh(mergeGeo(b),ANIMAT); m.castShadow=true; g.add(m); zc=area.z0-.05-pitch*rows-.05;}
+  if(list.length){ // goods: long things along the bed first, then rows of boxes and sacks, stacking when the floor is full
+    list.sort((a,b)=>cgUnit(b)[2]-cgUnit(a)[2]); const b=[], H={}; let x=area.x0, z=zc, rowD=0, layerY=0, lay=0;
+    for(const k of list){const [geo,w,d,h,maxL]=cgUnit(k);
+      if(x+w>area.x1+.01){x=area.x0; z-=rowD; rowD=0;}
+      if(z-d<area.z1-.01){lay++; x=area.x0; z=zc; rowD=0; layerY=lay*.3;}
+      if(lay>=Math.max(1,maxL)+1) break;
+      b.push([geo,Mx(x+w/2,area.y+layerY,z-d/2,1,1,1),null]); x+=w+.02; rowD=Math.max(rowD,d+.02);}
+    if(b.length){const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.castShadow=true; g.add(m);}}
+  return g;}
+function itemsSum(...maps){const o={}; for(const m of maps) for(const k in (m||{})) o[k]=(o[k]||0)+(+m[k]||0); return o;}
+function tripLoad(vid,tr,P){ // what is in the vehicle right now, and how much of it ({items, f} or null)
+  if(!tr||!P) return null; const ph=P.ph, sd=tr.stopT||STOP[tr.dest]||8;
+  if(tr.dest==='pickup'){if(tr.eggs) return null; const kind=AREA_LIVE[tr.area]; if(!kind||kind==='live_chicken') return null;
+    const n=tr.cnt||0, k=ph==='stop'?(VEH[vid].cartIn!=null?VEH[vid].cartIn:Math.floor(n*Math.min(1,P.e/sd))):ph==='back'||ph==='done'?n:0; return {items:{[kind]:k},f:1};}
+  const sells=['palengke','brgy','mountain','city','warehouse','port','katayan'].includes(tr.dest)||(tr.dest==='farmshop'&&tr.shopGoods);
+  if(sells){const items=tr.animals?{...tr.animals}:itemsSum(...(tr.cargo||[]).map(c=>c.ret||c.live||{}),tr.goods,tr.shopGoods);
+    return ph==='out'?{items,f:1}:ph==='stop'?{items,f:Math.max(0,1-P.e/sd)}:null;}
+  if(tr.dest!=='sari'&&tr.mats&&Object.keys(tr.mats).length) return ph==='stop'?{items:tr.mats,f:Math.min(1,P.e/sd)}:ph==='back'?{items:tr.mats,f:1}:null;
+  return null;}
+function placeLoad(V,vid,tr,P){ // rebuild the vehicle's load when what it carries changes
+  const L=tripLoad(vid,tr,P); let items=null;
+  if(L){items={}; for(const [k,q] of Object.entries(L.items)) {const n=LIVE_LOAD.includes(k)?Math.round(q*L.f):Math.ceil(q*L.f); if(n>0) items[k]=n;}}
+  const key=items?JSON.stringify(items):''; if(key===V.loadKey) return !!items; V.loadKey=key;
+  if(V.load){V.obj.remove(V.load); V.load.traverse(o=>{if(o.isMesh) o.geometry.dispose();});} V.load=null;
+  if(items&&Object.keys(items).length){V.load=buildLoad(items,V.loadArea); V.obj.add(V.load);}
+  return !!items;}
 function matsFrac(tr,vid){if(!tr||tr.dest==='sari') return 0; const n=Object.values(tr.mats||{}).reduce((a,b)=>a+b,0); return Math.min(1,n/VEH[vid].cap*1.6);}
 // the driver gets out: into a store and back with a bag, or to the broiler house and back with crates of chickens, again and again
 const ERRAND_AT={farmshop:[126,-128],sari:[22,-102.8],hardware:[HWX,HZ-8.8],poultry:[PSX,HZ-12.2],seeds:[SSX,HZ-9.5]};
@@ -5222,12 +5321,35 @@ function bodegaUnload(V,tr,t,dur,now){ // the driver carries the egg trays from 
   else if(tt>=d0+loopT){walkAlong(p,[rear,door],Math.min(1,(tt-d0-loopT)/d0),now); V.unload=1;}
   else {const q=(tt-d0)/per, k=Math.floor(q), u=q-k; walkAlong(p,loop,u,now); c=u<.5; V.unload=(k+(u>=.5?1:0))/n;}   // carrying on the way in, empty-handed on the way back
   p.crate.visible=false; p.tray.visible=c; holdPose(p,c?'eggs':null); p.bag.visible=false;}
-function errandStep(V,vid,tr,now){V.out=false; V.pickIn=null; const hide=()=>{if(V.er) V.er.root.visible=false;};
+function cageCart(V){ // a hand cart with one wheel in front, two handles and a steel-bar cage, for wheeling a pig or goat to the truck
+  if(V.cart) return V.cart; const g=new THREE.Group(), b=[], ST=0x6d7478, K=0x2a2a2a;
+  b.push(RB(0x8a9196,0,.42,0,.8,.05,1.3,.02)); for(const sd of [-1,1]){b.push(P('box',ST,sd*.4,.8,0,.03,.03,1.3)); b.push(P('box',ST,sd*.4,1.16,0,.03,.03,1.3));
+    for(const z of [-.64,-.32,0,.32,.64]) b.push(P('box',ST,sd*.4,.79,z,.03,.74,.03)); b.push(P('box',ST,sd*.32,.62,-.95,.04,.04,.7,.35,0,0)); b.push(RB(K,sd*.3,.74,-1.28,.05,.05,.16,.02,.35));}   // cage bars, handles with grips
+  for(const z of [-.64,.64]){b.push(P('box',ST,0,1.16,z,.8,.03,.03)); for(const x of [-.2,0,.2]) b.push(P('box',ST,x,.79,z,.03,.74,.03));} for(const x of [-.2,0,.2]) b.push(P('box',ST,x,1.16,0,.03,.03,1.3));
+  b.push(P('box',ST,0,.3,.55,.05,.25,.05)); for(const sd of [-1,1]) b.push(P('box',ST,sd*.3,.22,-.45,.04,.4,.04));     // fork for the wheel, legs
+  vkWheel(b,0,.17,.62,.17,.08,1,{spokes:5,rim:0xc9ced2}); vkWheel(b,0,.17,.62,.17,.08,-1,{spokes:5,rim:0xc9ced2,rimOnly:true});
+  g.add(new THREE.Mesh(mergeGeo(b),PAINT)); g.children[0].castShadow=true; g.visible=false; scene.add(g); V.cart=g; return g;}
+function errandStep(V,vid,tr,now){V.out=false; V.pickIn=null; V.cartOn=false; if(V.cart) V.cart.visible=false; const hide=()=>{if(V.er) V.er.root.visible=false;};
   const P=tr&&tr.t0?vehPhase(vid,now):null;
   if(P&&P.ph==='back'&&tr.dest==='pickup'&&tr.eggs&&P.R.back.hold){const H=P.R.back.hold; if(P.e>=H.t0&&P.e<=H.t1){bodegaUnload(V,tr,P.e-H.t0,H.t1-H.t0,now); return;}}
   if(!P||P.ph!=='stop'){hide(); return;}
   const sd=tr.stopT||STOP[tr.dest]||8, e=P.e, o=V.obj, ry=o.rotation.y, door=[o.position.x+Math.cos(ry)*1.5+Math.sin(ry)*1.6, o.position.z-Math.sin(ry)*1.5+Math.cos(ry)*1.6];
   const chick=tr.dest==='pickup'&&(tr.eggs||AREA_LIVE[tr.area]==='live_chicken'), shop=ERRAND_AT[tr.dest];
+  const kind=tr.dest==='pickup'&&!tr.eggs?AREA_LIVE[tr.area]:null, cart=V.loadArea&&(kind==='live_pig'||kind==='live_goat');
+  if(cart){V.cartIn=0; if(e<.9||e>sd-.7){hide(); V.cartIn=e>sd-.7?(tr.cnt||0):0; return;}   // the driver wheels the animals out one at a time in the cage cart
+    const p=errandPerson(V,tr); p.root.visible=true; V.out=true; V.cartOn=true; const t=e-.9, T=sd-1.6, sp=2.4, n=Math.max(1,tr.cnt||1);
+    const rear=[o.position.x-Math.sin(ry)*(V.rear+.9),o.position.z-Math.cos(ry)*(V.rear+.9)], A=FARM.areas.find(a=>a.type===tr.area), h=jobSpot(tr.i), loop=[rear,A.gate,h,A.gate,rear];
+    const d0=Math.hypot(rear[0]-door[0],rear[1]-door[1])/sp, loopT=Math.max(.1,T-2*d0), per=loopT/n, cg=cageCart(V);
+    let full=false, loaded=0;
+    if(t<d0) walkAlong(p,[door,rear],t/d0,now);
+    else if(t>=d0+loopT){walkAlong(p,[rear,door],Math.min(1,(t-d0-loopT)/d0),now); loaded=n;}
+    else {const q=(t-d0)/per, k=Math.floor(q), u=q-k; walkAlong(p,loop,u,now); full=u>.5; loaded=k;
+      const r=p.root, a=r.rotation.y; cg.visible=true; cg.position.set(r.position.x+Math.sin(a)*1.05*p.L.h,0,r.position.z+Math.cos(a)*1.05*p.L.h); cg.rotation.y=a;
+      p.aL.rotation.x=p.aR.rotation.x=-.75; p.aL.rotation.z=.12; p.aR.rotation.z=-.12; if(p.aL.e){p.aL.e.rotation.x=p.aR.e.rotation.x=-.35;}
+      if(!cg.pig||cg.pigKind!==kind){if(cg.pig) cg.remove(cg.pig); cg.pig=new THREE.Mesh(animalGeo(kind,0),ANIMAT); cg.pig.castShadow=true; cg.pig.position.y=.45; cg.pig.scale.setScalar(.8); cg.add(cg.pig); cg.pigKind=kind;}
+      cg.pig.visible=full;}
+    V.cartIn=loaded; const ht=S.tiles[tr.i]; if(ht&&!tr.loaded) OUTF.set(ht,Math.min(1,(loaded+(full?1:0))/n));   // the pen empties one animal at a time
+    p.crate.visible=false; p.tray.visible=false; p.bag.visible=false; return;}
   if(!chick&&!shop){hide(); return;} if(e<.9||e>sd-.7){hide(); return;}   // still opening the door / already back in the seat
   const p=errandPerson(V,tr); p.root.visible=true; V.out=true; const t=e-.9, T=sd-1.6, sp=chick?3.2:1.6;
   if(chick){const rear=[o.position.x-Math.sin(ry)*(V.rear+.7),o.position.z-Math.cos(ry)*(V.rear+.7)], A=FARM.areas.find(a=>a.type===tr.area), h=jobSpot(tr.i),gate=A.gate, loop=[rear,gate,h,gate,rear];
@@ -6502,7 +6624,7 @@ function continueAnimalHaul(vid,tr,now){const V=VEH[vid],R=routesFor(vid,'pickup
   const exitPts=ex.map(q=>[q[0],q[1],SPD.slow]).concat([[SERVICE[G.J][0],SERVICE[G.J][1],SPD.dirt]]);   // drive out of the track and on round the ring, never back the way it came
   if(dest==='katayan'){const iK=ringIdx(8,53); out=exitPts.concat(thin(loopSeq(G.J,iK)).slice(1).map(q=>[SERVICE[q][0],SERVICE[q][1],SPD.dirt])); out.push([10,57]);
     const i=frontIdx(V.slot+3.5),a=SVC0[i]; back=[[10,57,SPD.slow],...thin(loopSeq(iK,i)).map(q=>[SERVICE[q][0],SERVICE[q][1],SPD.dirt])]; back.push([V.slot+3.5,a[1],SPD.slow,true],[V.slot,a[1],SPD.slow,true],[V.slot,G0]);}
-  else{dest='palengke';out=exitPts.concat(thin(loopSeq(G.J,0)).slice(1).map(q=>[SERVICE[q][0],SERVICE[q][1],SPD.dirt])); for(let q=ACCESS.length-1;q>=0;q-=2) out.push([ACCESS[q][0],ACCESS[q][1],SPD.dirt]);out.push([DX,LE,SPD.hwy],[PX-4,LE,SPD.slow],[PX+2,HZ-5,SPD.slow],[PX+2,-124]);const normal=routesFor(vid,'palengke');back=normal.back.segs.map(s=>[s.a[0],s.a[1],s.a[2]||SPD.slow,s.rev]);const last=normal.back.segs.at(-1).b;back.push([last[0],last[1]]);}
+  else{dest='palengke';out=exitPts.concat(thin(loopSeq(G.J,0)).slice(1).map(q=>[SERVICE[q][0],SERVICE[q][1],SPD.dirt])); for(let q=ACCESS.length-1;q>=0;q-=2) out.push([ACCESS[q][0],ACCESS[q][1],SPD.dirt]);out.push([DX,LE,SPD.hwy],[PX-4,LE,SPD.slow],[PX+2,HZ-5,SPD.slow],[PX+2,-118.5,SPD.slow],[PX-3,-120.8,SPD.slow],[PX-13,-120.8,SPD.slow],[PX-16,-124,SPD.slow],[PX-16,-127]);const normal=routesFor(vid,'palengke');back=normal.back.segs.map(s=>[s.a[0],s.a[1],s.a[2]||SPD.slow,s.rev]);const last=normal.back.segs.at(-1).b;back.push([last[0],last[1]]);}
   const remaining={...animals},cargo=[];
   if(dest==='palengke'){for(let i=S.orders.length-1;i>=0;i--){const order=S.orders[i];if(Object.entries(order.items).every(([k,q])=>ITEMS[k]?.live&&(remaining[k]||0)>=q)){for(const [k,q]of Object.entries(order.items))remaining[k]-=q;cargo.push({label:order.who+': live animal order',n:Object.values(order.items).reduce((a,b)=>a+b,0),ret:{...order.items},live:{...order.items},order,coins:order.reward,xp:order.xp});S.orders.splice(i,1);}}fillOrders();}
   const rest=Object.fromEntries(Object.entries(remaining).filter(([,q])=>q>0));if(Object.keys(rest).length)cargo.push({label:Object.values(rest).reduce((a,b)=>a+b,0)+' live animals',n:Object.values(rest).reduce((a,b)=>a+b,0),ret:rest,live:rest,coins:Object.entries(rest).reduce((sum,[k,q])=>sum+q*ITEMS[k].price,0),xp:0});
@@ -6519,6 +6641,9 @@ $('bldSheet').addEventListener('click',e=>{const b=e.target.closest('[data-anima
 function startPickup(i,cnt,target){if(!target)return chooseAnimalPickup(i,cnt);const t=S.tiles[i], L=t&&LIFE[t.b];if(!L||!(t.n>0)||(t.gp||0)<1)return toast('These animals are not ready for pickup.');if(target==='katayan'&&!S.kat.owned)return toast('Open the katayan first.');const vs=pickupVeh(t); if(pickupPending(i)) return toast('A truck is already on its way to these animals.',2600);
   const v=vs.find(vehFree); if(!v) return toast(`${vs.map(x=>VEH[x].icon+' '+VEH[x].name).join(' and ')} ${vs.length>1?'are both':'is'} on the road. Try again when ${vs.length>1?'one':'it'} is back.`,3200);
   const n=L.live?t.n:Math.min(t.n,cnt||1); if(!beginTrip(v,{dest:'pickup',pickupLayout:3,pickupTarget:target,i,area:t.b,cnt:n,paid:true,stopT:t.b==='broiler'?24:12})) return;
+  {const tr=S.veh[v].trip, kind=AREA_LIVE[t.b]; if(VEH[v].loadArea&&(kind==='live_pig'||kind==='live_goat')){   // long enough for the driver to wheel every animal out in the cage cart
+    const R=routesFor(v,'pickup',tr), q=routePos(R.out,R.out.T), rear=[q.x-Math.sin(q.ang)*(VEH[v].rear+.9),q.z-Math.cos(q.ang)*(VEH[v].rear+.9)], A=FARM.areas.find(a=>a.type===t.b), h=jobSpot(i);
+    const loop=2*(Math.hypot(A.gate[0]-rear[0],A.gate[1]-rear[1])+Math.hypot(h[0]-A.gate[0],h[1]-A.gate[1])); tr.stopT=Math.max(tr.stopT,Math.round(4+n*(loop/2.4+.6)));}}
   toast(`${VEH[v].icon} The ${VEH[v].name.toLowerCase()} will back up to the ${FARM.areas.find(a=>a.type===t.b).name.toLowerCase()} gate and load ${n} ${n===1&&L.one?L.one:L.word}.`,3400); buzz(); changed();}
 /* ---------- watering, rain, the farmer's hunger and energy, home and fishing ---------- */
 const needsWater=i=>!rainOn()&&growMult(i)<=1;   // plots next to a poso stay moist, and rain waters everything
@@ -7135,6 +7260,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:26,date:'Nov 10, 2026',title:'Real loads on your Elf and jeep',items:['🚚 The Elf now looks like the blue Isuzu Elf dropside you see on Philippine roads: flat cab with a black face panel, big mirrors on arms, a low blue dropside bed with ribs and hinges, mud flaps and a spare tyre.','🐖 What you load is what you see. Hauling 4 pigs puts exactly 4 pigs in the bed, the same pigs from your pen. Goats, cows, piglets and kids work the same way.','📦 Deliveries and purchases show their real cargo: vegetable crates, rice sacks, egg trays, milk cans, feed sacks, chick boxes, lumber, hollow blocks, cement and more, in the amounts you bought or are selling.','🛒 Your farmer fetches each pig with a wheeled cage cart, one at a time from the pen to the truck, and the bed fills up as they load.']},
   {v:25,date:'Nov 10, 2026',title:'A new look for people and vehicles',items:['🧍 People are properly shaped now: faces with eyes, brows and a mouth, hairstyles, hands and shoes, and arms and legs that bend at the elbow and knee.','🚶 Walking looks natural: the knees fold as each leg swings through, the arms swing with a bend at the elbow, and the feet no longer slide.','🚗 Cars, jeepneys, tricycles, buses, vans and trucks have real body shapes: wheel arches, tyres with rims, glass, door lines, mirrors, lamps and bumpers.','🚙 Jeepneys keep their chrome bonnet, horses and side stripes, now with curved fenders; your own jeepney and Elf truck got the new look too.','🛣️ Town and highway traffic now keeps to lanes and takes turns at junctions, so vehicles no longer drive through each other.']},
   {v:24,date:'Nov 9, 2026',title:'Your own Sunfield Mini-Mart',items:['Unlock your own shop at level 4 for 6,000 pesos, with Ate Lorna as shopkeeper and three prepaid salary days.','Choose rice, eggs, meat, milk, fruit and vegetables to deliver from your farm. Your farmer or hired driver brings them to the shop.','Walk-in customers and people arriving by car buy real shelf stock. Their payments go straight to your money balance.','Tap the shop or My shop in the palengke to see stock, incoming deliveries, sales, low-stock warnings and staff salary. Empty or unpaid shops pause; there is no wage debt or offline stock loss.']},
   {v:23,date:'Nov 9, 2026',title:'A calmer farm and better earnings',items:['Cheaper young animals, feeds and veterinary care; better live-animal and meat prices. Small herds use only their share of an opened feed sack.','Animals left in an opened crate stay available for your next restock.','Flu and heat waves are less frequent, vaccines last twice as long, and animals have a much longer care window.','Farm work uses much less energy. Hunger builds more slowly, short rests restore more energy, and idle farmers recover gently.','Existing stocked farms receive one recovery package: 1,500 pesos, feeds, two vaccines and two medicines.']},
@@ -7313,7 +7439,7 @@ function frame(now){
   try{updateCam();followSun();mountains.position.set(camera.position.x,0,camera.position.z);drawFrame();}
   catch(error){reportGameError('render',error);}
 }
-if(/[?&]debug\b/.test(location.search)) window.SF={livestock:{stockFor,choose:chooseAnimalPickup,continue:continueAnimalHaul,process:processKatQueue,path:farmHaulPath},bodega:{world:farmBodega,open:openBodega,tick:updateBodega},farmDispatch:{loading:LOADING_DISPATCH,state:FARM_DISPATCH,tick:updateFarmDispatch,setSlots,simulate:(now,dt)=>{roadSnapshot();updateFarmDispatch(now,dt);updateVehicles(now);placeVehicles(now,dt);}},shop:{config:SHOP,world:farmShop,open:openFarmShop,unlock:shopUnlock,sale:shopSale,deliver:shopDeliver,dispatch:shopDispatch,refund:shopRefund,incoming:shopIncoming,setDraft:q=>{shopDraft=q;},tick:updateFarmShop},resCars,junctions:TRAFFIC_JUNCTIONS,health:gameHealth,trafficUpdate:updateTraffic,setTrafficUpdate:fn=>{updateTraffic=fn;},pointerCount:()=>ptrs.size,canvas,cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,holdPose,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,vans,traffic,models:{vkCar,CAR_SPECS,makePerson,bakePerson,poseWalk,poseStand,poseSit,randLook,makeCar,makePUJ,makeBus,makeTrike,makeVan,makeTraderTruck,makeLiner,VEH:()=>VEH},lanes:LN,laneStep:lnStep,laneMs:()=>LN_MS,trikes,puvs,traders,JEEPS:()=>JEEPS,townStep:updateTownVehicles,transitStep:updateTransit,bizStep:updateBiz,trikeStep:updateTrikes,shiftDays:n=>{TIME_SHIFT+=n*DAY_MS;},LINERS:()=>LINERS,PATROL:()=>PATROL,FIESTA:()=>FIESTA,loadWalkers,STOP,homeAct:(a,r)=>homeAct(a,{dataset:{r}}),openHome,FISH,startRain,dayAt:f=>{const g=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((f-g+1)%1)*DAY_MS;},step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
+if(/[?&]debug\b/.test(location.search)) window.SF={livestock:{stockFor,choose:chooseAnimalPickup,continue:continueAnimalHaul,process:processKatQueue,path:farmHaulPath},bodega:{world:farmBodega,open:openBodega,tick:updateBodega},farmDispatch:{loading:LOADING_DISPATCH,state:FARM_DISPATCH,tick:updateFarmDispatch,setSlots,simulate:(now,dt)=>{roadSnapshot();updateFarmDispatch(now,dt);updateVehicles(now);placeVehicles(now,dt);}},shop:{config:SHOP,world:farmShop,open:openFarmShop,unlock:shopUnlock,sale:shopSale,deliver:shopDeliver,dispatch:shopDispatch,refund:shopRefund,incoming:shopIncoming,setDraft:q=>{shopDraft=q;},tick:updateFarmShop},resCars,junctions:TRAFFIC_JUNCTIONS,health:gameHealth,trafficUpdate:updateTraffic,setTrafficUpdate:fn=>{updateTraffic=fn;},pointerCount:()=>ptrs.size,canvas,cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,holdPose,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,vans,traffic,models:{vkCar,CAR_SPECS,tripLoad,buildLoad,cageCart,animalGeo,makePerson,bakePerson,poseWalk,poseStand,poseSit,randLook,makeCar,makePUJ,makeBus,makeTrike,makeVan,makeTraderTruck,makeLiner,VEH:()=>VEH},lanes:LN,laneStep:lnStep,laneMs:()=>LN_MS,trikes,puvs,traders,JEEPS:()=>JEEPS,townStep:updateTownVehicles,transitStep:updateTransit,bizStep:updateBiz,trikeStep:updateTrikes,shiftDays:n=>{TIME_SHIFT+=n*DAY_MS;},LINERS:()=>LINERS,PATROL:()=>PATROL,FIESTA:()=>FIESTA,loadWalkers,STOP,homeAct:(a,r)=>homeAct(a,{dataset:{r}}),openHome,FISH,startRain,dayAt:f=>{const g=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((f-g+1)%1)*DAY_MS;},step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
 renderHUD();
 requestAnimationFrame(frame);
 if(!S.seenHelp){S.seenHelp=true; save(); setTimeout(()=>toast('Open 🧰 Tools, pick a tool, and drag across the field. Sell your harvest at the 🏪 Palengke!',4800),600);}

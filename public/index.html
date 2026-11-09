@@ -4712,6 +4712,7 @@ function vehText(vid,now){
   if(tr.farmBlocked)return 'Waiting for the other truck to back clear';
   if(ph.ph==='queued')return (tr.pickupLayout===2||tr.pickupLayout===3)?'Waiting for the animal pickup spot':'Waiting at the farm for the narrow road';
   if(ph.ph==='yield')return 'Backing up to let the returning truck pass';
+  if(VEH[vid].laneWait)return `Waiting for the ${vname(VEH[vid].laneWait)} to clear the farm road`;
   if(VEH[vid].yield)return VEH[vid].yield.mode==='back'?`Backing up for the ${vname(VEH[vid].yield.w)}`:`Waiting for the ${vname(VEH[vid].yield.w)} to pass`;
   if(ph.ph==='board') return tr.driver==='farmer'?'Waiting for your farmer…':`Waiting for ${driverName(tr)}…`;
   if(ph.ph==='out') return VEH[vid].waitBay?'Waiting for its turn at the bagsakan…':`To ${place} ${fmt(ph.R.out.T-ph.e)}`;
@@ -4730,11 +4731,13 @@ function givesWay(a,b,now){const A=vehPhase(a,now,true), B=vehPhase(b,now,true),
   if(VEH[b].yield&&VEH[b].yield.w===a) return false; return loaded(A)<loaded(B)||(loaded(A)===loaded(B)&&(S.veh[a].trip.t0||0)>(S.veh[b].trip.t0||0));}
 function yieldStep(vid,V,tr,p,now,dt){const o=V.obj, here={x:o.position.x,z:o.position.z,ang:o.rotation.y};
   if(!tr.t0) return p; const P=vehPhase(vid,now,true); if(P.ph!=='out'&&P.ph!=='back'){V.yield=null; V.blockedSince=0; return p;}
+  if(!V.yield&&(V.blk||0)>1.5){const w=mutualBlock(vid,now); if(w&&givesWay(vid,w,now)){V.yield={w,mode:'back',until:now+40000}; toast(`${VEH[vid].icon} Your ${vname(vid)} backs up to give the ${vname(w)} room.`,2600);}}   // both held at a junction by each other
   if(!V.yield){const w=headOn(vid,now); if(w&&givesWay(vid,w,now)){V.yield={w,mode:'back',until:now+40000}; toast(`${VEH[vid].icon} Your ${vname(vid)} backs up to let the ${vname(w)} through.`,2600);}}
   const Y=V.yield;
   if(Y){const other=S.veh[Y.w]&&S.veh[Y.w].trip;
     if(!other||now>Y.until){V.yield=null;}
-    else{const me={x:here.x,z:here.z,a:here.ang,len:V.len||6,width:2.3}, inWay=futurePath(Y.w,now).some(q=>trafficOverlap(me,q,.6))||(VEH[Y.w].blockedSince&&now-VEH[Y.w].blockedSince>300);
+    else{const me={x:here.x,z:here.z,a:here.ang,len:V.len||6,width:2.3}, Wo=VEH[Y.w].obj.position, near=Math.hypot(Wo.x-here.x,Wo.z-here.z)<((V.len||6)+(VEH[Y.w].len||6))/2+6,
+        inWay=futurePath(Y.w,now).some(q=>trafficOverlap(me,q,.6))||near&&((VEH[Y.w].blockedSince&&now-VEH[Y.w].blockedSince>300)||(VEH[Y.w].blk||0)>.3);   // in its path, or right beside it while it is stuck   // it is stuck behind me (on the farm or waiting to turn at a junction)
       const R=P.ph==='out'?P.R.out:P.R.back, eh=Y.e!=null?Y.e:Math.max(0,P.e-dt), W=VEH[Y.w].obj.position, gap=Math.hypot(here.x-W.x,here.z-W.z);
       const at=(e,q)=>{Y.e=e; tr.t0=now-(e+(P.ph==='back'?P.R.out.T+(tr.stopT||STOP[tr.dest]):0))*1000; return q?{x:q.x,z:q.z,ang:q.ang}:here;};   // my own trip clock follows exactly where I am
       if(inWay){Y.mode='back';
@@ -4749,12 +4752,43 @@ function yieldStep(vid,V,tr,p,now,dt){const o=V.obj, here={x:o.position.x,z:o.po
         return at(eh);}                                                                                                          // nowhere to go: hold still
       Y.mode='wait'; const mine=futurePath(vid,now).slice(0,24), theirs=futurePath(Y.w,now); if(!mine.some(a=>theirs.some(q=>trafficOverlap(a,q,.4)))) V.yield=null;   // go once our roads ahead no longer cross
       return at(eh);}}
+  const lw=laneWait(vid,V,tr,P,p,now); V.laneWait=lw;
+  if(lw){if(!V.saidLane||V.saidLane!==lw){V.saidLane=lw; toast(`${VEH[vid].icon} Your ${vname(vid)} waits for the ${vname(lw)} to clear the one-lane farm road.`,2600);} tr.t0+=dt*1000; return here;}
+  V.saidLane=null;
   if(!trafficCanMove(o,p.x,p.z,p.ang,V.len||6)){tr.t0+=dt*1000; V.blockedSince=V.blockedSince||now;
     if(now-V.blockedSince>1200){const w=mutualBlock(vid,now); if(w&&givesWay(vid,w,now)){V.yield={w,mode:'back',until:now+40000}; V.blockedSince=0; toast(`${VEH[vid].icon} Your ${vname(vid)} backs up to give the ${vname(w)} room.`,2600);}}
     return here;}
   V.blockedSince=0; return p;}
+// One-lane farm roads (garage, service ring, tracks, gate and the access road up from the highway): like on a real one-lane road,
+// a truck doesn't start onto it while one of your vehicles is coming the other way along the part it will use. It waits in its bay,
+// or at the farm entrance off the highway, until that stretch is clear. Who waits: a truck already on the farm road keeps going;
+// one turning in from the highway goes before one leaving its bay (so the highway is never blocked for long); otherwise the earlier trip goes first.
+const inFarmLane=(x,z)=>z>-101.5&&x>-75&&x<60;
+function lanePath(w,now){const tr=S.veh[w].trip, P=vehPhase(w,now,true), out=[]; if(!tr.t0||P.ph==='done') return out;
+  const R=P.R, st=tr.stopT||STOP[tr.dest]||8, legs=P.ph==='out'?[[R.out,P.e,0],[R.back,0,R.out.T-P.e+st]]:P.ph==='stop'?[[R.back,0,st-P.e]]:[[R.back,P.e,0]];
+  let inside=false, prev=null;
+  for(const [L,e0,lag] of legs) for(let t=e0;t<=L.T&&t-e0+lag<70;t+=.5){const q=routePos(L,t); const iz=inFarmLane(q.x,q.z);
+    if(iz){if(prev&&Math.hypot(q.x-prev.x,q.z-prev.z)>.05&&(q.x-prev.x)*Math.sin(q.ang)+(q.z-prev.z)*Math.cos(q.ang)>0) out.push(   // driving forward along the lane (short reversing into a bay or track doesn't count)
+      {x:q.x,z:q.z,dx:q.x-prev.x,dz:q.z-prev.z,t:t-e0+lag}); inside=true;}
+    else if(inside) return out;                                      // left the farm roads: the rest doesn't matter here
+    prev=q;}
+  return out;}
+function meetsHeadOn(A,B){for(const a of A){const la=Math.hypot(a.dx,a.dz); for(const b of B){if(Math.abs(a.t-b.t)>12||Math.abs(a.x-b.x)>3.2||Math.abs(a.z-b.z)>3.2||Math.hypot(a.x-b.x,a.z-b.z)>3.2) continue;
+  if((a.dx*b.dx+a.dz*b.dz)/(la*Math.hypot(b.dx,b.dz))<-.5) return true;}} return false;}   // same stretch at about the same time (12 s of slack for waits), travelling opposite ways
+function laneWait(vid,V,tr,P,p,now){const h=V.obj.position, atBay=P.ph==='out'&&P.e<.4, entering=!inFarmLane(h.x,h.z)&&inFarmLane(p.x,p.z);
+  if(!atBay&&!entering){V.laneSince=0; return null;}
+  if(V.lwCache&&now<V.lwCache.t) return V.lwCache.w;
+  V.laneSince=V.laneSince||now; if(now-V.laneSince>60000) return null;   // never wait for ever: the backing-up rule is the fallback
+  const myRank=entering?2:3, mine=lanePath(vid,now); let w=null;
+  if(mine.length) for(const o in VEH){if(o===vid||!S.veh[o]||!S.veh[o].trip||!S.veh[o].trip.t0||!VEH[o].obj.visible) continue;
+    if(VEH[o].laneWait===vid) continue;                               // it is already waiting for me
+    const Q=vehPhase(o,now,true), oh=VEH[o].obj.position, theirs=lanePath(o,now); if(!theirs.length) continue;
+    const rank=Q.ph==='out'&&Q.e<.4?3:inFarmLane(oh.x,oh.z)?1:theirs[0].t<35?2:9;   // on the farm road / turning in soon / still in its bay
+    if(rank>myRank||(rank===myRank&&(S.veh[o].trip.t0||0)>(tr.t0||0))) continue;   // it gives way to me instead
+    if(meetsHeadOn(mine,theirs)){w=o; break;}}
+  V.lwCache={t:now+300,w}; return w;}
 // two of your vehicles each waiting on the other (one turning out of a track into the other's nose, say)
-function mutualBlock(vid,now){const o=VEH[vid].obj; for(const w in VEH){const W=VEH[w]; if(w===vid||!S.veh[w]||!S.veh[w].trip||!W.obj.visible||!W.blockedSince||now-W.blockedSince<600) continue;
+function mutualBlock(vid,now){const o=VEH[vid].obj; for(const w in VEH){const W=VEH[w]; if(w===vid||!S.veh[w]||!S.veh[w].trip||!W.obj.visible||!((W.blockedSince&&now-W.blockedSince>=600)||(W.blk||0)>.6)) continue;
   if(Math.hypot(W.obj.position.x-o.position.x,W.obj.position.z-o.position.z)<(VEH[vid].len||6)/2+(W.len||6)/2+4) return w;} return null;}
 // Player errands share the same turn reservations as NPC traffic, not a front-only proximity check.
 function advancePlayerTraffic(vid,now,dt){

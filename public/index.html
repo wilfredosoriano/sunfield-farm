@@ -1224,14 +1224,43 @@ const farmBodega=(()=>{const g=new THREE.Group();g.position.set(-24,0,-2);g.rota
     const grain=k<6,egg=k>=6&&k<12,meat=k>=12&&k<18;const color=grain?0xd8c58c:egg?0xe5d6ae:meat?0x8eb4b7:0xa87542;
     const box=part(.95,grain?.6:.42,1.1,color,0,grain?.3:.21,0);container.add(box);
     if(!grain){for(const side of [-1,1])container.add(part(1,.06,.06,0x725032,0,.4,side*.52));for(let q=0;q<4;q++)container.add(part(.18,.14,.2,egg?0xf7edcf:meat?0xf3f0dc:0x6a9a46,(q%2-.5)*.38,.48,(Math.floor(q/2)-.5)*.45));}
-    displays.push({g:container,kind:grain?'grain':egg?'eggs':meat?'cold':'produce',index:k%6});}
-  add(1.6,1.15,1.1,0xc5d4d1,0,.9,-4.5);add(1.65,.12,1.15,0x657f83,0,1.52,-4.5); // insulated chest
+    displays.push({g:container,kind:grain?'grain':egg||meat?'eggs':'produce',index:meat?6+k%6:k%6});}
   add(3.9,.15,1.4,0x89704e,0,.33,4.2);for(let x=-1.5;x<=1.5;x+=.5)add(.08,.03,1.4,0x5e4935,x,.42,4.2);
   scene.add(g);return {g,roofMats,displays,signature:'',uiAt:0};})();
-function updateBodega(t){const close=Math.hypot(cam.target.x+24,cam.target.z+2)<21&&cam.dist<43;for(const m of farmBodega.roofMats){m.opacity+=((close?.1:1)-m.opacity)*.15;m.depthWrite=m.opacity>.9;}
+// The big glass-door refrigerator against the back wall (meat, fish, milk, fruit) and real egg trays on the shelves.
+// Built on first use, once the merged-geometry helpers exist.
+function buildBodegaFridge(){const B=farmBodega, g=B.g, W=3.4, H=2.9, D=1.05, z0=-5.38+D/2;
+  const shell=[P('box',0xe9eef0,0,H/2+.35,z0-D/2+.04,W,H,.08), P('box',0xe9eef0,-W/2+.05,H/2+.35,z0,.1,H,D), P('box',0xe9eef0,W/2-.05,H/2+.35,z0,.1,H,D), P('box',0xe9eef0,0,H+.3,z0,W,.1,D), P('box',0xe9eef0,0,.4,z0,W,.1,D), P('box',0xcfd8dc,0,.18,z0+.05,W+.05,.36,D), P('box',0x2f6f8f,0,H+.47,z0+D/2-.02,W,.22,.05)];
+  for(const x of [-W/2+.08,0,W/2-.08]) shell.push(P('box',0xb0bec5,x,H/2+.35,z0+D/2+.01,.1,H,.06));
+  for(const x of [-.12,.12]) shell.push(P('box',0x90a4ae,x,H/2+.35,z0+D/2+.07,.05,.7,.05));                     // door handles
+  const body=new THREE.Mesh(mergeGeo(shell),VCMAT); body.castShadow=true; g.add(body);
+  const inner=new THREE.Mesh(new THREE.BoxGeometry(W-.24,H-.2,.02),new THREE.MeshBasicMaterial({color:0xeaf6ff})); inner.position.set(0,H/2+.35,z0-D/2+.13); g.add(inner);   // lit back panel
+  const shelves=[]; for(const y of [.95,1.65,2.35]) shelves.push(P('box',0xdfe7ea,0,y,z0,W-.22,.04,D-.15));
+  g.add(new THREE.Mesh(mergeGeo(shelves),VCMAT));
+  const glass=new THREE.Mesh(new THREE.BoxGeometry(W-.16,H-.12,.03),new THREE.MeshStandardMaterial({color:0xcfefff,transparent:true,opacity:.22,roughness:.05,metalness:.2,depthWrite:false}));
+  glass.position.set(0,H/2+.35,z0+D/2+.02); glass.renderOrder=3; g.add(glass);
+  const lamp=new THREE.Mesh(new THREE.BoxGeometry(W-.4,.04,.08),new THREE.MeshBasicMaterial({color:0xffffff})); lamp.position.set(0,H+.2,z0+D/2-.12); g.add(lamp);   // strip light (no real light: keeps the frame rate)
+  const slot=(kind,index,parts,x,y)=>{const m=new THREE.Mesh(mergeGeo(parts),VCMAT); m.position.set(x,y,z0); m.visible=false; g.add(m); B.displays.push({g:m,kind,index});};
+  const cols=[-1.2,-.4,.4,1.2];
+  const meat=k=>k===0?[P('box',0xc0392b,-.12,.06,0,.32,.1,.24),P('box',0xf5d5c8,-.12,.115,0,.3,.01,.22),P('box',0xb03a2e,.17,.06,.05,.26,.1,.22)]   // pork / beef cuts on trays
+    :k===1?[P('box',0xf0e3c2,0,.04,0,.55,.06,.32),P('sph',0xf3c9a2,-.12,.12,0,.26,.16,.22),P('sph',0xf3c9a2,.14,.12,0,.26,.16,.22)]          // whole dressed chicken
+    :k===2?[P('box',0xdfe6e9,0,.03,0,.6,.05,.34),P('sph',0x7f9aa8,-.08,.1,-.06,.42,.1,.14),P('sph',0x8aa7b5,.06,.1,.08,.42,.1,.14)]           // tilapia on ice
+    :[0,1,2,3].map(q=>P('cyl',q%2?0xffffff:0xf4f7f8,-.22+q*.15,.15,0,.11,.3,.11)).concat([0,1,2,3].map(q=>P('cyl',0x2e86de,-.22+q*.15,.32,0,.06,.05,.06)));   // milk bottles
+  const fruit=k=>{const c=[[0xf39c12,0xe67e22],[0xf1c40f,0xd4ac0d],[0x27ae60,0x2ecc71],[0xe74c3c,0xc0392b]][k%4], a=[P('box',0x8d6e63,0,.05,0,.6,.1,.4)];
+    for(let q=0;q<6;q++) a.push(P('sph',c[q%2],-.18+(q%3)*.18,.15+(q>2?.08:0),(q>2?.06:-.06),.17,.16,.17)); return a;};
+  for(let k=0;k<4;k++) slot('cold',k,meat(k),cols[k],.37);
+  for(let k=0;k<2;k++) slot('cold',4+k,meat(k),cols[k],.97);
+  for(let k=0;k<2;k++) slot('produce',k,fruit(k),cols[2+k],.97);
+  for(let k=0;k<4;k++) slot('produce',2+k,fruit(k+2),cols[k],1.67);
+  const sign=document.createElement('canvas'); sign.width=256; sign.height=48; const c=sign.getContext('2d'); c.fillStyle='#2f6f8f'; c.fillRect(0,0,256,48); c.fillStyle='#fff'; c.font='bold 30px Arial'; c.textAlign='center'; c.fillText('PALAMIGAN',128,35);
+  const sm=new THREE.Mesh(new THREE.PlaneGeometry(1.7,.3),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(sign)})); sm.position.set(0,H+.47,z0+D/2+.01); g.add(sm);
+  for(const d of B.displays) if(d.kind==='eggs'){const tray=[]; for(let h=0;h<3;h++){tray.push(P('box',0xd9c7a3,0,h*.09+.03,0,.75,.03,.8)); for(let i=0;i<3;i++) for(let j=0;j<3;j++) tray.push(P('sph',0xf6eedc,-.22+i*.22,h*.09+.08,-.24+j*.24,.15,.13,.15));}
+    d.g.clear(); const m=new THREE.Mesh(mergeGeo(tray),VCMAT); m.castShadow=true; d.g.add(m);}
+  B.fridge=true;}
+function updateBodega(t){if(!farmBodega.fridge) buildBodegaFridge(); const close=Math.hypot(cam.target.x+24,cam.target.z+2)<21&&cam.dist<43;for(const m of farmBodega.roofMats){m.opacity+=((close?.1:1)-m.opacity)*.15;m.depthWrite=m.opacity>.9;}
   if(t-farmBodega.uiAt<1)return;farmBodega.uiAt=t;
   const counts={grain:(S.inv.wheat||0)+(S.inv.corn||0)+Object.entries(S.mats).filter(([k])=>k.startsWith('feed')).reduce((n,[,v])=>n+v,0),eggs:(S.inv.egg||0)+(S.inv.duckegg||0),cold:['chicken','pork','beef','chevon','tilapia','milk'].reduce((n,k)=>n+(stockFor(k)[k]||0),0),produce:Object.entries(S.inv).filter(([k])=>!['wheat','corn','egg','duckegg','chicken','pork','beef','chevon','tilapia','milk'].includes(k)&&!ITEMS[k]?.live).reduce((n,[,v])=>n+v,0)};
-  const signature=JSON.stringify([S.inv,S.mats]);if(signature!==farmBodega.signature){farmBodega.signature=signature;for(const d of farmBodega.displays)d.g.visible=d.index<Math.min(6,Math.ceil(counts[d.kind]/5));if(bldIdx===-5&&bldOpen())renderBodega();}
+  const signature=JSON.stringify([S.inv,S.mats]);if(signature!==farmBodega.signature){farmBodega.signature=signature;for(const d of farmBodega.displays)d.g.visible=d.index<Math.min(d.kind==='eggs'?12:6,Math.ceil(counts[d.kind]/(d.kind==='eggs'?3:5)));if(bldIdx===-5&&bldOpen())renderBodega();}
 }
 const blades=new THREE.Group();
 // kalabaw (carabao) grazing, with a white tagak (egret) riding on its back
@@ -2208,15 +2237,42 @@ function legacyPickupRoute(vid,type){
   const e=frontIdx(sx+3.5); for(let q=J-2;q>e;q-=2) back.push([SERVICE[q][0],SERVICE[q][1],d]);
   const az=SVC0[e][1]; back.push([sx+3.5,az,sl,true],[sx,az,sl,true],[sx,G0]);   // finish the turn on the apron before reversing straight into the bay
   return [out,back];}
-function pickupRoute(vid,type){return legacyPickupRoute(vid,type);}
+// The service road is a ring: the garage front and the bodega, round the animal areas, and back to the garage apron.
+// Pickups all travel it the same way (garage apron -> east side -> top -> west side -> bodega -> garage), so they never meet head-on,
+// and after loading they carry on round the ring instead of going back the way they came.
+const SVL=SERVICE.length, I26=nearestOn(SERVICE,26,-13);
+function ringIdx(x,z){let bi=I26,bd=1e9; for(let i=I26;i<SVL;i++){const d=(SERVICE[i][0]-x)**2+(SERVICE[i][1]-z)**2; if(d<bd){bd=d; bi=i;}} return bi;}
+function loopSeq(from,to){const out=[from]; let i=from, g=0; while(i!==to&&g++<SVL*2){i--; if(i<I26&&to>=I26) i=SVL-2; out.push(i);} return out;}   // the ring wraps at the garage apron
+const thin=seq=>seq.filter((_,k)=>k%2===0||k===seq.length-1);
+function pickupGeo(type){const A=FARM.areas.find(a=>a.type===type), [gx,gz]=A.gate;
+  const tk=FARM.roads.find(r=>r.id.startsWith('t-')&&Math.hypot(r.pts[r.pts.length-1][0]-gx,r.pts[r.pts.length-1][1]-gz)<1.5);
+  const T=tk?ROADS[tk.id].s:[[gx,gz]], J=ringIdx(T[0][0],T[0][1]); return {T,J};}
+const BODEGA_STOP=[-19.5,-10.6], BODEGA_IN=[[-17.2,-7.6],[-17.6,-2.4],[-20.6,-2.4]];
+function loopPickupRoute(vid,type,eggs){
+  const V=VEH[vid], sx=V.slot, sl=SPD.slow, d=SPD.dirt, {T,J}=pickupGeo(type);
+  let L=0, k=T.length-1; const want=(V.rear||3)+.4; for(;k>0;k--){L+=Math.hypot(T[k][0]-T[k-1][0],T[k][1]-T[k-1][1]); if(L>=want) break;}
+  const az=SVC0[frontIdx(sx)][1], past=Math.max(I26+1,J-6);
+  const out=[[sx,G0,sl],[sx,az,sl]];                                   // nose out of the bay onto the apron
+  for(const q of thin(loopSeq(Math.max(I26,frontIdx(sx)),past)).slice(1)) out.push([SERVICE[q][0],SERVICE[q][1],d]);
+  out[out.length-1]=[SERVICE[past][0],SERVICE[past][1],sl,true]; out.push([SERVICE[J][0],SERVICE[J][1],sl,true]);   // stop just past the track, back into it
+  for(let q=1;q<=k;q++) out.push([T[q][0],T[q][1],sl,true]);
+  const back=[]; for(let q=k;q>=1;q--) back.push([T[q][0],T[q][1],sl]); back.push([SERVICE[J][0],SERVICE[J][1],d]);
+  const e=frontIdx(sx+3.5), ib=ringIdx(...BODEGA_STOP); let held=false;
+  for(const q of thin(loopSeq(J,e)).slice(1)){
+    if(eggs&&!held&&q<=ib){held=true; const a=SERVICE[ib], b=SERVICE[ib-1], f=.03, hl=Math.hypot(b[0]-a[0],b[1]-a[1])*f;   // pull up at the bodega for about 12 s while the trays go in
+      const hp=[a[0],a[1],hl/12]; hp.hold=true; back.push(hp,[a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f,d]); continue;}
+    back.push([SERVICE[q][0],SERVICE[q][1],d]);}
+  const az2=SVC0[e][1]; back.push([sx+3.5,az2,sl,true],[sx,az2,sl,true],[sx,G0]);   // finish the turn on the apron, reverse into the bay
+  return [out,back];}
+function pickupRoute(vid,type,eggs){return loopPickupRoute(vid,type,eggs);}
 function routesFor(vid,dest,tr){
   if(tr&&tr.haulRoute){if(!HAUL_ROUTES.has(tr))HAUL_ROUTES.set(tr,{out:mkRoute(tr.haulRoute.out),back:mkRoute(tr.haulRoute.back)});return HAUL_ROUTES.get(tr);}
-  const key=vid+dest+(dest==='pickup'&&tr?tr.area+':'+(tr.pickupLayout||1):''); if(ROUTES[key]) return ROUTES[key];
+  const key=vid+dest+(dest==='pickup'&&tr?tr.area+':'+(tr.pickupLayout||1)+(tr.eggs?':egg':''):''); if(ROUTES[key]) return ROUTES[key];
   const sx=VEH[vid].slot, sl=SPD.slow, d=SPD.dirt, h=SPD.hwy;
   const toGarage=fromHwy(sx,d,sl);
   let out,back;
   if(dest==='farmshop'){out=[[sx,G0,sl],...toHwy(sx,d),[DX,LE,h],[106,LE,sl],[118,HZ-5.5,sl],[129,-119,sl],[129,-129]];back=[[129,-129,sl,true],[129,-119,sl],[135,LW,h],[DX,LW,d]].concat(toGarage);}
-  else if(dest==='pickup'){[out,back]=(tr&&tr.pickupLayout===2?pickupRoute:legacyPickupRoute)(vid,tr?tr.area:'broiler');}
+  else if(dest==='pickup'){[out,back]=(tr&&tr.pickupLayout===1?legacyPickupRoute:pickupRoute)(vid,tr?tr.area:'broiler',tr&&tr.eggs);}
   else if(dest==='port'){out=[[sx,G0,sl],...toHwy(sx,d),[DX,LE,h],[394,LE,sl],[400.5,HZ+6,sl],[400.5,-92]]; back=[[400.5,-92,sl],[404,-96,sl],[401,HZ+5,sl],[396,LW,h],[DX,LW,d]].concat(toGarage);}   // into the port yard, to the pantalan bodega
   else if(dest==='sari'){out=[[sx,G0,sl],...toHwy(sx,d),[30.5,-104.4,sl]]; back=[[30.5,-104.4,sl],[33.5,-102,sl],...fromHwy(sx,d,sl)];}   // up the farm road, park beside the sari-sari store
   else if(dest==='palengke'){
@@ -2245,7 +2301,8 @@ function routesFor(vid,dest,tr){
     out=[[sx,G0,sl],...toHwy(sx,d),[DX,LW,h],[HWX-5,LW,sl,true],[HWX,HZ-4.5,sl,true],[HWX,HZ-5.6]];
     back=[[HWX,HZ-5.6,sl],[HWX+4,LE,h],[DX,LE,d]].concat(toGarage);
   }
-  return ROUTES[key]={out:mkRoute(out),back:mkRoute(back)};
+  const rb=mkRoute(back), hs=rb.segs.find(sg=>sg.a.hold); if(hs) rb.hold={t0:hs.t0,t1:hs.t0+hs.dur,at:[hs.a[0],hs.a[1]]};
+  return ROUTES[key]={out:mkRoute(out),back:rb};
 }
 // ---- tricycles waiting at the palengke terminal
 const trikes=[], trr=rng(31);
@@ -2372,7 +2429,16 @@ function trafficOverlap(a,b,gap=.8){
 }
 const TRAFFIC_JUNCTIONS=[-60,-18,40,62,92,118,170,212,236,273,300,330,395].map(x=>({x,z:HZ,r:13,owner:null,path:[],until:0,route:null,expires:0}));
 function activeJunctions(){const now=performance.now();for(const j of TRAFFIC_JUNCTIONS)if(j.owner&&(!j.owner.visible||now>j.expires)){j.owner=null;j.path=[];}return TRAFFIC_JUNCTIONS;}
+// Jam breaker: a vehicle stuck for a few seconds next to another one that is stuck too (a gridlock, not just waiting for a gap)
+// gets a short pass to move on; anything stuck for half a minute gets one regardless, so traffic always keeps flowing.
+// (Your own vehicles wait much longer, so the farm-road yielding below gets to sort things out first.)
+function trafficStuck(ref){const d=ref.userData||(ref.userData={}), now=performance.now(); if(!d.stuckSince) d.stuckSince=now; const w=now-d.stuckSince;
+  const jam=w>(d.ghostAfter||4000)&&SNAP.some(o=>o.ref!==ref&&o.ref.userData&&o.ref.userData.stuckSince&&now-o.ref.userData.stuckSince>2000&&Math.hypot(o.x-ref.position.x,o.z-ref.position.z)<14);
+  if(jam||w>Math.max(30000,d.ghostAfter||0)){d.ghostUntil=now+2500; d.stuckSince=0; return true;} return false;}
 function trafficCanMove(ref,x,z,a,len,width=2.2){
+  const ud=ref.userData||(ref.userData={}); if(ud.ghostUntil>performance.now()) return true;
+  const ok=trafficCanMoveRaw(ref,x,z,a,len,width); if(ok){ud.stuckSince=0; return true;} return trafficStuck(ref);}
+function trafficCanMoveRaw(ref,x,z,a,len,width=2.2){
   const start={x:ref.position.x,z:ref.position.z,a:ref.rotation.y,len,width},end={x,z,a,len,width};
   for(const j of activeJunctions())if(j.owner&&j.owner!==ref&&j.path.some(q=>trafficOverlap(end,q))){
     const entering=!j.path.some(q=>trafficOverlap(start,q)),approaching=Math.hypot(x-j.owner.position.x,z-j.owner.position.z)<Math.hypot(start.x-j.owner.position.x,start.z-j.owner.position.z)-.001;
@@ -2382,6 +2448,8 @@ function trafficCanMove(ref,x,z,a,len,width=2.2){
   for(const o of SNAP){if(o.ref===ref||!o.ref.visible||Math.hypot(o.x-x,o.z-z)>len+o.len+10)continue;
     if(!TRAFFIC_JUNCTIONS.some(j=>j.owner===ref)&&Math.abs(start.z-HZ)>5.2&&Math.abs(z-HZ)<7&&Math.abs(o.z-HZ)<3.5&&Math.abs(Math.sin(o.a))>.85){
       for(const seconds of [.5,1,1.5])if(trafficOverlap(end,{...o,x:o.x+Math.sin(o.a)*12*seconds,z:o.z+Math.cos(o.a)*12*seconds}))return false;}
+    const mx=x-start.x, mz=z-start.z;   // on the farm roads, one of your vehicles never waits on another of yours behind it that it's driving away from (no tail deadlock)
+    if(ref.userData.farmVeh&&o.ref.userData&&o.ref.userData.farmVeh&&mx*mx+mz*mz>1e-8&&(o.x-start.x)*mx+(o.z-start.z)*mz<0&&Math.hypot(x-o.x,z-o.z)>=Math.hypot(start.x-o.x,start.z-o.z)-.001&&!trafficOverlap(end,o,.15))continue;
     const was=trafficOverlap(start,o);
     for(let i=1;i<=steps;i++){const f=i/steps,q={...end,x:start.x+(x-start.x)*f,z:start.z+(z-start.z)*f};
       if(trafficOverlap(q,o,0)&&!trafficOverlap(start,o,0))return false;
@@ -2395,13 +2463,13 @@ function trafficRouteTime(ref,R,e,dt,len,width=2.2){
   const turning=Math.abs(look.z-q.z)>2;
   if(len>=7||turning){const j=TRAFFIC_JUNCTIONS.find(j=>Math.hypot(q.x-j.x,q.z-j.z)<j.r+len/2);
     if(j&&!j.owner){
-      const data=ref.userData||(ref.userData={});if((data.junctionRetry||0)>now)return e;
+      const data=ref.userData||(ref.userData={});if(data.ghostUntil>now)return e+dt;if((data.junctionRetry||0)>now)return trafficStuck(ref)?e+dt:e;
       const path=[];const until=Math.min(R.T,Math.max(0,e)+6);
       for(let t=Math.max(0,e);t<=until+.001;t+=.1){const p=routePos(R,Math.min(until,t));path.push({x:p.x,z:p.z,a:p.ang,len,width});}
       // Include both headings at every corner so a turning vehicle has room to straighten.
       for(const seg of R.segs)if(seg.t0>=Math.max(0,e)&&seg.t0<=until){for(const d of [-.001,.001]){const p=routePos(R,Math.max(0,seg.t0+d));path.push({x:p.x,z:p.z,a:p.ang,len,width});}}
       const blocked=SNAP.some(o=>o.ref!==ref&&o.ref.visible&&path.some(p=>trafficOverlap(p,o)&&(!trafficOverlap(path[0],o)||Math.hypot(p.x-o.x,p.z-o.z)<Math.hypot(path[0].x-o.x,path[0].z-o.z)-.001||trafficOverlap(p,o,0))));
-      if(blocked||TRAFFIC_JUNCTIONS.some(other=>other.owner&&other.owner!==ref&&path.some(p=>other.path.some(q=>trafficOverlap(p,q))))){data.junctionRetry=now+250;return e;}
+      if(blocked||TRAFFIC_JUNCTIONS.some(other=>other.owner&&other.owner!==ref&&path.some(p=>other.path.some(q=>trafficOverlap(p,q))))){data.junctionRetry=now+250;return trafficStuck(ref)?e+dt:e;}
       j.owner=ref;j.path=path;j.until=until;j.route=R;j.expires=now+30000;
     }
   }
@@ -4624,8 +4692,10 @@ function updateVehicles(now){
       tr.paid=true;for(const [k,n]of Object.entries(tr.animals||{}))stockFor(k)[k]=(stockFor(k)[k]||0)+n;
       S.kat.awaiting=S.kat.awaiting||{};for(const [k,n]of Object.entries(tr.animals||{}))S.kat.awaiting[k]=(S.kat.awaiting[k]||0)+n;S.kat.autoQueue=true;processKatQueue(now);changed();toast('Animals unloaded into the katayan holding pen. Meat goes to the bodega after processing.',3500);
     }
+    if(tr.dest==='pickup'&&tr.eggs&&tr.got&&!tr.stored){const H=ph.R&&ph.R.back&&ph.R.back.hold; if((ph.ph==='back'&&H&&ph.e>=H.t1)||ph.ph==='done'){tr.stored=true; let m=0;   // the trays are in the bodega
+        for(const k in tr.got){stockFor(k)[k]=(stockFor(k)[k]||0)+tr.got[k]; m+=tr.got[k];} if(m) toast(`🥚 ${m} ${Object.keys(tr.got).map(k=>ITEMS[k].icon).join(' ')} carried into the bodega.`,3200); changed();}}
     if(ph.ph==='done'){
-      if(tr.dest==='pickup'&&tr.got){let m=0; for(const k in tr.got){stockFor(k)[k]=(stockFor(k)[k]||0)+tr.got[k]; m+=tr.got[k];}
+      if(tr.dest==='pickup'&&tr.got&&!tr.stored){let m=0; for(const k in tr.got){stockFor(k)[k]=(stockFor(k)[k]||0)+tr.got[k]; m+=tr.got[k];}
         if(m) toast(tr.eggs?`${VEH[vid].icon} Back with ${m} ${Object.keys(tr.got).map(k=>ITEMS[k].icon).join(' ')} in egg trays. They are in your bodega.`:`${VEH[vid].icon} Back with ${m} live ${tr.word}! Sell them live at the palengke, or turn them into meat at the 🔪 Katayan.`,4000);}
       if(tr.mats){for(const k in tr.mats) S.mats[k]=(S.mats[k]||0)+tr.mats[k];
         toast(`${VEH[vid].icon} Back from the ${PLACE[tr.dest]}! ${matsLabel(tr.mats)} ${tr.dest==='poultry'?'are in your bodega.':tr.dest==='seeds'?'are ready to plant.':tr.dest==='sari'?'are in your kusina: cook them at 🏠 Bahay.':'are ready for building.'}`,3600);}
@@ -4641,32 +4711,50 @@ function vehText(vid,now){
   if(tr.farmBlocked)return 'Waiting for the other truck to back clear';
   if(ph.ph==='queued')return (tr.pickupLayout===2||tr.pickupLayout===3)?'Waiting for the animal pickup spot':'Waiting at the farm for the narrow road';
   if(ph.ph==='yield')return 'Backing up to let the returning truck pass';
+  if(VEH[vid].yield)return VEH[vid].yield.mode==='back'?`Backing up for the ${vname(VEH[vid].yield.w)}`:`Waiting for the ${vname(VEH[vid].yield.w)} to pass`;
   if(ph.ph==='board') return tr.driver==='farmer'?'Waiting for your farmer…':`Waiting for ${driverName(tr)}…`;
   if(ph.ph==='out') return VEH[vid].waitBay?'Waiting for its turn at the bagsakan…':`To ${place} ${fmt(ph.R.out.T-ph.e)}`;
   if(ph.ph==='stop') return tr.dest==='palengke'?'Unloading…':`Loading at ${place}…`;
   return `Coming home ${fmt(ph.R.back.T-ph.e)}`;
 }
-// Temporary grass-shoulder maneuver; no extra road meshes or lot changes.
-function farmPassPose(V,tr,p,now,dt){
-  const o=V.obj,ph=vehPhase(Object.keys(VEH).find(v=>VEH[v]===V),now),R=ph.ph==='out'?ph.R.out:ph.ph==='back'?ph.R.back:null;
-  if(!R){delete V.farmPass;return p;}
-  if(!V.farmPass&&!trafficCanMove(o,p.x,p.z,p.ang,V.len||6)){
-    const target=Math.min(R.T,ph.e+5),q=routePos(R,target),dx=q.x-o.position.x,dz=q.z-o.position.z,L=Math.hypot(dx,dz);
-    if(L>3)for(const side of [1,-1]){const nx=dz/L*side,nz=-dx/L*side,offset=5.5;
-      const points=[[o.position.x+nx*offset,o.position.z+nz*offset],[q.x+nx*offset,q.z+nz*offset],[q.x,q.z]];
-      const samples=[];let last=[o.position.x,o.position.z];for(const point of points){const n=Math.ceil(Math.hypot(point[0]-last[0],point[1]-last[1]));for(let k=1;k<=n;k++)samples.push([last[0]+(point[0]-last[0])*k/n,last[1]+(point[1]-last[1])*k/n]);last=point;}
-      const clear=samples.every(([x,z])=>!SLOTS.some(s=>Math.abs(x-s.x)<s.w/2+1.5&&Math.abs(z-s.z)<s.d/2+1.5));
-      if(clear&&trafficCanMove(o,points[0][0],points[0][1],Math.atan2(nx,nz),V.len||6)){V.farmPass={points,k:0,target,phase:ph.ph};break;}
-    }
-  }
-  const D=V.farmPass;if(!D)return p;
-  tr.t0+=dt*1000;
-  const goal=D.points[D.k],dx=goal[0]-o.position.x,dz=goal[1]-o.position.z,d=Math.hypot(dx,dz),step=Math.min(d,SPD.slow*dt);
-  const q={x:o.position.x+(d?dx/d*step:0),z:o.position.z+(d?dz/d*step:0),ang:d?Math.atan2(dx,dz):o.rotation.y};
-  if(!trafficCanMove(o,q.x,q.z,q.ang,V.len||6))return {x:o.position.x,z:o.position.z,ang:o.rotation.y};
-  if(d<=step+.01&&++D.k===D.points.length){const wait=tr.stopT||STOP.pickup;tr.t0=now-(D.target+(D.phase==='back'?ph.R.out.T+wait:0))*1000;delete V.farmPass;}
-  return q;
-}
+function futurePath(w,now){let P=vehPhase(w,now,true); {const tr=S.veh[w].trip; if(P.ph==='stop'&&(tr.stopT||STOP[tr.dest]||8)-P.e<3) P={ph:'back',e:0,R:P.R};} if(P.ph!=='out'&&P.ph!=='back') return []; const R=P.ph==='out'?P.R.out:P.R.back, L=VEH[w].len||6, out=[];   // about to leave a stop: its next leg counts
+  const hz=9+(R.hold&&R.hold.t1>P.e?R.hold.t1-Math.max(P.e,R.hold.t0):0);   // look past a bodega stop
+  for(let t=Math.max(0,P.e);t<=Math.min(R.T,P.e+hz);t+=.3){const q=routePos(R,t); out.push({x:q.x,z:q.z,a:q.ang,len:L,width:2.3});} return out;}
+function headOn(vid,now){const V=VEH[vid], o=V.obj, hx=Math.sin(o.rotation.y), hz=Math.cos(o.rotation.y);
+  for(const w in VEH){if(w===vid||!S.veh[w]||!S.veh[w].trip||!S.veh[w].trip.t0||!VEH[w].obj.visible) continue; const W=VEH[w].obj, dx=W.position.x-o.position.x, dz=W.position.z-o.position.z;
+    if(Math.hypot(dx,dz)>(V.len||6)/2+(VEH[w].len||6)/2+5||dx*hx+dz*hz<=0) continue;
+    if(hx*Math.sin(W.rotation.y)+hz*Math.cos(W.rotation.y)<-.35) return w;}
+  return null;}
+function givesWay(a,b,now){const A=vehPhase(a,now,true), B=vehPhase(b,now,true), loaded=P=>P.ph==='back'?1:0;   // the loaded one keeps going; otherwise the later trip gives way
+  if(VEH[b].yield&&VEH[b].yield.w===a) return false; return loaded(A)<loaded(B)||(loaded(A)===loaded(B)&&(S.veh[a].trip.t0||0)>(S.veh[b].trip.t0||0));}
+function yieldStep(vid,V,tr,p,now,dt){const o=V.obj, here={x:o.position.x,z:o.position.z,ang:o.rotation.y};
+  if(!tr.t0) return p; const P=vehPhase(vid,now,true); if(P.ph!=='out'&&P.ph!=='back'){V.yield=null; V.blockedSince=0; return p;}
+  if(!V.yield){const w=headOn(vid,now); if(w&&givesWay(vid,w,now)){V.yield={w,mode:'back',until:now+40000}; toast(`${VEH[vid].icon} Your ${vname(vid)} backs up to let the ${vname(w)} through.`,2600);}}
+  const Y=V.yield;
+  if(Y){const other=S.veh[Y.w]&&S.veh[Y.w].trip;
+    if(!other||now>Y.until){V.yield=null;}
+    else{const me={x:here.x,z:here.z,a:here.ang,len:V.len||6,width:2.3}, inWay=futurePath(Y.w,now).some(q=>trafficOverlap(me,q,.6))||(VEH[Y.w].blockedSince&&now-VEH[Y.w].blockedSince>300);
+      const R=P.ph==='out'?P.R.out:P.R.back, eh=Y.e!=null?Y.e:Math.max(0,P.e-dt), W=VEH[Y.w].obj.position, gap=Math.hypot(here.x-W.x,here.z-W.z);
+      const at=(e,q)=>{Y.e=e; tr.t0=now-(e+(P.ph==='back'?P.R.out.T+(tr.stopT||STOP[tr.dest]):0))*1000; return q?{x:q.x,z:q.z,ang:q.ang}:here;};   // my own trip clock follows exactly where I am
+      if(inWay){Y.mode='back';
+        const theirs=futurePath(Y.w,now), L=V.len||6, score=q=>theirs.filter(t=>trafficOverlap({x:q.x,z:q.z,a:q.ang,len:L,width:2.3},t,.6)).length*100-Math.hypot(q.x-W.x,q.z-W.z);
+        const Wb={x:W.x,z:W.z,a:VEH[Y.w].obj.rotation.y,len:VEH[Y.w].len||6}, clear=g=>!trafficOverlap({x:g.x,z:g.z,a:g.ang,len:L},Wb,.2), s0=score(here);
+        if(!Y.dir&&!(Y.next>now)){Y.next=now+400; const best=d=>{let b=1e9; for(let k=1;k<=16;k++){const t=eh+d*k*.5; if(t<0||t>R.T) break; b=Math.min(b,score(routePos(R,t)));} return b;};   // look a few seconds each way:
+          const bb=eh>.05?best(-1):1e9, bf=eh<R.T?best(1):1e9; Y.dir=Math.min(bb,bf)<s0-1?(bb<=bf?-1:1):0;}                                   // back out of the way, or (half way into a track) finish getting off the road
+        const en=Math.max(0,Math.min(R.T,eh+Y.dir*dt)), g=routePos(R,en);
+        if(Y.dir&&en!==eh&&clear(g)){Y.stuck=0; return at(en,g);}
+        Y.dir=0; Y.stuck=Y.stuck||now;
+        if(now-Y.stuck>1500&&!Y.swapped&&S.veh[Y.w].trip.t0){V.yield=null; VEH[Y.w].yield={w:vid,mode:'back',until:now+40000,swapped:true}; toast(`${VEH[Y.w].icon} No room for the ${vname(vid)} to back into, so your ${vname(Y.w)} backs up instead.`,2600);}   // I'm boxed in: the other one gives way
+        return at(eh);}                                                                                                          // nowhere to go: hold still
+      Y.mode='wait'; const mine=futurePath(vid,now).slice(0,24), theirs=futurePath(Y.w,now); if(!mine.some(a=>theirs.some(q=>trafficOverlap(a,q,.4)))) V.yield=null;   // go once our roads ahead no longer cross
+      return at(eh);}}
+  if(!trafficCanMove(o,p.x,p.z,p.ang,V.len||6)){tr.t0+=dt*1000; V.blockedSince=V.blockedSince||now;
+    if(now-V.blockedSince>1200){const w=mutualBlock(vid,now); if(w&&givesWay(vid,w,now)){V.yield={w,mode:'back',until:now+40000}; V.blockedSince=0; toast(`${VEH[vid].icon} Your ${vname(vid)} backs up to give the ${vname(w)} room.`,2600);}}
+    return here;}
+  V.blockedSince=0; return p;}
+// two of your vehicles each waiting on the other (one turning out of a track into the other's nose, say)
+function mutualBlock(vid,now){const o=VEH[vid].obj; for(const w in VEH){const W=VEH[w]; if(w===vid||!S.veh[w]||!S.veh[w].trip||!W.obj.visible||!W.blockedSince||now-W.blockedSince<600) continue;
+  if(Math.hypot(W.obj.position.x-o.position.x,W.obj.position.z-o.position.z)<(VEH[vid].len||6)/2+(W.len||6)/2+4) return w;} return null;}
 // Player errands share the same turn reservations as NPC traffic, not a front-only proximity check.
 function advancePlayerTraffic(vid,now,dt){
   const V=VEH[vid],tr=S.veh[vid].trip,P=vehPhase(vid,now);
@@ -4691,8 +4779,8 @@ function placeVehicles(now,dt){
       else if(ph.ph==='stop'){p=routePos(R.out,R.out.T); if(!['farmshop','palengke','warehouse','city','brgy','mountain','pickup','port'].includes(st.trip.dest)) mats=Math.min(1,ph.e/STOP[st.trip.dest])*matsFrac(st.trip,vid); else if(st.trip.dest!=='pickup') goods=Math.max(.2,st.trip.fill||1)*(1-Math.min(1,ph.e/(STOP.palengke*.85)));}   // pickups load inside the vehicle, nothing on the roof
       else if(ph.ph==='back'){p=routePos(R.back,ph.e); if(!['farmshop','palengke','warehouse','city','brgy','mountain','pickup','port'].includes(st.trip.dest)) mats=matsFrac(st.trip,vid);}
     }
-    if(st.trip&&st.trip.dest==='pickup'&&(st.trip.pickupLayout===2||st.trip.pickupLayout===3))p=farmPassPose(V,st.trip,p,now,dt);
-    if(st.trip&&!trafficCanMove(o,p.x,p.z,p.ang,V.len||6)){if(st.trip.t0)st.trip.t0+=dt*1000;p={x:o.position.x,z:o.position.z,ang:o.rotation.y};}
+    o.userData.ghostAfter=20000; o.userData.farmVeh=true;
+    if(st.trip) p=yieldStep(vid,V,st.trip,p,now,dt);
     if(V.prev){const d=Math.hypot(p.x-V.prev.x,p.z-V.prev.z); if(d<5) V.wheels.forEach(w=>w.rotation.y-=d/V.r);} V.prev={x:p.x,z:p.z};
     const moving=st.trip&&p.x!==V.slot;
     o.position.set(p.x,moving?Math.abs(Math.sin(now/90))*.03:0,p.z); o.rotation.y=lerpAng(o.rotation.y,p.ang,1-Math.exp(-dt*7)); suspend(V,p.x,p.z,o.rotation.y,dt,moving);
@@ -4704,7 +4792,7 @@ function placeVehicles(now,dt){
     const useFeed=!!(st.trip&&(st.trip.dest==='poultry'||st.trip.dest==='seeds')), MG=useFeed?V.feed:V.mats; (useFeed?V.mats:V.feed).visible=false;
     const n=MG.children.length, show=Math.round(mats*n); MG.visible=show>0; MG.children.forEach((c,i)=>c.visible=i<show);
     {const tr=st.trip, on=tr&&tr.dest==='pickup'&&tr.eggs; if(on||V.eggSet){if(!V.eggSet) V.eggSet=makeEggSet(V); let f=0;   // egg trays stacking up in the jeepney or truck
-      if(on){const P5=vehPhase(vid,now); f=P5.ph==='stop'?(V.pickIn!=null?V.pickIn:Math.min(1,P5.e/(tr.stopT||12))):P5.ph==='back'?1:0;} const n=V.eggSet.children.length, sh=Math.ceil(f*n); V.eggSet.visible=sh>0; V.eggSet.children.forEach((c,k)=>c.visible=k<sh);}}
+      if(on){const P5=vehPhase(vid,now), H=P5.R&&P5.R.back&&P5.R.back.hold; f=P5.ph==='stop'?(V.pickIn!=null?V.pickIn:Math.min(1,P5.e/(tr.stopT||12))):P5.ph==='back'?(H&&P5.e>=H.t0?(P5.e>H.t1?0:1-(V.unload||0)):1):0;} const n=V.eggSet.children.length, sh=Math.ceil(f*n); V.eggSet.visible=sh>0; V.eggSet.children.forEach((c,k)=>c.visible=k<sh);}}
     if(V.liveSets){let kind=null, lf=0; const tr=st.trip;   // live animals in the cages: loading at a pen, riding home, or going to the palengke
       if(V.ramp){let open=0; if(tr&&tr.dest==='pickup'){const P3=vehPhase(vid,now); if(P3.ph==='stop') open=Math.max(0,Math.min(1,P3.e/1.2,(STOP.pickup-P3.e)/1.2));} V.ramp.rotation.x+=(-2.2*open-V.ramp.rotation.x)*Math.min(1,dt*6);}
       if(tr&&tr.dest==='pickup'){const P2=vehPhase(vid,now), set=V.liveSets[AREA_LIVE[tr.area]]; kind=AREA_LIVE[tr.area]; const fr=set?Math.min(1,(tr.cnt||99)/set.children.length):1;
@@ -4729,8 +4817,20 @@ function walkAlong(p,pts,u,now){let L=0; const seg=[]; for(let k=0;k<pts.length-
   let s=Math.max(0,Math.min(1,u))*L, k=0; while(k<seg.length-1&&s>seg[k]){s-=seg[k]; k++;} const [ax,az]=pts[k], [bx,bz]=pts[k+1], f=seg[k]?Math.min(1,s/seg[k]):0;
   p.root.position.set(ax+(bx-ax)*f,.08,az+(bz-az)*f); p.root.rotation.y=lerpAng(p.root.rotation.y,Math.atan2(bx-ax,bz-az),.3); poseWalk(p,now/1000*8); return L;}   // turns smoothly at corners
 const pathLen=pts=>{let L=0; for(let k=0;k<pts.length-1;k++) L+=Math.hypot(pts[k+1][0]-pts[k][0],pts[k+1][1]-pts[k][1]); return L;};
+function bodegaUnload(V,tr,t,dur,now){ // the driver carries the egg trays from the back of the vehicle into the bodega, trip after trip
+  const o=V.obj, ry=o.rotation.y, door=[o.position.x+Math.cos(ry)*1.5+Math.sin(ry)*1.6, o.position.z-Math.sin(ry)*1.5+Math.cos(ry)*1.6], rear=[o.position.x-Math.sin(ry)*(V.rear+.7),o.position.z-Math.cos(ry)*(V.rear+.7)];
+  const p=errandPerson(V,tr), sp=3.0, d0=Math.hypot(rear[0]-door[0],rear[1]-door[1])/sp, loop=[rear,...BODEGA_IN,...BODEGA_IN.slice(0,-1).reverse(),rear], Lp=pathLen(loop);
+  const tt=t-.9, T=Math.max(.5,dur-1.8), loopT=Math.max(.1,T-2*d0), n=Math.max(1,Math.round(loopT*sp/Lp)), per=loopT/n;
+  if(tt<0||tt>T){p.root.visible=false; V.unload=tt<0?0:1; return;}
+  p.root.visible=true; V.out=true; let c=false;
+  if(tt<d0){walkAlong(p,[door,rear],tt/d0,now); V.unload=0;}
+  else if(tt>=d0+loopT){walkAlong(p,[rear,door],Math.min(1,(tt-d0-loopT)/d0),now); V.unload=1;}
+  else {const q=(tt-d0)/per, k=Math.floor(q), u=q-k; walkAlong(p,loop,u,now); c=u<.5; V.unload=(k+(u>=.5?1:0))/n;}   // carrying on the way in, empty-handed on the way back
+  p.crate.visible=false; p.tray.visible=c; holdPose(p,c?'eggs':null); p.bag.visible=false;}
 function errandStep(V,vid,tr,now){V.out=false; V.pickIn=null; const hide=()=>{if(V.er) V.er.root.visible=false;};
-  const P=tr&&tr.t0?vehPhase(vid,now):null; if(!P||P.ph!=='stop'){hide(); return;}
+  const P=tr&&tr.t0?vehPhase(vid,now):null;
+  if(P&&P.ph==='back'&&tr.dest==='pickup'&&tr.eggs&&P.R.back.hold){const H=P.R.back.hold; if(P.e>=H.t0&&P.e<=H.t1){bodegaUnload(V,tr,P.e-H.t0,H.t1-H.t0,now); return;}}
+  if(!P||P.ph!=='stop'){hide(); return;}
   const sd=tr.stopT||STOP[tr.dest]||8, e=P.e, o=V.obj, ry=o.rotation.y, door=[o.position.x+Math.cos(ry)*1.5+Math.sin(ry)*1.6, o.position.z-Math.sin(ry)*1.5+Math.cos(ry)*1.6];
   const chick=tr.dest==='pickup'&&(tr.eggs||AREA_LIVE[tr.area]==='live_chicken'), shop=ERRAND_AT[tr.dest];
   if(!chick&&!shop){hide(); return;} if(e<.9||e>sd-.7){hide(); return;}   // still opening the door / already back in the seat
@@ -6007,8 +6107,11 @@ function farmHaulPath(from,to){
 }
 function continueAnimalHaul(vid,tr,now){const V=VEH[vid],R=routesFor(vid,'pickup',tr),p=routePos(R.out,R.out.T),from=[p.x,p.z],driver=tr.driver,animals={...tr.got},n=Object.values(animals).reduce((a,b)=>a+b,0);
   let out,back,dest=tr.pickupTarget;
-  if(dest==='katayan'){out=farmHaulPath(from,[10,57]);const i=frontIdx(V.slot+3.5),a=SVC0[i];back=farmHaulPath([10,57],a);back.push([V.slot+3.5,a[1],SPD.slow,true],[V.slot,a[1],SPD.slow,true],[V.slot,G0]);}
-  else{dest='palengke';out=farmHaulPath(from,ACCESS[0]);out.push([DX,LE,SPD.hwy],[PX-4,LE,SPD.slow],[PX+2,HZ-5,SPD.slow],[PX+2,-124]);const normal=routesFor(vid,'palengke');back=normal.back.segs.map(s=>[s.a[0],s.a[1],s.a[2]||SPD.slow,s.rev]);const last=normal.back.segs.at(-1).b;back.push([last[0],last[1]]);}
+  const G=pickupGeo(tr.area), ex=[from]; for(let q=G.T.length-1;q>=0;q--){const t=G.T[q]; if(Math.hypot(t[0]-G.T[0][0],t[1]-G.T[0][1])<Math.hypot(from[0]-G.T[0][0],from[1]-G.T[0][1])-.3) ex.push(t);}
+  const exitPts=ex.map(q=>[q[0],q[1],SPD.slow]).concat([[SERVICE[G.J][0],SERVICE[G.J][1],SPD.dirt]]);   // drive out of the track and on round the ring, never back the way it came
+  if(dest==='katayan'){const iK=ringIdx(8,53); out=exitPts.concat(thin(loopSeq(G.J,iK)).slice(1).map(q=>[SERVICE[q][0],SERVICE[q][1],SPD.dirt])); out.push([10,57]);
+    const i=frontIdx(V.slot+3.5),a=SVC0[i]; back=[[10,57,SPD.slow],...thin(loopSeq(iK,i)).map(q=>[SERVICE[q][0],SERVICE[q][1],SPD.dirt])]; back.push([V.slot+3.5,a[1],SPD.slow,true],[V.slot,a[1],SPD.slow,true],[V.slot,G0]);}
+  else{dest='palengke';out=exitPts.concat(thin(loopSeq(G.J,0)).slice(1).map(q=>[SERVICE[q][0],SERVICE[q][1],SPD.dirt])); for(let q=ACCESS.length-1;q>=0;q-=2) out.push([ACCESS[q][0],ACCESS[q][1],SPD.dirt]);out.push([DX,LE,SPD.hwy],[PX-4,LE,SPD.slow],[PX+2,HZ-5,SPD.slow],[PX+2,-124]);const normal=routesFor(vid,'palengke');back=normal.back.segs.map(s=>[s.a[0],s.a[1],s.a[2]||SPD.slow,s.rev]);const last=normal.back.segs.at(-1).b;back.push([last[0],last[1]]);}
   const remaining={...animals},cargo=[];
   if(dest==='palengke'){for(let i=S.orders.length-1;i>=0;i--){const order=S.orders[i];if(Object.entries(order.items).every(([k,q])=>ITEMS[k]?.live&&(remaining[k]||0)>=q)){for(const [k,q]of Object.entries(order.items))remaining[k]-=q;cargo.push({label:order.who+': live animal order',n:Object.values(order.items).reduce((a,b)=>a+b,0),ret:{...order.items},live:{...order.items},order,coins:order.reward,xp:order.xp});S.orders.splice(i,1);}}fillOrders();}
   const rest=Object.fromEntries(Object.entries(remaining).filter(([,q])=>q>0));if(Object.keys(rest).length)cargo.push({label:Object.values(rest).reduce((a,b)=>a+b,0)+' live animals',n:Object.values(rest).reduce((a,b)=>a+b,0),ret:rest,live:rest,coins:Object.entries(rest).reduce((sum,[k,q])=>sum+q*ITEMS[k].price,0),xp:0});

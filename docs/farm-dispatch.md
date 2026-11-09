@@ -10,10 +10,16 @@ Waiting and reversing states appear in the vehicle status text. Queue/yield stat
 
 Run `node scripts/check-farm-dispatch.cjs` for simultaneous pickups and recovery from an existing head-on queue. Browser validation also exercised the real chicken and pig routes with both garage layouts: both trips completed, delivering 10 chickens and 4 pigs with no runtime errors.
 
-## Original roads and temporary passing
+## Original roads, one-way loop and backing up
 
-The loading-yard expansion was removed at the user's request. The original service roads, animal lots, fences and gates are restored. New pickup trips use layout 3 and the original pickup routes. Different pens can receive trucks together; the same pickup spot queues at the garage.
+The loading-yard expansion was removed at the user's request. The original service roads, animal lots, fences and gates are restored.
 
-When a pickup truck is blocked, it can take a temporary grass-side route around the obstacle and rejoin its original route. The maneuver freezes the trip clock, checks the path against pen buildings, and checks swept vehicle collisions on every movement step. No extra roads are drawn. Older layout-2 saves also use this passing behavior on the restored routes; legacy layout-1 trips retain their recovery dispatcher.
+The service road is a ring (garage front, east side, top, west side, bodega, back to the garage apron). New pickup trips (layout 3) all go round it the same way: out along the east side, back into the animal track, then on round the ring home. Nobody drives back the way they came, so pickups never meet head-on. Live-animal hauls to the katayan or the palengke also carry on round the ring and leave by the gate.
 
-Validation: original-layout and render-precision checks pass. The browser simulation completed chicken and large livestock pickups, exercised a passing maneuver, and reported no runtime errors.
+Egg runs pull up at the bodega on the way home. The driver carries the trays in through the front opening (about 12 seconds), and the eggs are added to the bodega stock then, once.
+
+There is no grass-side passing any more. When two of your vehicles meet head-on, or block each other (say one turning out of a track into the nose of one waiting behind), one of them gives way. The loaded one keeps going; otherwise the later trip yields. The one giving way looks a few seconds along its own route in both directions and moves the way that gets it out of the other's path: backing up, or finishing a reverse into a track. It waits until their routes ahead no longer cross, then carries on. If it is boxed in, the other vehicle backs up instead. Status text shows "Backing up for the …" / "Waiting for the … to pass".
+
+On every road, a vehicle stuck next to another stuck vehicle for a few seconds (a gridlock) gets a short pass to move on. Anything stuck for half a minute gets one regardless, so traffic always keeps flowing. Waiting for a gap in highway traffic does not count as a gridlock.
+
+Validation: all `scripts/check-*.cjs` checks pass. A browser simulation ran egg, chicken and pig pickups together and a head-on meeting with an older-style trip at eight different timings. Every trip finished with no two vehicles touching.

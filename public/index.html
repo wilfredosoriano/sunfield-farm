@@ -131,10 +131,12 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
   font-size:11px;font-weight:900;line-height:20px;text-align:center}
 .badge.ready{background:#e2482f;color:#fff}
 
-#market,#hwSheet,#upSheet,#bldSheet,#drvSheet,#helpSheet,#bizSheet,#newsSheet,#achSheet,#misSheet{position:fixed;inset:0;z-index:8;display:none;align-items:center;justify-content:center;background:rgba(10,20,10,.35);
+#market,#hwSheet,#upSheet,#bldSheet,#drvSheet,#helpSheet,#bizSheet,#newsSheet,#achSheet,#misSheet,#billSheet{position:fixed;inset:0;z-index:8;display:none;align-items:center;justify-content:center;background:rgba(10,20,10,.35);
   padding:10px calc(env(safe-area-inset-right,0px) + 12px) 10px calc(env(safe-area-inset-left,0px) + 12px)}
-#market.open,#hwSheet.open,#upSheet.open,#bldSheet.open,#drvSheet.open,#helpSheet.open,#bizSheet.open,#newsSheet.open,#achSheet.open,#misSheet.open{display:flex}
-#market .sheet,#hwSheet .sheet,#upSheet .sheet,#bldSheet .sheet,#drvSheet .sheet,#helpSheet .sheet,#bizSheet .sheet,#newsSheet .sheet,#achSheet .sheet,#misSheet .sheet{width:min(760px,100%);max-height:100%;overflow-y:auto;gap:6px;padding:14px}
+#market.open,#hwSheet.open,#upSheet.open,#bldSheet.open,#drvSheet.open,#helpSheet.open,#bizSheet.open,#newsSheet.open,#achSheet.open,#misSheet.open,#billSheet.open{display:flex}
+#market .sheet,#hwSheet .sheet,#upSheet .sheet,#bldSheet .sheet,#drvSheet .sheet,#helpSheet .sheet,#bizSheet .sheet,#newsSheet .sheet,#achSheet .sheet,#misSheet .sheet,#billSheet .sheet{width:min(760px,100%);max-height:100%;overflow-y:auto;gap:6px;padding:14px}
+.billrow{display:flex;justify-content:space-between;gap:10px;padding:7px 2px;border-bottom:1px solid #493f3520;font-size:13px}.billrow b{white-space:nowrap}
+.billdue{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0;padding:10px 12px;border-radius:12px;background:#f8d7cc;font-size:14px}
 .mhead{display:flex;align-items:center;justify-content:space-between}
 .mhead h2{margin:0}
 .sheet .x{width:38px;height:38px;padding:0;text-align:center;border-radius:12px}
@@ -247,7 +249,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 /* touch devices held upright: block the game */
 @media (orientation: portrait) and (pointer: coarse){
   #rotate{display:flex}
-  #hud,#status,#bottom,#cats,#toast,#menu,#market,#hwSheet,#upSheet,#bldSheet,#drvSheet,#helpSheet,#bizSheet,#newsSheet,#achSheet,#misSheet,#c{visibility:hidden}
+  #hud,#status,#bottom,#cats,#toast,#menu,#market,#hwSheet,#upSheet,#bldSheet,#drvSheet,#helpSheet,#bizSheet,#newsSheet,#achSheet,#misSheet,#billSheet,#c{visibility:hidden}
 }
 /* short landscape screens (phones): tools on the left, picker on the right, map in the middle */
 @media (orientation: landscape) and (max-height: 520px){
@@ -318,7 +320,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .sheet{overflow-x:hidden!important;touch-action:pan-y;overscroll-behavior:contain}
 .sheet *{max-width:100%;min-width:0}
 .sheet .mhead,.sheet .gpanel{max-width:none}
-#market,#hwSheet,#upSheet,#bldSheet,#drvSheet,#helpSheet,#bizSheet,#newsSheet,#achSheet,#misSheet,#menu{touch-action:none;overscroll-behavior:none}
+#market,#hwSheet,#upSheet,#bldSheet,#drvSheet,#helpSheet,#bizSheet,#newsSheet,#achSheet,#misSheet,#billSheet,#menu{touch-action:none;overscroll-behavior:none}
 /* the farmer's hunger and energy, and the fishing game */
 #needPill{gap:2px;padding:5px 10px;font-size:15px}
 #needPill .nb{display:inline-block;width:30px;height:9px;border:1.5px solid var(--ink2);border-radius:5px;overflow:hidden;background:#fffaf0;margin:0 5px 0 2px}
@@ -517,6 +519,12 @@ button:focus-visible{outline:3px solid #4c8078!important;outline-offset:3px}#toa
     <div id="newsBody"></div>
   </div>
 </div>
+<div id="billSheet" role="dialog" aria-label="Bills">
+  <div class="sheet">
+    <div class="mhead"><h2>🧾 Bayarin · Bills</h2><div class="mbtns"><button class="x" id="closeBill" aria-label="Close">✕</button></div></div>
+    <div id="billBody"></div>
+  </div>
+</div>
 <div id="misSheet" role="dialog" aria-label="Missions">
   <div class="sheet">
     <div class="mhead"><h2>📋 Misyon · Delivery missions</h2><div class="mbtns"><button class="x" id="closeMis" aria-label="Close">✕</button></div></div>
@@ -570,6 +578,7 @@ button:focus-visible{outline:3px solid #4c8078!important;outline-offset:3px}#toa
     <p>Open Tools and pick the hoe, seeds or sickle, then drag one finger across the field to work many plots at once. Tap the tool again to put it away. Deliver your harvest at the Palengke. Use two fingers to move, pinch to zoom, twist to rotate. On a computer, scroll to zoom, right-drag to rotate.</p>
     <button id="newsBtn">📰 News &amp; updates</button>
     <button id="achMenuBtn">🏆 Achievements</button>
+    <button id="billBtn">🧾 Bills · water, power, garbage</button>
     <div class="sndrow"><button id="sndMusic"></button><button id="sndAmb"></button><button id="sndSfx"></button><button id="ecoBtn"></button></div>
     <button id="recenter">Recenter the view</button>
     <button id="reset" class="warn">Start a new farm</button>
@@ -2737,7 +2746,7 @@ function lnNet(){ // built on first use, once every road, store and stop exists
   if(LN.built) return !LN.broken; LN.built=true; try{lnBuild(); return true;}catch(e){LN.broken=true; console.error('lane network failed to build',e); if(typeof gameHealth!=='undefined'&&gameHealth.errors) gameHealth.errors.push('lanes: '+e.message); return false;}
 }
 // Shared geometry for the expansion roads; southwest farm and southeast shoreline stay untouched.
-const SOUTH_ROADS={nodes:{entry:[140,-110],north:[140,-80],nw:[54,-80],ne:[190,-80],mw:[54,40],mc:[112,40],me:[190,40],sw:[54,90],sc:[112,90],utility:[150,90],se:[190,90]},edges:[['entry','north'],['nw','north'],['north','ne'],['nw','mw'],['mw','sw'],['mw','mc'],['mc','me'],['me','ne'],['me','se'],['sw','sc'],['sc','utility'],['utility','se'],['mc','sc']]};
+const SOUTH_ROADS={nodes:{entry:[140,-110],north:[140,-80],nw:[54,-80],ne:[190,-80],mw:[54,40],mc:[112,40],me:[190,40],sw:[54,90],sc:[112,90],utility:[150,90],se:[190,90],pw:[112,150],lf:[54,150]},edges:[['entry','north'],['nw','north'],['north','ne'],['nw','mw'],['mw','sw'],['mw','mc'],['mc','me'],['me','ne'],['me','se'],['sw','sc'],['sc','utility'],['utility','se'],['mc','sc'],['sc','pw'],['pw','lf'],['lf','sw']]};   // pw/lf: the road out to the power plant and the landfill
 function southRoadPoints(a,b){
   const A=SOUTH_ROADS.nodes[a],B=SOUTH_ROADS.nodes[b],dx=B[0]-A[0],dz=B[1]-A[1],len=Math.hypot(dx,dz),n=Math.ceil(len/2),east=[a,b].includes('me')&&[a,b].includes('ne'),south=[a,b].includes('sw')&&[a,b].includes('sc');
   return Array.from({length:n+1},(_,i)=>{const t=i/n,d=t*len,u=Math.max(0,Math.min(1,(d-12)/(len-24)));return [A[0]+dx*t+(east?16*Math.sin(Math.PI*u)**2:0),A[1]+dz*t+(south?4*Math.sin(Math.PI*u)**2:0)];});
@@ -2753,7 +2762,9 @@ function buildSouthLanes(E,Es,W,Ws){
     const pts=center.map((p,i)=>{const a=center[Math.max(0,i-1)],b=center[Math.min(center.length-1,i+1)],x=b[0]-a[0],z=b[1]-a[1],l=Math.hypot(x,z);return[p[0]-z/l*1.85,p[1]+x/l*1.85];});
     const name='south:'+from+'>'+to;
     let road;
-    if([a,b].includes('nw')&&[a,b].includes('mw'))road=lnRoad(name,pts[0],pts[pts.length-1],{vmax:8,w:2.6,boxes:[[10,26],[-22,-6]],cuts:[26,10,-6,-22]});
+    if([a,b].includes('nw')&&[a,b].includes('mw'))road=lnRoad(name,pts[0],pts[pts.length-1],{vmax:8,w:2.6,boxes:[[10,26],[-30,-6]],cuts:[26,10,-6,-22,-30]});   // -30..-6 also serves the farm's garbage bay
+    else if([a,b].includes('sc')&&[a,b].includes('pw'))road=lnRoad(name,pts[0],pts[pts.length-1],{vmax:8,w:2.6,boxes:[[136,128],[112,104]],cuts:[136,128,112,104]});
+    else if([a,b].includes('pw')&&[a,b].includes('lf'))road=lnRoad(name,pts[0],pts[pts.length-1],{vmax:8,w:2.6,boxes:[[66,82],[89,100]],cuts:[66,82,89,100]});
     else if(([a,b].includes('mc')&&[a,b].includes('me'))||([a,b].includes('north')&&[a,b].includes('ne')))road=lnRoad(name,pts[0],pts[pts.length-1],{vmax:8,w:2.6,boxes:[[160,180]],cuts:[164]});
     else {const L=lnLane(name,pts,{vmax:8,w:2.6});road={first:L,last:L};}
     frontage[from+'>'+to]=road;
@@ -2774,9 +2785,18 @@ function buildSouthLanes(E,Es,W,Ws){
   const aOut=lnLane('district:agri:out',[[172,-21],[172,-70]],{vmax:4,w:2.3,solo:true});
   lnTurn(frontage['mc>me'].endAt(164),aIn,{pri:2});lnTurn(aIn,aBay,{vmax:3,solo:true});lnTurn(aBay,aOut,{vmax:3,solo:true});
   lnTurn(aOut,frontage['ne>north'].startAt(164),{pri:3});
+  // Power plant: a driveway inside the gate, parallel to the road, for the line crew's truck and visitors.
+  {const R=frontage['pw>sc'], pIn=lnLane('util:power:in',[[119,127],[119,113]],{vmax:3,w:2.4,solo:true});
+    lnTurn(R.endAt(136),pIn,{pri:2,vmax:3}); lnTurn(pIn,R.startAt(104),{pri:3,vmax:3});}
+  // Landfill: in at the west gate, round to the tipping face, out at the east gate.
+  {const R=frontage['lf>pw'], lIn=lnLane('util:landfill:in',[[73,158],[73,176]],{vmax:3,w:2.6,solo:true}), lTip=lnLane('util:landfill:tip',[[77,181],[90,181]],{vmax:2.5,w:2.6,solo:true}), lOut=lnLane('util:landfill:out',[[94,176],[94,157]],{vmax:3,w:2.6,solo:true});
+    lnTurn(R.endAt(66),lIn,{pri:2,vmax:3}); lnTurn(lIn,lTip,{vmax:3,solo:true}); lnTurn(lTip,lOut,{vmax:3,solo:true}); lnTurn(lOut,R.startAt(100),{pri:3,vmax:3});}
+  // The farm's garbage point: a roadside bay along the farm fence where the garbage truck stops.
+  {const R=frontage['nw>mw'], gB=lnLane('util:garbage:bay',[[48.9,-23],[48.9,-11]],{vmax:2.5,w:2.6,solo:true});
+    lnTurn(R.endAt(-30),gB,{pri:2,vmax:3}); lnTurn(gB,R.startAt(-6),{pri:3,vmax:3});}
   // A small service-vehicle bay, entered nose first and reversed into its own apron before departure.
-  const bay=lnLane('south:utilities:bay',[[151.6,83.5],[151.6,79.8]],{vmax:2.5,w:2.3,solo:true});
-  const out=lnLane('south:utilities:reverse',lnCurve([151.6,79.8],[0,1],[148.4,83.5],[-1,0]),{rev:true,vmax:2,w:2.3,solo:true});lnLink(bay,out);
+  const bay=lnLane('south:utilities:bay',[[151.6,85.5],[151.6,77.6]],{vmax:2.5,w:2.3,solo:true});   // long enough for the water tanker
+  const out=lnLane('south:utilities:reverse',lnCurve([151.6,77.6],[0,1],[148.4,83.5],[-1,0]),{rev:true,vmax:2,w:2.3,solo:true});lnLink(bay,out);
   for(const a of ends.utility.ins)lnTurn(a.L,bay,{pri:3,vmax:3});
   for(const b of ends.utility.outs)lnTurn(out,b.L,{pri:3,vmax:3,d0:[0,1]});
 }
@@ -3489,7 +3509,7 @@ const WW_CLEAR=[[3.8,[268,-252],[276,-236],[290,-218],[307,-202],[315,-191],[315
 function wwNear(x,z,m){for(const [w,...P] of WW_CLEAR) for(let i=0;i<P.length-1;i++){const [ax,az]=P[i], [bx,bz]=P[i+1], dx=bx-ax, dz=bz-az, L=dx*dx+dz*dz||1, t=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/L)); if(Math.hypot(x-ax-dx*t,z-az-dz*t)<w+m) return true;} return false;}
 // Visual-only irrigation site and maintenance approach; keep procedural foliage clear.
 // Southeast utilities parcel and its maintenance path, reserved from procedural foliage.
-function irrigationSite(x,z,m=0){m=Math.max(0,m);return (x>59-m&&x<107+m&&z>46-m&&z<85+m)||(x>111-m&&x<184+m&&z>-73-m&&z<34+m)||(x>60-m&&x<108+m&&z>-70-m&&z<28+m)||southRoadNear(x,z,m)||(x>120-m&&x<180+m&&z>52-m&&z<78+m);}
+function irrigationSite(x,z,m=0){m=Math.max(0,m);return (x>118-m&&x<190+m&&z>100-m&&z<146+m)||(x>58-m&&x<108+m&&z>154-m&&z<215+m)||(x>44-m&&x<51+m&&z>-32-m&&z<-2+m)||(x>59-m&&x<107+m&&z>46-m&&z<85+m)||(x>111-m&&x<184+m&&z>-73-m&&z<34+m)||(x>60-m&&x<108+m&&z>-70-m&&z<28+m)||southRoadNear(x,z,m)||(x>120-m&&x<180+m&&z>52-m&&z<78+m);}
 // countryside: acacia, mango, niyog, saging and kawayan trees, wild grass and flowers (all instanced, all cast shadows)
 (()=>{const rr=rng(42);
   const onRoad=(x,z,m)=>roadDist(x,z)<m||(z>HZ-5.4-m&&z<HZ+5.4+m);
@@ -3553,6 +3573,14 @@ function irrigationSite(x,z,m=0){m=Math.max(0,m);return (x>59-m&&x<107+m&&z>46-m
   for(let x=-190;x<460;x+=6+rr()*9) for(const sd of [-1,1]) if(rr()<.8) plant(x,HZ+sd*(8+rr()*6));
   // a windbreak of niyog, mango and acacia just outside the lot fence, all the way round
   for(let k=0;k<FENCE.length;k+=1+((rr()*2)|0)){const [x,z]=FENCE[k], ox=x+35, oz=z-20, L=Math.hypot(ox,oz)||1, o=3+rr()*4; plant(x+ox/L*o,z+oz/L*o); if(rr()<.45) plant(x+ox/L*(o+5),z+oz/L*(o+5));}
+  // provincial planting round the new district: big acacia, mango, balete and niyog on both sides of every district road
+  // and in the open land round the power plant, the landfill and the water works (never on a road, a parcel or the beach)
+  const busyD=(x,z)=>irrigationSite(x,z,1.5)||onRoad(x,z,2)||nearSea(x,z,4)||inLot(x,z)||(z<-70&&x<200);
+  const bigTree=(x,z,s)=>{const v=rr(); (v<.3?giant:v<.6?acacia:v<.82?mango:palm)(x,z,s);};
+  for(const {pts} of SOUTH_PATHS) for(let i=3;i<pts.length-3;i+=3+((rr()*3)|0)){const [x,z]=pts[i], [a,b]=pts[i+1], L=Math.hypot(a-x,b-z)||1;
+    for(const sd of [-1,1]) if(rr()<.85){const o=sd*(8.5+rr()*4.5), px=x-(b-z)/L*o, pz=z+(a-x)/L*o; if(!busyD(px,pz)) bigTree(px,pz,1+rr()*.45);}}
+  for(let k=0,n=0;k<4000&&n<170;k++){const x=20+rr()*220, z=88+rr()*175; if(!busyD(x,z)){bigTree(x,z,.95+rr()*.55); n++;}}
+  for(let k=0,n=0;k<3000&&n<60;k++){const x=40+rr()*170, z=-75+rr()*170; if(!busyD(x,z)&&rr()<.5){bigTree(x,z,.9+rr()*.5); n++;}}   // any gaps between the district's parcels
   const shade=l=>{const m=instR(l[0],l[1],l[2]); m.castShadow=true; scene.add(m);};
   const BLOB=new THREE.IcosahedronGeometry(1,1), CYL=new THREE.CylinderGeometry(.42,.5,1,7), LEAF=new THREE.BoxGeometry(1,1,1);
   [[CYL,trunks],[BLOB,blobs,new THREE.MeshStandardMaterial({color:0xffffff,roughness:.9})],[G.palmSeg,segs],[G.nut,nuts],[LEAF,bleaves],[new THREE.CylinderGeometry(.5,.5,1,6),culms]].forEach(shade);
@@ -5343,6 +5371,7 @@ function advancePlayerTraffic(vid,now,dt){
   const allowed=trafficRouteTime(V.obj,R,before,elapsed,V.len||6);
   const wait=Math.max(0,Math.min(P.e,P.e-allowed));if(wait>0){tr.t0+=wait*1000; V.heldAt=now;}
   V.blk=wait>0?(V.blk||0)+dt:0;
+  if(V.blk>12){V.obj.userData.ghostUntil=performance.now()+3000; V.blk=0;}   // held 12 s: a jam with your other vehicles; ease through it (the real fix is step 3, your vehicles on the lane network)
 }
 function placeVehicles(now,dt){
   for(const vid in VEH){
@@ -7300,7 +7329,7 @@ let townLast=performance.now(), terminalLast=-Infinity,commuterLast=null;
     const dx=C[0]-A[0],dz=C[1]-A[1],len=Math.hypot(dx,dz);
     middle.unshift([A[0]+dx/len*10.1,A[1]+dz/len*10.1]);middle.push([C[0]-dx/len*10.1,C[1]-dz/len*10.1]);
     ribbon(pts,-4,4,.066,0x45474b);
-    for(const sd of [-1,1]){ribbon(middle,sd*4,sd*5.25,.145,0xbdb8ad);ribbon(middle,sd*3.93,sd*4.07,.165,0xd8d4cc);}
+    for(const sd of [-1,1]){ribbon(middle,sd*4,sd*5.6,.072,0x9c8a64);ribbon(middle,sd*3.78,sd*3.9,.074,0xece6d3);}   // a dirt shoulder and a painted edge line, like a provincial road
     for(let i=1;i<middle.length-1;i++){const p=middle[i],q=middle[i+1],dx=q[0]-p[0],dz=q[1]-p[1],l=Math.hypot(dx,dz),ry=Math.atan2(dx,dz);
       if(i%3===0)B(p[0],.075,p[1],.12,.012,2.6,0xf0df9e,ry);
       if(i%18===6){const x=p[0]-dz/l*5.05,z=p[1]+dx/l*5.05;B(x,1.8,z,.12,3.6,.12,0x53645c);B(x,3.55,z,.65,.13,.4,0xd3d0b8);}
@@ -7326,11 +7355,11 @@ const ROAD_JUNCTIONS=[
   {x:330,z:STZ,hx:3.5,hz:3.5,arms:'SW'},
   {x:TWN.wx,z:TWN.bz,hx:3,hz:3,arms:'ES'},
   {x:SRX,z:TWN.bz,hx:3,hz:3,arms:'NSW'},
-  ...Object.entries(SOUTH_ROADS.nodes).filter(([key])=>key!=='entry').map(([key,[x,z]])=>({x,z,hx:4,hz:key==='entry'?3.6:4,arms:key==='entry'?'ESW':SOUTH_ROADS.edges.filter(e=>e.includes(key)).map(e=>{const p=SOUTH_ROADS.nodes[e[0]===key?e[1]:e[0]];return p[0]>x?'E':p[0]<x?'W':p[1]>z?'S':'N';}).join('')+(key==='utility'?'N':'')}))
+  ...Object.entries(SOUTH_ROADS.nodes).filter(([key])=>key!=='entry').map(([key,[x,z]])=>({prov:true,x,z,hx:4,hz:key==='entry'?3.6:4,arms:key==='entry'?'ESW':SOUTH_ROADS.edges.filter(e=>e.includes(key)).map(e=>{const p=SOUTH_ROADS.nodes[e[0]===key?e[1]:e[0]];return p[0]>x?'E':p[0]<x?'W':p[1]>z?'S':'N';}).join('')+(key==='utility'?'N':'')}))
 ];
 (()=>{
-  const asphalt=0x45474b,paving=0xbdb8ad,curb=0xd8d4cc,white=0xf1eee4;
-  for(const J of ROAD_JUNCTIONS){
+  const asphalt=0x45474b,PAV=0xbdb8ad,CURB=0xd8d4cc,white=0xf1eee4;
+  for(const J of ROAD_JUNCTIONS){const paving=J.prov?0x9c8a64:PAV, curb=J.prov?0xece6d3:CURB;   // district junctions get dirt shoulders like their roads
     const {x,z,hx,hz,arms}=J,r=2.4,sw=1.25,ex=hx+r+4.2,ez=hz+r+4.2,b=[];
     const flat=(points,y,color)=>{const sh=new THREE.Shape();points.forEach(([a,c],i)=>i?sh.lineTo(a,-c):sh.moveTo(a,-c));sh.closePath();
       const geo=new THREE.ShapeGeometry(sh);geo.rotateX(-Math.PI/2);geo.translate(x,y,z);b.push([geo,new THREE.Matrix4(),color]);};
@@ -7785,22 +7814,40 @@ let wwLast=performance.now(), wwRain=0, wwSnd=0;
 const DISTRICT_LIFE=(()=>{
   const r=rng(144),staff=[],fleet=[];
   const walker=path=>{const L=randLook(r);L.bag=null;const p=makePerson(L);scene.add(p.root);p.root.position.set(path[0][0],.16,path[0][1]);return {p,path:path.concat(path.slice(1,-1).reverse()),i:1,ph:r()*6,wait:r()*3};};
-  for(const path of [ [[93,-20],[93,-23],[98,-23]],[[68,-23],[76,-23],[82,-23]],[[89.8,3],[89.8,8]],[[66,-48],[74,-48],[83,-48]],[[116,-35],[116,-15],[116,13]],[[145,-38],[153,-38],[161,-38]],[[156,29],[156,20],[163,20]],[[143,13],[143,24]],[[103,53],[103,65],[103,77]],[[182,59],[182,70]] ])staff.push(walker(path));
-  const configs=[{id:'fuel',type:'vios',color:0xd9d5c1,via:['south:entry>north','south:north>nw','south:nw>mw','south:mw>mc','south:mc>sc','south:sc>sw','south:sw>mw','district:fuel:bay'],walk:[[86.5,5],[86.5,7]]},
+  const jobs=['inspect','write','crouch','sweep','stand','crouch','write'], rounds=[];
+  for(const [n,path] of [[0,[[93,-20],[93,-23],[98,-23]]],[1,[[68,-23],[76,-23],[82,-23]]],[3,[[66,-48],[74,-48],[83,-48]]],[4,[[116,-35],[116,-15],[116,13]]],[5,[[145,-38],[153,-38],[161,-38]]],[6,[[156,29],[156,20],[163,20]]],[7,[[143,13],[143,24]]],[8,[[103,53],[103,65],[103,77]]],[9,[[182,59],[182,70]]]]){
+    const loop=path.concat(path.slice(1,-1).reverse()), L=randLook(r); L.bag=null;
+    rounds.push(makeWorker(L,loop.map((q,i)=>({to:q,act:jobs[(i+n)%jobs.length],dur:4+r()*5,face:[q[0]+(i%2?1.5:-1.5),q[1]+(i%3?1.5:-1.5)]})),{y:.16,sp:.9}));}
+  for(const w of rounds) workerGo(w,w.steps[0]);
+  const att=(()=>{const L=randLook(r); L.bag=null; L.style='cap'; L.capC=0xd32f2f; L.top=0xd32f2f; const p=makePerson(L); scene.add(p.root); p.root.position.set(89.8,.16,3); return {p,ph:0,home:[89.8,3]};})();
+  const fuelVia=['south:entry>north','south:north>nw','south:nw>mw','south:mw>mc','south:mc>sc','south:sc>sw','south:sw>mw','district:fuel:bay'];
+  const configs=[{id:'fuel',type:'vios',color:0xd9d5c1,via:fuelVia,walk:[[86.5,5],[86.5,7]]},
+    {id:'fuel2',type:'innova',color:0x9ea7ad,via:fuelVia,walk:[[86.5,5],[86.5,7]],t0:40},{id:'fuel3',type:'l300',color:0xf5f5f5,via:fuelVia,walk:[[86.5,5],[86.5,7]],t0:80},
+    {id:'fuel4',type:'hilux',color:0x7b1e2b,via:fuelVia,walk:[[86.5,5],[86.5,7]],t0:120},{id:'fuel5',type:'fortuner',color:0x2d3436,via:fuelVia,walk:[[86.5,5],[86.5,7]],t0:160},
+    {id:'agri2',type:'l300',color:0xf5f5f5,via:['south:entry>north','south:north>nw','south:nw>mw','south:mw>mc','district:agri:bay'],walk:[[166.3,-12],[163.8,-12],[163.8,-2]],t0:70},
     {id:'agri',type:'hilux',color:0x829eac,via:['south:entry>north','south:north>nw','south:nw>mw','south:mw>mc','district:agri:bay'],walk:[[166.3,-12],[163.8,-12],[163.8,20],[160,20]]}];
   for(const c of configs){const g=makeCar(c.type,c.color);g.visible=false;scene.add(g);const customer=walker(c.walk);customer.p.root.visible=false;
-    fleet.push({...c,g,customer,lv:null,state:'away',timer:c.id==='fuel'?3:15,visits:0});}
+    fleet.push({...c,g,customer,lv:null,state:'away',timer:c.t0!=null?c.t0:c.id==='fuel'?3:15,visits:0,fuel:c.id.startsWith('fuel')});}
   const walk=(w,dt,t)=>{if(w.wait>0){w.wait-=dt;poseStand(w.p,t);return;}const q=w.path[w.i],p=w.p.root,dx=q[0]-p.position.x,dz=q[1]-p.position.z,d=Math.hypot(dx,dz),step=Math.min(d,dt*.85);
     if(d<.08){w.i=(w.i+1)%w.path.length;w.wait=2+r()*4;return;}p.position.x+=dx/d*step;p.position.z+=dz/d*step;p.rotation.y=lerpAng(p.rotation.y,Math.atan2(dx,dz),Math.min(1,dt*8));w.ph+=step*5.5;poseWalk(w.p,w.ph);};
+  const busy=pre=>fleet.some(o=>o.id.startsWith(pre)&&(o.state==='arriving'||o.state==='visit'));   // one car at a time at each bay
   return {fleet,staff,update(dt,t){if(!lnNet()||document.hidden)return;
     for(const w of staff)walk(w,dt,t);
+    for(const w of rounds) workerTick(w,dt,t);
+    {// the attendant walks out to the car at the pump, fills it up, and goes back to the booth
+      const car=fleet.find(o=>o.fuel&&o.state==='visit'), p=att.p, R=p.root; let goal=att.home, pumping=false;
+      if(car){const g=car.g, a=g.rotation.y; goal=[g.position.x+Math.cos(a)*1.6-Math.sin(a)*1.2,g.position.z-Math.sin(a)*1.6-Math.cos(a)*1.2];}
+      const dx=goal[0]-R.position.x, dz=goal[1]-R.position.z, d=Math.hypot(dx,dz);
+      if(d>.08){const st=Math.min(d,dt*1.3); R.position.x+=dx/d*st; R.position.z+=dz/d*st; R.rotation.y=lerpAng(R.rotation.y,Math.atan2(dx,dz),Math.min(1,dt*8)); att.ph+=st*5.6; poseWalk(p,att.ph);}
+      else if(car){const a=car.g.rotation.y; R.rotation.y=lerpAng(R.rotation.y,a-Math.PI/2,Math.min(1,dt*5)); posePump(p,t);}
+      else {R.rotation.y=lerpAng(R.rotation.y,Math.PI/2,Math.min(1,dt*3)); poseStand(p,t);}}
     for(const c of fleet){if(!c.lv)c.lv=lnVeh(c.g,{len:c.type==='hilux'?5.1:4.6,width:2.1,vmax:8,acc:1.5});const v=c.lv;
-      if(c.state==='away'){c.timer-=dt;if(c.timer>0)continue;const P=lnPath('LE',...c.via);if(P&&lnFreeAt(P[0],v.len/2,v.len,v,25)){lnGo(v,P,null,{v:8});c.state='arriving';}else c.timer=2;}
-      else if(c.state==='arriving'&&v.done){c.state='visit';c.timer=c.id==='fuel'?20:100;c.customer.p.root.visible=true;c.customer.p.root.position.set(...[c.walk[0][0],.16,c.walk[0][1]]);c.customer.i=1;}
+      if(c.state==='away'){c.timer-=dt;if(c.timer>0)continue;if(busy(c.fuel?'fuel':'agri')){c.timer=4;continue;}const P=lnPath('LE',...c.via);if(P&&lnFreeAt(P[0],v.len/2,v.len,v,25)){lnGo(v,P,null,{v:8});c.state='arriving';}else c.timer=2;}
+      else if(c.state==='arriving'&&v.done){c.state='visit';c.timer=c.fuel?22:c.id==='agri2'?45:100;c.customer.p.root.visible=true;c.customer.p.root.position.set(...[c.walk[0][0],.16,c.walk[0][1]]);c.customer.i=1;}
       else if(c.state==='visit'){walk(c.customer,dt,t);c.timer-=dt;if(c.timer<=0){const p=c.customer.p.root,dx=c.walk[0][0]-p.position.x,dz=c.walk[0][1]-p.position.z;
           // Finish the sidewalk return leg; do not cut diagonally across the office or yard.
           if(Math.hypot(dx,dz)<.15){const P=lnPath(v.path[v.pi],'LE$');if(P&&lnNext(v,P)){c.customer.p.root.visible=false;c.state='leaving';}}}}
-      else if(c.state==='leaving'&&v.done){lnHide(v);c.state='away';c.timer=35;c.visits++;}
+      else if(c.state==='leaving'&&v.done){lnHide(v);c.state='away';c.timer=c.fuel?40+r()*60:35+r()*30;c.visits++;}
     }
   }};
 })();
@@ -7881,6 +7928,286 @@ const IRRIGATION_VISUAL=(()=>{
   scene.add(mesh(new THREE.CylinderGeometry(.18,.18,1.1,10),steel,-30,.6,-49.15));
   return {g,waters,rings,update(t){if(document.hidden)return;for(const {w,y} of waters){w.material.map.offset.set(t*.025,t*.045);w.position.y=y+Math.sin(t*1.7)*.012;}rings.forEach((r,i)=>{const f=(t*.55+i/4)%1;r.scale.setScalar(.12+f*1.35);r.material.opacity=(1-f)*.65;});}};
 })();
+/* ---------- Civic utilities: Sunfield Water, Sunfield Power and the sanitary landfill ----------
+   The farm and the barangay houses are on the water main (fed from the irrigation reservoir) and on the power line (from the power
+   plant); each has a water meter and a kWh meter. Every game month the water, power and garbage bills come in. A garbage truck collects
+   the farm's bags at its roadside bay and tips them at the landfill; a water tanker fills at the reservoir and delivers to the mountain
+   barangay; a meter reader walks the barangay. People at each place go about a round of real jobs instead of pacing one spot. */
+
+// ---- work poses: crouching, writing on a clipboard, checking something, pumping fuel, sweeping, waving a truck in
+function poseCrouch(p,t){const k=p.snap?1:.25; p.snap=false;
+  PJ(p.lL.g,'x',-1.15,k); PJ(p.lR.g,'x',-.85,k); PJ(p.lL.k,'x',1.95,k); PJ(p.lR.k,'x',1.55,k);
+  PJ(p.aR,'x',-.95+Math.sin(t*3.1)*.22,k); PJ(p.aL,'x',-.55,k); if(p.aL.e){PJ(p.aL.e,'x',-.4,k); PJ(p.aR.e,'x',-.5,k);}
+  if(p.bod){PJ(p.bod,'x',.32,k); p.bod.position.y+=(-.34-p.bod.position.y)*k;}}
+function poseWrite(p,t){const k=p.snap?1:.25; p.snap=false;
+  PJ(p.lL.g,'x',0,k); PJ(p.lR.g,'x',0,k); PJ(p.lL.k,'x',0,k); PJ(p.lR.k,'x',0,k);
+  PJ(p.aL,'x',-1.05,k); PJ(p.aR,'x',-.95+Math.sin(t*7)*.05,k); p.aR.rotation.z=-.25+Math.sin(t*9)*.05; p.aL.rotation.z=.2;
+  if(p.aL.e){PJ(p.aL.e,'x',-.8,k); PJ(p.aR.e,'x',-.9,k);} if(p.bod){p.bod.position.y+=(0-p.bod.position.y)*k; PJ(p.bod,'x',.12,k);}}
+function poseInspect(p,t){const k=p.snap?1:.2; p.snap=false; const pt=Math.sin(t*.7)>.3;
+  PJ(p.lL.g,'x',0,k); PJ(p.lR.g,'x',0,k); PJ(p.lL.k,'x',0,k); PJ(p.lR.k,'x',0,k);
+  PJ(p.aR,'x',pt?-1.45:-.2,k); p.aR.rotation.z=pt?-.15:-.06; PJ(p.aL,'x',-.15,k); p.aL.rotation.z=.45;   // points at the gauge, the other hand on the hip
+  if(p.aL.e){PJ(p.aL.e,'x',-1.1,k); PJ(p.aR.e,'x',pt?-.1:-.3,k);} if(p.bod){p.bod.position.y+=(0-p.bod.position.y)*k; PJ(p.bod,'y',Math.sin(t*.4)*.25,k); PJ(p.bod,'x',0,k);}}
+function posePump(p,t){const k=p.snap?1:.25; p.snap=false;
+  PJ(p.lL.g,'x',0,k); PJ(p.lR.g,'x',.12,k); PJ(p.lL.k,'x',0,k); PJ(p.lR.k,'x',.1,k);
+  PJ(p.aR,'x',-1.15,k); p.aR.rotation.z=-.05; PJ(p.aL,'x',-.1+Math.sin(t*.8)*.05,k); if(p.aR.e) PJ(p.aR.e,'x',-.35,k); if(p.bod){p.bod.position.y+=(0-p.bod.position.y)*k; PJ(p.bod,'x',.06,k);}}
+function poseSweep(p,t){const k=p.snap?1:.25, s=Math.sin(t*2.6); p.snap=false;
+  PJ(p.lL.g,'x',s*.12,k); PJ(p.lR.g,'x',-s*.12,k); PJ(p.lL.k,'x',.1,k); PJ(p.lR.k,'x',.1,k);
+  PJ(p.aL,'x',-.75+s*.35,k); PJ(p.aR,'x',-.55+s*.35,k); p.aL.rotation.z=.25; p.aR.rotation.z=-.1; if(p.bod){p.bod.position.y+=(0-p.bod.position.y)*k; PJ(p.bod,'x',.22,k); PJ(p.bod,'y',s*.2,k);}}
+function poseWave(p,t){const k=p.snap?1:.3; p.snap=false;
+  PJ(p.lL.g,'x',0,k); PJ(p.lR.g,'x',0,k); PJ(p.lL.k,'x',0,k); PJ(p.lR.k,'x',0,k);
+  PJ(p.aR,'x',-2.7,k); p.aR.rotation.z=-.35+Math.sin(t*5)*.35; PJ(p.aL,'x',-.1,k); if(p.bod){p.bod.position.y+=(0-p.bod.position.y)*k; PJ(p.bod,'x',0,k);}}
+const WORK_POSE={crouch:poseCrouch,write:poseWrite,inspect:poseInspect,pump:posePump,sweep:poseSweep,wave:poseWave,stand:poseStand};
+
+// ---- a worker who goes round a list of jobs: walk (along waypoints) to a place, do something there for a while, then the next job
+function makeWorker(look,steps,o={}){const L={...look,bag:null}; if(o.hat) L.style='cap', L.capC=o.hat; const p=makePerson(L);
+  const props=makeCarry(p,['sack','pail']), clip=new THREE.Group(); clip.add(part(.26,.34,.02,0x8d6e4b,0,0,0)); clip.add(part(.22,.26,.025,0xf5f5f0,0,.02,.005)); clip.position.set(-.08,1.12,.34); clip.rotation.x=-.7; clip.visible=false; p.root.add(clip);
+  const s0=steps[0], at=s0.path?s0.path[s0.path.length-1]:s0.to; p.root.position.set(at[0],o.y||.1,at[1]); scene.add(p.root);
+  return {p,props,clip,steps,i:0,leg:null,wp:0,timer:(s0.dur||3)*Math.random(),ph:Math.random()*6,y:o.y||.1,sp:o.sp||1.1,carry:null,hidden:false,day:o.day};}
+function workerGo(w,step){const pts=(step.path||[step.to]).map(q=>q.slice()); w.leg=pts; w.wp=0; w.carry=step.carry||null;}
+function workerTick(w,dt,t){const p=w.p, r=p.root;
+  if(w.day){const h=gameHour(), on=h>=6.5&&h<17.5; if(on===w.hidden){w.hidden=!on; r.visible=on;} if(!on) return;}
+  if(w.leg){const q=w.leg[w.wp], dx=q[0]-r.position.x, dz=q[1]-r.position.z, d=Math.hypot(dx,dz);
+    if(d<.06){w.wp++; if(w.wp>=w.leg.length){w.leg=null; const s=w.steps[w.i]; w.timer=s.dur==null?3:s.dur; w.carry=s.keep?w.carry:null;} return;}
+    const st=Math.min(d,dt*w.sp); r.position.x+=dx/d*st; r.position.z+=dz/d*st; r.position.y=w.y; r.rotation.y=lerpAng(r.rotation.y,Math.atan2(dx,dz),Math.min(1,dt*8));
+    w.ph+=st*5.6; poseWalk(p,w.ph); if(p.bod) p.bod.position.y=Math.min(p.bod.position.y,.03); showProps(w.props,w.carry); w.clip.visible=false; if(w.carry) holdPose(p,w.carry,w.props); return;}
+  const s=w.steps[w.i]; if(s.face){const a=Math.atan2(s.face[0]-r.position.x,s.face[1]-r.position.z); r.rotation.y=lerpAng(r.rotation.y,a,Math.min(1,dt*5));}
+  (WORK_POSE[s.act]||poseStand)(p,t+w.ph); w.clip.visible=s.act==='write'; showProps(w.props,s.hold||null); if(s.hold) holdPose(p,s.hold,w.props);
+  w.timer-=dt; if(w.timer<=0){w.i=(w.i+1)%w.steps.length; workerGo(w,w.steps[w.i]);}}
+
+const CIVIC=(()=>{
+  const r=rng(2026), steel=0x5f6b68, cream=0xe9dfc4, conc=0xb8b3a6, cap=0xdcd6c6, blue=0x1e6fb8;
+  if(!S.util) S.util={month:monthN(), due:0, hist:[], bags:1, bagAt:Date.now()};
+  const U=S.util; if(!Array.isArray(U.hist)) U.hist=[]; if(!Number.isFinite(U.due)) U.due=0; if(!Number.isFinite(U.bags)) U.bags=0;
+  const parts=[], B=(x,y,z,w,h,d,c,rx=0,ry=0,rz=0)=>parts.push(P('box',c,x,y,z,w,h,d,rx,ry,rz)), C=(x,y,z,rad,h,c,rx=0,ry=0,rz=0)=>parts.push(P('cyl',c,x,y,z,rad*2,h,rad*2,rx,ry,rz));
+  const fence=(a,c,gap)=>{const len=Math.hypot(c[0]-a[0],c[1]-a[1]), n=Math.max(1,Math.ceil(len/2.5)), ry=Math.atan2(c[0]-a[0],c[1]-a[1]);
+    for(let i=0;i<=n;i++){const f=i/n, x=a[0]+(c[0]-a[0])*f, z=a[1]+(c[1]-a[1])*f; if(gap&&gap(x,z)) continue; B(x,1,z,.1,2,.1,steel);}
+    for(const y of [.6,1.3,1.9]) B((a[0]+c[0])/2,y,(a[1]+c[1])/2,.05,.05,len,steel,0,ry);};
+  const lights=[];
+
+  // ===== Sunfield Power: a diesel plant with its fuel tanks and radiators, a solar field, the substation and the office =====
+  {const x0=117,x1=188,z0=102,z1=146;
+    B((x0+x1)/2,.03,(z0+z1)/2,x1-x0,.06,z1-z0,0xb3ad9c);                               // gravel yard
+    fence([x0,z0],[x1,z0]); fence([x1,z0],[x1,z1]); fence([x1,z1],[x0,z1]); fence([x0,z1],[x0,z0],(x,z)=>z>107&&z<133);   // gate on the road side
+    B(119,.07,120,4.2,.08,26,0x8c8f8f);                                                  // the driveway inside the gate
+    // generator hall: cream walls, a blue roof, louvres and big doors; three exhaust stacks
+    B(140,3,119,16,6,11,cream); B(140,6.3,119,16.8,.4,11.8,blue); for(const sd of [-1,1]) B(140,6.75,119+sd*2.9,16.8,.12,5.9,0x2a5e93,sd*.18,0,0);
+    for(let x=133;x<=147;x+=3.5){B(x,4.4,113.45,2.2,1.2,.08,0x6d7a7f); for(let y=3.9;y<=4.9;y+=.25) B(x,y,113.4,2.1,.05,.12,0x8a979b);}
+    B(129.5,2.1,119,.1,3.8,4.2,0x5c6b70); B(150.5,2.1,119,.1,3.8,4.2,0x5c6b70);
+    for(const x of [135,140,145]){C(x,9.2,126.4,.45,8,0x8c8c8c); C(x,13.25,126.4,.5,.3,0x333333); B(x,5.6,125.2,.6,.6,2.2,0x8c8c8c);}
+    // radiators beside the hall
+    for(const z of [110,115]){B(155,1.6,z,3,2.6,4,0x7a8a8e); for(let k=0;k<7;k++) B(155+(k-3)*.42,1.6,z-2.05,.06,2.4,.06,0x4f5b5e); C(155,3.05,z,1.05,.2,0x3d4548);}
+    // two fuel tanks in a bund wall, with ladders and a pipe rack to the hall
+    B(162,.4,131.5,14,.8,10,conc); B(162,.55,131.5,13,.8,9,0x9b968a);
+    for(const x of [158,166]){C(x,3.2,131.5,3,5.6,0xf2f2ee); C(x,6.05,131.5,3.05,.15,0xd8d8d2); for(let y=.9;y<5.8;y+=.45) B(x+3.05,y,131.5,.06,.06,.6,steel); B(x+3.05,3.2,131.2,.06,5.6,.06,steel); B(x+3.05,3.2,131.8,.06,5.6,.06,steel);}
+    B(154,3.2,128.5,8,.12,.4,steel); for(const x of [151,155]) B(x,1.6,128.5,.14,3.2,.14,steel);
+    // solar field: tilted panel rows on frames
+    for(let row=0;row<4;row++){const z=104.5+row*3.6; for(let x=164;x<=184;x+=2.6){B(x,.7,z,.08,1.4,.08,steel); B(x,1.4,z,2.5,.06,2.3,0xd3e1df,-.32,0,0); B(x,1.46,z,2.3,.04,2.1,0x1f4fa8,-.32,0,0);}}
+    // substation: gravel, two transformers with fins and bushings, breakers on frames, the gantry the line leaves from
+    B(176,.08,138,22,.1,13,0xa49d8c); fence([165,131.5],[187,131.5]); fence([165,131.5],[165,145.5],(x,z)=>z>136&&z<140);
+    for(const x of [170,177]){B(x,1.3,141,3,2.4,2.2,0x707b74); for(let k=0;k<6;k++) B(x-1.25+k*.5,1.3,142.2,.06,2.1,.3,0x56605a); for(const dx of [-.8,0,.8]){C(x+dx,2.95,140.6,.14,.9,0x8b5a3c); for(let y=2.6;y<3.4;y+=.18) C(x+dx,y,140.6,.2,.06,0x8b5a3c);}}
+    for(const x of [182,185]){B(x,1.2,136,.9,1.6,.9,0x8a9690); B(x,2.4,136,.12,.9,.12,0x8b5a3c);}
+    for(const x of [168,186]) B(x,4,145,.3,8,.3,steel); B(177,7.9,145,18.6,.3,.3,steel);
+    // office with a porch and its sign; flood lights
+    B(126,1.6,107.5,8,3.2,5,0xf1e8d2); B(126,3.35,107.5,8.8,.3,5.8,0x2a5e93); B(126,.2,110.7,8,.4,1.6,conc); B(124.2,1.15,110.02,1,2.1,.06,0x5c6b70); for(const x of [126.4,128.6]) B(x,1.8,110.02,1.3,1,.06,0x86b6c9);
+    boardSign(['SUNFIELD POWER','planta · substation'],'#2a5e93','#fff',117.3,104.4,-Math.PI/2,4.4,1.1,2.2,0x55606a,false);
+    for(const [x,z] of [[133,112],[150,128],[176,131],[124,124]]){B(x,3,z,.12,6,.12,steel); lights.push([x,5.9,z]);}
+  }
+
+  // ===== Sanitary landfill and materials recovery facility (MRF) =====
+  {const x0=58,x1=106,z0=154,z1=214;
+    B((x0+x1)/2,.025,(z0+z1)/2,x1-x0,.05,z1-z0,0x9b8a6c);
+    fence([x0,z0],[x1,z0],(x,z)=>(x>70&&x<76)||(x>91&&x<97)); fence([x1,z0],[x1,z1]); fence([x1,z1],[x0,z1]); fence([x0,z1],[x0,z0]);
+    B(73,.06,166,4.4,.06,24,0x7d7a72); B(94,.06,166,4.4,.06,24,0x7d7a72); B(83.5,.06,181,21,.06,4.6,0x7d7a72);   // haul roads
+    // weighbridge and the guard hut
+    B(73,.16,163,3.2,.12,6.5,0x6f7774); for(const z of [160,166]) B(73,.24,z,3.2,.05,.2,0xf1c40f);
+    B(79,1.2,161,3,2.4,2.6,0xeee3c6); B(79,2.5,161,3.5,.2,3.1,0x8c3b2e); B(77.48,1.4,161,.06,.9,1.6,0x86b6c9);
+    // the cell: a stepped mound, part capped with soil and grass, an active tipping face of mixed garbage
+    for(let k=0;k<5;k++){const w=40-k*6, d=22-k*3.6; B(84,.5+k*1.0,203-k*.5,w,1.0,d,[0x8a7556,0x7d6a4c,0x8a7556,0x6f8a4a,0x6f8a4a][k]);}
+    for(let i=0;i<70;i++){const x=72+r()*24, z=185+r()*7; parts.push(P('sph',[0xe8e3d8,0x2f4f8f,0xc0392b,0x2b2b2b,0xf1c40f,0x6aa84f,0xd9cbb0][i%7],x,.25+r()*.5,z,.3+r()*.7,.25+r()*.45,.3+r()*.7));}
+    // MRF sorting shed: open sides, a long table, bins for plastic, paper, metal and glass
+    for(const x of [61,71]) for(const z of [163,175]) B(x,2.2,z,.25,4.4,.25,steel); B(66,4.5,169,11.5,.25,13.5,0x6f8f84);
+    B(66,.85,169,2.2,.1,9,0x8d6e4b); for(const z of [165.5,172.5]) B(66,.4,z,2,.8,.12,0x6d4c41);
+    [[0x1e88e5,'PLASTIK'],[0x8d6e4b,'PAPEL'],[0x7f8c8d,'METAL'],[0x2e7d32,'BOTE']].forEach(([c],k)=>{B(62,.7,164+k*3,1.6,1.4,2.2,c);});
+    for(let i=0;i<14;i++) parts.push(P('box',[0xf5f5f5,0x2e7d32,0x1565c0][i%3],69+r()*2,.35+r()*.3,163+r()*12,.5,.5,.5));   // sacks waiting to be sorted
+    // leachate pond and the compost windrows
+    B(100,.05,204,9,.1,8,conc); const lp=mesh(new THREE.PlaneGeometry(8,7),new THREE.MeshStandardMaterial({color:0x4a5a3c,roughness:.3}),100,.12,204); lp.rotation.x=-Math.PI/2; scene.add(lp);
+    for(let k=0;k<3;k++) B(100,.5,160+k*4,8,1,2,0x5a4a32);
+    boardSign(['SANITARY LANDFILL','at MRF · Sunfield'],'#3e5b3a','#fff',83.5,153.2,0,5,1.1,2.2,0x55606a,false);
+  }
+
+  // ===== the farm's garbage point: a concrete pad by the fence with drums and the sacks waiting for the truck =====
+  const bagMeshes=[];
+  {B(46.4,.08,-17,3,.16,7,conc); for(const z of [-19.5,-18.3]) C(46.2,.55,z,.38,.95,0x2e7d32); C(46.2,.55,-14.6,.38,.95,0x1565c0);
+    for(let k=0;k<6;k++){const m=mesh(new THREE.SphereGeometry(.38,8,6),[0x2b2b2b,0x37474f,0xf5f5f5][k%3],46.4+(k%2)*.7-.35,.42,-17.1+Math.floor(k/2)*.75-.6); m.scale.set(1,1.15,1); m.castShadow=true; scene.add(m); bagMeshes.push(m);}
+    boardSign(['BASURA DITO','kolekta: araw-araw'],'#2e7d32','#fff',46.4,-13.2,-Math.PI/2,1.6,.6,1.2,0x55606a,false);}
+
+  // ===== Sunfield Water: the tanker filling gantry at the reservoir's service bay, water mains, meters =====
+  const hose=new THREE.Group(); hose.position.set(154.4,0,81.5); scene.add(hose);
+  {for(const z of [79.2,83.8]) B(154.4,2.4,z,.25,4.8,.25,steel); B(154.4,4.8,81.5,.3,.3,5,steel); B(153.2,4.6,81.5,2.6,.22,.22,blue);
+    hose.add(mesh(new THREE.CylinderGeometry(.08,.08,1.8,8),0x222222,-1.9,3.7,0)); hose.visible=false;
+    boardSign(['SUNFIELD WATER','tanker filling'],'#1e6fb8','#fff',157,85.6,0,3.4,.8,1.8,0x55606a,false);
+    // the main runs buried from the reservoir to the farm; blue marker posts show where
+    const marks=[];for(let x=118;x>=50;x-=10) marks.push([x,85.6]); for(let z=76;z>=24;z-=10) marks.push([50.2,z]);
+    for(const [x,z] of marks){B(x,.45,z,.14,.9,.14,0x1e88e5); B(x,.93,z,.18,.08,.18,0xffffff);}
+    // the farm's water meter and valve at the fence, and the pipe that comes up to the tangke on the water tower
+    B(45.6,.25,21,1.1,.5,.8,0x1e6fb8); B(45.6,.52,21,.9,.05,.6,0x9ec9e8); B(46.6,.12,21,1.2,.06,.3,0x1e88e5);
+    C(-40.7,3.6,-2.3,.11,7.2,0x1e88e5); B(-40.7,.2,-1.6,.6,.4,.5,0x1e6fb8);
+    boardSign(['WATER METER','Sunfield Farm · #0001'],'#1e6fb8','#fff',45.6,23.2,-Math.PI/2,1.7,.5,1,0x55606a,false);
+    // the barangay main along the back road, and a meter box at every house gate
+    for(let x=60;x<=300;x+=12){B(x,.45,STZ+6.3,.14,.9,.14,0x1e88e5); B(x,.93,STZ+6.3,.18,.08,.18,0xffffff);}
+    for(const H of HOUSES){const [gx,gz]=H.gate, sd=H.side; B(gx+1.3,.2,gz-sd*.2,.5,.4,.4,0x1e6fb8); B(gx+1.3,.41,gz-sd*.2,.42,.03,.32,0x9ec9e8);}
+  }
+
+  // ===== power lines: wires along the highway posts, the plant's line down to the highway past the farm, the farm's service drop,
+  //       the barangay's poles along the back road with a drop and a kWh meter for every house =====
+  const wires=[];
+  const span=(a,b,sag=.45)=>{for(let i=0;i<8;i++){const f0=i/8,f1=(i+1)/8, y=f=>a[1]+(b[1]-a[1])*f-sag*4*f*(1-f);
+      wires.push(a[0]+(b[0]-a[0])*f0,y(f0),a[2]+(b[2]-a[2])*f0, a[0]+(b[0]-a[0])*f1,y(f1),a[2]+(b[2]-a[2])*f1);}};
+  const pole=(x,z,h=7.6,arm=1.8,ry=0)=>{C(x,h/2,z,.13,h,0x9a9a9a); B(x,h-.4,z,arm,.12,.14,0x6b6b6b,0,ry,0); for(const o of [-arm*.42,0,arm*.42]) C(x+Math.cos(ry)*o,h-.25,z-Math.sin(ry)*o,.06,.22,0x8b5a3c);};
+  const tops=(x,z,h=7.6,arm=1.8,ry=0)=>[-arm*.42,0,arm*.42].map(o=>[x+Math.cos(ry)*o,h-.15,z-Math.sin(ry)*o]);
+  const run=(pts,h=7.6,arm=1.8)=>{let prev=null; for(const [x,z] of pts){const n=prev?Math.atan2(x-prev[0],z-prev[1]):0; pole(x,z,h,arm,n+Math.PI/2); const t=tops(x,z,h,arm,n+Math.PI/2); if(prev) for(let k=0;k<3;k++) span(prev.t[k],t[k]); prev=[x,z]; prev.t=t;} return prev;};
+  {// highway: the existing posts every 30 m get their three wires
+    for(let x=-420;x<560;x+=30){const a=[x,6.75,HZ+6.2], b=[x+30,6.75,HZ+6.2]; for(const dz of [-.8,0,.8]) span([a[0],a[1],a[2]+dz],[b[0],b[1],b[2]+dz],.55);}
+    // from the substation gantry west along the plant road, then down the farm side of the district road to the highway
+    const L=[[168,147.6],[150,147.6],[132,147.6],[116,147.6],[106,141],[106,121],[106,101],[96,85],[78,85],[60,85],[46.3,76],[46.3,54],[46.3,32],[46.3,10],[46.3,-8],[46.3,-28],[46.3,-48],[46.3,-68],[46.3,-88],[46.3,-102]];
+    run(L,9,2.2);
+    // the farm's drop: a pole at the farm gate, one by the garage, a kWh meter on it and a wire to the roof
+    const fp=[[39.6,-24],[GX+8,G0-4.5]]; let prev=[46.3,-28]; const pt=tops(46.3,-28,9,2.2,Math.PI/2)[1];
+    pole(fp[0][0],fp[0][1],6.4,.9); pole(fp[1][0],fp[1][1],6.4,.9); span(pt,[fp[0][0],6.25,fp[0][1]]); span([fp[0][0],6.25,fp[0][1]],[fp[1][0],6.25,fp[1][1]]); span([fp[1][0],6.25,fp[1][1]],[GX+3,3.6,G0-1.5],.25);
+    B(fp[1][0],1.6,fp[1][1]+.18,.42,.55,.22,0xeceff1); B(fp[1][0],1.6,fp[1][1]+.3,.26,.26,.04,0x37474f);
+    boardSign(['kWh METER','Sunfield Farm'],'#2a5e93','#fff',fp[1][0]+1.1,fp[1][1]+.6,0,1.3,.4,1.3,0x55606a,false);
+    // the barangay: a line from the highway down the side street and along the back road, a drop to each house
+    run([[SRX+4,HZ-6.6],[SRX+4,HZ-30],[SRX+4,HZ-55],[SRX+4,STZ+6.6]]);
+    const bk=[]; for(let x=SRX+4;x>=110;x-=26) bk.unshift([x,STZ+6.6]); run(bk.concat([[SRX+30,STZ+6.6],[SRX+56,STZ+6.6],[SRX+82,STZ+6.6]].filter(p=>p[0]<300)));
+    for(const H of HOUSES){const [dx,dz]=H.door, sd=H.side, px=Math.round((dx-110)/26)*26+110, pz=STZ+6.6; if(px>SRX+82||px<110) continue;
+      span([px,7.45,pz],[dx,3.3,dz+sd*.6],.3); B(H.gate[0]-1.2,1.2,H.gate[1],.12,2.4,.12,0x6d4c41); B(H.gate[0]-1.2,1.9,H.gate[1]-sd*.1,.36,.48,.2,0xeceff1);}
+  }
+  const wg=new THREE.BufferGeometry(); wg.setAttribute('position',new THREE.Float32BufferAttribute(wires,3));
+  const wl=new THREE.LineSegments(wg,new THREE.LineBasicMaterial({color:0x2b2b2b})); wl.name='power lines'; scene.add(wl);
+  const bm=new THREE.Mesh(mergeGeo(parts),VCMAT); bm.castShadow=bm.receiveShadow=true; bm.name='Civic utilities'; scene.add(bm);
+  for(const [x,y,z] of lights) glow(scene,x,y,z,4.5,GM.white);
+
+  // ===== service trucks: a compactor garbage truck and a water tanker =====
+  function serviceTruck(kind){const b=[], body=kind==='garbage'?0x2e7d32:0xf5f5f5, cab=kind==='garbage'?0xf5f5f5:0x1e6fb8;
+    b.push(RB(0x2a2a2a,0,.62,-.4,1.8,.24,7.6,.05)); vkCab(b,{zf:3.4,zr:1.85,w:2.15,h:2.35,yb:.55,col:cab,wz:2.55,ra:.52,lampY:1.0});
+    if(kind==='garbage'){b.push(RB(body,0,1.95,-1.3,2.3,2.45,5.0,.1)); b.push(RB(0x1b5e20,0,1.7,-4.1,2.25,2.1,1.1,.08,-.35,0,0)); b.push(P('box',0xf1c40f,0,1.25,-1.3,2.32,.18,5.02)); b.push(P('box',0x263238,0,1.25,-4.65,2.0,.6,.08));
+      b.push(P('box',0x9e9e9e,0,.72,-4.7,2.2,.08,.5));}   // the step the collectors ride on
+    else {b.push(P('cyl',body,0,2.0,-1.35,2.15,5.2,2.15,Math.PI/2,0,0)); for(const z of [-3.95,1.25]) b.push(P('cyl',0xd8dde0,0,2.0,z,2.2,.14,2.2,Math.PI/2,0,0)); b.push(P('box',0x1e6fb8,0,2.0,-1.35,2.18,.32,5.0)); b.push(P('box',0x9e9e9e,0,3.12,-1.35,.6,.06,4.6));
+      b.push(P('cyl',0x455a64,.55,1.05,-4.15,.2,.5,.2,Math.PI/2,0,0)); b.push(P('cyl',0x455a64,-.55,1.05,-4.15,.2,.5,.2,Math.PI/2,0,0));}
+    [2.55,-2.4,-3.6].forEach(z=>[-1,1].forEach(sd=>vkWheel(b,sd*.92,.45,z,.45,.3,sd,{spokes:6})));
+    const g=new THREE.Group(), m=new THREE.Mesh(mergeGeo(b),PAINT); m.castShadow=true; g.add(m);
+    [-.72,.72].forEach(x=>{glow(g,x,1.0,3.45,1.3,GM.head); glow(g,x,.9,-4.75,.7,GM.tail);});
+    const d=bakePerson(randLook(Math.random),poseSit,true); d.position.set(.45,.95,2.55); g.add(d);
+    const lab=signPlane([kind==='garbage'?'BASURA · SUNFIELD':'TUBIG · SUNFIELD WATER'],kind==='garbage'?'#1b5e20':'#1e6fb8','#fff',3.8,.5,512,64);
+    for(const sd of [-1,1]){const q=lab.clone(); q.position.set(sd*(kind==='garbage'?1.17:1.1),kind==='garbage'?2.4:2.0,-1.3); q.rotation.y=sd*Math.PI/2; g.add(q);}
+    scene.add(g); return g;}
+
+  const trucks=[];
+  // garbage truck: parked at the tipping face; goes out when the farm has bags, two collectors ride the step and load them
+  const gt={g:serviceTruck('garbage'),state:'init',timer:8,crew:[]};
+  for(let k=0;k<2;k++){const L=randLook(r); L.style='cap'; L.capC=0xf1c40f; L.top=0x2e7d32; L.bag=null; const p=makePerson(L); const props=makeCarry(p,['sack']); scene.add(p.root); gt.crew.push({p,props,mode:'ride',k,ph:r()*6,at:null});}
+  trucks.push(gt);
+  // water tanker: fills at the reservoir bay, drives up to the mountain barangay, people come with pails, and back again
+  const wt={g:(()=>{const g=serviceTruck('tanker'); g.scale.setScalar(.82); return g;})(),state:'init',timer:3,folk:[]};
+  for(let k=0;k<3;k++){const L=randLook(r); L.bag=null; const p=makePerson(L); const props=makeCarry(p,['pail']); p.root.visible=false; scene.add(p.root); wt.folk.push({p,props,ph:r()*6,mode:'home',t:0});}
+  trucks.push(wt);
+  const rear=(v,back=.6)=>{const g=v.g, a=g.rotation.y; return [g.position.x-Math.sin(a)*(v.len/2+back),g.position.z-Math.cos(a)*(v.len/2+back),a];};
+  const walkTo=(p,x,z,dt,sp,ph)=>{const R=p.root, dx=x-R.position.x, dz=z-R.position.z, d=Math.hypot(dx,dz); if(d<.06) return true; const st=Math.min(d,dt*sp); R.position.x+=dx/d*st; R.position.z+=dz/d*st; R.rotation.y=lerpAng(R.rotation.y,Math.atan2(dx,dz),Math.min(1,dt*8)); poseWalk(p,ph); return false;};
+
+  function garbageTick(dt,t){const T=gt; if(!T.v) T.v=lnVeh(T.g,{len:7.6,width:2.4,vmax:7,acc:1.2}); const v=T.v, h=gameHour();
+    if(T.state==='init'){const L=LN.by['util:landfill:tip']; if(L){lnGo(v,[L],L.L-v.len/2-.5); v.v=0; T.state='depot'; T.timer=20;}}
+    else if(T.state==='depot'){T.timer-=dt; if(T.timer<=0){T.timer=6; if(h>=6&&h<17&&U.bags>=2){const P=lnPath('util:landfill:tip','util:garbage:bay'); if(P&&lnNext(v,P)){lnStopAt(v,48.9,-15); T.state='out';}}}}
+    else if(T.state==='out'&&(v.atStop||v.done)){T.state='load'; T.timer=0;}
+    else if(T.state==='load'){// the crew carries the sacks from the pad to the back of the truck, one each trip
+      const going=T.crew.filter(c=>c.mode==='fetch'||c.mode==='pick').length; T.load=U.bags-going;
+      if(U.bags<=0&&!going&&T.crew.every(c=>c.mode==='ride'||c.mode==='back')){if(T.crew.every(c=>c.mode==='ride')){const P=lnPath('util:garbage:bay','util:landfill:tip'); if(P&&lnNext(v,P)){T.state='home'; toast('🗑️ The garbage truck collected the farm\'s sacks.',2400);}}}}
+    else if(T.state==='home'&&(v.done||v.atStop)){T.state='tip'; T.timer=9;}
+    else if(T.state==='tip'){T.timer-=dt; if(T.timer<=0){T.state='depot'; T.timer=30;}}
+    // collectors: ride the rear step while driving, hop off to load
+    const [rx,rz,ra]=rear(v,.35), side=[Math.cos(ra),-Math.sin(ra)];
+    for(const c of T.crew){const p=c.p, R=p.root; c.ph+=dt*6;
+      const spot=[rx+side[0]*(c.k?.55:-.55),rz+side[1]*(c.k?.55:-.55)];
+      if(T.state==='load'&&c.mode==='ride'&&T.load>0){c.mode='fetch'; T.load--; c.bag=[46.4+(r()-.5)*.6,-17+(r()-.5)*2];}
+      if(c.mode==='fetch'&&U.bags<=0) c.mode='back';
+      if(c.mode==='ride'){R.position.set(spot[0],.78,spot[1]); R.rotation.y=ra+Math.PI; poseStand(p,t+c.ph); p.aR.rotation.x=-2.2; showProps(c.props,null);}   // holding the grab bar
+      else if(c.mode==='fetch'){R.position.y=.1; showProps(c.props,null); if(walkTo(p,c.bag[0]+.9,c.bag[1],dt,1.4,c.ph)){c.mode='pick'; c.timer=1.1;}}
+      else if(c.mode==='pick'){poseCrouch(p,t); c.timer-=dt; if(c.timer<=0){if(U.bags>0){U.bags--; c.mode='carry';} else c.mode='back';}}
+      else if(c.mode==='carry'){showProps(c.props,'sack'); holdPose(p,'sack'); if(walkTo(p,spot[0],spot[1],dt,1.2,c.ph)){c.mode='throw'; c.timer=.8;}}
+      else if(c.mode==='throw'){showProps(c.props,null); WORK_POSE.inspect(p,t); c.timer-=dt; if(c.timer<=0){const left=U.bags-T.crew.filter(o=>o.mode==='fetch'||o.mode==='pick').length; c.mode=left>0?'fetch':'back'; c.bag=[46.4+(r()-.5)*.6,-17+(r()-.5)*2];}}
+      else if(c.mode==='back'){if(walkTo(p,spot[0],spot[1],dt,1.4,c.ph)) c.mode='ride';}
+      if(c.mode!=='ride'&&c.mode!=='fetch'&&c.mode!=='carry'&&c.mode!=='back') R.position.y=.1;}
+    // the tipping: the body tilts while the spotter waves it in
+    T.g.children[0].rotation.x=T.state==='tip'?-Math.min(.32,(9-T.timer)*.12)*(T.timer>2?1:T.timer/2):0;}
+
+  function tankerTick(dt,t){const T=wt; if(!T.v) T.v=lnVeh(T.g,{len:6.2,width:2.1,vmax:8,acc:1.2}); const v=T.v;
+    if(T.state==='init'){const L=LN.by['south:utilities:bay']; if(L){lnGo(v,[L],L.L-v.len/2); v.v=0; T.state='fill'; T.timer=14;}}
+    else if(T.state==='fill'){hose.visible=true; T.timer-=dt; if(T.timer<=0){hose.visible=false; const P=lnPath('south:utilities:bay','mtn:up'); if(P&&lnNext(v,P)){T.state='up';} else T.timer=3;}}
+    else if(T.state==='up'&&v.done){T.state='serve'; T.timer=26; T.folk.forEach((f,i)=>{f.mode='come'; f.t=i*2.5; const [x,z]=[MTN_STOP.ox+(i-1)*2.4,MTN_STOP.oz+3]; f.p.root.position.set(x,hy(x,z)+.08,z); f.p.root.visible=true;});}
+    else if(T.state==='serve'){T.timer-=dt; if(T.timer<=0&&T.folk.every(f=>f.mode==='home')){const P=lnPath('mtn:dn','south:utilities:bay'); if(P){lnGo(v,P,v.len/2); T.state='down';} else T.timer=2;}}
+    else if(T.state==='down'&&v.done){T.state='fill'; T.timer=16;}
+    if(T.state==='serve'){const [rx,rz]=rear(v,.9);
+      T.folk.forEach((f,i)=>{const p=f.p, R=p.root; f.ph+=dt*5.5; f.t-=dt;
+        const home=[MTN_STOP.ox+(i-1)*2.4,MTN_STOP.oz+3], tap=[rx+(i-1)*.8,rz];
+        if(f.mode==='come'){if(f.t>0){poseStand(p,t); return;} showProps(f.props,'pail'); holdPose(p,'pail',f.props); if(walkTo(p,tap[0],tap[1],dt,1.1,f.ph)){f.mode='fill'; f.t=4+i;}}
+        else if(f.mode==='fill'){poseCrouch(p,t); showProps(f.props,'pail'); f.t-=0; if(f.t<=0||T.timer<4){f.mode='go';}}
+        else if(f.mode==='go'){showProps(f.props,'pail'); holdPose(p,'pail',f.props); if(walkTo(p,home[0],home[1],dt,.9,f.ph)){f.mode='home'; R.visible=false;}}
+        R.position.y=hy(R.position.x,R.position.z)+.08;});}}
+
+  // ===== people at work =====
+  const look=(top,hat)=>{const L=randLook(r); L.bag=null; if(top!=null) L.top=top; if(hat!=null){L.style='cap'; L.capC=hat;} return L;};
+  const workers=[
+    // power plant: the operator's round of the hall, radiators and tanks; a lineman checking the substation
+    makeWorker(look(0x2a5e93,0xf1c40f),[{to:[126,111.5],act:'write',dur:6,face:[126,108]},{path:[[132,112],[140,112.6]],act:'inspect',dur:7,face:[140,114]},{path:[[150,112.6],[152.6,110]],act:'inspect',dur:6,face:[155,110]},
+      {path:[[152.6,116],[156,124],[156,128]],act:'write',dur:7,face:[158,131.5]},{path:[[156,124],[150,113],[132,112]],act:'stand',dur:4,face:[140,119]}],{y:.1}),
+    makeWorker(look(0xff7043,0xffffff),[{path:[[166,138],[170,138.6]],act:'crouch',dur:8,face:[170,141]},{path:[[176.5,138.6]],act:'inspect',dur:7,face:[177,141]},{path:[[182,134.5]],act:'write',dur:6,face:[182,136]},
+      {path:[[176,134],[168,134]],act:'stand',dur:5,face:[176,140]}],{y:.12}),
+    // landfill: two sorters at the MRF table carrying sorted sacks to the bins; a spotter at the tipping face; the guard at the weighbridge
+    makeWorker(look(0x6d4c41,0x8bc34a),[{to:[67.3,166],act:'crouch',dur:6,face:[66,166]},{path:[[67.3,168]],act:'crouch',dur:5,face:[66,168]},{path:[[64,168],[63.4,167]],act:'stand',dur:2,face:[62,167],carry:'sack'},
+      {path:[[67.3,170]],act:'crouch',dur:6,face:[66,170]}],{y:.06}),
+    makeWorker(look(0xef6c00,0x8bc34a),[{to:[64.7,172],act:'crouch',dur:7,face:[66,172]},{path:[[64.7,174]],act:'crouch',dur:5,face:[66,174]},{path:[[63.5,173]],act:'stand',dur:2,face:[62,173],carry:'sack'},
+      {path:[[64.7,170]],act:'crouch',dur:6,face:[66,170]}],{y:.06}),
+    makeWorker(look(0xf1c40f,0xff7043),[{to:[84,186.5],act:'wave',dur:7,face:[83,181]},{path:[[90,187]],act:'inspect',dur:6,face:[86,183]},{path:[[78,187.5]],act:'sweep',dur:7,face:[80,184]},{path:[[84,186.5]],act:'stand',dur:4,face:[83,181]}],{y:.06}),
+    makeWorker(look(0x37474f,0x263238),[{to:[76.6,161],act:'write',dur:8,face:[73,161]},{path:[[75.6,164.5]],act:'inspect',dur:5,face:[73,163]},{path:[[76.6,161]],act:'stand',dur:6,face:[73,161]}],{y:.06}),
+    // water works: the operator samples the ponds, checks the pump house and the inlet
+    makeWorker(look(0x1e6fb8,0xffffff),[{to:[173,70.5],act:'write',dur:6,face:[174,70]},{path:[[166,70.5],[158,64.8]],act:'crouch',dur:7,face:[157.8,61.6]},{path:[[165.3,64.8]],act:'crouch',dur:6,face:[165.3,61.6]},
+      {path:[[156,60.5],[149.4,60.5]],act:'inspect',dur:6,face:[149.4,62.2]},{path:[[134,56.2],[128,57]],act:'inspect',dur:6,face:[127,58]},{path:[[149,70],[166,70.5]],act:'stand',dur:4}],{y:.18}),
+    // the barangay meter reader: gate to gate along the back road, writing down each meter (daytime only)
+    makeWorker(look(0x2a5e93,0x2a5e93),HOUSES.filter(H=>H.side>0).sort((a,b)=>a.gate[0]-b.gate[0]).map(H=>({path:[[H.walk[0],H.walk[1]],[H.gate[0]+1.3,H.gate[1]-.9]],act:'write',dur:4,face:[H.gate[0]+1.3,H.gate[1]]})),{y:.1,day:true,sp:1.05}),
+    // a street sweeper on the district's main road
+    makeWorker(look(0xff7043,0xf1c40f),[{to:[60,-60],act:'sweep',dur:8},{path:[[60,-40]],act:'sweep',dur:8},{path:[[60,-20]],act:'sweep',dur:8},{path:[[60,-40],[60,-60]],act:'stand',dur:3}],{y:.15,day:true,sp:.6}),
+  ];
+  for(const w of workers) workerGo(w,w.steps[0]);
+
+  // ===== bills =====
+  function counts(){let bld=0,animals=0,crops=0; for(const t of S.tiles){if(t.s==='bld'){bld++; if(LIFE[t.b]) animals++;} else if(t.s==='crop') crops++;} return {bld,animals,crops};}
+  function estimate(){const c=counts(), water=Math.round(30+6*c.animals+1.5*c.crops), power=Math.round(40+5*c.bld+(S.shop&&S.shop.owned?25:0)), garbage=Math.round(25+2*c.animals);
+    return {water,power,garbage,total:water+power+garbage,c};}
+  const peso=n=>'₱'+Math.round(n).toLocaleString();
+  function billMonth(now){const m=monthN(now); if(m<=U.month) return; U.month=m;   // one bill per month, also after a long time away
+    const b=estimate(), late=Math.round(U.due*.1), owe=U.due+late+b.total, pay=Math.min(Math.max(0,S.coins),owe);
+    S.coins-=pay; U.due=owe-pay; U.hist.unshift({m:m-1,water:b.water,power:b.power,garbage:b.garbage,late,paid:pay}); U.hist.length=Math.min(U.hist.length,6);
+    toast(U.due>0?`🧾 Bills for ${MONTHS[(m-1)%12]}: ${peso(owe)}. You paid ${peso(pay)}; ${peso(U.due)} is still unpaid (10% late fee next month).`:`🧾 Bills for ${MONTHS[(m-1)%12]} paid: 💧 ${peso(b.water)} · ⚡ ${peso(b.power)} · 🗑️ ${peso(b.garbage)}${late?' + late fee '+peso(late):''}.`,5200);
+    changed(); if($('billSheet').classList.contains('open')) renderBills();}
+  function renderBills(){const e=estimate(), row=(i,l,v)=>`<div class="billrow"><span>${i} ${l}</span><b>${peso(v)}</b></div>`;
+    $('billBody').innerHTML=`<p class="jstat">Your farm is on the Sunfield Water main and the Sunfield Power line, and the garbage truck collects your sacks by the farm fence. Bills come every month and are paid from your coins. What you can't cover stays unpaid and gets a 10% late fee the next month.</p>
+      <h3>This month so far (${MONTHS[monthN()%12]})</h3>${row('💧','Water · base ₱30, +₱6 per animal house, +₱1.50 per planted plot',e.water)}${row('⚡','Power · base ₱40, +₱5 per building'+(S.shop&&S.shop.owned?', +₱25 the mini-mart':''),e.power)}${row('🗑️','Garbage · base ₱25, +₱2 per animal house',e.garbage)}${row('🧾','<b>Estimated total</b>',e.total)}
+      ${U.due>0?`<div class="billdue">Unpaid: <b>${peso(U.due)}</b> <button id="billPay" ${S.coins<1?'disabled':''}>Pay ${peso(Math.min(U.due,Math.max(0,S.coins)))}</button></div>`:'<p class="jstat">✅ Nothing unpaid.</p>'}
+      <h3>Past bills</h3>${U.hist.length?U.hist.map(h=>`<div class="billrow"><span>${MONTHS[h.m%12]} · 💧${peso(h.water)} ⚡${peso(h.power)} 🗑️${peso(h.garbage)}${h.late?' · late '+peso(h.late):''}</span><b>${peso(h.paid)} paid</b></div>`).join(''):'<p class="jstat">Your first bill comes at the start of next month.</p>'}`;}
+  function openBills(){renderBills(); $('billSheet').classList.add('open');}
+  $('billBtn').addEventListener('click',()=>{$('menu').classList.remove('open'); openBills();});
+  $('billSheet').addEventListener('click',e=>{if(e.target.id==='billSheet'||e.target.closest('#closeBill')) return $('billSheet').classList.remove('open');
+    if(e.target.closest('#billPay')){const pay=Math.min(U.due,Math.max(0,S.coins)); if(pay>0){S.coins-=pay; U.due-=pay; changed(); toast(`🧾 Paid ${peso(pay)} of your bills.`,2200); renderBills();}}});
+
+  let lastTick=0;
+  return {update(dt,t){if(document.hidden||!lnNet()) return; const now=Date.now();
+      if(t-lastTick>1){lastTick=t; billMonth(now);
+        // the farm makes a sack of garbage now and then (more with more animals), up to six by the fence
+        const c=counts(), every=DAY_MS/(3+c.animals); if(now-(U.bagAt||0)>every){U.bagAt=now; if((c.animals+c.crops)>0&&U.bags<6){U.bags++;}}}
+      bagMeshes.forEach((m,k)=>m.visible=k<U.bags);
+      garbageTick(dt,t); tankerTick(dt,t);
+      for(const w of workers) workerTick(w,dt,t);},
+    estimate,openBills,state:()=>({garbage:gt.state,tanker:wt.state,bags:U.bags,load:gt.load,crew:gt.crew.map(c=>c.mode)})};
+})();
 /* ---------- Stage H: the sea, the port (pantalan) and the bay trading business ---------- */
 if(!S.bay) S.bay={owned:false,stock:{},ship:null};
 const BAY_LV=12, BAY_PRICE=50000, BAY_RATE=1.6, SHIP_T={out:30,away:45,back:30};
@@ -7945,6 +8272,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:27,date:'Nov 11, 2026',title:'Water, power, garbage and monthly bills',items:['💧 Your farm is on the Sunfield Water main from the irrigation reservoir: blue markers show the buried pipe, there is a water meter at your fence and the pipe comes up to your tangke. Every barangay house has its own meter too.','⚡ Sunfield Power is open south of the district: a diesel plant with fuel tanks, a solar field and a substation. Its line runs past your farm to the highway, with a kWh meter by your garage and a drop to every house in the barangay.','🧾 Bills come every month: water, power and garbage, worked out from your animal houses, planted plots and buildings. They are paid from your coins; anything unpaid gets a 10% late fee. See ⋯ → Bills.','🗑️ The sanitary landfill and MRF: the garbage truck collects your sacks by the farm fence, two collectors ride the back and load them, then it tips them at the landfill.','🚰 A water tanker fills up at the reservoir and drives up to the mountain barangay, where people come out with their pails.','⛽ More cars fill up at the farm fuel station, and the attendant walks out to pump; the co-op gets an extra van. Workers everywhere now go round real jobs: sorting, checking gauges, writing readings, sweeping, sampling the ponds. A meter reader walks the barangay.','🌳 Big acacia, mango, balete and niyog trees along the district roads and round the new buildings, and the district roads now have dirt shoulders instead of city sidewalks.','🚚 Fixed: your chicken truck, jeep and Elf could lock each other up on the highway near the farm for minutes, with traffic piling up behind them. They now ease through after waiting 12 seconds.']},
   {v:26,date:'Nov 10, 2026',title:'Real loads on your Elf and jeep',items:['🚚 The Elf now looks like the blue Isuzu Elf dropside you see on Philippine roads: flat cab with a black face panel, big mirrors on arms, a low blue dropside bed with ribs and hinges, mud flaps and a spare tyre.','🐖 What you load is what you see. Hauling 4 pigs puts exactly 4 pigs in the bed, the same pigs from your pen. Goats, cows, piglets and kids work the same way.','📦 Deliveries and purchases show their real cargo: vegetable crates, rice sacks, egg trays, milk cans, feed sacks, chick boxes, lumber, hollow blocks, cement and more, in the amounts you bought or are selling.','🛒 Your farmer fetches each pig with a wheeled cage cart, one at a time from the pen to the truck, and the bed fills up as they load.']},
   {v:25,date:'Nov 10, 2026',title:'A new look for people and vehicles',items:['🧍 People are properly shaped now: faces with eyes, brows and a mouth, hairstyles, hands and shoes, and arms and legs that bend at the elbow and knee.','🚶 Walking looks natural: the knees fold as each leg swings through, the arms swing with a bend at the elbow, and the feet no longer slide.','🚗 Cars, jeepneys, tricycles, buses, vans and trucks have real body shapes: wheel arches, tyres with rims, glass, door lines, mirrors, lamps and bumpers.','🚙 Jeepneys keep their chrome bonnet, horses and side stripes, now with curved fenders; your own jeepney and Elf truck got the new look too.','🛣️ Town and highway traffic now keeps to lanes and takes turns at junctions, so vehicles no longer drive through each other.']},
   {v:24,date:'Nov 9, 2026',title:'Your own Sunfield Mini-Mart',items:['Unlock your own shop at level 4 for 6,000 pesos, with Ate Lorna as shopkeeper and three prepaid salary days.','Choose rice, eggs, meat, milk, fruit and vegetables to deliver from your farm. Your farmer or hired driver brings them to the shop.','Walk-in customers and people arriving by car buy real shelf stock. Their payments go straight to your money balance.','Tap the shop or My shop in the palengke to see stock, incoming deliveries, sales, low-stock warnings and staff salary. Empty or unpaid shops pause; there is no wage debt or offline stock loss.']},
@@ -8094,6 +8422,7 @@ function frame(now){
   try{
   IRRIGATION_VISUAL.update(t);
   DISTRICT_LIFE.update(dt,t);
+  CIVIC.update(dt,t);
   updateFarmDispatch(Date.now(),dt);
   if(now-lastTick>300){lastTick=now; const d=Date.now(); updateVehicles(d); updateTravelHUD(d); for(let i=0;i<NT;i++){const s=S.tiles[i].s; if(s==='crop'||s==='bld') updateTile(i,d);}}
   popping.forEach(g=>{const k=Math.min(1,(now-g.userData.born)/380), e=easeBack(k);

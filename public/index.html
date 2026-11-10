@@ -3522,7 +3522,8 @@ function irrigationSite(x,z,m=0){m=Math.max(0,m);return (x>118-m&&x<190+m&&z>100
     ||(x>226-m&&x<361+m&&z>-162-m&&z<-113+m)   // the bus terminal, the jeepney terminal and the police station
     ||nearSea(x,z,m+2)||(x>366-m&&x<444+m&&z>-102-m&&z<-76+m)   // the beach, the sea and the port yard
     ||(x>PX-25-m&&x<PX+25+m&&z>PZ-19-m&&z<HZ-4)||(x>HWX-14-m&&x<HWX+14+m&&z>HZ-25-m&&z<HZ-4)||(x>PSX-14-m&&x<PSX+14+m&&z>HZ-25-m&&z<HZ-4)||(x>SSX-12-m&&x<SSX+12+m&&z>HZ-25-m&&z<HZ-4)||(x>DX+1-m&&x<DX+32+m&&z>HZ+3-m&&z<HZ+12+m)||(x>34-m&&x<336+m&&z>-218-m&&z<-164+m)||(x>34-m&&x<46+m&&z>-190&&z<HZ-4)||(x>324-m&&x<336+m&&z>-190&&z<HZ-4)||(x>PX+38-m&&x<PX+46+m&&z>-190-m&&z<HZ-4)||(x>WHX-14-m&&x<WHX+30+m&&z>HZ-32-m&&z<HZ-4)||(x>FX-30-m&&x<FX+30+m&&z>HZ-64-m&&z<HZ-4)   // sakayan, warehouse, factory
-    ||inRect(ORCH,x,z,m)||inRect(UTIL,x,z,m)||inRect(SARI,x,z,m)||wwNear(x,z,Math.max(.6,m));
+    ||inRect(ORCH,x,z,m)||inRect(UTIL,x,z,m)||inRect(SARI,x,z,m)||wwNear(x,z,Math.max(.6,m))
+    ||(x>42-m&&x<122+m&&z>-185-m&&z<-143+m);   // the civic center: munisipyo, plaza and church
   const trunks=[],blobs=[],segs=[],fronds=[],nuts=[],bleaves=[],culms=[],bananaL=[];
   const GREENS=[0x4a7f3c,0x568a42,0x62944a,0x3a6630,0x46733a,0x6c9a4e];
   const acacia=(x,z,s)=>{ // wide umbrella canopy (rain tree), common along Philippine roads
@@ -8208,6 +8209,102 @@ const CIVIC=(()=>{
       for(const w of workers) workerTick(w,dt,t);},
     estimate,openBills,state:()=>({garbage:gt.state,tanker:wt.state,bags:U.bags,load:gt.load,crew:gt.crew.map(c=>c.mode)})};
 })();
+/* ---------- Civic center (masterplan phase 1): the munisipyo, the plaza with the flag, and the parish church ----------
+   Between the market and the barangay, the way a Philippine poblacion is laid out: the town hall faces the plaza, the church sits on
+   its west side, and people sit, stroll, buy taho and go in and out of both. Town-style paving, lamps, benches and café tables here;
+   the countryside keeps its dirt shoulders. */
+const PLAZA_RECT=[44,120,-183,-145];   // x0,x1,z0,z1 (kept clear of trees and grass)
+const CIVIC_CENTER=(()=>{
+  const r=rng(1898), b=[], B=(x,y,z,w,h,d,c,rx=0,ry=0,rz=0)=>b.push(P('box',c,x,y,z,w,h,d,rx,ry,rz)), C=(x,y,z,rad,h,c)=>b.push(P('cyl',c,x,y,z,rad*2,h,rad*2));
+  const pave=0xd8cfbd, paveD=0xc4b9a3, white=0xf4efe4, cream=0xefe2c4, tile=0xb5512f, steel=0x3b4a3f, green=0x3f6b45;
+  const [x0,x1,z0,z1]=PLAZA_RECT;
+  // ground: paved plaza with a darker border and grass plots under the trees
+  B((x0+x1)/2,.06,(z0+z1)/2,x1-x0,.1,z1-z0,pave);
+  for(let x=x0+3;x<x1;x+=6) B(x,.115,(z0+z1)/2,.08,.01,z1-z0-2,paveD); for(let z=z0+3;z<z1;z+=6) B((x0+x1)/2,.115,z,x1-x0-2,.01,.08,paveD);
+  for(const [x,z] of [[70,-152],[94,-152],[70,-166],[94,-166],[104,-152],[104,-166]]){B(x,.14,z,4.2,.08,4.2,0x7cae54); B(x,.16,z,4.5,.12,.25,white); B(x,.16,z+2.1,4.5,.12,.25,white); B(x-2.1,.16,z+1,.25,.12,2.3,white); B(x+2.1,.16,z+1,.25,.12,2.3,white);}
+
+  // ===== the munisipyo: two storeys, arcade of columns, a balcony over the door, red tile roof, the seal, a flag on the roof =====
+  const hx=86, hz=-176;
+  B(hx,.35,hz,26,.7,10,0xcfc6b2); for(let k=0;k<4;k++) B(hx,.12+k*.17,hz+5.6+k*.45,10,.17,.9,0xcfc6b2);   // podium and steps
+  B(hx,2.9,hz-.6,24,4.4,8,cream); B(hx,6.9,hz-.6,24,3.6,8,cream); B(hx,5.15,hz-.6,24.4,.3,8.4,white);
+  for(let x=-10.5;x<=10.5;x+=3){B(hx+x,2.7,hz+3.7,.7,4,.7,white); B(hx+x,4.8,hz+3.7,.9,.3,.9,white);}   // the ground-floor arcade
+  B(hx,4.95,hz+3.7,23.4,.3,1.1,white);
+  for(let x=-9;x<=9;x+=3){if(Math.abs(x)<2) continue; B(hx+x,7,hz+3.42,1.4,2,.08,0x6f9fb6); B(hx+x,8.05,hz+3.42,1.7,.15,.15,white); B(hx+x,5.95,hz+3.44,1.7,.1,.2,white);}   // upper windows
+  B(hx,5.35,hz+4.9,7,.2,2.4,white); for(let x=-3.3;x<=3.3;x+=.55) B(hx+x,5.85,hz+6,.08,.8,.08,white); B(hx,6.25,hz+6,7,.1,.12,white);   // balcony
+  B(hx,7.2,hz+3.43,2,2.6,.1,0x5a3b25);   // the balcony doors
+  B(hx,9.3,hz-.6,25,.3,8.8,white); for(const sd of [-1,1]) B(hx,10.35,hz-.6+sd*2.3,25.4,.14,4.8,tile,sd*.42,0,0);
+  B(hx,10.6,hz+3.5,7,2.6,.4,cream); B(hx,11.95,hz+3.5,7.4,.2,.6,white);   // pediment with the seal
+  C(hx,10.6,hz+3.75,.75,.1,0xd4a017); C(hx,10.6,hz+3.8,.55,.06,0x1f4e9a);
+  for(const sd of [-1,1]) for(let x=3;x<=9;x+=3) B(hx+sd*x,2.6,hz+3.25,1.4,2.6,.08,0x6f9fb6);   // ground windows behind the arcade
+  B(hx,1.55,hz+3.25,2.4,2.8,.1,0x5a3b25);
+
+  // ===== the parish church: a white facade with a bell tower, a long nave, a red roof, a cross =====
+  const cx=55, cz=-163;
+  B(cx,.25,cz,14,.5,30,0xcfc6b2);
+  B(cx,4,cz+1,11,8,24,white); for(const sd of [-1,1]) B(cx+sd*.15,8.9,cz+1,6.2,.18,25,tile,0,0,sd*.62);   // nave and roof
+  for(const sd of [-1,1]) for(let z=-8;z<=9;z+=4) B(cx+sd*5.53,4.6,cz+1+z,.08,2.8,1,0x8db7c9);
+  // the facade faces east, onto the plaza
+  B(cx+5.8,6,cz+1,1,12,13,cream); B(cx+6.35,9.8,cz+1,.12,1.6,1.6,0xffffff); B(cx+6.3,9.8,cz+1,.1,2,2,0x8a3b2e);   // rose window
+  B(cx+6.32,2.4,cz+1,.12,4.6,3,0x5a3b25); B(cx+6.33,4.95,cz+1,.12,.5,3.6,white);
+  for(const sd of [-1,1]) B(cx+6.35,5,cz+1+sd*4.2,.3,10,.6,white);
+  B(cx+5.8,12.6,cz+1,1,1.4,6,cream); B(cx+5.8,13.6,cz+1,1,.7,3,cream);
+  B(cx+6.3,14.9,cz+1,.15,2.2,.25,0xd4a017); B(cx+6.3,15.3,cz+1,.15,.25,1.2,0xd4a017);   // the cross
+  // the bell tower at the south-east corner
+  const tx=cx+4, tz=cz+10.6; B(tx,7,tz,4.2,14,4.2,cream); B(tx,14.6,tz,4.6,.4,4.6,white); for(const [dx,dz] of [[2.12,0],[-2.12,0],[0,2.12],[0,-2.12]]) B(tx+dx,12.2,tz+dz,dx?.1:1.4,2,dz?.1:1.4,0x3a2a1c);
+  b.push(P('pyr',tile,tx,16.4,tz,4.6,3.4,4.6)); C(tx,13.5,tz,.55,.8,0xb8862b);
+  // the patio in front of the church with a stone cross
+  B(cx+10,.13,cz+1,7,.08,14,0xd3c8b0); B(cx+10.5,1.2,cz-4.5,.3,2.2,.3,0xbdb5a4); B(cx+10.5,1.9,cz-4.5,.3,.3,1.2,0xbdb5a4);
+
+  // ===== the plaza itself: the flagpole with the flag, a fountain, benches, lamps, a stage, café tables under red umbrellas =====
+  const fx=86, fz=-158;
+  C(fx,.35,fz,4.2,.6,0xd3c8b0); C(fx,.62,fz,3.9,.06,0x5fb1c9); C(fx,1.4,fz,.6,1.6,0xd3c8b0); C(fx,2.3,fz,1.4,.25,0xd3c8b0); C(fx,2.55,fz,1.25,.06,0x5fb1c9); C(fx,3,fz,.25,.9,0xd3c8b0);   // fountain
+  const gx=fx, gz=-167; B(gx,.3,gz,3.4,.6,3.4,0xcfc6b2); B(gx,.75,gz,2.6,.3,2.6,white); C(gx,8,gz,.09,15,0xe0e0e0); C(gx,15.55,gz,.18,.2,0xd4a017);   // flagpole on its base
+  const benches=[];
+  for(const [x,z,ry] of [[78,-152,0],[94,-150.5,0],[100,-158,Math.PI/2],[72,-158,Math.PI/2],[78,-164,Math.PI],[100,-150,0],[110,-160,Math.PI/2],[110,-154,Math.PI/2]]){
+    const c=Math.cos(ry), s=Math.sin(ry), at=(dx,dz)=>[x+dx*c+dz*s,z-dx*s+dz*c];
+    for(const dx of [-.8,.8]){const q=at(dx,0); B(q[0],.25,q[1],.08,.5,.5,0x2b2b2b,0,ry,0);} {const q=at(0,0); B(q[0],.5,q[1],2,.07,.5,green,0,ry,0);} {const q=at(0,-.24); B(q[0],.85,q[1],2,.45,.06,green,0,ry,0);}
+    benches.push([x,z,ry]);}
+  const lamps=[[66,-150],[66,-172],[80,-147],[92,-147],[106,-147],[116,-150],[116,-170],[78,-169],[94,-169],[106,-169]];
+  for(const [x,z] of lamps){C(x,.15,z,.22,.3,0x2b2b2b); C(x,2.1,z,.08,4,0x2b2b2b); B(x,4.25,z,.42,.5,.42,0xf5e6a8); b.push(P('pyr',0x2b2b2b,x,4.65,z,.6,.35,.6));}
+  // a small stage for programs, and the café corner under red umbrellas (like a town square)
+  B(108,.5,-175,10,1,5,0xbdb5a4); B(108,1.05,-175,10,.1,5,0x8d6e4b); for(const sd of [-1,1]) B(108+sd*4.8,2.5,-177.3,.25,4,.25,white); B(108,4.5,-177.3,10,.3,.3,white);
+  const umbrellas=[];
+  for(const [x,z] of [[102,-160.5],[106,-163.5],[110,-165]]){C(x,.75,z,.5,.05,0xf2f2f2); C(x,.38,z,.06,.75,0x2b2b2b); for(const a of [0,2.1,4.2]) B(x+Math.cos(a)*.95,.45,z-Math.sin(a)*.95,.45,.9,.45,0xa0703c);
+    C(x,1.4,z,.04,2.4,0x2b2b2b); b.push(P('cone',0xc0392b,x,2.55,z,3,.7,3)); umbrellas.push([x,z]);}
+  // trees in the grass plots, and a row of narra along the back road side
+  const trees=[[70,-152],[94,-152],[70,-166],[94,-166],[104,-152],[104,-166],[48,-150],[48,-180],[118,-148],[118,-181]];
+  for(const [x,z] of trees){C(x,1.2,z,.22,2.4,0x6b4a2a); b.push(P('sph',[0x4f8a3c,0x5c9a44,0x447a34][(r()*3)|0],x,3.3,z,3.6,3,3.6)); b.push(P('sph',0x5c9a44,x+.6,3.9,z-.4,2.4,2,2.4));}
+  // signs
+  boardSign(['BAYAN NG SUNFIELD','Munisipyo · Town Hall'],'#1f4e9a','#fff',hx,hz+8.4,0,6,1.2,2.4,0x3b4a3f,false);
+  boardSign(['PAROKYA NI SAN ISIDRO','Simbahan'],'#6d2a1f','#fff',cx+14.6,cz+9,Math.PI/2,4.4,1,2,0x3b4a3f,false);
+  const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.castShadow=m.receiveShadow=true; m.name='Civic center'; scene.add(m);
+  for(const [x,z] of lamps) glow(scene,x,4.25,z,3.2,GM.warm);
+  for(const [x,z] of [[hx-6,hz+4.5],[hx+6,hz+4.5],[cx+6.6,cz+1]]) glow(scene,x,3.6,z,3,GM.white);
+  // the Philippine flag, waving
+  const flag=signPlane([''],'#fff','#fff',2.6,1.4); {const fc=flag.material.map.image.getContext('2d'); fc.fillStyle='#0038a8'; fc.fillRect(0,0,512,64); fc.fillStyle='#ce1126'; fc.fillRect(0,64,512,64); fc.fillStyle='#fff'; fc.beginPath(); fc.moveTo(0,0); fc.lineTo(200,64); fc.lineTo(0,128); fc.fill(); fc.fillStyle='#fcd116'; fc.beginPath(); fc.arc(60,64,20,0,7); fc.fill(); flag.material.map.needsUpdate=true; flag.material.side=THREE.DoubleSide;}
+  flag.position.set(gx+1.35,14.6,gz); scene.add(flag);
+  const roofFlag=flag.clone(); roofFlag.scale.setScalar(.55); roofFlag.position.set(hx+.75,13.2,hz+3.5); scene.add(roofFlag);
+  {const pole=mesh(new THREE.CylinderGeometry(.05,.05,2.2,6),0xe0e0e0,hx,12.5,hz+3.5); scene.add(pole);}
+
+  // ===== people: the guard at the munisipyo, clerks going in and out, people at mass, a taho vendor's round, strollers, sitters =====
+  const look=(top,hat,f)=>{const L=randLook(r); L.bag=null; if(top!=null) L.top=top; if(hat!=null){L.style='cap'; L.capC=hat;} if(f!=null) L.f=f; return L;};
+  const D=(x,z)=>[x,z], doorH=[hx,hz+5.4], doorC=[cx+7.6,cz+1];
+  const W=[
+    makeWorker(look(0x37474f,0x263238),[{to:[hx+3,hz+6.6],act:'stand',dur:9,face:[hx+3,hz+12]},{path:[[hx+5,hz+7]],act:'inspect',dur:5,face:[hx+5,hz+12]},{path:[[hx+3,hz+6.6]],act:'write',dur:6,face:[hx+3,hz+12]}],{y:.72}),   // the guard on the steps
+    makeWorker(look(0xffffff,null,true),[{to:doorH,act:'stand',dur:5},{path:[[hx-2,hz+8],[fx-3,fz-1],[102,-158.5]],act:'write',dur:10,face:[102,-160.5]},{path:[[fx-3,fz+1],[hx-2,hz+8],doorH],act:'stand',dur:2}],{y:.72,sp:1}),   // a clerk going for a merienda
+    makeWorker(look(0x1f4e9a),[{to:[fx+4,fz+3],act:'inspect',dur:6,face:[fx,fz]},{path:[[gx+2.5,gz+1]],act:'stand',dur:7,face:[gx,gz]},{path:[[hx+8,hz+8.5],[hx+9,hz+5.4]],act:'stand',dur:4},{path:[[hx+8,hz+8.5],[fx+4,fz+3]],act:'stand',dur:3}],{y:.12}),
+    makeWorker(look(0x6d2a1f,null,true),[{to:[cx+9,cz+3],act:'stand',dur:6,face:doorC},{path:[doorC],act:'stand',dur:12},{path:[[cx+9,cz-2],[72,-158.6]],act:'stand',dur:9,face:[72,-160]},{path:[[cx+9,cz+3]],act:'stand',dur:3}],{y:.12,sp:.8}),   // a lola going to church
+    makeWorker(look(0x8e44ad),[{to:[fx-6,fz+6],act:'stand',dur:4},{path:[[fx+6,fz+7],[fx+6,fz-6]],act:'inspect',dur:6,face:[fx,fz]},{path:[[fx-6,fz-6],[fx-6,fz+6]],act:'stand',dur:4}],{y:.12,sp:.7}),   // a stroller round the fountain
+    makeWorker(look(0xff7043,0xf1c40f),[{to:[x0+3,z1-2],act:'sweep',dur:10},{path:[[x0+20,z1-2]],act:'sweep',dur:10},{path:[[x0+40,z1-2]],act:'sweep',dur:10},{path:[[x0+60,z1-2]],act:'sweep',dur:10},{path:[[x0+30,z1-2],[x0+3,z1-2]],act:'stand',dur:3}],{y:.12,sp:.5,day:true}),   // the street sweeper
+    makeWorker(look(0xf5f5f5,0x8d6e4b),[{to:[112,-147.5],act:'stand',dur:8},{path:[[96,-147.5]],act:'pump',dur:7,face:[96,-150]},{path:[[78,-147.5]],act:'pump',dur:7,face:[78,-150]},{path:[[62,-150],[62,-170]],act:'pump',dur:7,face:[60,-170]},{path:[[62,-150],[112,-147.5]],act:'stand',dur:3}],{y:.12,sp:.6,day:true}),   // the taho vendor's round
+  ];
+  // a magtataho carries his two buckets on a pole: dress the vendor
+  {const v=W[6].p, pole=part(1.8,.06,.06,0x8d6e4b,0,1.45,0); v.root.add(pole); for(const sd of [-1,1]){const k=mesh(new THREE.CylinderGeometry(.22,.18,.36,10),0xcfd6dc,sd*.85,1.02,0); v.root.add(k);}}
+  for(const w of W) workerGo(w,w.steps[0]);
+  // people sitting on the benches and at the café tables
+  for(const [x,z,ry] of benches.concat(umbrellas.map(([x,z])=>[x+.95,z,-Math.PI/2]))) if(r()<.75){const q=bakePerson(look(),poseSit); q.position.set(x,.15,z); q.rotation.y=ry+Math.PI; scene.add(q);}
+  return {update(dt,t){if(document.hidden) return; flag.rotation.y=Math.sin(t*1.5)*.12; roofFlag.rotation.y=Math.sin(t*1.7+1)*.12; for(const w of W) workerTick(w,dt,t);}};
+})();
 /* ---------- Stage H: the sea, the port (pantalan) and the bay trading business ---------- */
 if(!S.bay) S.bay={owned:false,stock:{},ship:null};
 const BAY_LV=12, BAY_PRICE=50000, BAY_RATE=1.6, SHIP_T={out:30,away:45,back:30};
@@ -8272,6 +8369,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:28,date:'Nov 11, 2026',title:'The poblacion gets its civic center',items:['🏛️ The Munisipyo (town hall) now stands between the palengke and the barangay: two storeys, an arcade of columns, a balcony over the door, the town seal and a flag on the roof.','🇵🇭 In front of it, the plaza: the flagpole with the Philippine flag, a fountain, benches, lamp posts, trees in grass plots, a small stage and café tables under red umbrellas.','⛪ The Parokya ni San Isidro, with its white facade, rose window and bell tower, faces the plaza from the west.','🚶 A guard on the town hall steps, a clerk going out for merienda, a lola on her way to mass, strollers round the fountain, a street sweeper, a magtataho on his round, and people resting on the benches.']},
   {v:27,date:'Nov 11, 2026',title:'Water, power, garbage and monthly bills',items:['💧 Your farm is on the Sunfield Water main from the irrigation reservoir: blue markers show the buried pipe, there is a water meter at your fence and the pipe comes up to your tangke. Every barangay house has its own meter too.','⚡ Sunfield Power is open south of the district: a diesel plant with fuel tanks, a solar field and a substation. Its line runs past your farm to the highway, with a kWh meter by your garage and a drop to every house in the barangay.','🧾 Bills come every month: water, power and garbage, worked out from your animal houses, planted plots and buildings. They are paid from your coins; anything unpaid gets a 10% late fee. See ⋯ → Bills.','🗑️ The sanitary landfill and MRF: the garbage truck collects your sacks by the farm fence, two collectors ride the back and load them, then it tips them at the landfill.','🚰 A water tanker fills up at the reservoir and drives up to the mountain barangay, where people come out with their pails.','⛽ More cars fill up at the farm fuel station, and the attendant walks out to pump; the co-op gets an extra van. Workers everywhere now go round real jobs: sorting, checking gauges, writing readings, sweeping, sampling the ponds. A meter reader walks the barangay.','🌳 Big acacia, mango, balete and niyog trees along the district roads and round the new buildings, and the district roads now have dirt shoulders instead of city sidewalks.','🚚 Fixed: your chicken truck, jeep and Elf could lock each other up on the highway near the farm for minutes, with traffic piling up behind them. They now ease through after waiting 12 seconds.']},
   {v:26,date:'Nov 10, 2026',title:'Real loads on your Elf and jeep',items:['🚚 The Elf now looks like the blue Isuzu Elf dropside you see on Philippine roads: flat cab with a black face panel, big mirrors on arms, a low blue dropside bed with ribs and hinges, mud flaps and a spare tyre.','🐖 What you load is what you see. Hauling 4 pigs puts exactly 4 pigs in the bed, the same pigs from your pen. Goats, cows, piglets and kids work the same way.','📦 Deliveries and purchases show their real cargo: vegetable crates, rice sacks, egg trays, milk cans, feed sacks, chick boxes, lumber, hollow blocks, cement and more, in the amounts you bought or are selling.','🛒 Your farmer fetches each pig with a wheeled cage cart, one at a time from the pen to the truck, and the bed fills up as they load.']},
   {v:25,date:'Nov 10, 2026',title:'A new look for people and vehicles',items:['🧍 People are properly shaped now: faces with eyes, brows and a mouth, hairstyles, hands and shoes, and arms and legs that bend at the elbow and knee.','🚶 Walking looks natural: the knees fold as each leg swings through, the arms swing with a bend at the elbow, and the feet no longer slide.','🚗 Cars, jeepneys, tricycles, buses, vans and trucks have real body shapes: wheel arches, tyres with rims, glass, door lines, mirrors, lamps and bumpers.','🚙 Jeepneys keep their chrome bonnet, horses and side stripes, now with curved fenders; your own jeepney and Elf truck got the new look too.','🛣️ Town and highway traffic now keeps to lanes and takes turns at junctions, so vehicles no longer drive through each other.']},
@@ -8423,6 +8521,7 @@ function frame(now){
   IRRIGATION_VISUAL.update(t);
   DISTRICT_LIFE.update(dt,t);
   CIVIC.update(dt,t);
+  CIVIC_CENTER.update(dt,t);
   updateFarmDispatch(Date.now(),dt);
   if(now-lastTick>300){lastTick=now; const d=Date.now(); updateVehicles(d); updateTravelHUD(d); for(let i=0;i<NT;i++){const s=S.tiles[i].s; if(s==='crop'||s==='bld') updateTile(i,d);}}
   popping.forEach(g=>{const k=Math.min(1,(now-g.userData.born)/380), e=easeBack(k);

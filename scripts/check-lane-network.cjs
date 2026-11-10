@@ -37,23 +37,33 @@ add('van', 8.4, 2.3, 12, () => [[['f:home399'], 5], [['wh:dock62'], 6], [['f:hom
 add('trader', 7.6, 2.5, 12, () => [[['LW', 'wh:bay'], 9], [['LW$'], 0]], 15);
 for (const x of [178, 181, 184]) add('trike' + x, 2.4, 1.5, 11, () => [[['tr:' + x], 8], [[rnd() < .5 ? 'LE$' : 'LW$'], 0], [[rnd() < .5 ? 'LE' : 'LW', 'tr:' + x], 0, true]], (x - 178) * 3);
 
+// Expansion routes must work alongside all existing traffic, including a utility parking manoeuvre.
+add('utilities-van', 4.6, 2.2, 8, () => [[['LE','south:entry>north','south:north>nw','south:nw>mw','south:mw>sw','south:sw>sc','south:utilities:bay'],8],[['south:utility>se','south:se>me','south:me>ne','south:ne>north','south:north>entry','LW$'],0]], 12);
+add('southern-truck', 7.6, 2.5, 8, () => [[['LW','south:entry>north','south:north>ne','south:ne>me','south:me>se','south:se>utility','south:utility>sc','south:sc>mc','south:mc>mw','south:mw>nw','south:nw>north','south:north>entry','LE$'],0]], 24);
+
+add('fuel-customer',4.6,2.1,8,()=>[[['LE','south:entry>north','south:north>nw','south:nw>mw','south:mw>mc','south:mc>sc','south:sc>sw','south:sw>mw','district:fuel:bay'],20],[['LE$'],0]],3);
+add('cooperative-customer',5.1,2.1,8,()=>[[['LE','south:entry>north','south:north>nw','south:nw>mw','south:mw>mc','district:agri:bay'],100],[['LE$'],0]],15);
 const obb = (a, b) => { const ax = [[Math.sin(a.a), Math.cos(a.a)], [Math.cos(a.a), -Math.sin(a.a)], [Math.sin(b.a), Math.cos(b.a)], [Math.cos(b.a), -Math.sin(b.a)]];
   const r = (o, n) => Math.abs(Math.sin(o.a) * n[0] + Math.cos(o.a) * n[1]) * o.len / 2 + Math.abs(Math.cos(o.a) * n[0] - Math.sin(o.a) * n[1]) * o.width / 2;
   return ax.every(n => Math.abs((b.x - a.x) * n[0] + (b.z - a.z) * n[1]) < r(a, n) + r(b, n) - .05); };
+// Match the live warehouse dispatcher: trader and factory van do not book the shared yard together.
+let warehouseOwner=null;
+const bookWarehouse=(f,wps)=>{if(!wps.some(w=>typeof w==='string'&&w.startsWith('wh:')))return true;if(warehouseOwner&&warehouseOwner!==f.name)return false;warehouseOwner=f.name;return true;};
 const dt = .05, overlaps = [];
 for (let t = 0; t < 900; t += dt) {
   for (const f of fleet) {
     const v = f.v;
     if (f.wait > 0) { f.wait -= dt; continue; }
     if (f.leg < 0) { // start a trip: the first leg puts the vehicle on the map (when its first lane is clear)
-      f.plan = f.trips(); const [wps] = f.plan[0], P = E.lnPath(...wps); assert(P, f.name + ' has a path ' + wps);
+      f.plan = f.trips(); const [wps] = f.plan[0]; if(!bookWarehouse(f,wps))continue; const P = E.lnPath(...wps); assert(P, f.name + ' has a path ' + wps);
       const parked = P.length === 1; if (!parked && !E.lnFreeAt(P[0], v.len / 2, v.len, v, 20)) { f.wait = .5; continue; }
       E.lnGo(v, P, parked ? P[0].L : null, { endOff: wps[wps.length - 1] === 't:bay' ? v.len / 2 : 0 }); f.leg = 0; f.dwell = f.plan[0][1]; continue; }
     if (!v.done) continue;
     if ((f.dwell -= dt) > 0) continue;
-    if (++f.leg >= f.plan.length) { E.lnHide(v); f.leg = -1; f.done++; f.wait = 2 + rnd() * 8; continue; }
+    if (++f.leg >= f.plan.length) { E.lnHide(v); if(warehouseOwner===f.name)warehouseOwner=null; f.leg = -1; f.done++; f.wait = 2 + rnd() * 8; continue; }
     const [wps, dwell, fresh] = f.plan[f.leg], tail = E.lnPath(fresh ? wps[0] : v.path[v.pi], ...(fresh ? wps.slice(1) : wps));
     assert(tail, f.name + ' has a path ' + wps);
+    if(!bookWarehouse(f,wps)){f.leg--;continue;}
     const ok = fresh ? (wps[0] === 'mtn:dn' || E.lnFreeAt(tail[0], v.len / 2, v.len, v, 20)) && E.lnGo(v, tail, wps[0] === 'mtn:dn' ? 0 : null) : E.lnNext(v, tail, { endOff: wps[wps.length - 1] === 't:bay' ? v.len / 2 : 0 });
     if (!ok) { f.leg--; continue; } f.dwell = dwell;
   }

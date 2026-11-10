@@ -398,16 +398,55 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .animal-pickup .pickup-route small{margin:0;font-size:12px;line-height:1.45;font-weight:600;opacity:.8}
 .animal-pickup .pickup-icon{font-size:25px;text-align:center}
 .animal-pickup .pickup-cancel{min-height:42px;padding:8px;font-size:13px;font-weight:800;line-height:1.4;text-align:center;text-decoration:underline;text-underline-offset:3px}
+/* Phase 6: original illustrated paper interface; existing control IDs and actions are retained. */
+:root{--paper:#faf7ef;--paper2:#eee8da;--ink2:#493f35;--accent:#d98765;--sel:#f2d4bc;--gold:#dca85b;--muted:#716557}
+#hud{top:calc(env(safe-area-inset-top,0px) + 10px);left:calc(env(safe-area-inset-left,0px) + 12px);right:calc(env(safe-area-inset-right,0px) + 12px);padding:5px 8px;gap:0;min-height:54px;border:2px solid var(--ink2);border-radius:18px;background:var(--paper);box-shadow:0 4px 0 #493f3530;z-index:4}
+#hud .pill{border:0!important;border-radius:0;box-shadow:none!important;background:transparent!important;min-height:40px;padding:4px 14px;border-right:1px solid #493f3530!important;font-size:15px}
+#hud #coins{font-size:22px}#hud .peso{width:25px;height:25px}#hud .bar{width:55px;background:#ded6c7;height:7px}#hud .bar i{background:#77965c}
+#hud #menuBtn{border-right:0!important;border-left:1px solid #493f3530!important;border-radius:10px;width:44px}
+#hud button.pill:hover{background:#eee5d5!important}#hud button.pill:active{transform:translateY(1px)}
+#helpBtn,#misBtn,#achBtn{min-width:48px;justify-content:center}#status{top:calc(env(safe-area-inset-top,0px) + 76px)}
+#cats{left:50%!important;right:auto!important;top:auto!important;bottom:calc(env(safe-area-inset-bottom,0px) + 10px)!important;transform:translateX(-50%)!important;flex-direction:row!important;max-width:calc(100% - 24px);max-height:none!important;overflow-x:auto!important;overflow-y:hidden!important;gap:7px!important;padding:7px 12px!important;border-radius:19px!important;z-index:4;touch-action:pan-x}
+#cats .tool{width:76px;min-width:60px;min-height:56px;padding:5px 6px!important;border:0!important;box-shadow:none!important;border-radius:10px!important;background:transparent!important}
+#cats .tool .ti.svg{width:29px;height:29px}#cats .tool .tl{font-size:11px;opacity:1}
+#cats .tool.on,#cats .tool.open{background:#f0d2ba!important;color:var(--ink2)!important;box-shadow:inset 0 -3px #ba765b!important}
+#cats .tool:hover{background:#eee6d7!important}#cats .tool.locked{opacity:.65}
+#bottom{bottom:calc(env(safe-area-inset-bottom,0px) + 91px);padding-bottom:0;gap:6px;z-index:3}
+#tools,#picker{max-width:min(880px,calc(100vw - 28px));border-radius:16px!important;gap:6px!important;padding:7px!important;touch-action:pan-x}
+#tools .tool{min-width:82px;min-height:63px;border:1px solid #493f3530!important;box-shadow:none!important;border-radius:11px!important;background:#eee8da!important}
+#tools .tool.locked,.chip.locked{opacity:.72}
+#tools .tool.on,.chip.on{background:#e8c5a6!important;color:var(--ink2)!important;box-shadow:inset 0 -3px #b77654!important}
+#picker{position:static!important;transform:none!important;margin:0;flex-direction:row!important;overflow-x:auto!important;overflow-y:hidden!important;max-height:none!important}
+#buildFilters{display:flex;gap:5px;pointer-events:auto;background:var(--paper);border:1.5px solid var(--ink2);border-radius:13px;padding:4px;max-width:calc(100vw - 24px);overflow-x:auto;touch-action:pan-x}
+#buildFilters button{min-height:38px;padding:6px 14px;border-radius:9px;font-size:12px;font-weight:900;white-space:nowrap}
+#buildFilters button[aria-pressed=true]{background:#e9cbb2;box-shadow:inset 0 -2px #ba765b}
+#hint{box-shadow:none!important;font-size:12px;max-width:540px}#hint:not(.show){display:none}
+.sheet{background:linear-gradient(130deg,#fffdf6,#f3ede0)!important;border:2px solid #635447!important;box-shadow:0 10px 40px #2f281f45!important;padding:18px!important;scrollbar-width:thin;scrollbar-color:#b9a48b #efe8da}
+.sheet>.mhead{top:-18px;margin:-18px -18px 5px;padding:14px 18px 10px;background:var(--paper);border-bottom:1px solid #cdbfa8}
+.sheet .x{min-width:44px!important;min-height:44px;box-shadow:none!important;background:#eee4d5!important}
+.sheet button{min-height:40px}.sheet .ucard,.sheet .order,.sheet .good{border:1px solid #c9bca6;border-radius:13px}
+.sheet .bigbtn,.sheet .go,.sheet .hire{background:#e8c6a6!important;color:#493b2e!important}
+button:focus-visible{outline:3px solid #4c8078!important;outline-offset:3px}#toast{box-shadow:0 3px 10px #493f3520!important;max-width:min(560px,calc(100% - 32px))}
+@media(max-width:950px){#hud .pill{padding:3px 9px;font-size:12px}#hud #coins{font-size:18px}#hud .bar{width:34px}#needPill .nb{width:24px}#cats .tool{width:68px}}
+@media(orientation:landscape) and (max-height:520px){
+ #hud{top:calc(env(safe-area-inset-top,0px) + 5px);min-height:44px;padding:2px 5px}#hud .pill{min-height:36px;padding:2px 7px}#hud .lvl{font-size:12px}#helpBtn,#misBtn,#achBtn{min-width:40px}#status{top:calc(env(safe-area-inset-top,0px) + 53px)}
+ #cats{bottom:calc(env(safe-area-inset-bottom,0px) + 5px)!important;padding:4px 8px!important;gap:3px!important}
+ #cats .tool{width:62px;min-width:52px;min-height:45px;padding:2px 4px!important}#cats .tool .ti.svg{width:23px;height:23px}#cats .tool .tl{font-size:10px}
+ #bottom{bottom:calc(env(safe-area-inset-bottom,0px) + 65px);gap:3px}#tools .tool{min-height:49px;min-width:73px;padding:3px 6px}#tools .ti{font-size:19px}#tools .tl{font-size:10px}#tools .tc{font-size:10px}
+ #buildFilters button{min-height:32px;padding:3px 11px}#hint{font-size:10px;padding:3px 8px}#hud .peso{width:20px;height:20px}
+}
+@media(max-width:720px){#hud .pill{padding:2px 5px}#hud .bar{width:22px}#hud #needPill .nb{width:17px;margin-right:2px}#hud .lvl{font-size:11px}#hud #coins{font-size:16px}#helpBtn,#misBtn,#achBtn{min-width:36px}}
+
 </style>
 </head>
 <body>
 <canvas id="c" aria-label="Your farm"></canvas>
 
 <div id="hud">
-  <div class="pill"><svg class="peso" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14.5" fill="#c9a227" stroke="#8a6d12" stroke-width="2"/><circle cx="16" cy="16" r="10.5" fill="#e8c547" stroke="#b08a1c" stroke-width="1.2"/><text x="16" y="21.5" text-anchor="middle" font-size="15" font-weight="900" font-family="Arial, sans-serif" fill="#7a5a0c">₱</text></svg><span id="coins">0</span></div>
+  <div class="pill"><svg class="peso" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14.5" fill="#c9a227" stroke="#8a6d12" stroke-width="2"/><circle cx="16" cy="16" r="10.5" fill="#e8c547" stroke="#b08a1c" stroke-width="1.2"/><text x="16" y="21.5" text-anchor="middle" font-size="15" font-weight="900" font-family="Arial, sans-serif" fill="#7a5a0c">₱</text></svg><span id="coins" aria-label="Coins">0</span></div>
   <div class="pill"><span class="lvl" id="lvl">Level 1</span><div class="bar"><i id="xp"></i></div></div>
   <div class="pill" id="clockPill"><span id="clockTxt">☀️ 6:00 AM</span></div>
-  <button class="pill" id="needPill" aria-label="Your farmer: hunger and energy">🍚<i class="nb"><b id="hungerBar"></b></i>⚡<i class="nb"><b id="energyBar"></b></i></button>
+  <button class="pill" id="needPill" title="Farmer hunger and energy" aria-label="Your farmer: hunger and energy">🍚<i class="nb"><b id="hungerBar"></b></i>⚡<i class="nb"><b id="energyBar"></b></i></button>
   <button class="pill" id="helpBtn" aria-label="Trabahador (helpers)">👷</button>
   <button class="pill" id="misBtn" aria-label="Missions">📋<span id="misBadge" class="badge" hidden></span></button>
   <button class="pill" id="achBtn" aria-label="Achievements">🏆<span id="achBadge" class="badge" hidden></span></button>
@@ -424,6 +463,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 <div id="bottom">
   <div id="hint"></div>
   <div id="picker"></div>
+  <div id="buildFilters" role="group" aria-label="Building categories" hidden></div>
   <nav id="tools" aria-label="Tools"></nav>
 </div>
 
@@ -922,7 +962,64 @@ const GLOW_TEX=(()=>{const c=document.createElement('canvas'); c.width=c.height=
   r.addColorStop(0,'rgba(255,255,255,1)'); r.addColorStop(.22,'rgba(255,255,255,.6)'); r.addColorStop(1,'rgba(255,255,255,0)'); g.fillStyle=r; g.fillRect(0,0,64,64); return new THREE.CanvasTexture(c);})();
 const GLOW_MATS=[], glowMat=(color,k)=>{const m=new THREE.SpriteMaterial({map:GLOW_TEX,color,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,opacity:0}); m.userData.k=k; m.visible=false; GLOW_MATS.push(m); return m;};
 const DOOR_OBJS=[];   // traffic cars and factory vans whose doors swing (the player's vehicles animate theirs in placeVehicles)
-function cabDoor(g,x,y,z,h,w,col){const dg=new THREE.Group(); dg.position.set(x,y,z); dg.add(part(.04,h,w,col,0,0,-w/2)); dg.add(part(.045,h*.42,w*.72,0x2b3a48,0,h*.24,-w/2)); dg.add(part(.05,.04,.14,0x333333,.03,-.05,-w+.12)); g.add(dg); g.userData.door=dg; return dg;}
+// Clip only outward-facing cab surfaces; leave the chassis, roof, opposite door and traffic envelope intact.
+function doorOpening(geometry,outline,xmin){
+  // A cab-over door can have a wheel-arch notch. Subtract its convex triangles individually.
+  const turns=outline.map((a,i)=>{const b=outline[(i+1)%outline.length],c=outline[(i+2)%outline.length];return (b[0]-a[0])*(c[1]-b[1])-(b[1]-a[1])*(c[0]-b[0]);});
+  if(turns.some(n=>n>1e-8)&&turns.some(n=>n< -1e-8)){
+    let cut=geometry;for(const ids of THREE.ShapeUtils.triangulateShape(outline.map(p=>new THREE.Vector2(...p)),[])){
+      const next=doorOpening(cut,ids.map(i=>outline[i]),xmin);if(cut!==geometry)cut.dispose();cut=next;}return cut;
+  }
+  const src=geometry.index?geometry.toNonIndexed():geometry, attrs=Object.keys(src.attributes), stride=attrs.reduce((n,k)=>n+src.attributes[k].itemSize,0), offsets={};
+  let off=0; for(const k of attrs){offsets[k]=off;off+=src.attributes[k].itemSize;}
+  const po=offsets.position, no=offsets.normal, out=[];
+  let area=0; for(let i=0;i<outline.length;i++){const a=outline[i],b=outline[(i+1)%outline.length];area+=a[0]*b[1]-b[0]*a[1];}
+  const sign=area>=0?1:-1;
+  const emit=poly=>{for(let j=1;j<poly.length-1;j++)out.push(...poly[0],...poly[j],...poly[j+1]);};
+  for(let i=0;i<src.attributes.position.count;i+=3){
+    const tri=[];for(let j=0;j<3;j++){const v=[];for(const k of attrs){const at=src.attributes[k];for(let c=0;c<at.itemSize;c++)v.push(at.array[(i+j)*at.itemSize+c]);}tri.push(v);}
+    if(!tri.every(v=>v[po]>xmin)||no===undefined||tri.reduce((n,v)=>n+v[no],0)<1.2){emit(tri);continue;}
+    let inside=tri;
+    for(let e=0;e<outline.length&&inside.length;e++){
+      const a=outline[e],b=outline[(e+1)%outline.length],dist=v=>sign*((b[0]-a[0])*(v[po+1]-a[1])-(b[1]-a[1])*(v[po+2]-a[0]));
+      const yes=[],away=[];
+      for(let j=0;j<inside.length;j++){const v=inside[j],w=inside[(j+1)%inside.length],dv=dist(v),dw=dist(w),iv=dv>=0,iw=dw>=0;
+        (iv?yes:away).push(v);if(iv!==iw){const t=dv/(dv-dw),q=v.map((n,k)=>n+(w[k]-n)*t);yes.push(q);away.push(q);}}
+      emit(away);inside=yes;
+    }
+  }
+  const result=new THREE.BufferGeometry();for(const k of attrs){const size=src.attributes[k].itemSize,data=[];for(let i=0;i<out.length;i+=stride)for(let j=0;j<size;j++)data.push(out[i+offsets[k]+j]);result.setAttribute(k,new THREE.Float32BufferAttribute(data,size));}
+  result.computeBoundingSphere();if(src!==geometry)src.dispose();return result;
+}
+function cabDoor(g,x,y,z,h,w,col,fit={}){
+  // All door vertices are authored in cab coordinates, then moved into the hinge's local space.
+  const bottom=y-h/2, belt=fit.belt??y+h*.10, top=y+h/2;
+  const outline=fit.outline||[[z,bottom],[z,top-.12],[z-.12,top],[z-w,top],[z-w,bottom+.06]];
+  const glass=fit.glass||[[z-.09,belt+.06],[z-.16,top-.10],[z-w+.10,top-.10],[z-w+.10,belt+.06]];
+  const upperX=fit.upperX??x, surface=yy=>yy<=belt?x:x+(upperX-x)*Math.min(1,(yy-belt)/Math.max(.05,Math.max(...outline.map(p=>p[1]))-belt));
+  for(const m of g.children){if(!m.isMesh||!m.geometry.attributes.position||m.geometry.attributes.position.count<100)continue;
+    const old=m.geometry;m.geometry=doorOpening(old,outline,Math.min(x,upperX)-.09);old.dispose();}
+  const dg=new THREE.Group();dg.name='Hinged driver door';dg.position.set(x,y,z);
+  const panel=(points,color,offset)=>{
+    const shape=new THREE.Shape();points.forEach((p,i)=>i?shape.lineTo(p[0],p[1]):shape.moveTo(p[0],p[1]));shape.closePath();
+    const geo=new THREE.ShapeGeometry(shape),pos=geo.attributes.position;
+    for(let i=0;i<pos.count;i++){const zz=pos.getX(i),yy=pos.getY(i);pos.setXYZ(i,surface(yy)-x+offset,yy-y,zz-z);}geo.computeVertexNormals();
+    const material=mat(color).clone();material.side=THREE.DoubleSide;const m=new THREE.Mesh(geo,material);m.castShadow=true;dg.add(m);return m;
+  };
+  // Painted perimeter, inset glass, inner upholstery and a continuous metal edge.
+  panel(outline,col,.006);panel(outline,0x33383b,-.034);if(glass.length){panel(glass,0x344c59,.012);panel(glass,0x344c59,-.04);}
+  const edge=(a,b,color,r=.018)=>{const A=new THREE.Vector3(surface(a[1])-x-.01,a[1]-y,a[0]-z),B=new THREE.Vector3(surface(b[1])-x-.01,b[1]-y,b[0]-z),d=B.clone().sub(A);
+    const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,d.length(),5),mat(color));m.position.copy(A).add(B).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());dg.add(m);};
+  outline.forEach((a,i)=>edge(a,outline[(i+1)%outline.length],col,.022));glass.forEach((a,i)=>edge(a,glass[(i+1)%glass.length],0x242a2c,.016));
+  dg.add(part(.055,.045,.15,0xc4cbca,.04,belt-y-.08,-w+.17)); // exterior handle near the latch
+  dg.add(part(.07,.065,w*.48,0x4c5150,-.075,belt-y-.18,-w*.52)); // interior armrest
+  dg.add(part(.05,.035,.12,0xb2b8b7,-.11,belt-y-.11,-w+.18));
+  for(const yy of [-h*.23,h*.12]){const hinge=mesh(new THREE.CylinderGeometry(.028,.028,.10,7),0x6c7374,0,yy,0);dg.add(hinge);}
+  // A dark recessed cabin makes the actual opening readable without a duplicate fixed door.
+  const inset=panel(outline,0x222a2c,-.13);dg.remove(inset);inset.position.copy(dg.position);g.add(inset);
+  if(fit.mirror){const [mz,my]=fit.mirror;dg.add(part(.14,.035,.04,0x252b2e,.06,my-y-.04,mz-z));dg.add(part(.09,.11,.16,col,.15,my-y,mz-z));dg.add(part(.095,.08,.012,0x89a0ab,.15,my-y,mz-z-.085));}
+  g.add(dg);g.userData.door=dg;return dg;
+}
 const GM={warm:glowMat(0xffc46b,.95), white:glowMat(0xfff3d6,.85), head:glowMat(0xfff6d0,1), tail:glowMat(0xff3b30,.75)};
 // lamps inside the animal houses: they glow through the open sides at night; chicks and other young poultry get red-orange heat lamps (brooders)
 const LIT=glowMat(0xffd98a,.6), HEAT=glowMat(0xff7a2e,.85); LIT.depthTest=false; HEAT.depthTest=false;
@@ -1382,10 +1479,10 @@ function vkCar(b,o){
   for(const sd of [-1,1]){
     for(const [z,y0,y1,a] of o.pillars||[]) b.push(P('box',col,sd*(cw/2+.016),(y0+y1)/2,z,.025,y1-y0,.07,a||0,0,0));
     for(const [z,y0,y1] of o.seams||[]) b.push(P('box',VK.trim,sd*(w/2+.002),(y0+y1)/2,z,.012,y1-y0,.012));
-    for(const z of o.handles||[]) b.push(RB(VK.chrome,sd*(w/2+.012),o.handleY||(o.belt-.08),z,.03,.04,.14,.012));
+    for(const z of (sd>0?(o.handles||[]).slice(1):o.handles||[])) b.push(RB(VK.chrome,sd*(w/2+.012),o.handleY||(o.belt-.08),z,.03,.04,.14,.012));
     b.push(RB(VK.trim,sd*(w/2-.01),o.yb+.07,(o.wheels[0]+o.wheels[1])/2,.06,.1,Math.abs(o.wheels[1]-o.wheels[0])-o.ra*2-.1,.03));   // rocker
     for(const z of o.wheels){vkWheel(b,sd*(w/2-.14),o.r,z,o.r,.24,sd,o.wheel||{}); b.push([VKG.arch||(VKG.arch=new THREE.TorusGeometry(1,.05,3,10,Math.PI).rotateY(Math.PI/2)),Mx(sd*(w/2-.01),o.yb,z,1,o.ra+.02,o.ra+.02),VK.trim]);}
-    if(o.mirror) vkMirror(b,sd*(cw/2+.13),o.mirror[1],o.mirror[0],col,sd);
+    if(o.mirror&&sd<0) vkMirror(b,sd*(cw/2+.13),o.mirror[1],o.mirror[0],col,sd);
     vkLight(b,sd*o.lamp[0],o.lamp[1],o.zf-.02,o.lamp[2],o.lamp[3],VK.head,1);
     vkLight(b,sd*o.tail[0],o.tail[1],o.zr+.02,o.tail[2],o.tail[3],VK.tail,-1);}
   b.push(RB(o.bumper||VK.trim,0,o.yb+.09,o.zf+.02,w-.02,.18,.16,.06)); b.push(RB(o.bumper||VK.trim,0,o.yb+.09,o.zr-.02,w-.02,.18,.16,.06));
@@ -1590,7 +1687,7 @@ function updateWalkers(dt,t){
   floor.position.set(0,.1,ZC); floor.receiveShadow=true; g.add(floor);
   B(0,.03,17.5,36,.06,9,0x8f8a80);                                           // parking / unloading area
   B(0,.03,26.25,12,.06,8.5,0x8f8a80);                                         // driveway to the highway
-  B(0,.08,SWZ,90,.16,1.3,0xc9c3b6);                                           // sidewalk along the highway
+  for(const [a,c] of [[PX-45,140-6],[140+6,PX+36]]) B((a+c)/2-PX,.08,SWZ,c-a,.16,1.3,0xc9c3b6);                                           // sidewalk along the highway
   B(11,2.5,16.2,8.4,.1,2.2,0x2e86de); for(const x of [7,15]) for(const z of [15.3,17.1]) B(x,1.25,z,.12,2.5,.12,0x7f8c8d); B(11,.45,15.8,6,.1,.5,0x8d6e4b); B(11,2.75,17.25,4,.5,.06,0xf1c40f);   // TODA waiting shed + bench
   B(0,.7,-3,W,1.2,.3,0xd9d2b8); B(-W/2,.7,ZC,.3,1.2,D,0xd9d2b8); B(W/2,.7,ZC,.3,1.2,D,0xd9d2b8);   // low walls
   const PZS=[-2.8,2.4,7.6,12.8];
@@ -1709,7 +1806,7 @@ const jeep=new THREE.Group(), jeepCargo=new THREE.Group(), jeepWheels=[];
   const jr=rng(5);
   const drv=randLook(jr); drv.f=false; drv.style='cap'; drv.h=1; drv.bag=null;
   const d=bakePerson(drv,poseSit,true); d.position.set(.42,.5,.75); jeep.add(d); jeep.userData.driver=d; d.visible=false;
-  {const jd=new THREE.Group(); jd.position.set(.94,1.05,1.12); jd.add(part(.05,.56,.62,0xd5dbe0,0,0,-.31)); jd.add(part(.055,.14,.62,0xd63031,0,-.12,-.31)); jeep.add(jd); jeep.userData.door=jd;}
+  {const jd=cabDoor(jeep,.94,1.05,1.12,.56,.62,0xd5dbe0,{glass:[],belt:1.28,outline:[[1.12,.77],[1.12,1.33],[.50,1.33],[.50,.77]]});jd.add(part(.012,.14,.56,0xd63031,.035,-.12,-.31));}
   [[-.55,-.7,Math.PI/2],[.55,-1.5,-Math.PI/2],[-.55,-1.9,Math.PI/2]].forEach(([x,z,ry])=>{
     const L=randLook(jr); L.h=Math.max(.92,L.h); L.bag=null; const m=bakePerson(L,poseSit,true); m.position.set(x,.5,z); m.rotation.y=ry; jeep.add(m);});
   [[-.4,-1.6,0xe8dcc0],[.4,-1.6,0xe8dcc0],[-.4,-.7,0xc79a5b],[.4,-.7,0x2e86de],[0,.2,0xc0392b],[0,-2.4,0x27ae60]].forEach(([x,z,c],k)=>{
@@ -2185,7 +2282,7 @@ const truck=new THREE.Group(), truckGoods=new THREE.Group(), truckMats=new THREE
     const w=new THREE.Mesh(VKG.tw||(VKG.tw=vkWheelGeo(.4,.24,0x2e3236)),PAINT);
     const h=new THREE.Group(); h.position.set(x,.4,z); h.rotation.z=Math.PI/2; h.add(w); truck.add(h); truckWheels.push(w);});
   const L=randLook(rng(21)); L.f=false; L.style='short'; L.bag=null; L.h=1; const d=bakePerson(L,poseSit,true); d.position.set(.45,.78,2.15); truck.add(d); truck.userData.driver=d; d.visible=false;
-  {const td=new THREE.Group(); td.position.set(.99,1.45,2.78); td.add(part(.04,1.05,.95,0x1e88e5,0,0,-.47)); td.add(part(.045,.55,.7,0x2f4252,0,.4,-.45)); td.visible=true; truck.add(td); truck.userData.door=td;}
+  cabDoor(truck,.985,1.45,2.76,1.30,1.08,W,{belt:1.48,outline:[[2.76,1.10],[2.76,1.60],[2.59,2.32],[1.67,2.32],[1.67,.85],[1.82,.85],[1.82,1.10]],glass:[[2.67,1.58],[2.53,2.24],[1.76,2.24],[1.76,1.58]]});
   [[-.5,-2.4,0xe8dcc0],[.5,-2.4,0xe8dcc0],[-.5,-1.3,0xc79a5b],[.5,-1.3,0x2e86de],[0,-.2,0xc0392b],[-.5,.6,0x27ae60],[.5,.6,0xe8dcc0]].forEach(([x,z,c])=>truckGoods.add(part(.75,.45,.8,c,x,1.27,z)));
   // everything sits on the bed floor (y 1.04), inside the side rails (x ±0.95) and between the end gates (z -3.2 … 0.95)
   for(let k=0;k<2;k++) for(let i=0;i<5;i++) truckMats.add(part(.15,.1,3.8,k?0xc29a62:0xb08850,-.8+i*.17,1.1+k*.11,-1.15));   // kahoy on the left
@@ -2504,7 +2601,12 @@ function makeCar(type,col){ // Vios-type sedan, Innova-type MPV, Fortuner-type S
   const L=randLook(typeof tfr!=='undefined'?tfr:Math.random); L.bag=null; L.h=1; const d=bakePerson(L,poseSit,true); d.traverse(q=>{q.castShadow=false;});
   d.position.set(.42,{vios:-.08,innova:.12,fortuner:.22,hilux:.22,l300:.5}[type],{vios:-.15,innova:.3,fortuner:.25,hilux:.2,l300:1.15}[type]); g.add(d);
   const dz={vios:.62,innova:.95,fortuner:.92,hilux:.9,l300:1.0}[type];
-  cabDoor(g,o.w/2+.012,o.belt-.2,dz,.62,{vios:1.0,innova:1.0,fortuner:1.05,hilux:1.05,l300:.85}[type],col); g.userData.drv=d; DOOR_OBJS.push(g);
+  const rear={vios:-.42,innova:-.60,fortuner:-.56,hilux:-.22,l300:.90}[type],front=type==='l300'?1.80:dz;
+  const windowRear=rear+.06,win=o.side[0].map(p=>[Math.max(windowRear,p[0]),p[1]]);
+  const floor={vios:.36,innova:.40,fortuner:.50,hilux:.50,l300:.72}[type];
+  const outline=[[front,floor],[front,o.belt],...win.slice(0,3).map(([zz,yy],i)=>[zz+(i===0?.035:0),yy+.045]),[rear,win[2][1]+.045],[rear,floor]];
+  cabDoor(g,o.w/2+.008,(floor+o.belt)/2,front,o.belt-floor,front-rear,col,{outline,glass:win,belt:o.belt,upperX:(o.w-.12)/2+.018,mirror:o.mirror});
+  g.userData.drv=d; DOOR_OBJS.push(g);
   scene.add(g); return g;
 }
 let SHOPS=null; const shopList=()=>SHOPS||(SHOPS=[ // where shoppers park and which door they walk to (built on first use, after every store exists)
@@ -2634,6 +2736,51 @@ function lnRoad(name,p0,p1,o={}){ // a straight one-way road cut at the given co
 function lnNet(){ // built on first use, once every road, store and stop exists
   if(LN.built) return !LN.broken; LN.built=true; try{lnBuild(); return true;}catch(e){LN.broken=true; console.error('lane network failed to build',e); if(typeof gameHealth!=='undefined'&&gameHealth.errors) gameHealth.errors.push('lanes: '+e.message); return false;}
 }
+// Shared geometry for the expansion roads; southwest farm and southeast shoreline stay untouched.
+const SOUTH_ROADS={nodes:{entry:[140,-110],north:[140,-80],nw:[54,-80],ne:[190,-80],mw:[54,40],mc:[112,40],me:[190,40],sw:[54,90],sc:[112,90],utility:[150,90],se:[190,90]},edges:[['entry','north'],['nw','north'],['north','ne'],['nw','mw'],['mw','sw'],['mw','mc'],['mc','me'],['me','ne'],['me','se'],['sw','sc'],['sc','utility'],['utility','se'],['mc','sc']]};
+function southRoadPoints(a,b){
+  const A=SOUTH_ROADS.nodes[a],B=SOUTH_ROADS.nodes[b],dx=B[0]-A[0],dz=B[1]-A[1],len=Math.hypot(dx,dz),n=Math.ceil(len/2),east=[a,b].includes('me')&&[a,b].includes('ne'),south=[a,b].includes('sw')&&[a,b].includes('sc');
+  return Array.from({length:n+1},(_,i)=>{const t=i/n,d=t*len,u=Math.max(0,Math.min(1,(d-12)/(len-24)));return [A[0]+dx*t+(east?16*Math.sin(Math.PI*u)**2:0),A[1]+dz*t+(south?4*Math.sin(Math.PI*u)**2:0)];});
+}
+const SOUTH_PATHS=SOUTH_ROADS.edges.map(([a,b])=>({a,b,pts:southRoadPoints(a,b)}));
+function southRoadNear(x,z,m=0){return SOUTH_PATHS.some(({pts})=>pts.some((A,i)=>{if(!i)return false;const B=pts[i-1],dx=B[0]-A[0],dz=B[1]-A[1],t=Math.max(0,Math.min(1,((x-A[0])*dx+(z-A[1])*dz)/(dx*dx+dz*dz)));return Math.hypot(x-A[0]-dx*t,z-A[1]-dz*t)<5.5+m;}))||(x>143-m&&x<157+m&&z>76-m&&z<90+m);}
+function buildSouthLanes(E,Es,W,Ws){
+  const ends={},frontage={};for(const k in SOUTH_ROADS.nodes)ends[k]={ins:[],outs:[]};
+  for(const [a,b] of SOUTH_ROADS.edges)for(const [from,to] of [[a,b],[b,a]]){
+    const A=SOUTH_ROADS.nodes[from],B=SOUTH_ROADS.nodes[to],len=Math.hypot(B[0]-A[0],B[1]-A[1]),dx=(B[0]-A[0])/len,dz=(B[1]-A[1])/len;
+    const center=southRoadPoints(from,to).filter(p=>Math.hypot(p[0]-A[0],p[1]-A[1])>10.01&&Math.hypot(p[0]-B[0],p[1]-B[1])>10.01);
+    center.unshift([A[0]+dx*10,A[1]+dz*10]);center.push([B[0]-dx*10,B[1]-dz*10]);
+    const pts=center.map((p,i)=>{const a=center[Math.max(0,i-1)],b=center[Math.min(center.length-1,i+1)],x=b[0]-a[0],z=b[1]-a[1],l=Math.hypot(x,z);return[p[0]-z/l*1.85,p[1]+x/l*1.85];});
+    const name='south:'+from+'>'+to;
+    let road;
+    if([a,b].includes('nw')&&[a,b].includes('mw'))road=lnRoad(name,pts[0],pts[pts.length-1],{vmax:8,w:2.6,boxes:[[10,26],[-22,-6]],cuts:[26,10,-6,-22]});
+    else if(([a,b].includes('mc')&&[a,b].includes('me'))||([a,b].includes('north')&&[a,b].includes('ne')))road=lnRoad(name,pts[0],pts[pts.length-1],{vmax:8,w:2.6,boxes:[[160,180]],cuts:[164]});
+    else {const L=lnLane(name,pts,{vmax:8,w:2.6});road={first:L,last:L};}
+    frontage[from+'>'+to]=road;
+    ends[from].outs.push({to,L:road.first});ends[to].ins.push({from,L:road.last});
+  }
+  for(const [key,n] of Object.entries(ends))if(key!=='entry')for(const a of n.ins)for(const b of n.outs)if(a.from!==b.to)lnTurn(a.L,b.L,{pri:3,vmax:5});
+  const n=ends.entry;lnTurn(E(136),n.outs[0].L,{pri:1});lnTurn(W(145.5),n.outs[0].L,{pri:2});
+  lnTurn(n.ins[0].L,Es(145),{pri:3});lnTurn(n.ins[0].L,Ws(135),{pri:3});
+  // District visits use pocket lanes; customers stop entirely inside each property.
+  const fIn=lnLane('district:fuel:in',[[62,18],[75,18]],{vmax:3,w:2.3,solo:true});
+  const fBay=lnLane('district:fuel:bay',[[85,12],[85,5]],{vmax:2.5,w:2.3,solo:true});
+  const fOut=lnLane('district:fuel:out',[[70,-14],[62,-14]],{vmax:3,w:2.3,solo:true});
+  lnTurn(frontage['mw>nw'].endAt(26),fIn,{pri:2});lnTurn(fIn,fBay,{vmax:3,solo:true});
+  const fTop=lnLane('district:fuel:top',[[85,-2],[85,-7]],{vmax:3,w:2.3,solo:true});
+  lnTurn(fBay,fTop,{vmax:3,solo:true});lnTurn(fTop,fOut,{vmax:3,solo:true});lnTurn(fOut,frontage['mw>nw'].startAt(-22),{pri:3});
+  const aIn=lnLane('district:agri:in',[[172,30],[172,2]],{vmax:4,w:2.3,solo:true});
+  const aBay=lnLane('district:agri:bay',[[168,-5],[168,-12]],{vmax:3,w:2.3,solo:true});
+  const aOut=lnLane('district:agri:out',[[172,-21],[172,-70]],{vmax:4,w:2.3,solo:true});
+  lnTurn(frontage['mc>me'].endAt(164),aIn,{pri:2});lnTurn(aIn,aBay,{vmax:3,solo:true});lnTurn(aBay,aOut,{vmax:3,solo:true});
+  lnTurn(aOut,frontage['ne>north'].startAt(164),{pri:3});
+  // A small service-vehicle bay, entered nose first and reversed into its own apron before departure.
+  const bay=lnLane('south:utilities:bay',[[151.6,83.5],[151.6,79.8]],{vmax:2.5,w:2.3,solo:true});
+  const out=lnLane('south:utilities:reverse',lnCurve([151.6,79.8],[0,1],[148.4,83.5],[-1,0]),{rev:true,vmax:2,w:2.3,solo:true});lnLink(bay,out);
+  for(const a of ends.utility.ins)lnTurn(a.L,bay,{pri:3,vmax:3});
+  for(const b of ends.utility.outs)lnTurn(out,b.L,{pri:3,vmax:3,d0:[0,1]});
+}
+
 function lnBuild(){
   const H=16, SIDE=8, POCK=3.5, REV=2;
   // ---- highway: every store car park, side road and driveway joins it inside a box
@@ -2643,7 +2790,7 @@ function lnBuild(){
   for(const x of cutE.concat(cutW)) if(!boxes.some(b=>x>b[0]+1&&x<b[1]-1)) LN.warn.push('highway cut outside a box '+x);
   const LEr=lnRoad('LE',[TX0,LE],[TX1,LE],{cuts:cutE,boxes,pri:0,vmax:H,w:2.6}), LWr=lnRoad('LW',[TX1,LW],[TX0,LW],{cuts:cutW,boxes,pri:0,vmax:H,w:2.6});
   const E=x=>LEr.endAt(x), Es=x=>LEr.startAt(x), W=x=>LWr.endAt(x), Ws=x=>LWr.startAt(x);
-  for(const L of LEr.segs.concat(LWr.segs)){const m=(L.pts[0][0]+L.pts[1][0])/2; if(m>27&&m<41) L.soft=false;}   // across the farm road: never stop where your vehicles cross
+  for(const L of LEr.segs.concat(LWr.segs)){const m=(L.pts[0][0]+L.pts[1][0])/2; if((m>27&&m<41)||(m>130&&m<148)) L.soft=false;}   // keep the farm access and new four-way district junction clear
   // store car parks: in nose first from either direction, back out towards where you are going, then join the highway
   for(const sh of HS) sh.spots.forEach((spot,i)=>{const [sx,sz]=spot, tag=sh.id+i;
     const sp=lnLane('sp:'+tag,[[sx,sz+2.3],[sx,sz]],{vmax:REV,solo:true}); LN.spot.set(spot,sp);
@@ -2697,6 +2844,7 @@ function lnBuild(){
   lnTurn(E(389),GIN,{pri:2}); lnTurn(W(401),GIN,{pri:1}); lnTurn(GOUT,Ws(389),{pri:3}); lnTurn(GOUT,Es(401),{pri:3});
   for(const sx of [393,399,405]){const sp=lnLane('f:home'+sx,[[sx,-130.8],[sx,-135]],{vmax:REV,solo:true}); lnTurn(GIN,sp,{turn:false,solo:true,vmax:POCK});
     const r=lnLane(null,lnCurve([sx,-135],[0,1],[sx+5,-128.5],[1,0]),{rev:true,vmax:REV,solo:true}); lnLink(sp,r); lnTurn(r,GOUT,{turn:false,solo:true,d0:[-1,0],vmax:POCK});}
+  buildSouthLanes(E,Es,W,Ws);
   // speed limits from curvature, then the conflicting stretches between lanes
   for(const L of LN.lanes){let rmin=1e9; for(let i=1;i<L.pts.length-1;i++){const a=L.pts[i-1],b=L.pts[i],c=L.pts[i+1], l1=Math.hypot(b[0]-a[0],b[1]-a[1]), l2=Math.hypot(c[0]-b[0],c[1]-b[1]);
       const th=Math.acos(Math.max(-1,Math.min(1,((b[0]-a[0])*(c[0]-b[0])+(b[1]-a[1])*(c[1]-b[1]))/(l1*l2||1)))); if(th>1e-3) rmin=Math.min(rmin,Math.min(l1,l2)/th);}
@@ -3339,13 +3487,16 @@ const inRect=(R,x,z,m)=>x>R[0]-m&&x<R[1]+m&&z>R[2]-m&&z<R[3]+m;
 const WW_CLEAR=[[3.8,[268,-252],[276,-236],[290,-218],[307,-202],[315,-191],[315,-181],[309,-169],[307.6,-152],[307.6,-110],[309,-97],[315,-82],[321,-66],[325,-56]],
   [1.4,[45,-191.3],[312.5,-191.3]],[1.4,[147,-116.4],[305.2,-116.4]],[1.4,[217.3,-180.6],[217.3,-116.6]],[1.4,[305.4,-103.8],[29.6,-103.8],[29.8,-100],[27,-88],[31.8,-70],[37.8,-54],[37.8,-44],[36,-44.5],[14,-45.2],[-10,-48],[-36,-49.5],[-36,-40.4]],[1.2,[-46,-19.4],[-46,-15.6],[-16.4,-15.6],[-16.4,20.95]]];
 function wwNear(x,z,m){for(const [w,...P] of WW_CLEAR) for(let i=0;i<P.length-1;i++){const [ax,az]=P[i], [bx,bz]=P[i+1], dx=bx-ax, dz=bz-az, L=dx*dx+dz*dz||1, t=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/L)); if(Math.hypot(x-ax-dx*t,z-az-dz*t)<w+m) return true;} return false;}
+// Visual-only irrigation site and maintenance approach; keep procedural foliage clear.
+// Southeast utilities parcel and its maintenance path, reserved from procedural foliage.
+function irrigationSite(x,z,m=0){m=Math.max(0,m);return (x>59-m&&x<107+m&&z>46-m&&z<85+m)||(x>111-m&&x<184+m&&z>-73-m&&z<34+m)||(x>60-m&&x<108+m&&z>-70-m&&z<28+m)||southRoadNear(x,z,m)||(x>120-m&&x<180+m&&z>52-m&&z<78+m);}
 // countryside: acacia, mango, niyog, saging and kawayan trees, wild grass and flowers (all instanced, all cast shadows)
 (()=>{const rr=rng(42);
   const onRoad=(x,z,m)=>roadDist(x,z)<m||(z>HZ-5.4-m&&z<HZ+5.4+m);
   // inside the lot: keep clear of the field, buildings, yards and roads (grass may grow in between; trees only where planted on purpose)
-  const busyIn=(x,z)=>FARM.areas.some(a=>a.loading&&inRect([a.loading.pad[0]-a.loading.pad[2]/2,a.loading.pad[0]+a.loading.pad[2]/2,a.loading.pad[1]-a.loading.pad[3]/2,a.loading.pad[1]+a.loading.pad[3]/2],x,z,2))||inField(x,z,1.8)||inRect(ORCH,x,z,.3)||inRect(UTIL,x,z,.3)||FARM.areas.some(a=>inRect([a.fence[0],a.fence[2],a.fence[1],a.fence[3]],x,z,1.5))||inRect([-27,-20,-6,2],x,z,1)
+  const busyIn=(x,z)=>(x>-50&&x<-18&&z>6&&z<20)||FARM.areas.some(a=>a.loading&&inRect([a.loading.pad[0]-a.loading.pad[2]/2,a.loading.pad[0]+a.loading.pad[2]/2,a.loading.pad[1]-a.loading.pad[3]/2,a.loading.pad[1]+a.loading.pad[3]/2],x,z,2))||inField(x,z,1.8)||inRect(ORCH,x,z,.3)||inRect(UTIL,x,z,.3)||FARM.areas.some(a=>inRect([a.fence[0],a.fence[2],a.fence[1],a.fence[3]],x,z,1.5))||inRect([-27,-20,-6,2],x,z,1)
     ||inRect(lotRect('house',S.housePos.x,S.housePos.z),x,z,.5)||inRect([GX-12,GX+12,G0-4.5,G0+4.5],x,z,.5)||roadDist(x,z)<.4;
-  const busy=(x,z,m)=>inLot(x,z)&&(m>=0||busyIn(x,z))   // the farm lot
+  const busy=(x,z,m)=>irrigationSite(x,z,m+2)||inLot(x,z)&&(m>=0||busyIn(x,z))   // the farm lot
     ||(x>116-m&&x<216+m&&z>-171-m&&z<-112+m)   // the poblacion block round the palengke (streets and shophouses)
     ||(x>104-m&&x<135+m&&z>-141-m&&z<-114+m)   // your mini-mart, parking and delivery apron
     ||(x>226-m&&x<361+m&&z>-162-m&&z<-113+m)   // the bus terminal, the jeepney terminal and the police station
@@ -3428,7 +3579,7 @@ function wwNear(x,z,m){for(const [w,...P] of WW_CLEAR) for(let i=0;i<P.length-1;
 })();
 // gentle hills (burol) beyond the farm, the town and the factory, where nothing is built
 (()=>{const r=rng(606), b=[], CL=[0x7fb352,0x86b85a,0x78ab4e,0x8fbf5e];
-  const hill=(x,z)=>{if(nearSea(x,z,30)) return; const w=24+r()*36; b.push(P('dome',CL[(r()*4)|0],x,-.4,z,w,4+r()*7,w*(.6+r()*.5),0,r()*3,0));};
+  const hill=(x,z)=>{if(nearSea(x,z,30)||irrigationSite(x,z,32)) return; const w=24+r()*36; b.push(P('dome',CL[(r()*4)|0],x,-.4,z,w,4+r()*7,w*(.6+r()*.5),0,r()*3,0));};
   for(let k=0;k<26;k++) hill(-190+r()*660,100+r()*90);           // south, past the farm lot
   for(let k=0;k<26;k++){const x=-190+r()*660, z=-262-r()*110; if(x<40||x>340) hill(x,z);}   // north, past the barangay (the hillside barangay has its own slope)
   for(let k=0;k<10;k++){hill(-205-r()*80,-200+r()*260); hill(470+r()*80,-200+r()*260);}   // west and east ends
@@ -4732,7 +4883,20 @@ function renderStats(){
   marketMark.visible=ready;
 }
 const CATS=[{id:'tools',icon:'🧰',label:'Tools'},{id:'build',icon:'🏗️',label:'Build'},{id:'market',icon:'🏪',label:'Palengke'},{id:'hardware',icon:'🔨',label:'Hardware'},{id:'poultry',icon:'🐣',label:'Poultry'},{id:'seeds',icon:'🌱',label:'Binhi'},{id:'upgrade',icon:'🏠',label:'Upgrade'}];
-let openCat=null;
+// Hand-drawn vector icons share one outline and palette; no external image requests.
+const UI_ICON_PATHS={
+ tools:'<rect x="6" y="13" width="28" height="20" rx="3" fill="#d98b65"/><path d="M14 13V8h12v5M6 21h28M18 19h4v6h-4z"/>',
+ build:'<path d="M7 34V8h4v26M8 8h25L20 3M11 13h18M28 8v13"/><rect x="24" y="22" width="9" height="10" fill="#e6c16c"/>',
+ market:'<path d="M7 18v16h26V18" fill="#edd8ac"/><path d="M4 18l4-10h24l4 10z" fill="#da8d6c"/><path d="M13 18V8m8 10V8m8 10V8M12 34V23h8v11M24 23h5v6h-5z"/>',
+ hardware:'<path d="M8 32l18-19 5 5-18 18z" fill="#bf9563"/><path d="M20 8l5-5 10 9-5 5-5-4-4 4-5-5z" fill="#829994"/>',
+ poultry:'<ellipse cx="20" cy="24" rx="13" ry="10" fill="#e2be6d"/><circle cx="25" cy="14" r="8" fill="#e2be6d"/><path d="M32 15l5 3-6 2M14 33v4m9-4v4M8 21l-4-6"/><circle cx="27" cy="12" r="1" fill="#493f35"/>',
+ seeds:'<path d="M20 35V17M20 25C5 24 4 12 5 8c13 0 17 8 15 17z" fill="#8ea56d"/><path d="M20 20C19 8 27 4 35 5c0 10-7 16-15 15z" fill="#a4b87f"/>',
+ upgrade:'<path d="M5 19L20 6l15 13M9 17v18h22V17" fill="#e2bf91"/><path d="M16 35V24h8v11M15 17h10"/><path d="M29 8V3m-3 3h6"/>'};
+for(const c of CATS)c.svg=`<svg viewBox="0 0 40 40" fill="none" stroke="#493f35" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${UI_ICON_PATHS[c.id]}</svg>`;
+let openCat=null,buildGroup='all';
+const BUILD_GROUPS=[['all','All'],['animals','Livestock'],['production','Production'],['land','Land & paths']];
+const buildGroupOf=id=>['coop','broiler','cows','pig','duck','goat','fish'].includes(id)?'animals':['tree','road','fence'].includes(id)?'land':'production';
+$('buildFilters').addEventListener('click',e=>{const b=e.target.closest('[data-build-group]');if(!b)return;buildGroup=b.dataset.buildGroup;renderHUD();});
 function iconOf(t){return t.svg?`<span class="ti svg" aria-hidden="true">${t.svg}</span>`:`<span class="ti" aria-hidden="true">${t.icon}</span>`;}
 // the hint under the screen is small and fades a few seconds after it changes, so it never sits over the game
 let hintT=0, hintLast='';
@@ -4745,12 +4909,14 @@ function renderHUD(){
     if(c.id==='build'&&curBld) ic=iconOf(curBld);
     const active=(c.id==='tools'&&curTool)||(c.id==='build'&&curBld);
     const shopLock={hardware:3,poultry:2}[c.id]; const locked=shopLock&&S.level<shopLock;
-    return `<button class="tool cat ${openCat===c.id?'open':''} ${active?'on':''} ${locked?'locked':''}" data-cat="${c.id}" aria-expanded="${openCat===c.id}">${ic}<span class="tl">${locked?'🔒 Lv'+shopLock:c.label}</span>${c.id==='market'?'<span id="invCount" class="badge"></span>':''}</button>`;
+    return `<button class="tool cat ${openCat===c.id?'open':''} ${active?'on':''} ${locked?'locked':''}" data-cat="${c.id}" aria-expanded="${openCat===c.id}">${ic}<span class="tl">${c.label}${locked?' · L'+shopLock:''}</span>${c.id==='market'?'<span id="invCount" class="badge"></span>':''}</button>`;
   }).join('');
   let bar='';
   if(openCat==='tools') bar=TOOLS.map(t=>`<button class="tool ${S.tool===t.id?'on':''}" data-tool="${t.id}" aria-pressed="${S.tool===t.id}">${iconOf(t)}<span class="tl">${t.label}</span></button>`).join('');
-  if(openCat==='build') bar=Object.entries(BLDS).map(([id,b])=>{const full=MAXL[id]&&countOf(id)>=allowedN(id), nl=full?MAXL[id][countOf(id)]:b.lvl, lock=S.level<b.lvl||full, on=S.tool==='build'&&S.bld===id;
+  if(openCat==='build') bar=Object.entries(BLDS).filter(([id])=>buildGroup==='all'||buildGroupOf(id)===buildGroup).map(([id,b])=>{const full=MAXL[id]&&countOf(id)>=allowedN(id), nl=full?MAXL[id][countOf(id)]:b.lvl, lock=S.level<b.lvl||full, on=S.tool==='build'&&S.bld===id;
     return `<button class="tool ${on?'on':''} ${lock?'locked':''}" data-bld="${id}" aria-pressed="${on}">${iconOf(b)}<span class="tl">${b.name}</span><span class="tc">${lock?(nl?'🔒 Lvl '+nl:'Max'):'₱'+b.cost}</span></button>`;}).join('');
+  $('buildFilters').hidden=openCat!=='build';
+  $('buildFilters').innerHTML=BUILD_GROUPS.map(([id,label])=>`<button data-build-group="${id}" aria-pressed="${buildGroup===id}">${label}</button>`).join('');
   $('tools').innerHTML=bar;
   $('picker').innerHTML=S.tool==='plant'?Object.entries(CROPS).sort((a,b)=>a[1].lvl-b[1].lvl).map(([id,o])=>{const lock=S.level<o.lvl;
     return `<button class="chip ${id===S.crop?'on':''} ${lock?'locked':''}" data-pick="${id}"><span class="ci" aria-hidden="true">${o.icon}</span><span class="cn">${o.name}</span><span class="cc">${lock?'Level '+o.lvl:'🌱 '+seedsOf(id)+' binhi'}</span></button>`;}).join('')+`<button class="chip" data-buyseeds="1"><span class="ci" aria-hidden="true">🛒</span><span class="cn">Buy</span><span class="cc">Binhi store</span></button>`:'';
@@ -6461,15 +6627,32 @@ function updateStreetVendors(dt,t){   // (named apart from the palengke stall se
 }
 /* ---------- sakayan (bus stop) by the highway where the dirt road meets it: a bus and a jeepney pick up students and other riders ---------- */
 const STOPX=DX+14, STOPZ=HZ+7.4, BAYZ=HZ+4.5;   // the bus and jeepney pull out of the lane into the bay
+// Deck footprints shared by the pavement and drainage builder. The lane network stays unchanged.
+const STOP_ACCESS={bay:[DX,DX+39,HZ+3.3,HZ+6.7],walk:[STOPX-35,STOPX+35,HZ+6.7,HZ+9.8],boarding:[DX,DX+39,HZ+5.3,HZ+7.6]};
+function stopDrainCovered(x,z,m=0){return Object.values(STOP_ACCESS).some(([x0,x1,z0,z1])=>x>=x0-m&&x<=x1+m&&z>=z0-m&&z<=z1+m);}
 (()=>{const b=[], c=0x2e7d32;
   for(const x of [-2.8,2.8]) for(const z of [.3,1.6]) b.push(P('box',0x9aa0a6,STOPX+x,1.3,STOPZ+z,.12,2.6,.12));
   b.push(P('box',c,STOPX,2.65,STOPZ+.95,6.2,.12,2.1)); b.push(P('box',0xf1c40f,STOPX,2.55,STOPZ-.12,6.2,.1,.08));
   b.push(P('box',0xd7ccc8,STOPX,1.3,STOPZ+1.62,5.6,1.6,.06)); b.push(P('box',0x8d6e4b,STOPX,.5,STOPZ+1.25,5.2,.08,.5));
   for(const x of [-2.2,0,2.2]) b.push(P('box',0x6d4c41,STOPX+x,.25,STOPZ+1.25,.08,.5,.4));
   b.push(P('box',0xbdb6a6,STOPX,.04,STOPZ+.8,7.6,.08,3.2));
-  b.push(P('box',0x4a4a4a,STOPX+1,.03,BAYZ+.2,26,.05,2.8));                                 // the bay
-  for(const z of [BAYZ-1.25,BAYZ+1.55]) b.push(P('box',0xf1c40f,STOPX+1,.06,z,26,.02,.12));
-  for(let i=0;i<9;i++) b.push(P('box',0xf1c40f,STOPX-10+i*2.75,.06,BAYZ+.15,1.2,.02,.12,0,.7));  // yellow hatching
+  // Flush, continuous culvert deck: tires and boarding passengers never straddle an open drain.
+  const slab=(r,color,top)=>{const [x0,x1,z0,z1]=r;b.push(P('box',color,(x0+x1)/2,top-.04,(z0+z1)/2,x1-x0,.08,z1-z0));};
+  slab(STOP_ACCESS.bay,0x4a4a4a,.08);
+  slab(STOP_ACCESS.walk,0xc7c0ae,.08);
+  slab(STOP_ACCESS.boarding,0xb8b1a0,.085);
+  // The approach follows the existing pedestrian route beside the farm-road junction.
+  b.push(P('box',0xc7c0ae,DX-1.3,.04,HZ+6.5,2.4,.08,4.4));
+  for(let x=STOP_ACCESS.walk[0]+2;x<STOP_ACCESS.walk[1];x+=2)
+    b.push(P('box',0xada798,x,.086,HZ+8.25,.025,.012,2.95));
+  // Paint, not a raised curb, separates boarding from the vehicle bay.
+  for(let x=DX+3;x<DX+37;x+=2.5)b.push(P('box',0xe9c55b,x,.096,HZ+5.35,1.35,.012,.12));
+  b.push(P('box',0xe9c55b,STOPX+5,.096,HZ+6.35,25,.012,.23));
+  // Back edge of the footpath; leave both ends and the farm approach unobstructed.
+  b.push(P('box',0xd8d0bd,STOPX,.06,HZ+9.9,70,.12,.18));
+  // Inspection covers keep the irrigation channel accessible beneath the boarding deck.
+  for(const x of [DX+5,DX+34]){b.push(P('box',0x777d78,x,.096,HZ+6.2,.75,.015,.65));
+    for(let k=-2;k<=2;k++)b.push(P('box',0x454c49,x+k*.12,.107,HZ+6.2,.035,.01,.48));}
   b.push(P('cyl',0x9aa0a6,STOPX-4.2,1.3,STOPZ-.2,.08,2.6,.08)); b.push(P('box',0x1565c0,STOPX-4.2,2.45,STOPZ-.2,.8,.5,.06));
   const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.castShadow=m.receiveShadow=true; scene.add(m);
   const cv=document.createElement('canvas'); cv.width=512; cv.height=96; const x=cv.getContext('2d'); x.fillStyle='#2e7d32'; x.fillRect(0,0,512,96);
@@ -6477,7 +6660,7 @@ const STOPX=DX+14, STOPZ=HZ+7.4, BAYZ=HZ+4.5;   // the bus and jeepney pull out 
   const sg=new THREE.Mesh(new THREE.PlaneGeometry(4,.75),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)})); sg.position.set(STOPX,2.65,STOPZ-.13); sg.rotation.y=Math.PI; scene.add(sg);
   const sg2=sg.clone(); sg2.rotation.y=0; sg2.position.z=STOPZ+2.02; scene.add(sg2);
   const cv2=document.createElement('canvas'); cv2.width=512; cv2.height=64; const y=cv2.getContext('2d'); y.fillStyle='#f1c40f'; y.font='900 44px Arial, sans-serif'; y.textAlign='center'; y.textBaseline='middle'; y.fillText('LOADING · UNLOADING',256,34);
-  const paint=new THREE.Mesh(new THREE.PlaneGeometry(9,1.1),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv2),transparent:true})); paint.rotation.x=-Math.PI/2; paint.position.set(STOPX+8,.07,BAYZ+.15); scene.add(paint);
+  const paint=new THREE.Mesh(new THREE.PlaneGeometry(9,1.1),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv2),transparent:true})); paint.rotation.x=-Math.PI/2; paint.position.set(STOPX+8,.105,BAYZ+.15); scene.add(paint);
   glow(scene,STOPX,2.35,STOPZ+.9,3.2,GM.white);})();
 function makeBus(){const b=[], col=[0x1565c0,0xc62828,0x2e7d32][(Math.random()*3)|0], GL=0x2b3a48, D=0x1b1b1b;
   vkBus(b,{zf:4.8,zr:-4.8,w:2.4,h:2.5,yb:.42,col,wheels:[-3.2,3.2],ra:.56,r:.45,win:[1.42,2.15]});
@@ -7101,6 +7284,96 @@ let townLast=performance.now(), terminalLast=-Infinity,commuterLast=null;
    barangay and palengke kanal: concrete roadside drains that empty into the ilog.
    patubig: the irrigation canal that takes water from the ilog along the highway and the farm road round the fence to the fish ponds,
    and the farm canal from the ponds past the bodega to the field canal. Where a road crosses, the water goes under covers or a bridge. */
+/* ---------- Finished road junctions: visual geometry only; lane routing is untouched. ---------- */
+// Phase 1 road surfaces use the same node/edge layout as the lane network.
+(()=>{
+  const b=[],B=(x,y,z,w,h,d,c,ry=0)=>b.push(P('box',c,x,y,z,w,h,d,0,ry));
+  const ribbon=(pts,lo,hi,y,color)=>{if(lo>hi)[lo,hi]=[hi,lo];const v=[];const pairs=pts.map((p,i)=>{const a=pts[Math.max(0,i-1)],c=pts[Math.min(pts.length-1,i+1)],dx=c[0]-a[0],dz=c[1]-a[1],l=Math.hypot(dx,dz);return [[p[0]-dz/l*lo,y,p[1]+dx/l*lo],[p[0]-dz/l*hi,y,p[1]+dx/l*hi]];});
+    for(let i=1;i<pairs.length;i++){const [A,B]=pairs[i-1],[C,D]=pairs[i];
+      const cx=(A[0]+B[0]+C[0]+D[0])/4,z0=Math.min(A[2],C[2]),z1=Math.max(A[2],C[2]);
+      if(y>.14&&cx>57.8&&cx<59.3&&([-14,18,54,76].some(z=>z0<z+4&&z1>z-4)))continue;
+      const x0=Math.min(A[0],B[0],C[0],D[0]),x1=Math.max(A[0],B[0],C[0],D[0]),cz=(A[2]+B[2]+C[2]+D[2])/4;
+      if(y>.14&&((cz>-76.2&&cz<-74.5)||(cz>34.5&&cz<36.2))&&x0<176&&x1>168)continue;
+      v.push(...A,...B,...C,...B,...D,...C);}
+    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(v,3));geo.computeVertexNormals();b.push([geo,new THREE.Matrix4(),color]);};
+  for(const {a,c,pts} of SOUTH_PATHS.map(p=>({...p,c:p.b}))){const A=pts[0],C=pts[pts.length-1],middle=pts.filter(p=>Math.hypot(p[0]-A[0],p[1]-A[1])>10.1&&Math.hypot(p[0]-C[0],p[1]-C[1])>10.1);
+    const dx=C[0]-A[0],dz=C[1]-A[1],len=Math.hypot(dx,dz);
+    middle.unshift([A[0]+dx/len*10.1,A[1]+dz/len*10.1]);middle.push([C[0]-dx/len*10.1,C[1]-dz/len*10.1]);
+    ribbon(pts,-4,4,.066,0x45474b);
+    for(const sd of [-1,1]){ribbon(middle,sd*4,sd*5.25,.145,0xbdb8ad);ribbon(middle,sd*3.93,sd*4.07,.165,0xd8d4cc);}
+    for(let i=1;i<middle.length-1;i++){const p=middle[i],q=middle[i+1],dx=q[0]-p[0],dz=q[1]-p[1],l=Math.hypot(dx,dz),ry=Math.atan2(dx,dz);
+      if(i%3===0)B(p[0],.075,p[1],.12,.012,2.6,0xf0df9e,ry);
+      if(i%18===6){const x=p[0]-dz/l*5.05,z=p[1]+dx/l*5.05;B(x,1.8,z,.12,3.6,.12,0x53645c);B(x,3.55,z,.65,.13,.4,0xd3d0b8);}
+    }
+  }
+  // Canal crossing at the new south arm of the existing highway junction.
+  // WWAYS supplies the cover below; parapets stay outside the carriageway and pavements.
+  for(const x of [134.5,145.5]){
+    B(x,.52,-103.8,.24,.9,2.1,0xbdb8ad);
+    B(x,1,-103.8,.34,.12,2.2,0xd8d4cc);
+  }
+  const m=new THREE.Mesh(mergeGeo(b),VCMAT);m.name='Southern district roads';m.receiveShadow=m.castShadow=true;scene.add(m);
+  boardSign(['SOUTHERN COLLECTOR','UTILITIES →'],'#365d4e','#fff',118,98,0,5.2,1.1,2.1,0x63746b,false);
+})();
+
+const ROAD_JUNCTIONS=[
+  {x:40,z:HZ,hx:3.5,hz:3.6,arms:'NEW'},
+  {x:140,z:HZ,hx:4,hz:3.6,arms:'NESW'},
+  {x:SRX,z:HZ,hx:3,hz:3.6,arms:'NEW'},
+  {x:330,z:HZ,hx:3.5,hz:3.6,arms:'NEW'},
+  {x:40,z:STZ,hx:3.5,hz:3.5,arms:'ES'},
+  {x:SRX,z:STZ,hx:3,hz:3.5,arms:'ESW'},
+  {x:330,z:STZ,hx:3.5,hz:3.5,arms:'SW'},
+  {x:TWN.wx,z:TWN.bz,hx:3,hz:3,arms:'ES'},
+  {x:SRX,z:TWN.bz,hx:3,hz:3,arms:'NSW'},
+  ...Object.entries(SOUTH_ROADS.nodes).filter(([key])=>key!=='entry').map(([key,[x,z]])=>({x,z,hx:4,hz:key==='entry'?3.6:4,arms:key==='entry'?'ESW':SOUTH_ROADS.edges.filter(e=>e.includes(key)).map(e=>{const p=SOUTH_ROADS.nodes[e[0]===key?e[1]:e[0]];return p[0]>x?'E':p[0]<x?'W':p[1]>z?'S':'N';}).join('')+(key==='utility'?'N':'')}))
+];
+(()=>{
+  const asphalt=0x45474b,paving=0xbdb8ad,curb=0xd8d4cc,white=0xf1eee4;
+  for(const J of ROAD_JUNCTIONS){
+    const {x,z,hx,hz,arms}=J,r=2.4,sw=1.25,ex=hx+r+4.2,ez=hz+r+4.2,b=[];
+    const flat=(points,y,color)=>{const sh=new THREE.Shape();points.forEach(([a,c],i)=>i?sh.lineTo(a,-c):sh.moveTo(a,-c));sh.closePath();
+      const geo=new THREE.ShapeGeometry(sh);geo.rotateX(-Math.PI/2);geo.translate(x,y,z);b.push([geo,new THREE.Matrix4(),color]);};
+    const rect=(cx,cz,w,d,color,y=.128)=>b.push(P('box',color,x+cx,y-.012,z+cz,w,.024,d));
+    const strip=(a,c,width,color,y)=>{const dx=c[0]-a[0],dz=c[1]-a[1];b.push(P('box',color,x+(a[0]+c[0])/2,y-.02,z+(a[1]+c[1])/2,width,.04,Math.hypot(dx,dz),0,Math.atan2(dx,dz)));};
+    // Replace markings and raised straight curb ends inside the junction with one clear apron.
+    rect(0,0,hx*2,hz*2,asphalt);
+    for(const [key,sx,sz] of [['N',0,-1],['S',0,1],['E',1,0],['W',-1,0]]){
+      if(!arms.includes(key))continue;
+      if(sx)rect(sx*(hx+ex-.8)/2,0,ex-hx-.8,2*hz,asphalt);
+      else rect(0,sz*(hz+ez-.8)/2,2*hx,ez-hz-.8,asphalt);
+      // Feather into the existing road height instead of leaving a raised rectangular seam.
+      const end=sx?ex:ez,half=sx?hz:hx;
+      const q=(d,t,y)=>sx?[x+sx*d,y,z+t]:[x+t,y,z+sz*d];
+      const A=q(end-.8,-half,.128),B=q(end-.8,half,.128),C=q(end,-half,.066),D=q(end,half,.066);
+      const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute([...A,...B,...C,...B,...D,...C,...C,...B,...A,...C,...D,...B],3));geo.computeVertexNormals();b.push([geo,new THREE.Matrix4(),asphalt]);
+    }
+    for(const sx of [-1,1])for(const sz of [-1,1]){
+      const hor=arms.includes(sx>0?'E':'W'),ver=arms.includes(sz>0?'S':'N');
+      if(!hor||!ver)continue;
+      // Tangent quarter-circle: the road broadens into a corner and the sidewalk wraps it.
+      const arc=[];for(let i=0;i<=16;i++){const a=Math.PI+i*Math.PI/32;arc.push([sx*(hx+r+Math.cos(a)*r),sz*(hz+r+Math.sin(a)*r)]);}
+      flat([[sx*hx,sz*hz],...arc,[sx*hx,sz*hz]],.13,asphalt);
+      flat([...arc,[sx*ex,sz*hz],[sx*ex,sz*(hz+sw)],[sx*(hx+r+sw),sz*(hz+sw)],
+        [sx*(hx+sw),sz*(hz+r+sw)],[sx*(hx+sw),sz*ez],[sx*hx,sz*ez]],.145,paving);
+      for(let i=0;i<arc.length-1;i++)strip(arc[i],arc[i+1],.16,curb,.165);
+      strip([sx*hx,sz*(hz+r)],[sx*hx,sz*ez],.14,curb,.165);
+      strip([sx*(hx+r),sz*hz],[sx*ex,sz*hz],.14,curb,.165);
+      // Paving joints follow the curve rather than continuing through the asphalt.
+      for(let i=2;i<15;i+=4){const a=Math.PI+i*Math.PI/32,px=sx*(hx+r+Math.cos(a)*r),pz=sz*(hz+r+Math.sin(a)*r);
+        strip([px,pz],[px-sx*Math.cos(a)*sw*.65,pz-sz*Math.sin(a)*sw*.65],.025,0xa9a397,.15);}
+    }
+    // Crossings are beyond the curved corners, leaving the central turning area clear.
+    for(const [key,sx,sz] of [['N',0,-1],['S',0,1],['E',1,0],['W',-1,0]]){
+      if(!arms.includes(key))continue;
+      const span=sx?hz:hx,at=(sx?hx:hz)+r+1.6;
+      for(let q=-span+.45;q<span-.2;q+=.9){if(sx)rect(sx*at,q,2.0,.48,white,.15);else rect(q,sz*at,.48,2.0,white,.15);}
+    }
+    const g=new THREE.Mesh(mergeGeo(b),VCMAT);g.name='Rounded junction '+x+','+z;g.receiveShadow=true;scene.add(g);
+    for(const [geo]of b)if(geo!==PG.box)geo.dispose();
+  }
+})();
+
 const WWAYS=(()=>{
   const off=(pts,d)=>pts.map((p,i)=>{const a=pts[Math.max(0,i-1)], b=pts[Math.min(pts.length-1,i+1)], dx=b[0]-a[0], dz=b[1]-a[1], L=Math.hypot(dx,dz)||1; return [p[0]-dz/L*d,p[1]+dx/L*d];});
   const acc=(()=>{const a=off(ACCESS,4.3); return (a[0][0]<ACCESS[0][0]?a:off(ACCESS,-4.3)).filter(([x,z])=>z>-100&&z<-43);})();   // west side of the farm road
@@ -7121,7 +7394,7 @@ const WWAYS=(()=>{
   barangayDrain.pts=straight([[45,-191.3],[joinX-river.w/2-4,-191.3],[joinX-river.w/2-1.2,joinZ],[joinX-river.w/2+.15,joinZ]],.45);
   const hr=(x,z,m)=>{for(const r of HROADS) for(const [a,c] of r.s) if(Math.hypot(x-a,z-c)<r.w/2+m) return true; return false;};
   const turn=(x,z,m)=>FARM.turning.some(t=>Math.hypot(x-t.x,z-t.z)<t.r+m);
-  const covered=(x,z,m)=>(Math.abs(z-HZ)<5.2+m)||(Math.abs(z-STZ)<4.3+m&&x>35-m&&x<335+m)||(Math.abs(x-SRX)<4.3+m&&z>STZ&&z<HZ)||((Math.abs(x-40)<4.3+m||Math.abs(x-330)<4.3+m)&&z>STZ-4.3&&z<HZ)
+  const covered=(x,z,m)=>(Math.abs(x-140)<5+m&&Math.abs(z+103.8)<4)||stopDrainCovered(x,z,m)||(Math.abs(z-HZ)<5.2+m)||(Math.abs(z-STZ)<4.3+m&&x>35-m&&x<335+m)||(Math.abs(x-SRX)<4.3+m&&z>STZ&&z<HZ)||((Math.abs(x-40)<4.3+m||Math.abs(x-330)<4.3+m)&&z>STZ-4.3&&z<HZ)
     ||(Math.abs(x-PX)<7+m&&Math.abs(z+116.4)<3+m) // palengke entrance culvert
     ||([273,300].some(a=>Math.abs(x-a)<3.5+m)&&Math.abs(z+116.4)<2.9+m)||(Math.abs(x-236)<5+m&&Math.abs(z+116.4)<2.9+m)   // terminal driveways, bus entrance
     ||(Math.abs(x-TWN.wx)<TWN.w/2+1.3+m&&z>TWN.bz&&z<HZ)||(Math.abs(z-TWN.bz)<TWN.w/2+1.3+m&&x>TWN.wx&&x<SRX)||hr(x,z,m)||roadDist(x,z)<m||turn(x,z,m-.5);
@@ -7195,6 +7468,418 @@ let wwLast=performance.now(), wwRain=0, wwSnd=0;
     m.color.copy(A.calm).lerp(mud,wwRain*.78); A.wm.position.y=A.lv[0]+(A.lv[1]-A.lv[0])*wwRain+Math.sin(n/700)*.008;}
   if(AC&&SND.amb&&AC.state==='running'){wwSnd-=dt; if(wwSnd<=0){wwSnd=.7+Math.random()*.4; let best=0; for(const A of WWAYS.all) for(const [x,z] of A.samp){const k=near(x,z)*(A.W.kind==='creek'?1:.55); if(k>best) best=k;}
     if(best>.05) noise(BUS.amb,{d:1.4,a:.5,v:best*(.035+wwRain*.11),f:700+wwRain*500,f2:1300+wwRain*900,q:.6,type:'bandpass'});}}   // babbling water, a rush in the rain
+})();
+// Visual-only utilities district: reference layout, animated water, no economy/save dependencies.
+// Phase 2: farm services scenery. Purchasing, rentals, repairs and fuel are not gameplay systems yet.
+(()=>{
+  const g=new THREE.Group();g.name='Farm services station';scene.add(g);
+  const b=[],B=(x,y,z,w,h,d,c,rx=0,ry=0,rz=0)=>b.push(P('box',c,x,y,z,w,h,d,rx,ry,rz));
+  const cream=0xded4b8,trim=0x49685a,metal=0x626c68,roofC=0x94744f;
+  B(84,.025,-21,44,.05,94,0xaaa38c);
+  // Two paved driveways form a circulation aisle clear of buildings, display equipment and parking.
+  for(const z of [-14,18])B(69,.055,z,22,.1,8,0x777b77);
+  B(78,.055,2,8,.1,40,0x777b77);
+  B(84,.04,-48,40,.1,35,0xc6bfaa);
+  B(88,.04,-15,30,.1,12,0xc6bfaa);
+  B(87,.04,10,34,.1,26,0xc6bfaa);
+  // Continuous pedestrian route, with flush crossing strips at both vehicle entrances.
+  B(63,.11,-21,1.6,.12,94,0xe0d8c3);
+  for(const z of [-14,18])for(let k=-3;k<=3;k++)B(60.8,.16,z+k,.9,.012,.45,0xf1eee4);
+  for(const z of [-7,0,7])B(78,.112,z,.12,.012,2.5,0xf1df9b);
+  const sign=(text,x,z,w=6,y=3,ry=0)=>{const q=boardSign([text],'#365b48','#fff3d7',x,z,ry,w,.85,y,trim,false);g.add(q);};
+  const building=(x,z,w,d,title,open=false)=>{
+    B(x,.25,z,w+.5,.4,d+.5,0xaaa799);
+    B(x,2.3,z-d/2+.15,w,4.3,.3,cream);
+    for(const sd of [-1,1])B(x+sd*(w/2-.15),2.3,z,.3,4.3,d,cream);
+    if(open){for(const dx of [-w/2+.2,0,w/2-.2])B(x+dx,2.3,z+d/2,.35,4.3,.35,trim);B(x,4.2,z+d/2,w,.55,.35,trim);}
+    else{B(x,2.3,z+d/2,w,4.3,.25,cream);B(x-w*.25,1.6,z+d/2+.15,1.4,2.8,.1,trim);B(x+w*.2,2.5,z+d/2+.16,2.5,1.5,.12,0x6e929b);}
+    for(const sd of [-1,1])B(x+sd*w/4,4.65,z,w/2+.55,.15,d+1,roofC,0,0,-sd*.16);
+    B(x,4.65+Math.sin(.16)*w/4+.08,z,.2,.12,d+1.1,trim);
+    for(let zz=z-d/2-.3;zz<z+d/2+.4;zz+=.65)for(const sd of [-1,1])B(x+sd*w/4,4.79,zz,w/2+.5,.035,.04,0xb19977,0,0,-sd*.16);
+    sign(title,x,z+d/2+.28,w-1,4.15);
+  };
+  building(77,-32,20,14,'REPAIR WORKSHOP',true);
+  building(98,-33,12,16,'EQUIPMENT RENTAL',true);
+  building(98,14,10,9,'FARM SERVICES');
+  // Workshop benches, tool board, hydraulic lift and rolling shutter above one open bay.
+  B(73,1,-37,6,.2,1.4,0x806343);for(const x of [70.5,75.5])B(x,.55,-37,.12,1,.9,metal);
+  B(73,2.5,-38,6,1.5,.12,0x4c6965);
+  for(let x=70.5;x<76;x+=.65){B(x,2.5,-37.88,.08,.8,.08,0xc2c6bd);B(x,2.9,-37.86,.25,.12,.1,0xc2c6bd);}
+  for(const x of [80,85]){B(x,1.7,-32,.3,3,.4,0xd7a649);B(x,1,-31,1.3,.2,3.8,metal);}
+  for(let yy=3.25;yy<4;yy+=.18)B(72,yy,-24.85,8,.12,.14,0xa6aaa2);
+  B(87,1,-36,1.4,1.6,.8,0xa14835);for(let y=.5;y<1.6;y+=.3)B(87,y,-35.57,1.1,.04,.04,0xd0c8b2);
+  // Original compact tractors with large rear tyres, smaller front tyres and open operator stations.
+  const tractor=(x,z,color,scale=1)=>{
+    const t=new THREE.Group();t.position.set(x,0,z);t.scale.setScalar(scale);g.add(t);
+    const p=(w,h,d,c,x,y,z)=>t.add(mesh(new THREE.BoxGeometry(w,h,d),c,x,y,z));
+    p(1.45,.35,3,0x444c45,0,.7,0);p(1.25,.85,1.6,color,0,1.3,.65);p(1.15,.6,.06,0x34423f,0,1.25,1.48);
+    for(let xx=-.45;xx<.5;xx+=.15)p(.045,.5,.04,0xaeb7ae,xx,1.25,1.53);
+    p(.75,.18,.65,0x303936,0,1.3,-.65);p(.75,.6,.13,0x303936,0,1.6,-.94);
+    for(const sd of [-1,1]){p(.55,.16,1.45,color,sd*.85,1.7,-.75);p(.08,1.7,.08,trim,sd*.7,2,-1.1);}
+    p(1.9,.15,1.8,0xd9d5ba,0,2.85,-.45);p(.12,1.2,.12,metal,.4,2,.8);
+    for(const [zz,r] of [[-.85,.76],[1.05,.47]])for(const sd of [-1,1]){
+      const tire=mesh(new THREE.CylinderGeometry(r,r,.38,14),0x282e2b,sd*1,r,zz);tire.rotation.z=Math.PI/2;t.add(tire);
+      const hub=mesh(new THREE.CylinderGeometry(r*.44,r*.44,.4,12),0xe2cfa0,sd*1,r,zz);hub.rotation.z=Math.PI/2;t.add(hub);
+      for(let k=0;k<12;k++){const a=k*Math.PI/6;const cleat=mesh(new THREE.BoxGeometry(.43,.09,.18),0x41463e,sd*1,r+Math.cos(a)*r,zz+Math.sin(a)*r);cleat.rotation.x=a;t.add(cleat);}
+    }
+    const wheel=mesh(new THREE.TorusGeometry(.23,.035,6,12),0x343a35,0,1.65,-.1);wheel.rotation.x=.7;t.add(wheel);
+    return t;
+  };
+  for(const [x,c] of [[70,0x557e39],[81,0xc78832],[92,0x466d82]]){B(x,.15,-56,7,.2,9,0xaaa999);tractor(x,-56,c,1.25);}
+  tractor(101,-32,0x7f943f,.9);
+  sign('TRACTORS & FARM EQUIPMENT',82,-48,15,2.2);
+  // Rental implements: tiller, small trailer and a row of hand tools.
+  for(const x of [94,98]){B(x,.65,-30,2.3,.35,2.7,0xb78938);for(const sd of [-1,1])b.push(P('cyl',0x303b34,x+sd*1,.5,-30,1,.25,1,0,0,Math.PI/2));}
+  for(let x=94;x<103;x+=1.2){B(x,1.3,-39,.07,2.2,.07,0x927344);B(x,.35,-39,.4,.5,.09,metal);}
+  // Fuel canopy, two dispenser islands and hanging hoses. No fuel purchases or consumption yet.
+  for(const x of [80,90])for(const z of [1,11])B(x,2.2,z,.25,4.2,.25,trim);
+  B(85,4.45,6,14,.28,14,0xe4dfc9);B(85,4.55,13,14,.55,.18,0xb25436);
+  sign('FARM FUEL',85,13.2,9,4.6);
+  for(const x of [82,88]){
+    B(x,.22,6,1.6,.3,4,0xb2aea0);B(x,1.15,6,1,1.7,.65,0xd4b66d);B(x,1.65,6.34,.75,.45,.06,0x304741);
+    B(x,1.7,6.38,.48,.12,.03,0xaad3ac);
+    const curve=new THREE.CatmullRomCurve3([new THREE.Vector3(x+.45,1.8,6),new THREE.Vector3(x+.85,.55,6),new THREE.Vector3(x+.6,.4,6.4),new THREE.Vector3(x+.5,1.15,6.4)]);
+    g.add(mesh(new THREE.TubeGeometry(curve,12,.045,5,false),0x303834));B(x+.5,1.25,6.4,.1,.35,.12,metal);
+  }
+  // Marked customer parking and original detailed parked pickup, clear of the circulation aisle.
+  for(const x of [86,90,94,98])B(x,.115,23,.08,.015,5,0xf0ede0);
+  const car=makeCar('hilux',0xc4c2b6);car.position.set(88,0,22);car.rotation.y=Math.PI;g.add(car);
+  // Boundary fence, entrance openings, bins, planting and a low roadside sign.
+  const fence=(a,c)=>{const dx=c[0]-a[0],dz=c[1]-a[1],L=Math.hypot(dx,dz);B((a[0]+c[0])/2,.85,(a[1]+c[1])/2,.09,.09,L,trim,0,Math.atan2(dx,dz));for(let d=0;d<=L;d+=2)B(a[0]+dx*d/L,.65,a[1]+dz*d/L,.12,1.3,.12,trim);};
+  fence([62,-68],[106,-68]);fence([106,-68],[106,26]);fence([62,26],[106,26]);
+  for(const [a,c] of [[-68,-19],[-9,13],[23,26]])fence([62,a],[62,c]);
+  for(const z of [-62,-43,-4,25]){B(65,.25,z,2,.4,2,cream);b.push(P('sph',0x5c7f3d,65,.9,z,1.8,1.4,1.8));}
+  B(94,.7,19,.65,1.3,.65,trim);sign('FARM SERVICES',65,-22,7,2.6,-Math.PI/2);
+  const m=new THREE.Mesh(mergeGeo(b),VCMAT);m.castShadow=m.receiveShadow=true;g.add(m);
+})();
+
+// Phase 3: agricultural cooperative scenery. No orders, prices, stock or save changes.
+(()=>{
+  const g=new THREE.Group();g.name='Agricultural cooperative';scene.add(g);
+  const b=[],B=(x,y,z,w,h,d,c,rx=0,ry=0,rz=0)=>b.push(P('box',c,x,y,z,w,h,d,rx,ry,rz));
+  const concrete=0xb5b1a1,cream=0xe0d8bf,steel=0x566f67,roofC=0x71918a;
+  B(149,.03,-20,68,.06,98,0xbab39d);
+  // Service aisle along the east edge, with two wide entrances onto existing roads.
+  B(172,.065,-20,8,.1,112,0x747c78);
+  B(144,.055,-25,54,.08,24,0xa2a393);
+  B(131,.055,16,28,.08,18,0xa2a393);
+  B(150,.055,26,48,.08,8,0xa2a393);
+  // Raised pedestrian spine and routes to the office; flush crossings at the driveways.
+  B(116,.105,-20,1.6,.13,98,0xe1dac5);
+  B(149,.105,29,68,.13,1.8,0xe1dac5);
+  B(156,.105,26.5,1.6,.13,18,0xe1dac5);
+  for(const z of [-75,34])for(let x=169;x<176;x+=1)B(x,.16,z,.48,.015,1.5,0xf0eddf);
+  for(let z=-69;z<33;z+=7)B(172,.12,z,.1,.01,2.8,0xeee0a3);
+  const sign=(text,x,z,w,y=4)=>{const q=boardSign([text],'#365d4c','#fff1d3',x,z,0,w,.85,y,steel,false);g.add(q);};
+  const warehouse=(x,z,w,d,title)=>{
+    B(x,.35,z,w+.5,.6,d+.5,concrete);B(x,3,z,w,5.3,d,cream);
+    B(x,1,z+d/2+.45,w+.7,1,1.2,concrete);
+    for(const sd of [-1,1])B(x+sd*w/4,6,z,w/2+.5,.16,d+1,roofC,0,0,-sd*.14);
+    B(x,6+Math.sin(.14)*w/4+.08,z,.18,.12,d+1.1,steel);
+    for(let zz=z-d/2-.3;zz<z+d/2+.4;zz+=.85)for(const sd of [-1,1])B(x+sd*w/4,6.14,zz,w/2+.45,.035,.04,0xa6b9ad,0,0,-sd*.14);
+    for(const dx of [-w*.25,w*.25]){
+      B(x+dx,2.65,z+d/2+.05,4.8,3.7,.12,0x364f4b);
+      for(let y=1;y<4.4;y+=.3)B(x+dx,y,z+d/2+.13,4.5,.055,.06,0x748980);
+      B(x+dx,.8,z+d/2+1.1,5.3,.2,1.6,0x7d8278);
+      for(const side of [-1,1])B(x+dx+side*2.5,.65,z+d/2+1.6,.14,1.2,.14,0xd7b746);
+    }
+    for(const side of [-1,1])for(let zz=z-d/2+3;zz<z+d/2-1;zz+=4)B(x+side*(w/2+.04),4.5,zz,.08,1,2.1,0x799ba2);
+    sign(title,x,z+d/2+.25,w-1,5.1);
+  };
+  warehouse(130,-53,22,24,'PRODUCE RECEIVING');
+  warehouse(156,-53,22,24,'PACKING & SORTING');
+  warehouse(130,-2,22,18,'COLD STORAGE');
+  // Cold-room refrigeration condensers, insulated door frames and loading ramps.
+  for(const x of [124,136]){
+    B(x,2.3,-11.5,3.3,2.6,1,0xd1d7d0);
+    const fan=mesh(new THREE.CylinderGeometry(.75,.75,.08,16),0x526862,x,2.5,-12.05);fan.rotation.x=Math.PI/2;g.add(fan);
+    for(const sd of [-1,1])B(x+sd*2.55,2.7,7.23,.18,3.8,.2,0xd5e0d9);
+    B(x,.42,10,4.8,.16,3.7,0x818c85,-.13);
+  }
+  // Three grain silos beside the eastern service aisle, with ribbing and access ladders.
+  for(const z of [-29,-21,-13]){
+    B(179,.2,z,6.6,.35,6.6,concrete);
+    b.push(P('cyl',0xb8c5c0,179,5,z,5.6,9.3,5.6));
+    const top=mesh(new THREE.ConeGeometry(2.9,1.8,20),0x8faaa2,179,10.5,z);g.add(top);
+    for(let y=1;y<9.7;y+=.65){const ring=mesh(new THREE.TorusGeometry(2.82,.035,4,24),0x8fa299,179,y,z);ring.rotation.x=Math.PI/2;g.add(ring);}
+    for(const x of [178.7,179.3])B(x,5,z+2.87,.06,9,.06,steel);
+    for(let y=.7;y<9.5;y+=.4)B(179,y,z+2.91,.65,.055,.06,steel);
+    B(179,.65,z+3.25,1.2,.8,1,steel);
+  }
+  // Cooperative office faces the pedestrian forecourt rather than the loading apron.
+  B(156,.25,13,13,.4,11,concrete);B(156,2,13,12,3.6,10,cream);
+  for(const sd of [-1,1])B(156+sd*3,4.1,13,6.5,.16,11,0xa46c48,0,0,-sd*.2);
+  B(156,4.8,13,.2,.12,11.1,steel);
+  B(156,1.6,18.06,1.6,2.8,.12,steel);
+  for(const x of [152.2,159.8]){B(x,2.2,18.08,2.3,1.6,.12,0x779ca1);B(x,2.2,18.16,.08,1.6,.04,cream);}
+  B(156,.3,19,4,.25,1.8,concrete);sign('COOPERATIVE OFFICE',156,18.25,11,3.3);
+  // Produce pallets and crates set back from the loading doors.
+  const crate=(x,z,c)=>{B(x,.25,z,1.5,.25,1.2,0x9a7951);B(x,.75,z,1.35,.8,1.05,c);for(const y of [.45,.7,.95])B(x,y,z+.54,1.4,.055,.055,0xc9ab72);};
+  for(const [x,z,c] of [[118,-39,0xa19048],[120,-39,0x73894d],[143,-39,0xb38a45],[145,-39,0x7b934a],[162,-39,0xb4873d],[164,-39,0x879c4e]])crate(x,z,c);
+  for(const x of [119,141])for(const z of [-18,-16])B(x,.3,z,1.5,.35,1.3,0xa1835c);
+  // Original truck assets, parked entirely in dock bays; they are display vehicles, not active deliveries.
+  const truck=makeTraderTruck(0x476f5d,0xb5a361,'SUNFIELD COOPERATIVE');truck.position.set(124.5,0,-35.5);truck.rotation.y=0;truck.visible=true;g.add(truck);
+  const van=makeVan();van.position.set(135.5,0,14);van.rotation.y=0;van.visible=true;g.add(van);
+  for(const x of [121,129,137]){B(x,.105,-29,.09,.015,14,0xebe5d4);B(x,.105,17,.09,.015,14,0xebe5d4);}
+  // Customer parking is beside the office and away from the east truck aisle.
+  for(const x of [147,151,155,159,163])B(x,.105,25,.08,.015,4.5,0xf1ecdb);
+  const fence=(a,c)=>{const dx=c[0]-a[0],dz=c[1]-a[1],L=Math.hypot(dx,dz);B((a[0]+c[0])/2,.85,(a[1]+c[1])/2,.08,.08,L,steel,0,Math.atan2(dx,dz));for(let d=0;d<=L;d+=2.5)B(a[0]+dx*d/L,.65,a[1]+dz*d/L,.12,1.3,.12,steel);};
+  fence([115,-69],[168,-69]);fence([176,-69],[183,-69]);fence([183,-69],[183,29]);
+  fence([115,-69],[115,29]);fence([115,29],[155,29]);fence([157,29],[167,29]);fence([177,29],[183,29]);
+  for(const z of [-71,31]){B(167,1.1,z,.18,2,.18,steel);B(177,1.1,z,.18,2,.18,steel);}
+  for(const z of [-62,-18,7,25]){B(113,.2,z,1.6,.3,2.2,concrete);b.push(P('sph',0x648644,113,.8,z,1.5,1.2,1.7));}
+  for(const x of [148,164]){B(x,.5,20,2.2,.12,.65,0x906c46);for(const dx of [-.8,.8])B(x+dx,.25,20,.12,.5,.5,steel);}
+  sign('SUNFIELD AGRI COOPERATIVE',138,32,16,2.4);
+  const m=new THREE.Mesh(mergeGeo(b),VCMAT);m.castShadow=m.receiveShadow=true;g.add(m);
+})();
+
+// Phase 4: livestock cooperative scenery, independent of owned animals, production and saves.
+(()=>{
+  const g=new THREE.Group();g.name='Livestock cooperative';scene.add(g);
+  const b=[],B=(x,y,z,w,h,d,c,rx=0,ry=0,rz=0)=>b.push(P('box',c,x,y,z,w,h,d,rx,ry,rz));
+  const cream=0xd8cbae,steel=0x596d58,wood=0x96724b,concrete=0xb1ad99;
+  B(83,.035,65,44,.07,36,0xb3a27e);
+  // Drive-through loading aisle, clear of pens; both openings meet the west district road.
+  for(const z of [54,76])B(68,.055,z,20,.1,7,0x7e8175);
+  B(74.5,.055,65,7,.1,28,0x7e8175);
+  B(83,.1,49,42,.12,1.6,0xe0d6bf);B(103,.1,65,1.6,.12,32,0xe0d6bf);
+  B(100,.1,81,8,.12,1.6,0xe0d6bf);B(103,.1,83,1.6,.12,6,0xe0d6bf);
+  for(const z of [54,76])for(let k=-2;k<=2;k++)B(60,.15,z+k,.9,.012,.42,0xf0ead5);
+  const sign=(text,x,z,w,y=2.8)=>{const q=boardSign([text],'#45603d','#fff0d1',x,z,0,w,.65,y,steel,false);g.add(q);};
+  const fence=(a,c)=>{const dx=c[0]-a[0],dz=c[1]-a[1],L=Math.hypot(dx,dz),ry=Math.atan2(dx,dz);
+    for(const y of [.55,1.1])B((a[0]+c[0])/2,y,(a[1]+c[1])/2,.09,.1,L,wood,0,ry);
+    const n=Math.ceil(L/2);for(let i=0;i<=n;i++)B(a[0]+dx*i/n,.7,a[1]+dz*i/n,.15,1.4,.15,steel);
+  };
+  const shelter=(x,z,w,d,title,closed=false)=>{
+    B(x,.18,z,w+.4,.3,d+.4,concrete);
+    B(x,1.65,z-d/2,w,3,.2,cream);
+    for(const sd of [-1,1]){B(x+sd*w/2,1.65,z,.18,3,d,cream);B(x+sd*w/2,1.65,z+d/2,.22,3,.22,steel);}
+    if(closed){B(x,1.65,z+d/2,w,3,.18,cream);B(x-.8,1.3,z+d/2+.12,1.2,2.3,.08,steel);B(x+1.2,1.9,z+d/2+.12,1.3,.9,.08,0x71989d);}
+    for(const sd of [-1,1])B(x+sd*w/4,3.5,z,w/2+.4,.15,d+.8,0xa86442,0,0,-sd*.2);
+    B(x,3.5+Math.sin(.2)*w/4+.09,z,.18,.12,d+.9,wood);
+    for(let zz=z-d/2;zz<=z+d/2;zz+=.6)for(const sd of [-1,1])B(x+sd*w/4,3.65,zz,w/2+.35,.025,.04,0xbf8c65,0,0,-sd*.2);
+    sign(title,x,z+d/2+.22,w-.5,2.8);
+  };
+  shelter(83,54,8,6,'CATTLE BARN');shelter(95,54,8,6,'GOAT SHELTER');
+  // Holding yards are enclosed separately, with gates toward the controlled service aisle.
+  const pen=(x0,z0,x1,z1)=>{B((x0+x1)/2,.085,(z0+z1)/2,x1-x0,.06,z1-z0,0xa49d6f);fence([x0,z0],[x1,z0]);fence([x1,z0],[x1,z1]);fence([x1,z1],[x0,z1]);fence([x0,z1],[x0,z0+2]);fence([x0,z0],[x0,z0+2]);B(x0+.12,.9,z0+1,.12,.12,.35,0xc5b26e);};
+  pen(79,58,88,67);pen(91,58,100,67);pen(79,71,89,80);
+  shelter(84,73,8,4,'PIG HOLDING');
+  // Feed and veterinary rooms face the public path, separated from the livestock gates.
+  shelter(95.5,71,7,5,'FEED STORE',true);shelter(96,78,6,4,'VET CHECK',true);
+  B(96,3,80.15,.8,.18,.08,0xa24c3b);B(96,3,80.15,.18,.8,.08,0xa24c3b);
+  for(const [x,z] of [[80,64],[92,64],[80,79]]){B(x,.4,z,1.5,.6,.65,concrete);B(x,.72,z,1.2,.05,.45,0x709c9c);}
+  for(const [x,z] of [[86,59],[98,59]]){B(x,.5,z,2,.6,.7,wood);B(x,.83,z,1.8,.08,.55,0xc8b064);}
+  for(const x of [93,94,95]){b.push(P('cyl',0xd5c39a,x,.5,69.7,.7,.85,.7));b.push(P('cyl',0xc6b186,x,.5,70.5,.7,.85,.7));}
+  // Reuse detailed farm animal geometry as display animals, never adding them to player inventory.
+  const specimens=[['live_cow',82,61,0],['live_cow',85,64,1],['live_goat',94,61,0],['live_goat',97,64,1],['live_goat',94,65,2],['live_pig',82,77,0],['live_pig',86,78,1]];
+  for(const [kind,x,z,v] of specimens){const m=new THREE.Mesh(animalGeo(kind,v),ANIMAT);m.position.set(x,.13,z);m.rotation.y=v?-.7:.5;m.castShadow=m.receiveShadow=true;g.add(m);}
+  // Loading platform remains inside the livestock fence, beside the aisle rather than across it.
+  B(77.5,.45,65,1.8,.7,4,concrete);B(77.5,.3,68,1.8,.15,2.5,0x8f9783,-.2);
+  for(const x of [76.5,78.5]){B(x,1.3,65,.08,1.3,4,steel);B(x,1.7,65,.1,.1,4,steel);}
+  sign('LIVESTOCK LOADING',82,69,5.2,2.5);
+  // Compost/biogas is on the far western side, buffered from the water facilities to the east.
+  B(65.5,.12,65,7,.2,9,concrete);
+  for(const x of [63,65,67]){B(x,.7,66,1.8,1.2,3,wood);B(x,1.33,66,1.5,.08,2.6,0x69533a);}
+  b.push(P('cyl',0x6f8264,65.5,1,61.5,3,1.5,3));b.push(P('dome',0x4f7652,65.5,1.75,61.5,3,1.6,3));
+  B(67.3,1,61.5,.12,1.8,.12,steel);sign('COMPOST / BIOGAS',65.5,68,6,2.7);
+  // Perimeter: vehicle openings west and pedestrian gate south toward the office.
+  fence([61,48],[105,48]);fence([105,48],[105,82]);fence([61,82],[102,82]);fence([104,82],[105,82]);
+  for(const [z0,z1] of [[48,50],[58,72],[80,82]])fence([61,z0],[61,z1]);
+  for(const z of [59,70])b.push(P('sph',0x608149,69.5,.75,z,1.5,1.4,1.5));
+  sign('LIVESTOCK COOPERATIVE',85,83,15,2.6);
+  const m=new THREE.Mesh(mergeGeo(b),VCMAT);m.castShadow=m.receiveShadow=true;g.add(m);
+})();
+
+// Phase 5: fixed scenery in the unused strip between storage and poultry. No owned objects move.
+(()=>{
+  const g=new THREE.Group();g.name='Player farm improvements';scene.add(g);
+  const b=[],B=(x,y,z,w,h,d,c,rx=0,ry=0,rz=0)=>b.push(P('box',c,x,y,z,w,h,d,rx,ry,rz));
+  const stone=0xc9bda1,wood=0x98754e,steel=0x637b64;
+  // Follow the existing footpaths and keep all crop plot IDs and vehicle tracks intact.
+  for(const id of ['p-field','p-poultry','p-dike']){
+    const pts=ROADS[id].s;
+    for(let i=1;i<pts.length;i++){const a=pts[i-1],c=pts[i],dx=c[0]-a[0],dz=c[1]-a[1];
+      B((a[0]+c[0])/2,.09,(a[1]+c[1])/2,1.2,.035,Math.hypot(dx,dz)+.02,stone,0,Math.atan2(dx,dz));}
+  }
+  B(-37,.055,18.5,36,.06,1.5,stone);B(-48,.055,14,1.5,.06,10.5,stone);
+  B(-45,.055,12,6,.06,1.3,stone);B(-24,.055,8,1.5,.06,11,stone);B(-36,.055,17,1.5,.06,3,stone);
+  // Greenhouse uses a light transparent skin and distinct arched frame rather than an opaque box.
+  B(-36,.16,12,12,.25,8,0xaea98d);
+  const skin=new THREE.MeshStandardMaterial({color:0xc5e1d4,transparent:true,opacity:.23,roughness:.28,side:THREE.DoubleSide,depthWrite:false});
+  const pts=[];for(let i=0;i<=20;i++){const a=i/20*Math.PI;pts.push(new THREE.Vector2(Math.cos(a)*3.6,1+Math.sin(a)*2.5));}
+  // Barrel roof extends along X; surface built explicitly to keep the lower side walls straight.
+  const positions=[];for(let i=0;i<pts.length-1;i++){const a=pts[i],c=pts[i+1];positions.push(-41.8,a.y,12+a.x,-30.2,a.y,12+a.x,-41.8,c.y,12+c.x,-30.2,a.y,12+a.x,-30.2,c.y,12+c.x,-41.8,c.y,12+c.x);}
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geo.computeVertexNormals();g.add(new THREE.Mesh(geo,skin));
+  for(const z of [8.4,15.6]){const pane=mesh(new THREE.BoxGeometry(11.6,1,.025),skin,-36,.65,z);pane.castShadow=false;g.add(pane);B(-36,.3,z,12,.3,.16,steel);}
+  for(let x=-41.8;x<=-30.1;x+=2.32){
+    const curve=new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(x,p.y,12+p.x)));
+    g.add(mesh(new THREE.TubeGeometry(curve,24,.045,5,false),steel));for(const z of [8.4,15.6])B(x,.6,z,.08,1.2,.08,steel);
+  }
+  // Translucent end walls and a framed access door facing the maintenance path.
+  const endShape=new THREE.Shape();endShape.moveTo(-3.6,.2);endShape.lineTo(3.6,.2);
+  pts.forEach(p=>endShape.lineTo(p.x,p.y));endShape.closePath();
+  const endGeo=new THREE.ShapeGeometry(endShape);
+  for(const x of [-41.8,-30.2]){const pane=new THREE.Mesh(endGeo,skin);pane.rotation.y=Math.PI/2;pane.position.set(x,0,12);g.add(pane);}
+  for(const z of [11.3,12.7])B(-41.9,1.15,z,.09,2.1,.09,steel);
+  B(-41.9,2.2,12,.09,.09,1.5,steel);B(-42,1.1,11.5,.08,.2,.08,wood);
+  B(-36,3.5,12,12,.08,.08,steel);
+  for(const z of [9.7,14.3]){
+    B(-36,.65,z,10,.16,1.5,wood);for(const x of [-40,-36,-32])B(x,.35,z,.12,.7,1.3,steel);
+    for(let x=-40;x<=-32;x+=1)for(const dz of [-.4,.4]){B(x,.83,z+dz,.65,.2,.55,0x514e39);b.push(P('sph',0x66944c,x,1.05,z+dz,.45,.35,.4));}
+  }
+  // Packing shelter beside the greenhouse, with sorted crates, a bench and wash basin.
+  B(-24,.16,12.5,7,.25,7,0xb7ae95);
+  for(const x of [-27,-21])for(const z of [9.5,15.5])B(x,1.7,z,.16,3.2,.16,wood);
+  for(const sd of [-1,1])B(-24+sd*1.65,3.35,12.5,3.7,.15,7.8,0x739384,0,0,-sd*.18);
+  B(-24,3.74,12.5,.15,.12,7.9,steel);
+  B(-24,1,11,5,.18,1.2,wood);for(const x of [-26,-22])B(x,.5,11,.12,1,1.1,steel);
+  for(const [x,z] of [[-26,13.5],[-24.5,13.5],[-23,13.5]]){B(x,.4,z,1.2,.65,1,0xb18d52);for(const y of [.2,.45,.65])B(x,y,z+.53,1.25,.05,.04,0xe0c080);}
+  B(-21.7,1,10,1.1,.3,1,0xb6c4bb);B(-21.7,1.17,10,.8,.02,.7,0x6e9997);B(-21.7,1.4,9.6,.06,.55,.06,steel);
+  // Tool rack and stacked pallets stay beside the fixed storage building.
+  B(-28,1.2,6.5,4,1.8,.12,wood);
+  for(const x of [-29.5,-28.5,-27.5,-26.5]){B(x,1.2,6.65,.06,1.6,.06,0xc3a16c);B(x,.45,6.65,.35,.4,.08,steel);}
+  for(let y=.15;y<.7;y+=.2)for(let z=6;z<7.4;z+=.4)B(-23,y,z,2,.1,.25,wood);
+  // Low planting and signs clarify the different areas without closing their existing gates.
+  for(const [x,z] of [[-46,18.5],[-20,18.5]]){B(x,.2,z,1.4,.35,1.4,stone);b.push(P('sph',0x658a46,x,.65,z,1.2,.9,1.2));}
+  const sign=(text,x,z,w)=>{const q=boardSign([text],'#426343','#fff0cd',x,z,0,w,.65,2.1,wood,false);g.add(q);};
+  sign('SEEDLING GREENHOUSE',-36,16.3,7);sign('HARVEST PACKING',-24,16.3,5.5);
+  for(const [x,z,title] of [[-59,14,'PASTURE'],[-18,23,'POULTRY'],[25,49,'ORCHARD']])sign(title,x,z,2.5);
+  for(const x of [-43,-40,-37,-34,-31]){B(x,.45,7.8,.1,.9,.1,wood);}
+  B(-37,.65,7.8,12,.08,.08,wood);
+  const m=new THREE.Mesh(mergeGeo(b),VCMAT);m.castShadow=m.receiveShadow=true;g.add(m);
+})();
+
+// Provincial planting and fitted entrances, kept clear of road lanes, gates and loading bays.
+(()=>{
+  const b=[],B=(x,y,z,w,h,d,c,ry=0)=>b.push(P('box',c,x,y,z,w,h,d,0,ry));
+  const entrance=(x,z,ry)=>{
+    const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=ry;scene.add(g);
+    const surface=(w,color,y)=>{const sh=new THREE.Shape();sh.moveTo(0,-w-2);sh.bezierCurveTo(1.5,-w-2,2,-w,4,-w);sh.lineTo(10,-w);sh.lineTo(10,w);sh.lineTo(4,w);sh.bezierCurveTo(2,w,1.5,w+2,0,w+2);sh.closePath();
+      const geo=new THREE.ShapeGeometry(sh);geo.rotateX(-Math.PI/2);const m=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color,roughness:1}));m.position.y=y;m.receiveShadow=true;g.add(m);};
+    surface(4.7,0xd5cbb6,.171);surface(4,0x777d75,.18);
+    for(const sd of [-1,1]){const p=mesh(new THREE.BoxGeometry(1.3,.012,.32),0xeee8d8,1,.19,sd*2.8);g.add(p);}
+  };
+  entrance(58,18,0);entrance(58,-14,0);entrance(172,-76,-Math.PI/2);entrance(172,36,Math.PI/2);
+  // Properly surfaced cooperative turning and lay-by area, with a continuous marked walkway.
+  B(168,.14,-9,4,.06,15,0x8c9186);for(const x of [166,170])B(x,.177,-9,.08,.012,13,0xf0e7d3);
+  // Native-looking broad crowns: varied mango/acacia silhouettes, merged for modest draw cost.
+  const trees=[],r=rng(883);
+  for(const z of [-62,-36,-2,28,63])if(roadDist(46.5,z)>4)trees.push([46.5,z]);
+  for(const x of [67,88,116,153,178])trees.push([x,-72.5]);
+  for(const z of [-58,-39])trees.push([186,z]);
+  for(const x of [66,91,128,174])trees.push([x,32.5]);
+  for(const x of [122,140,161,178])trees.push([x,48]);
+  for(const x of [65,95,128,171])trees.push([x,99]);
+  trees.push([109,-55],[109,-28],[109,6],[109,25],[145,-20],[145,19],[164,2],[118,65]);
+  const east=SOUTH_PATHS.find(p=>[p.a,p.b].includes('me')&&[p.a,p.b].includes('ne'));
+  if(east)for(let i=12;i<east.pts.length-10;i+=12){const p=east.pts[i];trees.push([p[0]+8,p[1]]);}
+  for(const [x,z] of trees){if(nearSea(x,z,5)||southRoadNear(x,z,1)||[[58,18],[58,-14],[172,-76],[172,36]].some(([a,b])=>Math.hypot(x-a,z-b)<9))continue;const s=.85+r()*.3;
+    b.push(P('cyl',0x72563b,x,1.6*s,z,.32*s,3.2*s,.32*s));
+    B(x,.09,z,1.5,.13,1.5,0x9c9e7c);
+    for(let k=0;k<5;k++){const a=k*1.256,rad=k?1.15*s:0;b.push(P('sph',[0x527b3b,0x628c43,0x71954d][k%3],x+Math.cos(a)*rad,(3.3+(k?0:.55))*s,z+Math.sin(a)*rad,2.8*s,2.1*s,2.6*s));}
+  }
+  const m=new THREE.Mesh(mergeGeo(b),VCMAT);m.name='District roadside trees and entrances';m.castShadow=m.receiveShadow=true;scene.add(m);
+})();
+// Small ambient visitor population, sharing the tested lane solver. Facilities still have no paid services.
+const DISTRICT_LIFE=(()=>{
+  const r=rng(144),staff=[],fleet=[];
+  const walker=path=>{const L=randLook(r);L.bag=null;const p=makePerson(L);scene.add(p.root);p.root.position.set(path[0][0],.16,path[0][1]);return {p,path:path.concat(path.slice(1,-1).reverse()),i:1,ph:r()*6,wait:r()*3};};
+  for(const path of [ [[93,-20],[93,-23],[98,-23]],[[68,-23],[76,-23],[82,-23]],[[89.8,3],[89.8,8]],[[66,-48],[74,-48],[83,-48]],[[116,-35],[116,-15],[116,13]],[[145,-38],[153,-38],[161,-38]],[[156,29],[156,20],[163,20]],[[143,13],[143,24]],[[103,53],[103,65],[103,77]],[[182,59],[182,70]] ])staff.push(walker(path));
+  const configs=[{id:'fuel',type:'vios',color:0xd9d5c1,via:['south:entry>north','south:north>nw','south:nw>mw','south:mw>mc','south:mc>sc','south:sc>sw','south:sw>mw','district:fuel:bay'],walk:[[86.5,5],[86.5,7]]},
+    {id:'agri',type:'hilux',color:0x829eac,via:['south:entry>north','south:north>nw','south:nw>mw','south:mw>mc','district:agri:bay'],walk:[[166.3,-12],[163.8,-12],[163.8,20],[160,20]]}];
+  for(const c of configs){const g=makeCar(c.type,c.color);g.visible=false;scene.add(g);const customer=walker(c.walk);customer.p.root.visible=false;
+    fleet.push({...c,g,customer,lv:null,state:'away',timer:c.id==='fuel'?3:15,visits:0});}
+  const walk=(w,dt,t)=>{if(w.wait>0){w.wait-=dt;poseStand(w.p,t);return;}const q=w.path[w.i],p=w.p.root,dx=q[0]-p.position.x,dz=q[1]-p.position.z,d=Math.hypot(dx,dz),step=Math.min(d,dt*.85);
+    if(d<.08){w.i=(w.i+1)%w.path.length;w.wait=2+r()*4;return;}p.position.x+=dx/d*step;p.position.z+=dz/d*step;p.rotation.y=lerpAng(p.rotation.y,Math.atan2(dx,dz),Math.min(1,dt*8));w.ph+=step*5.5;poseWalk(w.p,w.ph);};
+  return {fleet,staff,update(dt,t){if(!lnNet()||document.hidden)return;
+    for(const w of staff)walk(w,dt,t);
+    for(const c of fleet){if(!c.lv)c.lv=lnVeh(c.g,{len:c.type==='hilux'?5.1:4.6,width:2.1,vmax:8,acc:1.5});const v=c.lv;
+      if(c.state==='away'){c.timer-=dt;if(c.timer>0)continue;const P=lnPath('LE',...c.via);if(P&&lnFreeAt(P[0],v.len/2,v.len,v,25)){lnGo(v,P,null,{v:8});c.state='arriving';}else c.timer=2;}
+      else if(c.state==='arriving'&&v.done){c.state='visit';c.timer=c.id==='fuel'?20:100;c.customer.p.root.visible=true;c.customer.p.root.position.set(...[c.walk[0][0],.16,c.walk[0][1]]);c.customer.i=1;}
+      else if(c.state==='visit'){walk(c.customer,dt,t);c.timer-=dt;if(c.timer<=0){const p=c.customer.p.root,dx=c.walk[0][0]-p.position.x,dz=c.walk[0][1]-p.position.z;
+          // Finish the sidewalk return leg; do not cut diagonally across the office or yard.
+          if(Math.hypot(dx,dz)<.15){const P=lnPath(v.path[v.pi],'LE$');if(P&&lnNext(v,P)){c.customer.p.root.visible=false;c.state='leaving';}}}}
+      else if(c.state==='leaving'&&v.done){lnHide(v);c.state='away';c.timer=35;c.visits++;}
+    }
+  }};
+})();
+
+const IRRIGATION_VISUAL=(()=>{
+  const g=new THREE.Group();g.name='irrigation-facility';g.position.set(150,0,65);scene.add(g);
+  const b=[], B=(x,y,z,w,h,d,c,rx=0,ry=0,rz=0)=>b.push(P('box',c,x,y,z,w,h,d,rx,ry,rz));
+  const concrete=0xb5b5a5,cap=0xe1dcc9,steel=0x526b64, waters=[],rings=[];
+  const line=(a,c,width,height,color,y)=>{const dx=c[0]-a[0],dz=c[1]-a[1];B((a[0]+c[0])/2,y,(a[1]+c[1])/2,width,height,Math.hypot(dx,dz),color,0,Math.atan2(dx,dz));};
+  B(0,.06,0,59,.12,25,0x89a65c);
+  B(0,.14,10,59,.12,3,cap);B(0,.14,-10.6,59,.12,1.8,cap);
+  for(const x of [-28,-4,3,19,28])B(x,.14,0,1.4,.12,22,cap);
+  // Pedestrian gate meets the east sidewalk; the southern gate opens onto the vehicle apron.
+  B(32,.08,5,6,.14,1.8,cap);
+  B(0,.04,15,10,.052,6,0x45474b);
+  for(const x of [-4,0,4])B(x,.16,15.8,.08,.015,5,0xf1eee4);
+  // Shared moving water material uses the existing canal texture, with independent offsets.
+  const water=(geo,x,z,y=.86)=>{const pos=geo.attributes.position,uv=geo.attributes.uv;
+    for(let i=0;i<pos.count;i++)uv.setXY(i,pos.getX(i),pos.getY(i));uv.needsUpdate=true;
+    const tex=WWAYS.CALM.clone();tex.needsUpdate=true;tex.repeat.set(.23,.23);
+    const m=new THREE.MeshStandardMaterial({map:tex,color:0x3c9ba9,roughness:.28,metalness:.12,side:THREE.DoubleSide});
+    const w=new THREE.Mesh(geo,m);w.rotation.x=-Math.PI/2;w.position.set(x,y,z);w.receiveShadow=true;g.add(w);waters.push({w,y});return w;};
+  // Chamfered reservoir, matching the angled concrete corners in the reference.
+  const outline=[[-26,-6.5],[-23.5,-9],[-9,-9],[-6.5,-6.5],[-6.5,5],[-9,7.5],[-23.5,7.5],[-26,5]];
+  const sh=new THREE.Shape();outline.forEach(([x,z],i)=>i?sh.lineTo(x,-z):sh.moveTo(x,-z));sh.closePath();
+  water(new THREE.ShapeGeometry(sh),0,0);
+  for(let i=0;i<outline.length;i++){const a=outline[i],c=outline[(i+1)%outline.length];line(a,c,.5,1.1,concrete,.65);line(a,c,.9,.16,cap,1.27);
+    const len=Math.hypot(c[0]-a[0],c[1]-a[1]),n=Math.ceil(len/2.8);
+    for(let j=0;j<=n;j++){const f=j/n;B(a[0]+(c[0]-a[0])*f,1.85,a[1]+(c[1]-a[1])*f,.08,1.1,.08,steel);}
+    line(a,c,.06,.06,steel,2.37);}
+  // Small pump house between the reservoir and the treatment ponds.
+  const house=(x,z,w,d,title)=>{
+    B(x,.25,z,w+.5,.35,d+.5,concrete);B(x,1.65,z,w,2.8,d,0xeee1bf);
+    for(const sd of [-1,1])B(x+sd*w/4,3.22,z,w/2+.35,.14,d+.6,0x68897c,0,0,-sd*.25);
+    B(x,3.55,z,.15,.12,d+.65,steel);B(x-.7,1.3,z+d/2+.04,.95,2.1,.09,steel);
+    B(x+.8,1.9,z+d/2+.06,1,.8,.08,0x70a2b4);B(x+.8,1.9,z+d/2+.12,.06,.8,.04,cap);
+    for(let yy=1.7;yy<2.5;yy+=.15)B(x+w/2+.04,yy,z,.05,.06,1,steel);
+    const sign=boardSign([title],'#f1ebda','#30483f',x, z+d/2+.15,0,w-.15,.6,2.8,steel,false);g.add(sign);
+  };
+  house(-.6,-2.8,4.5,4.7,'PUMP HOUSE');house(24,5,6,4.3,'CONTROL');
+  // Two circular settling ponds, each with a bridge and central distribution hub.
+  for(const x of [7.8,15.3]){
+    const wall=mesh(new THREE.CylinderGeometry(3.2,3.2,1.15,40,1,true),concrete,x,.7,-4.6);wall.material=wall.material.clone();wall.material.side=THREE.DoubleSide;g.add(wall);
+    const rim=mesh(new THREE.TorusGeometry(3.2,.16,6,40),cap,x,1.3,-4.6);rim.rotation.x=Math.PI/2;g.add(rim);
+    water(new THREE.CircleGeometry(3.04,40),x,-4.6);
+    B(x,1.48,-4.6,6.5,.14,.38,steel);B(x,1.7,-4.6,.4,.5,.4,cap);
+    // Rectangular polishing basin immediately south of each round pond.
+    B(x,.3,4.2,5.3,.4,5.7,concrete);
+    for(const sd of [-1,1]){B(x+sd*2.55,.75,4.2,.24,.7,5.7,cap);B(x,.75,4.2+sd*2.7,5.3,.7,.24,cap);}
+    water(new THREE.PlaneGeometry(4.8,5.1),x,4.2,.85);
+  }
+  // Blue solar canopy in the upper-right of the district.
+  for(const x of [21.5,26.5])for(const z of [-8,-2.5])B(x,1.35,z,.16,2.7,.16,steel);
+  const solar=new THREE.Group();solar.position.set(24,2.9,-5.3);solar.rotation.x=.18;g.add(solar);
+  for(let ix=0;ix<5;ix++)for(let iz=0;iz<4;iz++){
+    const x=(ix-2)*1.34,z=(iz-1.5)*1.55;
+    solar.add(mesh(new THREE.BoxGeometry(1.28,.08,1.47),0xd3e1df,x,0,z));
+    solar.add(mesh(new THREE.BoxGeometry(1.15,.035,1.34),0x205fc4,x,.055,z));
+    for(const a of [-.36,0,.36])solar.add(mesh(new THREE.BoxGeometry(.018,.01,1.34),0x94c1e2,x+a,.08,z));
+    solar.add(mesh(new THREE.BoxGeometry(1.15,.01,.02),0x94c1e2,x,.08,z));
+  }
+  const pipe=(a,c,r=.18,color=steel)=>{const A=new THREE.Vector3(...a),C=new THREE.Vector3(...c),v=C.clone().sub(A);const m=mesh(new THREE.CylinderGeometry(r,r,v.length(),10),color);m.position.copy(A.add(C).multiplyScalar(.5));m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),v.normalize());g.add(m);};
+  // Raised inlet spills into the reservoir; outlet passes through the pump-house wall.
+  pipe([-23,.2,-10],[-23,2.8,-10]);pipe([-23,2.8,-10],[-23,2.8,-7]);
+  pipe([-23,2.8,-7],[-23,.88,-7],.13,0x9edbe2);
+  pipe([-6.5,.7,-3],[-2.85,.7,-3]);pipe([1.7,.7,-4.6],[4.6,.7,-4.6]);
+  for(const x of [7.8,15.3])pipe([x,.65,-1.4],[x,.65,1.4]);
+  // Expanding rings make the inflow visibly active, without changing the canal simulation.
+  for(let i=0;i<4;i++){const m=mesh(new THREE.RingGeometry(.8,1,32),new THREE.MeshBasicMaterial({color:0xc8f0eb,transparent:true,opacity:.6,side:THREE.DoubleSide,depthWrite:false}),-23,.9,-7);m.rotation.x=-Math.PI/2;g.add(m);rings.push(m);}
+  // Low perimeter fence, gate, trimmed planting and service paving.
+  const fence=(a,c)=>{line(a,c,.07,.07,steel,1.3);const len=Math.hypot(c[0]-a[0],c[1]-a[1]);for(let i=0;i<=Math.ceil(len/2);i++){const t=i/Math.ceil(len/2);B(a[0]+(c[0]-a[0])*t,.75,a[1]+(c[1]-a[1])*t,.1,1.4,.1,steel);}};
+  fence([-29,-12],[29,-12]);fence([-29,-12],[-29,12]);fence([-29,12],[-5,12]);fence([5,12],[29,12]);fence([-5,12],[-5,9]);fence([29,-12],[29,4]);fence([29,6],[29,12]);fence([29,4],[27,4]);
+  for(let x=-26;x<29;x+=3){if(Math.abs(x)<6)continue;B(x,.22,11.5,1.7,.3,.65,concrete);b.push(P('sph',0x4f833b,x,.65,11.5,1.5,.8,.7));}
+  for(const x of [-2,2,21,27])b.push(P('sph',0x608c3c,x,.7,8,1.4,1.2,1.4));
+  const m=new THREE.Mesh(mergeGeo(b),VCMAT);m.castShadow=m.receiveShadow=true;g.add(m);
+  for(const [text,x,z,w] of [['IRRIGATION RESERVOIR',-16,8.7,8],['SETTLING PONDS',11.5,8.3,6]]){const sign=boardSign([text],'#eee8d6','#314d45',x,z,0,w,.8,1.5,steel,false);g.add(sign);}
+  // Preserve the existing canal and its supply intake; connecting mains are buried.
+  scene.add(mesh(new THREE.CylinderGeometry(.18,.18,1.1,10),steel,-30,.6,-49.15));
+  return {g,waters,rings,update(t){if(document.hidden)return;for(const {w,y} of waters){w.material.map.offset.set(t*.025,t*.045);w.position.y=y+Math.sin(t*1.7)*.012;}rings.forEach((r,i)=>{const f=(t*.55+i/4)%1;r.scale.setScalar(.12+f*1.35);r.material.opacity=(1-f)*.65;});}};
 })();
 /* ---------- Stage H: the sea, the port (pantalan) and the bay trading business ---------- */
 if(!S.bay) S.bay={owned:false,stock:{},ship:null};
@@ -7407,6 +8092,8 @@ function frame(now){
   if(ECO&&now-lastFrame<31) return;               // battery saver: about 30 frames a second
   const rawDt=(now-lastFrame)/1000, dt=Math.min(.05,rawDt); lastFrame=now; const t=now/1000;
   try{
+  IRRIGATION_VISUAL.update(t);
+  DISTRICT_LIFE.update(dt,t);
   updateFarmDispatch(Date.now(),dt);
   if(now-lastTick>300){lastTick=now; const d=Date.now(); updateVehicles(d); updateTravelHUD(d); for(let i=0;i<NT;i++){const s=S.tiles[i].s; if(s==='crop'||s==='bld') updateTile(i,d);}}
   popping.forEach(g=>{const k=Math.min(1,(now-g.userData.born)/380), e=easeBack(k);
@@ -7439,7 +8126,7 @@ function frame(now){
   try{updateCam();followSun();mountains.position.set(camera.position.x,0,camera.position.z);drawFrame();}
   catch(error){reportGameError('render',error);}
 }
-if(/[?&]debug\b/.test(location.search)) window.SF={livestock:{stockFor,choose:chooseAnimalPickup,continue:continueAnimalHaul,process:processKatQueue,path:farmHaulPath},bodega:{world:farmBodega,open:openBodega,tick:updateBodega},farmDispatch:{loading:LOADING_DISPATCH,state:FARM_DISPATCH,tick:updateFarmDispatch,setSlots,simulate:(now,dt)=>{roadSnapshot();updateFarmDispatch(now,dt);updateVehicles(now);placeVehicles(now,dt);}},shop:{config:SHOP,world:farmShop,open:openFarmShop,unlock:shopUnlock,sale:shopSale,deliver:shopDeliver,dispatch:shopDispatch,refund:shopRefund,incoming:shopIncoming,setDraft:q=>{shopDraft=q;},tick:updateFarmShop},resCars,junctions:TRAFFIC_JUNCTIONS,health:gameHealth,trafficUpdate:updateTraffic,setTrafficUpdate:fn=>{updateTraffic=fn;},pointerCount:()=>ptrs.size,canvas,cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,holdPose,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,vans,traffic,models:{vkCar,CAR_SPECS,tripLoad,buildLoad,cageCart,animalGeo,makePerson,bakePerson,poseWalk,poseStand,poseSit,randLook,makeCar,makePUJ,makeBus,makeTrike,makeVan,makeTraderTruck,makeLiner,VEH:()=>VEH},lanes:LN,laneStep:lnStep,laneMs:()=>LN_MS,trikes,puvs,traders,JEEPS:()=>JEEPS,townStep:updateTownVehicles,transitStep:updateTransit,bizStep:updateBiz,trikeStep:updateTrikes,shiftDays:n=>{TIME_SHIFT+=n*DAY_MS;},LINERS:()=>LINERS,PATROL:()=>PATROL,FIESTA:()=>FIESTA,loadWalkers,STOP,homeAct:(a,r)=>homeAct(a,{dataset:{r}}),openHome,FISH,startRain,dayAt:f=>{const g=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((f-g+1)%1)*DAY_MS;},step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
+if(/[?&]debug\b/.test(location.search)) window.SF={districtLife:DISTRICT_LIFE,livestock:{stockFor,choose:chooseAnimalPickup,continue:continueAnimalHaul,process:processKatQueue,path:farmHaulPath},bodega:{world:farmBodega,open:openBodega,tick:updateBodega},farmDispatch:{loading:LOADING_DISPATCH,state:FARM_DISPATCH,tick:updateFarmDispatch,setSlots,simulate:(now,dt)=>{roadSnapshot();updateFarmDispatch(now,dt);updateVehicles(now);placeVehicles(now,dt);}},shop:{config:SHOP,world:farmShop,open:openFarmShop,unlock:shopUnlock,sale:shopSale,deliver:shopDeliver,dispatch:shopDispatch,refund:shopRefund,incoming:shopIncoming,setDraft:q=>{shopDraft=q;},tick:updateFarmShop},resCars,junctions:TRAFFIC_JUNCTIONS,health:gameHealth,trafficUpdate:updateTraffic,setTrafficUpdate:fn=>{updateTraffic=fn;},pointerCount:()=>ptrs.size,canvas,cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,holdPose,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,vans,traffic,models:{vkCar,CAR_SPECS,tripLoad,buildLoad,cageCart,animalGeo,makePerson,bakePerson,poseWalk,poseStand,poseSit,randLook,makeCar,makePUJ,makeBus,makeTrike,makeVan,makeTraderTruck,makeLiner,VEH:()=>VEH},lanes:LN,laneStep:lnStep,laneMs:()=>LN_MS,trikes,puvs,traders,JEEPS:()=>JEEPS,townStep:updateTownVehicles,transitStep:updateTransit,bizStep:updateBiz,trikeStep:updateTrikes,shiftDays:n=>{TIME_SHIFT+=n*DAY_MS;},LINERS:()=>LINERS,PATROL:()=>PATROL,FIESTA:()=>FIESTA,loadWalkers,STOP,homeAct:(a,r)=>homeAct(a,{dataset:{r}}),openHome,FISH,startRain,dayAt:f=>{const g=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((f-g+1)%1)*DAY_MS;},step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
 renderHUD();
 requestAnimationFrame(frame);
 if(!S.seenHelp){S.seenHelp=true; save(); setTimeout(()=>toast('Open 🧰 Tools, pick a tool, and drag across the field. Sell your harvest at the 🏪 Palengke!',4800),600);}

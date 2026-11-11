@@ -17,7 +17,7 @@
 <title>Sunfield Farm</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Mali:wght@500;600;700&family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
 <style>
 :root{
   box-sizing:border-box;
@@ -32,7 +32,7 @@
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0;overflow:hidden;background:var(--sky);color:var(--ink);
-  font-family:'Nunito',ui-rounded,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  font-family:'Mali','Nunito',ui-rounded,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
   -webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;
   touch-action:none;overscroll-behavior:none}
 #c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
@@ -557,6 +557,8 @@ body:not(#z) #buildFilters button{min-height:30px!important;padding:3px 11px!imp
  body:not(#z) .sheet h2{font-size:15px!important}body:not(#z) .gbtn{min-height:44px!important}
 }
 @media(max-width:720px){body:not(#z) #hud .pill{padding:1px 6px!important}body:not(#z) #hud .bar{width:24px!important}}
+body:not(#z) :is(button,select,input,textarea){font-family:inherit}
+body:not(#z) #hud #coins{font-variant-numeric:tabular-nums;letter-spacing:.2px}
 </style>
 </head>
 <body>
@@ -9682,7 +9684,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
-  {v:53,date:'Nov 12, 2026',title:'A lighter, sketched interface',items:['✏️ The top bar is now a compact sketched strip that only takes the room it needs, and Settings has its own gear button in the top-right corner.','📄 Every window and button is flat paper with a thin pencil outline instead of raised 3D buttons, with smaller text and smaller buttons so more of the farm stays on screen.']},
+  {v:53,date:'Nov 12, 2026',title:'A lighter, sketched interface',items:['✏️ The top bar is now a compact sketched strip that only takes the room it needs, and Settings has its own gear button in the top-right corner.','📄 Every window and button is flat paper with a thin pencil outline instead of raised 3D buttons, with smaller text and smaller buttons so more of the farm stays on screen.','🖋️ All the interface text uses a hand-lettered font (Mali) that matches the sketched look and stays easy to read.']},
   {v:52,date:'Nov 12, 2026',title:'Clearer animal icons',items:['🐐 The animal pictures on the buttons are redrawn so each is easy to tell apart: the goat has its beard, swept-back horns and long legs; the cow its black patches, horns and udder; the pig its snout and curly tail; the hen and rooster their red combs (and the rooster his tall tail); the duck its flat orange bill; and the tilapia its fins and stripes.']},
   {v:50,date:'Nov 12, 2026',title:'Old dirt roads and tidy gates',items:['🛤️ The farm roads are back to their old dirt look. Where each animal track and footpath meets the service road, the surfaces no longer flicker.','🚪 Every animal area\'s gate is rebuilt: the fence stops flush at two square posts, two gate leaves fold back flat inside, and the name board stands beside the gate facing the road, clear of the road and of the gate.']},
   {v:49,date:'Nov 12, 2026',title:'A tidier home farm',items:['🌱 The field\'s ploughed rows now run unbroken from plot to plot, the soil varies a little from plot to plot, and low edging boards on stakes frame the beds.','💧 The irrigation canal in front of the field is lined with stone lips and grassy banks, with a slatted footbridge and two flush plank crossings. A hose reel, a bucket, a watering can and a hoe and rake sit on the grass edge beside the beds.','🌳 Young orchard trees now start as staked saplings (bananas as small suckers) before growing into full trees. Every plot has a marker stake, ripe trees get a picking basket and a windfall or two, and trodden paths run between the rows and past the kubol.','🛤️ The footpaths are packed earth, and the farm canal\'s road crossing is a culvert slab with pipe mouths in its headwalls.']},

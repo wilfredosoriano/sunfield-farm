@@ -2832,8 +2832,10 @@ function lnBuild(){
     const rw=lnLane(null,lnCurve([sx,sz],[0,1],[sx+5,-114.8],[1,0]),{turn:true,rev:true,vmax:REV}), re=lnLane(null,lnCurve([sx,sz],[0,1],[sx-5,-114.8],[-1,0]),{turn:true,rev:true,vmax:REV});
     lnLink(sp,rw); lnLink(sp,re); lnTurn(rw,Ws(sx-4),{pri:3,d0:[-1,0]}); lnTurn(re,Es(sx+8),{pri:3,d0:[1,0]});});
   // the west end road up to the barangay, and the sakayan bay where the bus and jeepney load off the lane
-  const wN=lnRoad('wN',[41.75,-115],[41.75,-177],{vmax:SIDE,w:2.6,boxes:[[-150,-160],[-173,-177]]}), wS=lnRoad('wS',[38.25,-181],[38.25,-115],{vmax:SIDE,w:2.6,boxes:[[-181,-164],[-160,-150]],cuts:[-177]});   // the corner at the back road is a box; the church car park opens at -150..-174
-  churchLot(wN,wS);   // the corner at the back road is a box
+  const wN=lnRoad('wN',[41.75,-115],[41.75,-177],{vmax:SIDE,w:2.6,boxes:[[-116,-128],[-150,-160],[-173,-177]],cuts:[-118]}), wS=lnRoad('wS',[38.25,-181],[38.25,-115],{vmax:SIDE,w:2.6,boxes:[[-181,-164],[-160,-134],[-128,-121]],cuts:[-177,-138]});   // the corner at the back road is a box; the church car park opens at -150..-174
+  churchLot(wN,wS);
+  {const MIN=lnLane('mill:in',[[35,-125],[28,-125]],{vmax:POCK,solo:true}), MD=lnLane('mill:dock',lnCurve([28,-125],[-1,0],[25,-142],[0,-1]),{vmax:POCK,solo:true}), MOUT=lnLane('mill:out',lnCurve([25,-142],[0,-1],[35,-146],[1,0]),{vmax:POCK,solo:true});   // the rice mill dock, across from the bagsakan
+    lnLink(MIN,MD); lnLink(MD,MOUT); lnTurn(wN.endAt(-118),MIN,{pri:2,vmax:4}); lnTurn(MOUT,wS.startAt(-138),{pri:3,vmax:4});}   // the corner at the back road is a box
   lnTurn(W(45),wN.first,{pri:1}); lnTurn(E(35),wN.first,{pri:2}); lnTurn(wS.last,Ws(35),{pri:3}); lnTurn(wS.last,Es(45),{pri:3});
   const bay=lnLane('bay',[[45,-105.3],[59,-105.3]],{vmax:POCK,w:2.4}); lnTurn(E(38),bay,{pri:1,vmax:5}); lnTurn(bay,Es(66),{pri:3});
   // bagsakan: a shoulder lane along the docks; vans pull past and back in, traders back into the unloading bay
@@ -3526,7 +3528,8 @@ const WW_CLEAR=[[3.8,[268,-252],[276,-236],[290,-218],[307,-202],[315,-191],[315
 function wwNear(x,z,m){for(const [w,...P] of WW_CLEAR) for(let i=0;i<P.length-1;i++){const [ax,az]=P[i], [bx,bz]=P[i+1], dx=bx-ax, dz=bz-az, L=dx*dx+dz*dz||1, t=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/L)); if(Math.hypot(x-ax-dx*t,z-az-dz*t)<w+m) return true;} return false;}
 // Visual-only irrigation site and maintenance approach; keep procedural foliage clear.
 // Southeast utilities parcel and its maintenance path, reserved from procedural foliage.
-function irrigationSite(x,z,m=0){m=Math.max(0,m);return (x>335-m&&x<362+m&&z>-188-m&&z<-159+m)||(x>362-m&&x<426+m&&z>-270-m&&z<-176+m)||(x>364-m&&x<368+m&&z>-228-m&&z<-158+m)||   // the fire station, the hospital, the evacuation center
+function irrigationSite(x,z,m=0){m=Math.max(0,m);return (x>-11-m&&x<36+m&&z>-155-m&&z<-118+m)||   // the rice mill and the cold storage
+  (x>335-m&&x<362+m&&z>-188-m&&z<-159+m)||(x>362-m&&x<426+m&&z>-270-m&&z<-176+m)||(x>364-m&&x<368+m&&z>-228-m&&z<-158+m)||   // the fire station, the hospital, the evacuation center
   (x>2-m&&x<60+m&&z>-248-m&&z<-188+m)||(x>58-m&&x<98+m&&z>-240-m&&z<-212+m)||   // the school and the health center
   (x>118-m&&x<190+m&&z>100-m&&z<146+m)||(x>58-m&&x<108+m&&z>154-m&&z<215+m)||(x>44-m&&x<51+m&&z>-32-m&&z<-2+m)||(x>59-m&&x<107+m&&z>46-m&&z<85+m)||(x>111-m&&x<184+m&&z>-73-m&&z<34+m)||(x>60-m&&x<108+m&&z>-70-m&&z<28+m)||southRoadNear(x,z,m)||(x>120-m&&x<180+m&&z>52-m&&z<78+m);}
 // countryside: acacia, mango, niyog, saging and kawayan trees, wild grass and flowers (all instanced, all cast shadows)
@@ -8577,6 +8580,69 @@ const HEALTH_EMERGENCY=(()=>{
   return {fire,update(dt,t){if(document.hidden||!lnNet()) return; fireTick(dt,t); for(const w of people) workerTick(w,dt,t);}};
 })();
 
+/* ---------- Agro-processing by the bagsakan (masterplan phase 4): the rice mill (kiskisan), the palay drying floor and the cold storage ----------
+   Just west of the west road, across from the bagsakan. Palay trucks come in from the highway, back up to the mill dock, the
+   cargadores load sacks of milled rice, and the truck drives off again. Workers rake the palay spread out to dry on the
+   concrete; the husk pile grows behind the mill. The cold storage keeps a reefer truck at its dock. */
+const AGRO=(()=>{
+  const r=rng(4404), b=[], B=(x,y,z,w,h,d,c,rx=0,ry=0,rz=0)=>b.push(P('box',c,x,y,z,w,h,d,rx,ry,rz)), C=(x,y,z,rad,h,c)=>b.push(P('cyl',c,x,y,z,rad*2,h,rad*2));
+  const wall=0xbfc6c4, roof=0x6e858f, rib=0x84999f, conc=0xcfc8b8, palay=0xd4a646, steel=0x5f6b68, glass=0x8db7c9;
+  B(13,.04,-135,46,.08,34,0xbdb6a6);   // the whole yard, x -10 to 36
+  // ===== the drying floor: palay spread out in long beds, a few with fresh rake lines =====
+  B(14,.07,-126,16,.06,14,conc);
+  for(let k=0;k<4;k++){const z=-131+k*3.4; B(14,.11,z,14.4,.04,2.6,[palay,0xc99a3c,palay,0xdab45a][k]); for(let j=0;j<9;j++) B(7.6+j*1.6,.135,z,.08,.01,2.4,0xb88a30);}
+  for(const [x,z] of [[21.4,-119.8],[6.8,-119.6]]){for(let i=0;i<6;i++) B(x+(i%3)*.5,.3+(i>>1&1)*.4,z-(i>2?.6:0),.46,.4,.55,0xc8b48a);}   // sacks waiting by the beds
+  // ===== the rice mill: a steel shed, a bucket elevator up the side, a chute to the husk pile, the rice-hull furnace stack =====
+  B(14,3.6,-143,16,7.2,10,wall); steelRoof(b,14,-143,16,10,7.2,roof,rib,2);
+  for(let y=.6;y<7;y+=.7) B(22.04,y,-143,.04,.04,10,0xa9b2b0);
+  B(22.06,1.9,-144,.08,3.6,3.2,0x37474f); B(22.1,3.85,-144,.1,.3,3.6,0x8d6e63);   // the loading door
+  for(const x of [9,14,19]) B(x,4.6,-137.96,2.4,1,.06,glass);
+  B(20.6,6,-136.4,1.2,12,1.2,0xc9a227); B(20.6,12.4,-136.4,1.8,1,1.8,0xb88f20); B(18.2,10.2,-136.4,4.8,.4,.5,0xb88f20,0,0,-.5);   // bucket elevator
+  B(4.6,4.2,-149.4,.6,.6,4,0x9e9e9e,-.8,0,0); b.push(P('cone',0x9c7a4a,4.6,1.3,-151.2,5.4,2.6,3.8));   // husk chute and the rice-hull pile
+  C(8.4,6,-149.2,.45,12,0x8d8d8d); C(8.4,12.2,-149.2,.55,.4,0x5d5d5d); B(8.4,1.1,-149,2.2,2.2,2,0x8a4b33);   // furnace and its stack
+  for(let i=0;i<10;i++) B(23.4+(i%2)*.55,.25+(i>>1)*.42,-149.6+((i>>1)%2)*.3,.5,.4,.62,0xf0ead8);   // milled rice sacks on a pallet
+  B(23.6,.08,-149.6,1.4,.1,1.4,0x8d6e4b);
+  // ===== the cold storage: an insulated box, a blue band, compressors on the side, the dock door to the south =====
+  B(-2,3.3,-144,12,6.6,12,0xeef2f3); B(-2,6.7,-144,12.4,.3,12.4,0xc9d3d6); B(-2,5.6,-137.96,12,.7,.08,0x1e6fb8);
+  B(-2,1.9,-137.94,3.4,3.4,.1,0x90a4ae); B(-2,3.75,-137.5,4.4,.15,1,0x546e7a); B(-2,.55,-136.8,4.6,1.1,2.4,0x9e9e9e);   // the dock
+  for(const z of [-147,-143.4]){B(-8.6,.8,z,1.2,1.6,3,0xdfe3e4); for(const dz of [-.7,.7]) C(-9.22,1,z+dz,.55,.05,0x37474f);}   // compressors
+  B(-2,.06,-131,6,.04,8,0xa7a39a);
+  const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.castShadow=m.receiveShadow=true; m.name='Rice mill and cold storage'; scene.add(m);
+  boardSign(['KISKISAN · SUNFIELD RICE MILL','Palay · Bigas · Darak'],'#7a5a1e','#fff',35.4,-129.8,Math.PI/2,5.6,1.15,2.6,0x3b4a3f,false);
+  boardSign(['COLD STORAGE','Malamig na Imbakan'],'#1e6fb8','#fff',-2,-137.8,0,3.6,.8,5.6,0x3b4a3f,false);
+  for(const [x,y,z] of [[22.6,4.4,-144],[-2,4.2,-137.7],[14,4.5,-119]]) glow(scene,x,y,z,3,GM.white);
+  // the reefer truck at the cold storage dock
+  const reefer=makeTraderTruck(0x1e6fb8,0xf3f5f6,'SUNFIELD COLD CHAIN'); reefer.visible=true; reefer.position.set(-2,0,-130.4); reefer.rotation.y=0;
+  reefer.add(part(1.6,.9,.5,0xdfe3e4,0,3.1,1.25));   // the refrigeration unit over the cab
+
+  // ===== the palay trucks =====
+  const fleet=[[0x2e7d32,0xc9a227,'SUNFIELD RICE MILL'],[0xc62828,0xa1887f,'MANG TONYO PALAY'],[0x1565c0,0xd7c27a,'KOOP NG MAGSASAKA']].map(([c,tp,l],k)=>({g:makeTraderTruck(c,tp,l),state:'away',timer:20+k*70+r()*30,lv:null,from:'LE'}));
+  let dockBusy=null;
+  const truckTick=(T,dt)=>{if(!T.lv) T.lv=lnVeh(T.g,{len:7.6,width:2.5,vmax:11,acc:1.3}); const v=T.lv, h=gameHour();
+    if(T.state==='away'){T.timer-=dt; if(T.timer>0||dockBusy||h<6||h>18.5) return; T.timer=4; T.from=r()<.5?'LE':'LW'; const P=lnPath(T.from,'mill:in','mill:dock');
+      if(P&&lnFreeAt(P[0],v.len/2,v.len,v,25)){lnGo(v,P,null,{v:9}); lnStopAt(v,25,-137); T.state='coming'; dockBusy=T;}}
+    else if(T.state==='coming'&&(v.atStop||v.done)){T.state='load'; T.timer=45+r()*25;}
+    else if(T.state==='load'){T.timer-=dt; if(T.timer<=0){const P=lnPath('mill:dock','mill:out',T.from==='LE'?'LE$':'LW$'); if(P&&lnNext(v,P)){T.state='leaving';} else T.timer=2;}}
+    else if(T.state==='leaving'){if(dockBusy===T&&v.path[v.pi]&&v.path[v.pi].name!=='mill:dock'&&v.path[v.pi].name!=='mill:out') dockBusy=null; if(v.done){lnHide(v); T.state='away'; T.timer=150+r()*120; if(dockBusy===T) dockBusy=null;}}};
+
+  // ===== the people =====
+  const look=(o={})=>{const L=randLook(r); L.bag=null; Object.assign(L,o); return L;};
+  const rake=(z0,x0,x1)=>[{to:[x0,z0],act:'sweep',dur:7,face:[x0+1,z0]},{path:[[(x0+x1)/2,z0]],act:'sweep',dur:8,face:[x1,z0]},{path:[[x1,z0]],act:'sweep',dur:7,face:[x1+1,z0]},{path:[[x1,z0-1.7],[(x0+x1)/2,z0-1.7]],act:'sweep',dur:6,face:[x0,z0-1.7]},{path:[[x0,z0-1.7]],act:'stand',dur:4}];
+  const people=[
+    makeWorker(look({top:0xf5f5f5,style:'cap',capC:0xf2d16b}),rake(-129.3,7.4,20.6),{y:.12,day:true,sp:.8}),
+    makeWorker(look({top:0x2e86de}),rake(-122.5,8,20),{y:.12,day:true,sp:.8}),
+    makeWorker(look({top:0xe67e22,f:true,style:'cap',capC:0xf5e6a8}),rake(-125.9,20.4,7.6),{y:.12,day:true,sp:.8}),
+    // cargadores: a sack on the shoulder from the mill door to the back of the truck, and back
+    makeWorker(look({top:0x7f8c8d}),[{to:[22.6,-144.4],act:'stand',dur:3,face:[21,-144]},{path:[[22.9,-140],[22.9,-131.6],[24.6,-131.6]],carry:'sack',act:'crouch',dur:2,face:[25,-133]},{path:[[22.9,-131.6],[22.9,-140],[22.6,-144.4]],act:'stand',dur:2}],{y:.1,day:true,sp:1.2}),
+    makeWorker(look({top:0x16a085}),[{to:[22.9,-131.6],act:'crouch',dur:2,face:[25,-133]},{path:[[22.9,-140],[22.6,-143.4]],act:'stand',dur:3,face:[21,-144]},{path:[[22.9,-140],[22.9,-131.6],[24.6,-131.6]],carry:'sack',act:'crouch',dur:2,face:[25,-133]}],{y:.1,day:true,sp:1.2}),
+    makeWorker(look({top:0x34495e,style:'cap',capC:0x7a5a1e}),[{to:[23.8,-146.6],act:'write',dur:10,face:[23.6,-149.6]},{path:[[23.2,-143]],act:'inspect',dur:8,face:[21,-144]},{path:[[14,-136.6]],act:'inspect',dur:7,face:[14,-139]}],{y:.1}),   // the mill operator
+    makeWorker(look({top:0x1e6fb8,bottom:0x263238}),[{to:[-2.6,-136.6],act:'stand',dur:3,face:[-2,-138]},{path:[[-2.6,-135.9]],carry:'pail',act:'crouch',dur:2,face:[-2,-134]},{path:[[-2.6,-136.6]],act:'inspect',dur:6,face:[-2,-138]}],{y:1.13,day:true,sp:.9}),   // on the dock, loading the reefer
+    makeWorker(look({top:0xecf0f1}),[{to:[1.6,-136],act:'write',dur:9,face:[-2,-131]},{path:[[1.8,-128]],act:'inspect',dur:6,face:[-2,-128]}],{y:.1,day:true}),
+  ];
+  for(const w of people) workerGo(w,w.steps[0]);
+  return {fleet,update(dt,t){if(document.hidden||!lnNet()) return; for(const T of fleet) truckTick(T,dt); for(const w of people) workerTick(w,dt,t);}};
+})();
+
 /* ---------- Stage H: the sea, the port (pantalan) and the bay trading business ---------- */
 if(!S.bay) S.bay={owned:false,stock:{},ship:null};
 const BAY_LV=12, BAY_PRICE=50000, BAY_RATE=1.6, SHIP_T={out:30,away:45,back:30};
@@ -8641,6 +8707,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:32,date:'Nov 11, 2026',title:'A rice mill and cold storage across from the bagsakan',items:['🌾 Kiskisan · Sunfield Rice Mill, just west of the west road and across from the bagsakan: a steel mill shed with a bucket elevator, a rice-hull furnace and stack, a husk pile and pallets of milled rice.','🚚 Palay trucks (the mill\'s own, Mang Tonyo\'s and the farmers\' cooperative) come in from the highway in the daytime, back up to the mill dock while the cargadores load sacks, then drive off again.','☀️ A concrete drying floor with long beds of golden palay; workers rake it over through the day and sacks wait at the ends.','❄️ The cold storage next door keeps its blue reefer truck at the dock, with a worker loading it and a checker with a clipboard.']},
   {v:31,date:'Nov 11, 2026',title:'A fire station, a hospital and an evacuation center',items:['🚒 Sunfield Fire Station on the east road, past the police station: a drive-through bay, a drill tower and a yard. Firefighters sweep the bay, check the hoses and climb the tower. A few times a day the alarm goes, the crew runs to the truck and it drives out with lights flashing, round the town and back into its bay.','🏥 Sunfield Regional Hospital behind the fire station: three floors of wards, a rooftop helipad, an emergency bay with an ambulance and a triage nurse, visitor parking and a garden with benches.','🏟️ The Evacuation Center doubles as the town gym: an arched-roof hall, a basketball court with a running track and bleachers. Joggers circle the track and kids shoot hoops during the day; a tanod keeps the hall door.']},
   {v:30,date:'Nov 11, 2026',title:'A school and a health center for the barangay',items:['🏫 Sunfield Elementary School, west of the park: green-roofed classroom wings round a quadrangle with the flag and a stage, a covered court, a school garden, a canteen and a guard at the gate.','🎒 On school days (Monday to Friday) children in white shirts and backpacks walk from the barangay at dawn, stay in class, run round the quad at recess, and walk home after four. Teachers write and check on the corridors, the canteen lady serves, a gardener tends the gulayan.','🏥 The Barangay Health Center, north of the park: a nurse and a doctor at work, patients waiting on the benches, a midwife who walks her round of the barangay, and the ambulance parked by the door.']},
   {v:29,date:'Nov 11, 2026',title:'Sunday mass at the parokya',items:['📅 The clock now shows the day of the week. Every seventh day is Linggo (Sunday).','⛪ On Sundays, families drive to church from about 7 in the morning until mid-afternoon: up to a dozen cars, vans and pickups.','🅿️ A new church car park across the west road: two rows of marked stalls, lamp posts, a sign, and a crosswalk and footpath round to the church door. Cars drive in nose first, the family walks over for mass, comes back, and the car backs out and drives home.']},
@@ -8800,6 +8867,7 @@ function frame(now){
   SUNDAY_MASS.update(dt,t);
   SCHOOL_CLINIC.update(dt,t);
   HEALTH_EMERGENCY.update(dt,t);
+  AGRO.update(dt,t);
   updateFarmDispatch(Date.now(),dt);
   if(now-lastTick>300){lastTick=now; const d=Date.now(); updateVehicles(d); updateTravelHUD(d); for(let i=0;i<NT;i++){const s=S.tiles[i].s; if(s==='crop'||s==='bld') updateTile(i,d);}}
   popping.forEach(g=>{const k=Math.min(1,(now-g.userData.born)/380), e=easeBack(k);

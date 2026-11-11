@@ -571,6 +571,10 @@ body:not(#z):not(#y) #menu .sndrow{gap:6px}body:not(#z):not(#y) #menu .sndrow bu
 body:not(#z):not(#y) #menu .sndrow button .ic{font-size:16px!important;line-height:1}body:not(#z):not(#y) #menu .sndrow button svg.si{width:18px!important;height:18px!important;vertical-align:0!important}
 body:not(#z):not(#y) #menu .sheet>.mhead h2{font-size:16px!important;line-height:1.2;margin:0!important}
 @media(orientation:landscape) and (max-height:520px){body:not(#z):not(#y) #menu .sheet>button{min-height:32px!important;font-size:12.5px!important}body:not(#z):not(#y) #menu .sndrow button{min-height:44px!important}}
+.deco-head{display:flex;align-items:center;gap:10px}.deco-head b{display:block;font-size:15px}.deco-head small{font-size:12px;opacity:.75}
+.deco-sign{display:flex;gap:8px;align-items:center}.deco-sign input{flex:1;min-width:0;font:inherit;font-size:15px;font-weight:700;padding:8px 10px;border:1.5px solid var(--sk-ink,#4a3f34);border-radius:9px 11px 8px 10px/10px 8px 11px 9px;background:#fffdf6;color:#3b2e24;user-select:text;-webkit-user-select:text;touch-action:manipulation}
+.deco-sty{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.deco-sty .gbtn{min-height:44px!important;flex-direction:row;gap:6px}.deco-sty .sw{display:inline-grid;place-items:center;width:30px;height:22px;border-radius:5px;font-weight:700;font-size:12px;border:1px solid #4a3f3560}
+#tools .tool[data-deco] .ti.svg svg{width:26px;height:26px}
 </style>
 </head>
 <body>
@@ -719,7 +723,7 @@ body:not(#z):not(#y) #menu .sheet>.mhead h2{font-size:16px!important;line-height
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>
+<script type="text/plain" id="sunfield-game">
 (()=>{
 /* ---------- Game data ---------- */
 const CROPS={
@@ -944,7 +948,7 @@ function waypoint(o,x,z,px,pz){if(o.rtx!==x||o.rtz!==z){o.rtx=x; o.rtz=z; o.rt=p
   while(o.rt.length&&Math.hypot(o.rt[0][0]-px,o.rt[0][1]-pz)<.35) o.rt.shift(); return o.rt.length?o.rt[0]:null;}
 
 /* ---------- Save / load ---------- */
-const KEY='sunfield-farm-v1';
+const KEY=window.SunfieldCloud?.key||'sunfield-farm-v1';
 function freshState(){
   const tiles=[];
   for(let i=0;i<NF;i++){const c=i%N,r=(i/N)|0;tiles.push({s:(c>=3&&c<=8&&r>=3&&r<=8)?'grass':'locked'});}
@@ -1030,7 +1034,7 @@ function stockFor(k){return k.startsWith('live_')?(S.livestock||(S.livestock={})
 if(!S.livestock)S.livestock={};
 for(const k of Object.keys(S.inv))if(k.startsWith('live_')){S.livestock[k]=(S.livestock[k]||0)+(S.inv[k]||0);delete S.inv[k];}
 const hasWild=i=>i>=0&&i<NF&&S.wild.includes(i);
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function save(){try{S.savedAt=Date.now(); localStorage.setItem(KEY,JSON.stringify(S)); window.SunfieldCloud?.queue(S)}catch(e){}}
 
 /* ---------- Three.js setup ---------- */
 // The game handles world zoom itself; repeated UI taps must not magnify the browser page.
@@ -4506,7 +4510,7 @@ function endPtr(e){
   if(moving){ if(e.type==='pointerup') dropBuilding(e.clientX,e.clientY); else cancelMove(); }
   moveCand=-1;
   if(ptrs.size===1&&!moved&&e.type==='pointerup'){const x=e.clientX,y=e.clientY;
-    if(ORCHARD.hit(x,y)){}else if(hitObj(farmBodega.g,x,y))openBodega();else if(hitObj(farmShop.g,x,y))openFarmShop();else if(hitMarket(x,y)) openMarket(); else if(hitObj(hwG,x,y)) openHW('hardware'); else if(hitObj(psG,x,y)) openHW('poultry'); else if(hitObj(ssG,x,y)) openHW('seeds'); else if(hitObj(whG,x,y)||hitObj(facG,x,y)) openBiz(); else if(hitObj(houseG,x,y)) openHome(); else if(hitObj(katG,x,y)) openKat(); else if(coopHit(x,y)) openCoop();
+    if(DECO&&DECO.tap(x,y)){}else if(ORCHARD.hit(x,y)){}else if(hitObj(farmBodega.g,x,y))openBodega();else if(hitObj(farmShop.g,x,y))openFarmShop();else if(hitMarket(x,y)) openMarket(); else if(hitObj(hwG,x,y)) openHW('hardware'); else if(hitObj(psG,x,y)) openHW('poultry'); else if(hitObj(ssG,x,y)) openHW('seeds'); else if(hitObj(whG,x,y)||hitObj(facG,x,y)) openBiz(); else if(hitObj(houseG,x,y)) openHome(); else if(hitObj(katG,x,y)) openKat(); else if(coopHit(x,y)) openCoop();
     else if(hitObj(garageG,x,y)||(OWN('jeep')&&!S.veh.jeep.trip&&hitObj(jeep,x,y))||(S.veh.truck.owned&&!S.veh.truck.trip&&hitObj(truck,x,y))) openUp('garage');
     else onTap(pick(x,y)); }
   if(stroke) endStroke();
@@ -4536,7 +4540,7 @@ function hideHand(){if(!handOn) return; handOn=false; document.getElementById('h
 
 /* ---------- Drag tools: swipe across the field to plow, plant or harvest many plots ---------- */
 const BRUSH={plow:1,plant:1,harvest:1,water:1};
-const isBrush=()=>!!BRUSH[S.tool]||(S.tool==='build'&&(S.bld==='road'||S.bld==='fence'));
+const isBrush=()=>!!BRUSH[S.tool]||(S.tool==='build'&&(S.bld==='road'||S.bld==='fence'))||!!(DECO&&DECO.lineOn());
 let stroke=null;
 const groundPlane=new THREE.Plane(new THREE.Vector3(0,1,0),-.2), hitV=new THREE.Vector3();
 function tileAt(x,y){
@@ -4547,8 +4551,9 @@ function tileAt(x,y){
   if(c>=0&&r>=0&&c<N&&r<N) return r*N+c;
   const s=SLOTS.find(s=>Math.abs(hitV.x-s.x)<s.w/2+.4&&Math.abs(hitV.z-s.z)<s.d/2+.4); return s?s.i:-1;   // an animal slot
 }
-function startStroke(x,y){stroke={x,y,done:new Set(),dirty:false,stop:false,n:0}; brushAt(x,y);}
+function startStroke(x,y){if(DECO&&DECO.lineOn()){stroke={deco:true,x,y,done:new Set(),dirty:false,stop:false,n:0}; DECO.lineStart(x,y); return;} stroke={x,y,done:new Set(),dirty:false,stop:false,n:0}; brushAt(x,y);}
 function brushLine(x1,y1){
+  if(stroke.deco){DECO.lineTo(x1,y1); stroke.x=x1; stroke.y=y1; return;}
   const x0=stroke.x,y0=stroke.y, steps=Math.max(1,Math.ceil(Math.hypot(x1-x0,y1-y0)/10));
   for(let k=1;k<=steps;k++) brushAt(x0+(x1-x0)*k/steps,y0+(y1-y0)*k/steps);
   stroke.x=x1; stroke.y=y1;
@@ -4740,6 +4745,7 @@ function brush(i){
 }
 function endStroke(){
   const s=stroke; stroke=null;
+  if(s.deco){DECO.lineEnd(); return;}
   if(s.dirty) changed();
   if(s.n>1) toast(`👨‍🌾 Your farmer is on it: ${s.n} to collect.`,2400);
   else if(S.tool==='harvest'&&s.n===0&&!s.stop) toast('Nothing ready yet. Glowing gems mark what you can collect.');
@@ -5275,7 +5281,7 @@ function renderStats(){
   if(el){el.textContent=n; el.style.display=n?'':'none'; el.classList.toggle('ready',ready);}
   marketMark.visible=ready;
 }
-const CATS=[{id:'tools',icon:'🧰',label:'Tools'},{id:'build',icon:'🏗️',label:'Build'},{id:'market',icon:'🏪',label:'Palengke'},{id:'hardware',icon:'🔨',label:'Hardware'},{id:'poultry',icon:'🐣',label:'Poultry'},{id:'seeds',icon:'🌱',label:'Binhi'},{id:'upgrade',icon:'🏠',label:'Upgrade'}];
+const CATS=[{id:'tools',icon:'🧰',label:'Tools'},{id:'build',icon:'🏗️',label:'Build'},{id:'decor',icon:'🌼',label:'Decorate'},{id:'market',icon:'🏪',label:'Palengke'},{id:'hardware',icon:'🔨',label:'Hardware'},{id:'poultry',icon:'🐣',label:'Poultry'},{id:'seeds',icon:'🌱',label:'Binhi'},{id:'upgrade',icon:'🏠',label:'Upgrade'}];
 // Hand-drawn vector icons share one outline and palette; no external image requests.
 const UI_ICON_PATHS={
  tools:'<rect x="6" y="13" width="28" height="20" rx="3" fill="#d98b65"/><path d="M14 13V8h12v5M6 21h28M18 19h4v6h-4z"/>',
@@ -5284,6 +5290,7 @@ const UI_ICON_PATHS={
  hardware:'<path d="M8 32l18-19 5 5-18 18z" fill="#bf9563"/><path d="M20 8l5-5 10 9-5 5-5-4-4 4-5-5z" fill="#829994"/>',
  poultry:'<ellipse cx="20" cy="24" rx="13" ry="10" fill="#e2be6d"/><circle cx="25" cy="14" r="8" fill="#e2be6d"/><path d="M32 15l5 3-6 2M14 33v4m9-4v4M8 21l-4-6"/><circle cx="27" cy="12" r="1" fill="#493f35"/>',
  seeds:'<path d="M20 35V17M20 25C5 24 4 12 5 8c13 0 17 8 15 17z" fill="#8ea56d"/><path d="M20 20C19 8 27 4 35 5c0 10-7 16-15 15z" fill="#a4b87f"/>',
+ decor:'<path d="M20 35V21"/><circle cx="13" cy="14" r="4.5" fill="#e889b0"/><circle cx="27" cy="14" r="4.5" fill="#e889b0"/><circle cx="20" cy="7" r="4.5" fill="#e889b0"/><circle cx="20" cy="21" r="4.5" fill="#e889b0"/><circle cx="20" cy="14" r="3" fill="#f2c84b"/><path d="M20 30q-7-1-8-7 6 0 8 7" fill="#8ea56d"/><path d="M8 35h24"/>',
  upgrade:'<path d="M5 19L20 6l15 13M9 17v18h22V17" fill="#e2bf91"/><path d="M16 35V24h8v11M15 17h10"/><path d="M29 8V3m-3 3h6"/>'};
 for(const c of CATS)c.svg=`<svg viewBox="0 0 40 40" fill="none" stroke="#493f35" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${UI_ICON_PATHS[c.id]}</svg>`;
 let openCat=null,buildGroup='all';
@@ -5308,13 +5315,14 @@ function renderHUD(){
   if(openCat==='tools') bar=TOOLS.map(t=>`<button class="tool ${S.tool===t.id?'on':''}" data-tool="${t.id}" aria-pressed="${S.tool===t.id}">${iconOf(t)}<span class="tl">${t.label}</span></button>`).join('');
   if(openCat==='build') bar=Object.entries(BLDS).filter(([id])=>buildGroup==='all'||buildGroupOf(id)===buildGroup).map(([id,b])=>{const full=MAXL[id]&&countOf(id)>=allowedN(id), nl=full?MAXL[id][countOf(id)]:b.lvl, lock=S.level<b.lvl||full, on=S.tool==='build'&&S.bld===id;
     return `<button class="tool ${on?'on':''} ${lock?'locked':''}" data-bld="${id}" aria-pressed="${on}">${iconOf(b)}<span class="tl">${b.name}</span><span class="tc">${lock?(nl?'🔒 Lvl '+nl:'Max'):'₱'+b.cost}</span></button>`;}).join('');
+  if(openCat==='decor'&&DECO) bar=DECO.bar(); else if(DECO&&!DECO.moving) DECO.sel=null;
   $('buildFilters').hidden=openCat!=='build';
   $('buildFilters').innerHTML=BUILD_GROUPS.map(([id,label])=>`<button data-build-group="${id}" aria-pressed="${buildGroup===id}">${label}</button>`).join('');
   $('tools').innerHTML=bar;
   $('picker').innerHTML=S.tool==='plant'?Object.entries(CROPS).sort((a,b)=>a[1].lvl-b[1].lvl).map(([id,o])=>{const lock=S.level<o.lvl;
     return `<button class="chip ${id===S.crop?'on':''} ${lock?'locked':''}" data-pick="${id}"><span class="ci" aria-hidden="true">${o.icon}</span><span class="cn">${o.name}</span><span class="cc">${lock?'Level '+o.lvl:'🌱 '+seedsOf(id)+' binhi'}</span></button>`;}).join('')+`<button class="chip" data-buyseeds="1"><span class="ci" aria-hidden="true">🛒</span><span class="cn">Buy</span><span class="cc">Binhi store</span></button>`:'';
   const c=CROPS[S.crop], b=BLDS[S.bld];
-  $('hint').textContent=({
+  $('hint').textContent=openCat==='decor'&&DECO?DECO.hint():({
     plow:`Drag across grass to dig soil (₱${PLOW} each). Two fingers move the map.`,
     plant:`Drag across soil to plant ${c.name.toLowerCase()} (1 🌱 binhi each, you have ${seedsOf(S.crop)}; ready in ${fmt(c.time)}). Two fingers move the map.`,
     harvest:'Drag across ripe crops and animal farms. Your farmer runs over, collects, and brings it to the bodega.',
@@ -6096,6 +6104,7 @@ function bldFill(t,now){const L=LIFE[t.b];
   return Math.min(1,(t.stored||0)/capOf(t));}
 const needsCare=t=>!!LIFE[t.b]&&!underConstruction(t,Date.now())&&(t.sick||hotNow(t)||(t.hungry&&t.n>0)||(!(t.n>0)&&!t.stored));
 function renderBld(){
+  if(bldIdx===-9)return DECO.render();
   if(bldIdx===-8)return ORCHARD.render();
   if(bldIdx===-5)return renderBodega();
   if(bldIdx===-4)return renderFarmShop();
@@ -9696,6 +9705,8 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:55,date:'Nov 12, 2026',title:'Sign in with Google, done right',items:['☁️ A new sketched welcome screen: continue with Google to keep your farm safe online, or play as a guest. On a phone it asks you to turn sideways first.','🌱 A sketched loading screen with a little tractor while your farm is built.','⚙️ Your account now lives in Settings: who is signed in, the auto-sync status, Sync now and Sign out.','🛟 Safer saves: the game picks the newest copy of your farm on its own and only asks when two devices both have new progress, keeps a backup of the copy it replaces, renews your sign-in while you keep playing, and if your sign-in ever runs out you can still open your own farm on this device.']},
+  {v:54,date:'Nov 12, 2026',title:'Decorate your farm',items:['🌼 A new Decorate button: drag to build wooden, bamboo or picket fences, hollow-block walls, santan hedges and little canals, or tap to place a signboard, flowers, pots, a banga, rocks, a kalachuchi, a bench, a lamp post, a plank bridge or a kubo.','🪧 Write your own words on a signboard (up to 24 letters); the board fits the text, in four colours.','✋ Tap anything you placed to turn it, move it or remove it (half the price back). Decorations stay off roads, gates, fields and pens, so your farm keeps working, and people walk around them.']},
   {v:53,date:'Nov 12, 2026',title:'A lighter, sketched interface',items:['✏️ The top bar is now a compact sketched strip that only takes the room it needs, and Settings has its own gear button in the top-right corner.','📄 Every window and button is flat paper with a thin pencil outline instead of raised 3D buttons, with smaller text and smaller buttons so more of the farm stays on screen.','🖋️ All the interface text uses a hand-lettered font (Mali) that matches the sketched look and stays easy to read.']},
   {v:52,date:'Nov 12, 2026',title:'Clearer animal icons',items:['🐐 The animal pictures on the buttons are redrawn so each is easy to tell apart: the goat has its beard, swept-back horns and long legs; the cow its black patches, horns and udder; the pig its snout and curly tail; the hen and rooster their red combs (and the rooster his tall tail); the duck its flat orange bill; and the tilapia its fins and stripes.']},
   {v:50,date:'Nov 12, 2026',title:'Old dirt roads and tidy gates',items:['🛤️ The farm roads are back to their old dirt look. Where each animal track and footpath meets the service road, the surfaces no longer flicker.','🚪 Every animal area\'s gate is rebuilt: the fence stops flush at two square posts, two gate leaves fold back flat inside, and the name board stands beside the gate facing the road, clear of the road and of the gate.']},
@@ -9868,7 +9879,7 @@ function frame(now){
   if(ECO&&now-lastFrame<31) return;               // battery saver: about 30 frames a second
   const rawDt=(now-lastFrame)/1000, dt=Math.min(.05,rawDt); lastFrame=now; const t=now/1000;
   try{
-  ORCHARD.update(t);
+  ORCHARD.update(t); if(DECO) DECO.update();
   IRRIGATION_VISUAL.update(t);
   DISTRICT_LIFE.update(dt,t);
   CIVIC.update(dt,t);
@@ -9916,7 +9927,174 @@ function frame(now){
   try{updateCam();followSun();mountains.position.set(camera.position.x,0,camera.position.z);drawFrame();}
   catch(error){reportGameError('render',error);}
 }
-if(/[?&]debug\b/.test(location.search)) window.SF={orchard:ORCHARD,fruitTrees:FRUIT_TREES,districtLife:DISTRICT_LIFE,livestock:{stockFor,choose:chooseAnimalPickup,continue:continueAnimalHaul,process:processKatQueue,path:farmHaulPath},bodega:{world:farmBodega,open:openBodega,tick:updateBodega},farmDispatch:{loading:LOADING_DISPATCH,state:FARM_DISPATCH,tick:updateFarmDispatch,setSlots,simulate:(now,dt)=>{roadSnapshot();updateFarmDispatch(now,dt);updateVehicles(now);placeVehicles(now,dt);}},shop:{config:SHOP,world:farmShop,open:openFarmShop,unlock:shopUnlock,sale:shopSale,deliver:shopDeliver,dispatch:shopDispatch,refund:shopRefund,incoming:shopIncoming,setDraft:q=>{shopDraft=q;},tick:updateFarmShop},resCars,junctions:TRAFFIC_JUNCTIONS,health:gameHealth,trafficUpdate:updateTraffic,setTrafficUpdate:fn=>{updateTraffic=fn;},pointerCount:()=>ptrs.size,canvas,cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,holdPose,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,vans,traffic,models:{vkCar,CAR_SPECS,tripLoad,buildLoad,cageCart,animalGeo,makePerson,bakePerson,poseWalk,poseStand,poseSit,randLook,makeCar,makePUJ,makeBus,makeTrike,makeVan,makeTraderTruck,makeLiner,VEH:()=>VEH},lanes:LN,laneStep:lnStep,laneMs:()=>LN_MS,trikes,puvs,traders,JEEPS:()=>JEEPS,townStep:updateTownVehicles,transitStep:updateTransit,bizStep:updateBiz,trikeStep:updateTrikes,shiftDays:n=>{TIME_SHIFT+=n*DAY_MS;},LINERS:()=>LINERS,PATROL:()=>PATROL,FIESTA:()=>FIESTA,loadWalkers,STOP,homeAct:(a,r)=>homeAct(a,{dataset:{r}}),openHome,FISH,startRain,dayAt:f=>{const g=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((f-g+1)%1)*DAY_MS;},step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
+/* ---------- Decorate: the player's own touches on the farm ----------
+   Fences, walls, hedges and little canals drawn as lines (drag across the land, a 2 m piece at a time, following the drag in
+   45° steps), and single pieces placed with a tap: signboards with the player's own words (the board grows with the text, up to
+   24 letters), flowers, pots, a kalachuchi, benches, lamps, rocks, a banga, a footbridge and a kubo. Everything stays off the roads,
+   the gates and loading spots, the field, the orchard plots, the animal pens and the buildings, so deliveries and work go on as
+   before; walkers go round what blocks them. Purely for looks: nothing here changes what the farm produces. */
+var DECO=(()=>{
+  if(!Array.isArray(S.deco)) S.deco=[]; if(!S.decoN) S.decoN=1;
+  const WOOD=0x8d6e4b, DARK=0x5d4037, CON=0xb9b2a3;
+  const CAT={
+    sign:{name:'Karatula',sub:'your own words',cost:40,r:.5,block:true,sign:true,svg:'<path d="M9 30V20M31 30V20" /><rect x="5" y="9" width="30" height="12" rx="2" fill="#d9b382"/><path d="M10 15h20"/>'},
+    fence:{name:'Bakod na kahoy',sub:'drag a line',cost:12,line:true,block:true,svg:'<path d="M7 33V10l2-3 2 3v23M19 33V10l2-3 2 3v23M31 33V10l2-3 2 3v23" fill="#c49a6c"/><path d="M5 16h32M5 26h32"/>'},
+    bamboo:{name:'Bakod na kawayan',sub:'drag a line',cost:10,line:true,block:true,svg:'<path d="M8 34V8M14 34V10M20 34V8M26 34V10M32 34V8" stroke-width="3.2" stroke="#9fb35a"/><path d="M5 17h30M5 26h30"/>'},
+    picket:{name:'Puting bakod',sub:'drag a line',cost:15,line:true,block:true,svg:'<path d="M8 34V12l3-4 3 4v22ZM18 34V12l3-4 3 4v22ZM28 34V12l3-4 3 4v22Z" fill="#f4f1e8"/><path d="M5 18h32M5 28h32"/>'},
+    wall:{name:'Pader na hollow block',sub:'drag a line',cost:30,line:true,block:true,svg:'<rect x="4" y="14" width="32" height="19" fill="#cfc8b8"/><path d="M4 20h32M4 27h32M12 14v6M24 14v6M18 20v7M30 20v7M12 27v6M24 27v6"/><path d="M3 13h34"/>'},
+    hedge:{name:'Halamang bakod',sub:'santan hedge, drag a line',cost:14,line:true,block:true,svg:'<path d="M4 32q0-14 8-14 2-6 8-6t8 6q8 0 8 14Z" fill="#6f9e4a"/><circle cx="13" cy="22" r="1.6" fill="#e2574a"/><circle cx="22" cy="17" r="1.6" fill="#e2574a"/><circle cx="29" cy="24" r="1.6" fill="#f2a13b"/>'},
+    canal:{name:'Kanal',sub:'a little water channel, drag a line',cost:35,line:true,block:true,svg:'<path d="M3 13h34v16H3Z" fill="#cfc8b8"/><path d="M3 17h34v8H3Z" fill="#8cc4dc"/><path d="M8 21q3-2 6 0t6 0 6 0 6 0"/>'},
+    bridge:{name:'Tulay na kahoy',sub:'a plank bridge for your kanal',cost:25,r:.9,over:true,svg:'<path d="M4 25q16-12 32 0" fill="none"/><path d="M4 25h32v4H4Z" fill="#c49a6c"/><path d="M8 25v-6M32 25v-6M14 22v-6M26 22v-6M20 21v-6"/><path d="M8 19q12-9 24 0"/>'},
+    flowers:{name:'Bulaklakan',sub:'a bed of gumamela and santan',cost:18,r:.75,svg:'<path d="M4 31h32l-3-6H7Z" fill="#a37350"/><circle cx="11" cy="20" r="4" fill="#e2574a"/><circle cx="20" cy="16" r="4" fill="#f2c84b"/><circle cx="29" cy="20" r="4" fill="#e889b0"/><path d="M11 24v2M20 20v5M29 24v2"/>'},
+    pots:{name:'Paso',sub:'potted plants',cost:8,r:.45,svg:'<path d="M12 22h16l-2 12H14Z" fill="#c4734a"/><path d="M20 22q-9-4-7-14 7 3 7 14 0-11 7-14 2 10-7 14" fill="#6f9e4a"/>'},
+    banga:{name:'Banga',sub:'a clay water jar',cost:12,r:.45,svg:'<path d="M14 9h12M15 9q-1 4-4 7-4 5-1 12 3 5 10 5t10-5q3-7-1-12-3-3-4-7" fill="#c4734a"/><path d="M12 20h16"/>'},
+    rocks:{name:'Mga bato',sub:'garden rocks',cost:6,r:.55,svg:'<path d="M4 31q2-9 9-9 4 0 6 4 3-7 9-6 7 1 8 11Z" fill="#b5ada0"/><path d="M13 26l2 2M27 25l-2 3"/>'},
+    tree:{name:'Kalachuchi',sub:'a flowering shade tree',cost:35,r:1.1,block:true,svg:'<path d="M18 35h4l-1-14h-2Z" fill="#8d6038"/><circle cx="20" cy="15" r="10" fill="#7cb36b"/><circle cx="14" cy="12" r="2" fill="#fbf3e4"/><circle cx="24" cy="10" r="2" fill="#fbf3e4"/><circle cx="25" cy="18" r="2" fill="#fbf3e4"/>'},
+    bench:{name:'Upuang kahoy',sub:'a bench to rest on',cost:25,r:.8,block:true,svg:'<path d="M5 22h30v4H5Z" fill="#c49a6c"/><path d="M5 14h30v5H5Z" fill="#c49a6c"/><path d="M8 26v8M32 26v8M8 19v3M32 19v3"/>'},
+    lamp:{name:'Poste ng ilaw',sub:'a lamp post',cost:30,r:.3,block:true,svg:'<path d="M20 35V10M14 35h12" /><path d="M14 10h12l-2-5h-8Z" fill="#5d6b74"/><circle cx="20" cy="12" r="3" fill="#f6d36b"/>'},
+    kubo:{name:'Kubo',sub:'a nipa hut to sit in',cost:180,r:1.7,block:true,svg:'<path d="M3 20L20 6l17 14Z" fill="#c9a96a"/><path d="M8 20v14M32 20v14M8 27h24"/><path d="M14 27v7h12v-7" fill="#e3c08a"/>'},
+  };
+  const ORDER=Object.keys(CAT);
+  for(const k of ORDER) CAT[k].svgFull=`<svg viewBox="0 0 40 40" fill="none" stroke="#493f35" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${CAT[k].svg}</svg>`;
+  const SIGN_STY=[{bg:'#6d4c41',fg:'#ffe9b0',post:0x5d4037,name:'Kahoy'},{bg:'#3f6a3c',fg:'#fff4d6',post:0x4e5b45,name:'Berde'},{bg:'#f6efdc',fg:'#3b2e24',post:0x6d4c41,name:'Puti'},{bg:'#9c3d2e',fg:'#fff1d0',post:0x5d4037,name:'Pula'}];
+  const clean=s=>String(s||'').replace(/[\u0000-\u001f<>]/g,'').replace(/\s+/g,' ').trim().slice(0,24);
+  const signW=t=>Math.max(1.3,Math.min(4.4,.7+t.length*.17));
+  let sel=null, rot=0, moving=null, editId=null;
+  const root=new THREE.Group(); root.name='Player decorations'; scene.add(root);
+  // ---- the pieces, in local space (x along a line piece, from -1 to 1)
+  function parts(d){const b=[], B=(c,x,y,z,w,h,dd,rx=0,ry=0,rz=0)=>b.push(P('box',c,x,y,z,w,h,dd,rx,ry,rz)), r=rng(d.id*97+13);
+    switch(d.k){
+      case 'fence': for(const x of [-1,0,1]) B(0x6d4c41,x,.6,0,.13,1.2,.13); for(const y of [.4,.9]) B(WOOD,0,y,0,2.02,.08,.06); break;
+      case 'bamboo': for(const x of [-1,0,1]) b.push(P('cyl',0x9c8a4a,x,.65,0,.12,1.3,.12)); for(const y of [.35,.75,1.1]) b.push(P('cyl',0xb3a25a,0,y,0,.07,2.02,.07,0,0,Math.PI/2)); break;
+      case 'picket': for(const x of [-1,1]) B(0xe8e4d8,x,.55,0,.12,1.1,.12); for(const y of [.35,.75]) B(0xefebe0,0,y,.04,2.02,.08,.05); for(let k=0;k<8;k++){const x=-.875+k*.25; B(0xf6f3ea,x,.48,.08,.12,.95,.035); b.push(P('pyr',0xf6f3ea,x,1.0,.08,.12,.12,.035));} break;
+      case 'wall': B(0xcfc8b8,0,.5,0,2.02,1.0,.2); B(0xb9b2a3,0,1.04,0,2.08,.08,.26); for(let k=0;k<5;k++) B(0xbdb5a5,0,.1+k*.2,.105,2.02,.012,.01); for(const x of [-1,1]) B(0xbdb5a5,x,.55,0,.24,1.1,.26); break;
+      case 'hedge': for(let k=0;k<6;k++){const x=-.85+k*.34; b.push([PG.clump,Mx(x,.42+r()*.08,0,.62,.78,.62,r()*3,r()*3,0),[0x5f8f3e,0x6a9a45,0x557f37][k%3]]);} for(let k=0;k<7;k++) b.push(P('sph',[0xe2574a,0xf2a13b,0xe2574a][k%3],-.85+r()*1.7,.55+r()*.35,(r()-.5)*.5,.1,.1,.1)); break;
+      case 'canal': B(0x5b4a36,0,.02,0,2.02,.04,.9); B(0x6fa9c2,0,.13,0,2.02,.02,.86); B(0x8cc0d4,-.3,.142,.12,.5,.006,.06); B(0x8cc0d4,.45,.142,-.15,.4,.006,.05); for(const sd of [-1,1]){B(0x9e978a,0,.12,sd*.52,2.02,.24,.16); B(0xb3ac9e,0,.245,sd*.52,2.04,.02,.2);} break;
+      case 'bridge': for(const sd of [-1,1]) B(0x6d4c33,0,.27,sd*.48,2.3,.1,.1); for(let k=0;k<10;k++) B(k%2?0x9a7650:0x8d6b48,-.99+k*.22,.35,0,.2,.05,1.15); for(const sd of [-.58,.58]){for(const x of [-1.05,0,1.05]) B(0x6d4c33,x,.64,sd,.07,.6,.07); B(0x7d5a3c,0,.94,sd,2.2,.06,.06);} break;
+      case 'flowers': B(0x7a5a3c,0,.1,0,1.4,.2,.9); B(0x5e4430,0,.21,0,1.3,.03,.8); for(let k=0;k<9;k++){const x=-.5+(k%3)*.5+(r()-.5)*.1, z=-.28+((k/3)|0)*.28; b.push([PG.clump,Mx(x,.38,z,.36,.3,.36,r()*3,r()*3,0),0x5c8a3c]); b.push(P('sph',[0xe2574a,0xf2c84b,0xe889b0,0xffffff][k%4],x,.55,z,.16,.13,.16));} break;
+      case 'pots': for(const [x,z,s] of [[-.18,0,1],[.2,.1,.8]]){b.push(P('cyl',0xb5623d,x,.18*s,z,.34*s,.36*s,.34*s)); b.push(P('cyl',0x9c4f30,x,.37*s,z,.38*s,.05,.38*s)); b.push([PG.clump,Mx(x,.55*s,z,.42*s,.4*s,.42*s,r()*3,r()*3,0),0x5f8f3e]);} break;
+      case 'banga': b.push(P('sph',0xb5623d,0,.36,0,.62,.62,.62)); b.push(P('cyl',0xa3532f,0,.7,0,.3,.14,.3)); b.push(P('cyl',0x2f3b40,0,.775,0,.24,.01,.24)); break;
+      case 'rocks': for(const [x,z,s,c] of [[-.18,0,.5,0xa59d90],[.22,.1,.36,0xb5ada0],[.05,-.22,.28,0x958d80]]) b.push([PG.clump,Mx(x,s*.32,z,s,s*.68,s*.86,r(),r()*3,r()),c]); break;
+      case 'tree': b.push([PG.limb,limbM(0,0,0,.1,1.4,0,.14),0x6b5136]); for(const a of [0,2.1,4.2]) b.push([PG.limb,limbM(.1,1.3,0,.1+Math.cos(a)*.6,2.0,Math.sin(a)*.6,.07),0x6b5136]);
+        for(let k=0;k<16;k++){const a=k*2.4, d=.35+r()*.6; b.push([PG.clump,Mx(Math.cos(a)*d,2.0+r()*.5,Math.sin(a)*d,.7,.5,.7,r()*3,r()*3,0),[0x4f8a3c,0x5f9a45,0x46803a][k%3]]);}
+        for(let k=0;k<14;k++){const a=k*2.4+.3, d=.5+r()*.6; b.push(P('sph',[0xfbf3e4,0xf7e7b2][k%2],Math.cos(a)*d,2.25+r()*.45,Math.sin(a)*d,.12,.08,.12));} break;
+      case 'bench': B(0x9a7650,0,.45,0,1.5,.07,.42); B(0x8d6b48,0,.82,-.19,1.5,.32,.05,-.12); for(const x of [-.62,.62]){B(0x6d4c33,x,.22,.12,.07,.45,.07); B(0x6d4c33,x,.42,-.17,.07,.84,.07);} break;
+      case 'lamp': b.push(P('cyl',0x4a5459,0,1.4,0,.08,2.8,.08)); b.push(P('cyl',0x3c4448,0,.08,0,.26,.16,.26)); B(0x4a5459,.18,2.75,0,.42,.05,.05); b.push(P('cone',0x55636a,.38,2.68,0,.3,.16,.3)); break;
+      case 'kubo': for(const x of [-1.2,1.2]) for(const z of [-1.2,1.2]) b.push(P('cyl',0xc9a96a,x,1.15,z,.13,2.3,.13)); B(0xa98a52,0,.55,0,2.6,.08,2.6); for(const x of [-1.25,1.25]) B(0xc9b27a,x,.85,0,.05,.55,2.5); B(0xc9b27a,0,.85,-1.25,2.5,.55,.05);
+        b.push(P('pyr',0xb8945a,0,2.85,0,3.8,1.3,3.8)); B(0x8d6e4b,0,.28,1.45,1.0,.06,.3); break;
+    }
+    return b;}
+  function lampLight(){const m=new THREE.Mesh(new THREE.SphereGeometry(.11,8,6),new THREE.MeshBasicMaterial({color:0xffe39a})); return m;}
+  // signboards: drawn in the game's own lettering, the board as wide as the words need
+  function signGroup(d){const t=d.t||'Sunfield Farm', st=SIGN_STY[d.st||0], w=signW(t), h=.62, cv=document.createElement('canvas'); cv.width=Math.round(160*w); cv.height=Math.round(160*h);
+    const c=cv.getContext('2d'); c.fillStyle=st.bg; c.fillRect(0,0,cv.width,cv.height); c.strokeStyle=st.fg; c.lineWidth=6; c.strokeRect(8,8,cv.width-16,cv.height-16);
+    let px=58; do{c.font=`700 ${px}px Mali, Nunito, Arial, sans-serif`;}while(c.measureText(t).width>cv.width-40&&--px>14); c.fillStyle=st.fg; c.textAlign='center'; c.textBaseline='middle'; c.fillText(t,cv.width/2,cv.height/2+2);
+    const tex=new THREE.CanvasTexture(cv), m=new THREE.MeshBasicMaterial({map:tex}), g=new THREE.Group();
+    for(const sd of [0,Math.PI]){const q=new THREE.Mesh(new THREE.PlaneGeometry(w,h),m); q.rotation.y=sd; q.position.set(0,1.45,sd?-.04:.04); g.add(q);}
+    const fr=mergeGeo([P('box',st.post,0,1.45,0,w+.12,h+.12,.06),P('box',st.post,-w/2-.06,.82,0,.12,1.64,.12),P('box',st.post,w/2+.06,.82,0,.12,1.64,.12),P('box',0x4e342e,0,1.82,0,w+.24,.06,.16)]);
+    const fm=new THREE.Mesh(fr,VCMAT); fm.castShadow=true; g.add(fm); g.userData.tex=tex; return g;}
+  // ---- where things may go
+  const BLOCK_RECTS=()=>FARM.buildings.map(b=>[b.x,b.z,b.w/2+.4,b.d/2+.4]);
+  const objBox=new THREE.Box3();
+  function nearObj(o,x,z,m){if(!o) return false; objBox.setFromObject(o); return x>objBox.min.x-m&&x<objBox.max.x+m&&z>objBox.min.z-m&&z<objBox.max.z+m;}
+  function freeAt(x,z,m,self,k){
+    if(!inLot(x,z)) return 'Keep it inside your farm fence.';
+    if(roadDist(x,z)<m+.25) return 'Not on a road or path: vehicles and people use it.';
+    if(inField(x,z,m+.15)) return 'Not on the crop field.';
+    if(x>ORCH[0]-.2&&x<ORCH[1]+.2&&z>ORCH[2]-.2&&z<ORCH[3]+.2&&(ORCHARD.spots.some(([sx,sz])=>Math.hypot(x-sx,z-sz)<1.3+m)||Math.hypot(x-25.6,z-19)<2.4+m)) return 'Not on an orchard plot or the kubol.';
+    if(SLOTS.some(s=>Math.abs(x-s.x)<s.w/2+m+.3&&Math.abs(z-s.z)<s.d/2+m+.3)) return 'Not inside an animal pen.';
+    if(FARM.areas.some(a=>Math.hypot(x-a.gate[0],z-a.gate[1])<3.2+m)) return 'Keep the animal gates clear.';
+    if(FARM.turning.some(t=>Math.hypot(x-t.x,z-t.z)<t.r+m)) return 'Keep the turning yard clear for vehicles.';
+    if(BLOCK_RECTS().some(([bx,bz,hw,hd])=>Math.abs(x-bx)<hw+m&&Math.abs(z-bz)<hd+m)||nearObj(houseG,x,z,m+.3)||nearObj(garageG,x,z,m+.3)) return 'Too close to a building.';
+    if(k!=='canal'&&!CAT[k].over&&typeof wwNear==='function'&&wwNear(x,z,m)) return 'Not in the canal water.';
+    for(const o of S.deco){if(o.id===self) continue; const c=CAT[o.k]; if(!c) continue; const sameLine=c.line&&CAT[k].line;
+      if(CAT[k].over&&o.k==='canal') continue; if(c.over&&k==='canal') continue;
+      const d=Math.hypot(x-o.x,z-o.z), need=sameLine?.9:(c.line?.6:c.r)+m*.85; if(d<need) return 'Something is already there.';}
+    return '';}
+  const ends=d=>{const c=Math.cos(d.r), s=-Math.sin(d.r); return [[d.x-c,d.z-s],[d.x,d.z],[d.x+c,d.z+s]];};
+  function okFor(d){const c=CAT[d.k]; if(c.line){for(const [x,z] of ends(d)){const e=freeAt(x,z,.25,d.id,d.k); if(e) return e;} return '';} return freeAt(d.x,d.z,c.r,d.id,d.k);}
+  // ---- walkers go round fences, walls, hedges, canals, trees, benches, lamps, kubos and signs
+  let navPrev=new Map(), navWas=false;
+  function navApply(){if(!NAV||!NAV.ready) return; for(const [k,v] of navPrev) NAV.blk[k]=v; navPrev=new Map();
+    const mark=(x,z)=>{const i=Math.floor((x-NAV.X0)/.5), j=Math.floor((z-NAV.Z0)/.5); if(i<0||j<0||i>=NAV.W||j>=NAV.H) return; const k=j*NAV.W+i; if(!navPrev.has(k)) navPrev.set(k,NAV.blk[k]); NAV.blk[k]=1;};
+    for(const d of S.deco){const c=CAT[d.k]; if(!c||!c.block) continue;
+      if(c.line){const [[ax,az],,[bx,bz]]=ends(d); for(let s=0;s<=16;s++){const f=s/16; mark(ax+(bx-ax)*f,az+(bz-az)*f);}}
+      else if(c.sign){const w=signW(d.t||''), cs=Math.cos(d.r), sn=-Math.sin(d.r); for(let s=-1;s<=1;s+=.125) mark(d.x+cs*s*w/2,d.z+sn*s*w/2);}
+      else {const R=c.r*.75; for(let dx=-R;dx<=R;dx+=.25) for(let dz=-R;dz<=R;dz+=.25) if(dx*dx+dz*dz<=R*R) mark(d.x+dx,d.z+dz);}}
+    NAV.clearCache&&NAV.clearCache();}
+  // ---- drawing: every non-sign piece merged into one mesh (cheap on phones), signs and lamp bulbs on their own
+  function rebuild(){clearGroup(root); const all=[], W=new THREE.Matrix4();
+    for(const d of S.deco){const c=CAT[d.k]; if(!c) continue; W.makeRotationY(d.r); W.setPosition(d.x,0,d.z);
+      if(c.sign){const g=signGroup(d); g.position.set(d.x,0,d.z); g.rotation.y=d.r; root.add(g); continue;}
+      for(const [g,m,col] of parts(d)) all.push([g,W.clone().multiply(m),col]);
+      if(d.k==='lamp'){const L=lampLight(); L.position.set(.38,2.6,0).applyMatrix4(W); root.add(L);}}
+    if(all.length){const v=vcGroup(all); v.traverse(o=>{if(o.isMesh) o.userData.navSkip=true;}); root.add(v);}
+    root.traverse(o=>{o.userData.navSkip=true;}); navApply();}
+  // ---- input
+  const ray2=new THREE.Raycaster(), nd=new THREE.Vector2(), gp=new THREE.Plane(new THREE.Vector3(0,1,0),0), hv=new THREE.Vector3();
+  function ground(x,y){nd.set(x/innerWidth*2-1,-(y/innerHeight)*2+1); ray2.setFromCamera(nd,camera); return ray2.ray.intersectPlane(gp,hv)?[hv.x,hv.z]:null;}
+  const snap=(v,q=.5)=>Math.round(v/q)*q;
+  function pay(n){if(S.coins<n){toast(`You need ₱${n} for that.`); return false;} S.coins-=n; return true;}
+  function add(k,x,z,r){const d={id:S.decoN++,k,x,z,r}; if(CAT[k].sign){d.t='Sunfield Farm'; d.st=0;} const e=okFor(d); if(e){S.decoN--; return e;} if(!pay(CAT[k].cost)) return 'coins'; S.deco.push(d); return d;}
+  const atPoint=(x,z)=>{let best=null, bd=1e9; for(const d of S.deco){const c=CAT[d.k]; if(!c) continue; let dist;
+      if(c.line){const [[ax,az],,[bx,bz]]=ends(d), dx=bx-ax, dz=bz-az, u=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/(dx*dx+dz*dz))); dist=Math.hypot(ax+dx*u-x,az+dz*u-z);}
+      else dist=Math.hypot(d.x-x,d.z-z)-(c.sign?signW(d.t||'')/2:c.r)*.6;
+      if(dist<bd){bd=dist; best=d;}} return bd<.9?best:null;};
+  function tap(x,y){if(openCat!=='decor'&&!moving) return false; const g=ground(x,y); if(!g) return true; const [gx,gz]=g;
+    if(moving){const d=S.deco.find(o=>o.id===moving); moving=null; if(!d) return true; const ox=d.x, oz=d.z; d.x=snap(gx); d.z=snap(gz); const e=okFor(d); if(e){d.x=ox; d.z=oz; toast('Can\'t move it there. '+e,2600); rebuild(); return true;} rebuild(); changed(); toast(`${CAT[d.k].name} moved.`); return true;}
+    const hit=atPoint(gx,gz); if(hit&&!sel){openEdit(hit.id); return true;}
+    if(!sel){if(hit) openEdit(hit.id); else toast('Pick a decoration from the bar first, or tap one you placed to change it.',2600); return true;}
+    const res=add(sel,snap(gx),snap(gz),rot); if(res==='coins') return true; if(typeof res==='string'){toast('Can\'t put it there. '+res,2600); return true;}
+    rebuild(); changed(); sfx('hammer',res.x,res.z); if(CAT[sel].sign) openEdit(res.id); return true;}
+  // a line: start where the finger went down, lay a 2 m piece each time the drag has gone 2 m, turned to the nearest 45°
+  let line=null;
+  const lineOn=()=>openCat==='decor'&&!!sel&&!!CAT[sel].line&&!moving;
+  function lineStart(x,y){const g=ground(x,y); if(!g) return; line={p:[snap(g[0]),snap(g[1])],n:0,bad:''};}
+  function lineTo(x,y){if(!line) return; const g=ground(x,y); if(!g) return; let changedAny=false;
+    for(let guard=0;guard<20;guard++){const dx=g[0]-line.p[0], dz=g[1]-line.p[1], L=Math.hypot(dx,dz); if(L<2) break;
+      const a=Math.round(Math.atan2(dz,dx)/(Math.PI/4))*(Math.PI/4), ux=Math.cos(a), uz=Math.sin(a), step=2;
+      const cx=line.p[0]+ux*step/2, cz=line.p[1]+uz*step/2, r=Math.atan2(-uz,ux);
+      if(Math.abs(Math.cos(a))>.1&&Math.abs(Math.sin(a))>.1){/* diagonal pieces span 2 m along the diagonal */}
+      const res=add(sel,cx,cz,r); if(res&&typeof res==='object'){line.n++; changedAny=true;} else if(res==='coins'){line.p=[g[0],g[1]]; break;} else line.bad=res;
+      line.p=[line.p[0]+ux*step,line.p[1]+uz*step];}
+    if(changedAny) rebuild();}
+  function lineEnd(){if(!line) return; const n=line.n, bad=line.bad; line=null; if(n){changed(); toast(`${CAT[sel].name}: ${n} piece${n>1?'s':''} (₱${n*CAT[sel].cost}).`);} else if(bad) toast('Can\'t build there. '+bad,2600); else toast('Drag a little further: each piece is 2 m.');}
+  // ---- the bar under the Decorate button
+  function bar(){return ORDER.map(k=>{const c=CAT[k], on=sel===k; return `<button class="tool ${on?'on':''}" data-deco="${k}" aria-pressed="${on}"><span class="ti svg" aria-hidden="true">${c.svgFull}</span><span class="tl">${c.name}</span><span class="tc">₱${c.cost}</span></button>`;}).join('')
+    +`<button class="tool" data-deco-rot="1" aria-label="Turn the next piece"><span class="ti">↻</span><span class="tl">Turn</span><span class="tc">${Math.round(rot*180/Math.PI)%360}°</span></button>`;}
+  function hint(){if(moving) return 'Tap where you want to move it.'; if(!sel) return 'Pick a decoration, then tap your farm to place it. Tap something you placed to turn, move, edit or remove it.';
+    return CAT[sel].line?`Drag across your land to build ${CAT[sel].name.toLowerCase()} (₱${CAT[sel].cost} per 2 m). Tap to place one piece.`:`Tap your farm to place a ${CAT[sel].name.toLowerCase()} (₱${CAT[sel].cost}). Tap "Turn" to face it another way.`;}
+  $('tools').addEventListener('click',e=>{const b=e.target.closest('[data-deco],[data-deco-rot]'); if(!b) return;
+    if(b.dataset.decoRot){rot=(rot+Math.PI/4)%(Math.PI*2); renderHUD(); return;}
+    const k=b.dataset.deco; sel=sel===k?null:k; if(sel){S.tool=null;} moving=null; buzz(); renderHUD();});
+  // ---- the edit sheet: turn, move, remove; for a sign, its words and colour
+  const esc=s=>String(s).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+  function openEdit(id){editId=id; bldIdx=-9; render(); $('bldSheet').classList.add('open');}
+  function render(){const d=S.deco.find(o=>o.id===editId); if(!d){$('bldSheet').classList.remove('open'); return;} const c=CAT[d.k];
+    $('bldTitle').textContent=c.name;
+    let h='<div class="fs deco">'+`<div class="fs-card deco-head"><span class="or-ic">${c.svgFull}</span><div><b>${esc(c.name)}</b><small>${esc(c.sub)}</small></div></div>`;
+    if(c.sign) h+=`<h3>Sign text</h3><div class="deco-sign"><input id="decoText" maxlength="24" autocomplete="off" spellcheck="false" placeholder="e.g. Rancho ni Lolo"><span id="decoCount" class="fs-tag"></span></div>`
+      +`<div class="deco-sty">${SIGN_STY.map((s,i)=>`<button class="gbtn ${(d.st||0)===i?'on':''}" data-deco-act="sty" data-v="${i}"><span class="sw" style="background:${s.bg};color:${s.fg}">Aa</span><b>${s.name}</b></button>`).join('')}</div>`
+      +`<button class="gbtn green" data-deco-act="text"><b>Save the sign</b><small>Up to 24 letters; the board fits the words</small></button>`;
+    h+=`<div class="fs-actions"><button class="gbtn" data-deco-act="turnL"><b>↺ Turn left</b></button><button class="gbtn" data-deco-act="turnR"><b>↻ Turn right</b></button><button class="gbtn" data-deco-act="move"><b>Move</b><small>then tap the new spot</small></button>`
+      +`<button class="gbtn warn" data-deco-act="remove"><b>Remove</b><small>half the price back (₱${Math.floor(c.cost/2)})</small></button></div></div>`;
+    $('bldBody').innerHTML=h;
+    if(c.sign){const inp=$('decoText'), cnt=$('decoCount'); inp.value=d.t||''; const upd=()=>cnt.textContent=(24-inp.value.length)+' left'; upd(); inp.addEventListener('input',upd);
+      inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault(); act('text');}});}}
+  function act(a,v){const d=S.deco.find(o=>o.id===editId); if(!d) return; const c=CAT[d.k];
+    if(a==='turnL'||a==='turnR'){const old=d.r; d.r=(d.r+(a==='turnL'?1:-1)*Math.PI/4+Math.PI*2)%(Math.PI*2); const e=okFor(d); if(e){d.r=old; toast('It doesn\'t fit turned that way. '+e,2400); return;} rebuild(); changed(); return;}
+    if(a==='move'){moving=d.id; $('bldSheet').classList.remove('open'); toast('Tap where you want to move it.',2200); return;}
+    if(a==='remove'){S.deco=S.deco.filter(o=>o.id!==d.id); S.coins+=Math.floor(c.cost/2); $('bldSheet').classList.remove('open'); rebuild(); changed(); toast(`${c.name} removed. +₱${Math.floor(c.cost/2)}`); return;}
+    if(a==='sty'){d.st=+v; rebuild(); changed(); render(); return;}
+    if(a==='text'){const t=clean($('decoText')?$('decoText').value:''); if(!t) return toast('Write something for the sign first.'); const old=d.t; d.t=t; const e=okFor(d); if(e){d.t=old; toast('That sign is too wide for this spot. '+e,2600); return;}
+      rebuild(); changed(); $('bldSheet').classList.remove('open'); toast('Sign updated.'); return;}}
+  $('bldSheet').addEventListener('click',e=>{if(bldIdx!==-9) return; const b=e.target.closest('[data-deco-act]'); if(!b||b.disabled) return; e.stopPropagation(); act(b.dataset.decoAct,b.dataset.v);},true);
+  function update(){const r=!!(NAV&&NAV.ready); if(r&&!navWas) navApply(); navWas=r;}
+  if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>{if(S.deco.some(d=>CAT[d.k]&&CAT[d.k].sign)) rebuild();});
+  rebuild();
+  return {CAT,tap,lineOn,lineStart,lineTo,lineEnd,bar,hint,render,update,rebuild,get sel(){return sel;},set sel(v){sel=v;},get moving(){return moving;},clearSel(){sel=null; moving=null;},add,okFor,atPoint};
+})();
+if(/[?&]debug\b/.test(location.search)) window.SF={deco:DECO,orchard:ORCHARD,fruitTrees:FRUIT_TREES,districtLife:DISTRICT_LIFE,livestock:{stockFor,choose:chooseAnimalPickup,continue:continueAnimalHaul,process:processKatQueue,path:farmHaulPath},bodega:{world:farmBodega,open:openBodega,tick:updateBodega},farmDispatch:{loading:LOADING_DISPATCH,state:FARM_DISPATCH,tick:updateFarmDispatch,setSlots,simulate:(now,dt)=>{roadSnapshot();updateFarmDispatch(now,dt);updateVehicles(now);placeVehicles(now,dt);}},shop:{config:SHOP,world:farmShop,open:openFarmShop,unlock:shopUnlock,sale:shopSale,deliver:shopDeliver,dispatch:shopDispatch,refund:shopRefund,incoming:shopIncoming,setDraft:q=>{shopDraft=q;},tick:updateFarmShop},resCars,junctions:TRAFFIC_JUNCTIONS,health:gameHealth,trafficUpdate:updateTraffic,setTrafficUpdate:fn=>{updateTraffic=fn;},pointerCount:()=>ptrs.size,canvas,cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,holdPose,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,vans,traffic,models:{vkCar,CAR_SPECS,tripLoad,buildLoad,cageCart,animalGeo,makePerson,bakePerson,poseWalk,poseStand,poseSit,randLook,makeCar,makePUJ,makeBus,makeTrike,makeVan,makeTraderTruck,makeLiner,VEH:()=>VEH},lanes:LN,laneStep:lnStep,laneMs:()=>LN_MS,trikes,puvs,traders,JEEPS:()=>JEEPS,townStep:updateTownVehicles,transitStep:updateTransit,bizStep:updateBiz,trikeStep:updateTrikes,shiftDays:n=>{TIME_SHIFT+=n*DAY_MS;},LINERS:()=>LINERS,PATROL:()=>PATROL,FIESTA:()=>FIESTA,loadWalkers,STOP,homeAct:(a,r)=>homeAct(a,{dataset:{r}}),openHome,FISH,startRain,dayAt:f=>{const g=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((f-g+1)%1)*DAY_MS;},step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
 // keep the open Tools / Build panel clear of the bottom bar: measure the bar and hand its height to the CSS
 (()=>{const cats=$('cats'), set=()=>document.documentElement.style.setProperty('--catsH',Math.ceil(cats.getBoundingClientRect().height)+'px');
   set(); try{new ResizeObserver(set).observe(cats);}catch(e){addEventListener('resize',set);} })();
@@ -10324,10 +10502,11 @@ NAV=(()=>{
     for(const q of pts){const leg=path(p[0],p[1],q[0],q[1]); if(leg&&leg.length) out.push(...leg.slice(leg.length>1?1:0)); else out.push([q[0],q[1]]); p=q;} return out.length?out:pts;}
   const blocked=(x,z)=>{const k=at(ci(x),cj(z)); return k<0?false:!!blk[k];};
   const rebuild=()=>{ready=false; blk.fill(0); cost.fill(2); cache.clear(); gen=null; started=true;};
-  return {DBG, astar, snap:(x,z,w)=>snap(x,z,w), get ready(){return ready;}, set ready(v){ready=v;}, start(){started=true;}, tick, path, route, blocked, rebuild, blk, cost, comp, X0, Z0, W, H};
+  return {clearCache:()=>cache.clear(), DBG, astar, snap:(x,z,w)=>snap(x,z,w), get ready(){return ready;}, set ready(v){ready=v;}, start(){started=true;}, tick, path, route, blocked, rebuild, blk, cost, comp, X0, Z0, W, H};
 })();
 
 })();
 </script>
+<script src="/startup.js"></script>
 </body>
 </html>

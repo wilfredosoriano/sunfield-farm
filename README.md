@@ -30,3 +30,7 @@ Log in once with `npx wrangler login`, then from this folder:
 ```bash
 npx wrangler@4 deploy
 ```
+
+## Accounts and cloud saves
+
+Cloudflare D1 stores account saves. See [Google sign-in setup and save behavior](docs/cloud-saves.md). Guest play continues to save locally. Run `npx wrangler@4 dev` to test the backend and startup screens together.

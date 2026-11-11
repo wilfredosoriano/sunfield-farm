@@ -980,8 +980,9 @@ const POST=(()=>{
       renderer.setRenderTarget(null); renderer.render(pscene,pcam);}};
 })();
 // Refresh shadows with the visible frame so moving casters and the light camera stay synchronized.
+let shadowTick=0;
 const drawFrame=()=>{
-  renderer.shadowMap.needsUpdate=true;
+  if(!ECO||(shadowTick++&1)===0) renderer.shadowMap.needsUpdate=true;   // battery saver: shadows refresh every other frame
   if(POST)POST.render();else renderer.render(scene,camera);
 };
 renderer.shadowMap.autoUpdate=false;   // one shadow pass per visible frame; the cover pass reuses it
@@ -1559,6 +1560,12 @@ const HGset=k=>({ball:new THREE.SphereGeometry(.5,10-k*3,7-k*2), bead:new THREE.
   skirt:new THREE.CylinderGeometry(.36,.5,1,10-k*3,1,true), brim:new THREE.CylinderGeometry(.5,.5,1,12-k*4), cone:new THREE.ConeGeometry(.5,1,10-k*3), box:new THREE.BoxGeometry(1,1,1)});
 const HG_HI=HGset(0), HG_LO=HGset(1); let HG=HG_HI;   // seated passengers half hidden in vehicles use the lighter set
 const HP=(g,c,x,y,z,sx,sy,sz,rx,ry,rz)=>[HG[g],Mx(x,y,z,sx,sy,sz,rx,ry,rz),c];
+// every person, for drawing detail by distance: far ones are not drawn (their walking still runs), and only near ones cast shadows
+const PEOPLE=new Set(), PLOD={at:0,v:new THREE.Vector3()};
+function peopleLOD(now){if(now-PLOD.at<250) return; PLOD.at=now; const cp=camera.position, far=55+cam.dist*.6, v=PLOD.v;
+  for(const r of PEOPLE){let top=r; while(top.parent) top=top.parent; if(top!==scene){if(r.userData.seen&&!r.parent) PEOPLE.delete(r); continue;} r.userData.seen=true;
+    r.getWorldPosition(v); const d=v.distanceTo(cp), show=d<far, sh=d<40;
+    if(r.userData.lod!==show||r.userData.lsh!==sh){r.userData.lod=show; r.userData.lsh=sh; r.traverse(o=>{if(o.isMesh){o.layers.set(show?0:2); o.castShadow=sh;}});}}}
 function makePerson(L){
   HG=L.lo?HG_LO:HG_HI; const face=!L.lo;
   const root=new THREE.Group(), bod=new THREE.Group(), f=L.f, sw=f?.16:.185, b=[], top=L.top, bot=L.bottom, sk=L.skin, hr=L.hair;
@@ -1607,7 +1614,7 @@ function makePerson(L){
     g.add(k); return {g,k};
   };
   const aL=arm(1), aR=arm(-1), lL=leg(1), lR=leg(-1);
-  bod.add(aL,aR,lL.g,lR.g); root.scale.setScalar(L.h); root.traverse(o=>{if(o.isMesh) o.castShadow=true;}); root.userData.person=true;
+  bod.add(aL,aR,lL.g,lR.g); root.scale.setScalar(L.h); root.traverse(o=>{if(o.isMesh) o.castShadow=true;}); root.userData.person=true; PEOPLE.add(root);
   return {root,bod,aL,aR,lL,lR,L,snap:true};
 }
 // things people carry sit in their hands: trays rest on the palms, crates and sacks are gripped at the sides, pails and baskets hang from one hand by the handle
@@ -7046,7 +7053,7 @@ function startRain(now){S.ev.rainEnd=now+DAY_MS/2; let n=0; for(let i=0;i<NF;i++
   toast(`🌧️ Umuulan! The rain is watering ${n?`your ${n} dry plot${n>1?'s':''}`:'the farm'}. No need to dilig today.`,3800); save();}
 // rain: thin streaks falling round the middle of the screen
 const rainMesh=(()=>{const n=500, m=new THREE.InstancedMesh(new THREE.BoxGeometry(.03,.9,.03),new THREE.MeshBasicMaterial({color:0xbcd3ea,transparent:true,opacity:.55}),n);
-  m.frustumCulled=false; m.visible=false; m.userData.p=Array.from({length:n},()=>[Math.random()*70-35,Math.random()*26,Math.random()*70-35]); scene.add(m); return m;})();
+  m.frustumCulled=false; m.userData.noCull=true; m.visible=false; m.userData.p=Array.from({length:n},()=>[Math.random()*70-35,Math.random()*26,Math.random()*70-35]); scene.add(m); return m;})();
 let rainLast=performance.now();
 (function rainLoop(){requestAnimationFrame(rainLoop); const now=performance.now(), dt=Math.min(.05,(now-rainLast)/1000); rainLast=now; const on=rainOn(); rainMesh.visible=on; if(!on) return;
   const T=cam.target, M=new THREE.Matrix4(); rainMesh.userData.p.forEach((q,k)=>{q[1]-=dt*20; if(q[1]<0){q[1]=24+Math.random()*4; q[0]=Math.random()*70-35; q[2]=Math.random()*70-35;}
@@ -8140,6 +8147,22 @@ function poseWave(p,t){const k=p.snap?1:.3; p.snap=false;
   PJ(p.aR,'x',-2.7,k); p.aR.rotation.z=-.35+Math.sin(t*5)*.35; PJ(p.aL,'x',-.1,k); if(p.bod){p.bod.position.y+=(0-p.bod.position.y)*k; PJ(p.bod,'x',0,k);}}
 const WORK_POSE={crouch:poseCrouch,write:poseWrite,inspect:poseInspect,pump:posePump,sweep:poseSweep,wave:poseWave,stand:poseStand};
 
+
+// ---- instanced meshes (crops, garbage, herds) that span the map: give each its own bounding sphere so the renderer skips them when they
+//      are off screen (r128 cannot cull instances on its own); animals get a margin because they wander
+const CULL=(()=>{const m4=new THREE.Matrix4(), v=new THREE.Vector3(), done=new WeakSet();
+  const fit=(im,margin)=>{const g0=im.geometry; if(!g0.boundingSphere) g0.computeBoundingSphere(); const gr=g0.boundingSphere.center.length()+g0.boundingSphere.radius;
+    const n=im.count; if(!n) return; let cx=0,cy=0,cz=0; const pts=new Float32Array(n*3);
+    for(let i=0;i<n;i++){im.getMatrixAt(i,m4); v.setFromMatrixPosition(m4); pts[i*3]=v.x; pts[i*3+1]=v.y; pts[i*3+2]=v.z; cx+=v.x; cy+=v.y; cz+=v.z;}
+    cx/=n; cy/=n; cz/=n; let r=0; for(let i=0;i<n;i++) r=Math.max(r,Math.hypot(pts[i*3]-cx,pts[i*3+1]-cy,pts[i*3+2]-cz)); const sc=Math.max(1,m4.getMaxScaleOnAxis());
+    const g=new THREE.BufferGeometry(); for(const a in g0.attributes) g.setAttribute(a,g0.attributes[a]); if(g0.index) g.setIndex(g0.index); for(const gr2 of g0.groups) g.addGroup(gr2.start,gr2.count,gr2.materialIndex);
+    g.boundingSphere=new THREE.Sphere(new THREE.Vector3(cx,cy,cz),r+gr*sc+margin); g.boundingBox=null; im.geometry=g; im.frustumCulled=true;};
+  const sph=new THREE.Sphere(), small=new WeakSet();
+  const isPerson=o=>{for(let q=o;q;q=q.parent) if(q.userData&&q.userData.person) return true; return false;};
+  const sweep=()=>{scene.traverse(o=>{
+    if(o.isMesh&&!o.isInstancedMesh&&o.castShadow&&!small.has(o)){small.add(o); if(!isPerson(o)){const g=o.geometry; if(!g.boundingSphere) g.computeBoundingSphere(); sph.copy(g.boundingSphere).applyMatrix4(o.matrixWorld); if(sph.radius<.9) o.castShadow=false;}}   // tiny parts: no shadow pass
+    if(!o.isInstancedMesh||o.frustumCulled||done.has(o)||o.userData.noCull) return; done.add(o); try{fit(o,6);}catch(e){o.frustumCulled=false;}});};
+  return {sweep};})();
 var NAV=null;   // the walking map (built after the town loads; see the end of the script)
 const NAVED=new WeakSet();
 function navFix(o,R,key='path',ik='i'){if(!NAV||!NAV.ready) return; const P=o[key]; if(!P||NAVED.has(P)||o[ik]>=P.length) return; const np=NAV.route([R.position.x,R.position.z],P.slice(o[ik])); NAVED.add(np); o[key]=np; o[ik]=0;}   // re-plan a walk round walls, fences and water
@@ -8938,7 +8961,7 @@ const LANDFILL_WORKS=(()=>{
     while(n<N&&guard++<20000){let x,z; const pick=r(); if(pick<.62){x=M.cx+(r()*2-1)*M.rx; z=M.cz+(r()*2-1)*M.rz;} else {const P=HEAPS[(r()*3)|0], a=r()*Math.PI*2, d=Math.sqrt(r())*P.R; x=P.x+Math.cos(a)*d; z=P.z+Math.sin(a)*d;}
       const hm=moundH(x,z), hh=heapH(x,z), h=Math.max(hm,hh); if(h<.08) continue; if(hm>hh&&(z-M.cz)/M.rz>.25+.15*Math.sin(x*.3)&&r()<.85) continue;   // the capped part shows only a little
       const s=.25+r()*.55; o.position.set(x,h+s*.25,z); o.rotation.set(r()*.6,r()*Math.PI,r()*.6); o.scale.set(s*(.8+r()*.8),s*(.5+r()*.5),s*(.8+r()*.8)); o.updateMatrix(); im.setMatrixAt(n,o.matrix); im.setColorAt(n,c.setHex(GCOL[(r()*GCOL.length)|0])); n++;}
-    im.count=n; im.castShadow=im.receiveShadow=true; scene.add(im);}
+    im.count=n; im.castShadow=false; im.receiveShadow=true; scene.add(im);}
   // a load of garbage (in a bucket, or falling) and where it lands
   const chunk=(w)=>{const g=new THREE.Group(); for(let k=0;k<7;k++){const s=.25+r()*.3; g.add(part(s*1.3,s,s*1.1,GCOL[(r()*GCOL.length)|0],(r()-.5)*w,(r()-.2)*.35,(r()-.5)*w*.6));} return g;};
   const drops=[];   // pieces falling under gravity, then lying where they land
@@ -9173,7 +9196,7 @@ const EXPANSION=(()=>{
   const DIRT=0x8b6a45, DIKE=0x8d7a55, STEEL=0x7c8285;
   const inst=(geo,mat,list)=>{const im=new THREE.InstancedMesh(geo,mat,list.length), o=new THREE.Object3D(), c=new THREE.Color();
     list.forEach((q,i)=>{o.position.set(q[0],q[1],q[2]); o.rotation.set(0,q[3]||0,q[6]||0); o.scale.set(q[4]||1,q[5]||1,q[4]||1); o.updateMatrix(); im.setMatrixAt(i,o.matrix); if(q[7]!=null) im.setColorAt(i,c.setHex(q[7]));});
-    im.castShadow=true; im.receiveShadow=true; scene.add(im); return im;};
+    im.castShadow=false; im.receiveShadow=true; scene.add(im); return im;};   // crops: no shadow pass
   // ===== the farm road from the highway, and the canal =====
   B(-160,.05,-72,5,.06,60,0xa38b62); B(-160,.07,-72,.5,.04,60,0x8f7a52);   // the dirt road in from the highway, between the greenhouses and the packing shed
   B(-118,.03,0,4.2,.04,196,0x8d7a55); B(-118,.06,0,2.6,.04,196,0x4f7f8f);   // the canal, its banks
@@ -9349,6 +9372,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:45,date:'Nov 12, 2026',title:'Cooler and smoother on phones',items:['🔥 The game now draws much less each frame: fields of crops, garbage and animals off screen are skipped, people far from the camera are not drawn (they keep walking), small parts no longer cast shadows, and only nearby people do. A normal view now takes about half the drawing work it did before.','🔋 With Battery saver on (the default on phones), shadows refresh every other frame as well. Turn it on from the ⋯ menu if your phone still gets warm.']},
   {v:44,date:'Nov 12, 2026',title:'People walk the proper way',items:['🚶 Everyone now walks round buildings, fences and water instead of through them: townspeople going to the palengke, workers on their rounds, shoppers, commuters, school children, church families and your own farmer. A walking map of the whole town (made from the real walls, fences and canals) finds the way, keeps to the roadside and crosses the road only where it has to.','🌉 Every house on the barangay road now has a concrete crossing over the kanal at its front path, and a wider one at the carport, so families can walk out to the street. Garden gates now stand open.','⏱️ The walking map is built a few seconds after the game loads, and rebuilt when you put up or move a farm building.']},
   {v:43,date:'Nov 11, 2026',title:'Your mini-mart grows into a supermart',items:['🏪 The mini-mart now upgrades in three steps from its menu: Mini-Mart, Mini-Mart Plus (level 8, ₱15,000) and Sunfield Supermart (level 12, ₱35,000). Each step adds shelf space (180, 300, 450 units, up to 60, 90, 120 of each product), more shoppers and another parking spot.','🛒 Inside: a tiled floor, a long wall shelf, up to four gondolas, up to three lit drinks fridges, an ice-cream freezer, a fresh produce stand and rice sacks, all stocked with packs and bottles that fill up as you restock. Ate Lorna works the counter and, at the top level, a stock clerk tends the aisles.','🚶 Shoppers really go inside now: they come through the glass door, walk the aisles or check the fridges, pay at the counter and leave. Cars park in front (up to four spots) and their drivers come in too.','🎁 Farms from before this update get their mini-mart opened and fully upgraded to the Sunfield Supermart.']},
   {v:42,date:'Nov 11, 2026',title:'A cleaner mini-mart and cooperative',items:['🏪 The mini-mart menu is redone: status tiles (open, shelf space, sales, items sold), a card for Ate Lorna\'s salary, and a tile for each product with its shelf and farm stock and proper − and + buttons (they used to show question marks).','🐄 The Livestock Cooperative menu now shows its price per head next to the palengke price, a clear button to truck bodega animals over, and tiles for the young stock.']},
@@ -9526,6 +9550,8 @@ function frame(now){
   UTIL_BUS.update(dt,t);
   EXPANSION.update(dt,t);
   COOP_LIFE.update(dt,t);
+  if(now-(CULL.at||0)>5000){CULL.at=now; CULL.sweep();}
+  peopleLOD(now);
   if(NAV){if(now>6000) NAV.start(); NAV.tick(); if(NAV.ready&&now-(NAV.chk||0)>10000){NAV.chk=now; const sig=S.tiles.filter(q=>q.s==='bld').length+':'+S.house+':'+S.garage+':'+JSON.stringify(S.housePos||0)+':'+shopLv(); if(NAV.sig&&NAV.sig!==sig) NAV.rebuild(); NAV.sig=sig;}}
   updateFarmDispatch(Date.now(),dt);
   if(now-lastTick>300){lastTick=now; const d=Date.now(); updateVehicles(d); updateTravelHUD(d); for(let i=0;i<NT;i++){const s=S.tiles[i].s; if(s==='crop'||s==='bld') updateTile(i,d);}}

@@ -4166,7 +4166,7 @@ function endPtr(e){
   if(moving){ if(e.type==='pointerup') dropBuilding(e.clientX,e.clientY); else cancelMove(); }
   moveCand=-1;
   if(ptrs.size===1&&!moved&&e.type==='pointerup'){const x=e.clientX,y=e.clientY;
-    if(hitObj(farmBodega.g,x,y))openBodega();else if(hitObj(farmShop.g,x,y))openFarmShop();else if(hitMarket(x,y)) openMarket(); else if(hitObj(hwG,x,y)) openHW('hardware'); else if(hitObj(psG,x,y)) openHW('poultry'); else if(hitObj(ssG,x,y)) openHW('seeds'); else if(hitObj(whG,x,y)||hitObj(facG,x,y)) openBiz(); else if(hitObj(houseG,x,y)) openHome(); else if(hitObj(katG,x,y)) openKat();
+    if(hitObj(farmBodega.g,x,y))openBodega();else if(hitObj(farmShop.g,x,y))openFarmShop();else if(hitMarket(x,y)) openMarket(); else if(hitObj(hwG,x,y)) openHW('hardware'); else if(hitObj(psG,x,y)) openHW('poultry'); else if(hitObj(ssG,x,y)) openHW('seeds'); else if(hitObj(whG,x,y)||hitObj(facG,x,y)) openBiz(); else if(hitObj(houseG,x,y)) openHome(); else if(hitObj(katG,x,y)) openKat(); else if(coopHit(x,y)) openCoop();
     else if(hitObj(garageG,x,y)||(OWN('jeep')&&!S.veh.jeep.trip&&hitObj(jeep,x,y))||(S.veh.truck.owned&&!S.veh.truck.trip&&hitObj(truck,x,y))) openUp('garage');
     else onTap(pick(x,y)); }
   if(stroke) endStroke();
@@ -5157,7 +5157,7 @@ if((S.balanceVersion||0)<1){
   if(S.ev.flu!=null)S.ev.lastFluMonth=monthN();if(heatOn())S.ev.lastHeatMonth=monthN();
   S.balanceVersion=1;save();
 }
-const TRUCK_PRICE=15000, PLACE={katayan:'katayan',farmshop:'your mini-mart',brgy:'barangay',city:'city',palengke:'palengke',hardware:'hardware',poultry:'poultry supply',seeds:'Binhi store',warehouse:'warehouse',pickup:'animal pens',mountain:'mountain barangay',sari:'sari-sari store',port:'pantalan'};
+const TRUCK_PRICE=15000, PLACE={coop:'Livestock Cooperative',katayan:'katayan',farmshop:'your mini-mart',brgy:'barangay',city:'city',palengke:'palengke',hardware:'hardware',poultry:'poultry supply',seeds:'Binhi store',warehouse:'warehouse',pickup:'animal pens',mountain:'mountain barangay',sari:'sari-sari store',port:'pantalan'};
 const matsLabel=m=>Object.entries(m).filter(([,n])=>n>0).map(([k,n])=>`${n} ${MATS[k].name}`).join(', ');
 const farmerBusyDriving=()=>{const F=farmer; return !!(S.pasa||F.riding||F.jobs.some(j=>j.type==='board')||(F.cur&&F.cur.type==='board'));};
 const driverFree=()=>!!freeDriver()||!farmerBusyDriving();   // every vehicle needs someone to drive it
@@ -5271,7 +5271,7 @@ function updateVehicles(now){
       for(const k in (tr.goods||{})){S.wh.stock[k]=(S.wh.stock[k]||0)+tr.goods[k]; n+=tr.goods[k]; coins+=tr.goods[k]*ITEMS[k].price*whRate(k);}
       coins=Math.round(coins); S.coins+=coins; sfx('cash'); gainXP(Math.max(1,Math.round(coins/60))); S.stats.bulk+=n;
       toast(`🏬 The bagsakan bought ${n} items · +₱${coins.toLocaleString()}. Their vans will take them to the factory.`,3400); changed();}
-    if((tr.dest==='palengke'||tr.dest==='brgy'||tr.dest==='mountain')&&!tr.paid&&ph.ph!=='out'&&ph.ph!=='board'){
+    if((tr.dest==='palengke'||tr.dest==='brgy'||tr.dest==='mountain'||tr.dest==='coop')&&!tr.paid&&ph.ph!=='out'&&ph.ph!=='board'){
       tr.paid=true; let coins=0,xp=0; tr.cargo.forEach(c=>{coins+=c.coins; xp+=c.xp; if(c.order) S.stats.orders++; if(c.mission) S.stats.missions=(S.stats.missions||0)+1;});
       S.coins+=coins; if(coins) sfx('cash'); if(xp) gainXP(xp);
       toast(`${VEH[vid].icon} Arrived at the ${PLACE[tr.dest]}! ${tr.cargo.map(c=>c.label).join(', ')} · +₱${coins.toLocaleString()}`,3400); changed();
@@ -5432,7 +5432,7 @@ function placeVehicles(now,dt){
       if(V.ramp){let open=0; if(tr&&tr.dest==='pickup'){const P3=vehPhase(vid,now); if(P3.ph==='stop') open=Math.max(0,Math.min(1,P3.e/1.2,(STOP.pickup-P3.e)/1.2));} V.ramp.rotation.x+=(-2.2*open-V.ramp.rotation.x)*Math.min(1,dt*6);}
       if(tr&&tr.dest==='pickup'){const P2=vehPhase(vid,now), set=V.liveSets[AREA_LIVE[tr.area]]; kind=AREA_LIVE[tr.area]; const fr=set?Math.min(1,(tr.cnt||99)/set.children.length):1;
         lf=fr*(P2.ph==='stop'?(kind==='live_chicken'&&V.pickIn!=null?V.pickIn:Math.min(1,P2.e/(tr.stopT||STOP.pickup))):P2.ph==='back'?(tr.got&&Object.keys(tr.got).length?1:0):0); if(V.loadHas||V.cartOn) hideWalkers(V); else loadWalkers(V,tr,P2,now);}
-      else {hideWalkers(V); if(tr&&tr.cargo&&['palengke','brgy','mountain','city','katayan'].includes(tr.dest)){const ids=tr.cargo.flatMap(c=>Object.keys(c.ret||c.live||{})); kind=['live_cow','live_pig','live_goat','live_chicken'].find(k=>ids.includes(k))||null; if(kind) lf=tr.animals?(tr.paid?0:1):Math.max(.3,+goods||0);}}
+      else {hideWalkers(V); if(tr&&tr.cargo&&['palengke','brgy','mountain','city','katayan','coop'].includes(tr.dest)){const ids=tr.cargo.flatMap(c=>Object.keys(c.ret||c.live||{})); kind=['live_cow','live_pig','live_goat','live_chicken'].find(k=>ids.includes(k))||null; if(kind) lf=tr.animals?(tr.paid?0:1):Math.max(.3,+goods||0);}}
       if(V.loadHas) kind=null;
       for(const k in V.liveSets){const g=V.liveSets[k], ln=g.children.length, ls=k===kind?Math.ceil(lf*ln):0; g.visible=ls>0;
         if(ls) g.children.forEach((c,q)=>{c.visible=q<ls; c.position.y=c.userData.y0+Math.abs(Math.sin(now/170+q*1.7))*.05;});}}
@@ -5506,7 +5506,7 @@ function tripLoad(vid,tr,P){ // what is in the vehicle right now, and how much o
   if(!tr||!P) return null; const ph=P.ph, sd=tr.stopT||STOP[tr.dest]||8;
   if(tr.dest==='pickup'){if(tr.eggs) return null; const kind=AREA_LIVE[tr.area]; if(!kind||kind==='live_chicken') return null;
     const n=tr.cnt||0, k=ph==='stop'?(VEH[vid].cartIn!=null?VEH[vid].cartIn:Math.floor(n*Math.min(1,P.e/sd))):ph==='back'||ph==='done'?n:0; return {items:{[kind]:k},f:1};}
-  const sells=['palengke','brgy','mountain','city','warehouse','port','katayan'].includes(tr.dest)||(tr.dest==='farmshop'&&tr.shopGoods);
+  const sells=['palengke','brgy','mountain','city','warehouse','port','katayan','coop'].includes(tr.dest)||(tr.dest==='farmshop'&&tr.shopGoods);
   if(sells){const items=tr.animals?{...tr.animals}:itemsSum(...(tr.cargo||[]).map(c=>c.ret||c.live||{}),tr.goods,tr.shopGoods);
     return ph==='out'?{items,f:1}:ph==='stop'?{items,f:Math.max(0,1-P.e/sd)}:null;}
   if(tr.dest!=='sari'&&tr.mats&&Object.keys(tr.mats).length) return ph==='stop'?{items:tr.mats,f:Math.min(1,P.e/sd)}:ph==='back'?{items:tr.mats,f:1}:null;
@@ -5757,6 +5757,7 @@ function renderBld(){
   if(bldIdx===-5)return renderBodega();
   if(bldIdx===-4)return renderFarmShop();
   if(bldIdx===-2) return renderKat();
+  if(bldIdx===-7) return renderCoop();
   if(bldIdx===-3) return renderHome();
   const t=S.tiles[bldIdx]; if(t&&t.s==='bld'&&t.b==='incubator') return renderInc(t);
   if(!t||t.s!=='bld'||!(BLDS[t.b].size>1)){$('bldSheet').classList.remove('open'); return;}
@@ -6817,6 +6818,36 @@ boardSign(['KATAYAN','Sunfield Farm'],'#7b1e1e','#ffffff',KAT.x-1,KAT.z-4.6,Math
 const katHoldingModels=[];for(const kind of Object.keys(KAT_FEE))for(let i=0;i<4;i++){const m=miniAnimal(kind);m.scale.multiplyScalar(.65);m.position.set(13.95+(i%2)*.9,.18,60.1+Math.floor(i/2)*.9);m.visible=false;scene.add(m);katHoldingModels.push({m,kind});}
 function updateKatHolding(){let left=4;for(const kind of Object.keys(KAT_FEE)){let n=Math.min(left,S.livestock[kind]||0);left-=n;for(const d of katHoldingModels)if(d.kind===kind){d.m.visible=n-->0;}}}
 function openKat(){bldIdx=-2; bldTab=null; renderKat(); $('bldSheet').classList.add('open');}
+// ---- the Livestock Cooperative as a trading partner: it buys your grown cattle, goats and pigs for 10% more than the palengke,
+//      and sells weaned young stock a little cheaper than the Agrivet, delivered to your bodega by its own truck
+const COOP_RATE=1.1, COOP_KINDS=['live_cow','live_goat','live_pig'], COOP_YOUNG={calf:990,kid:270,piglet:270}, COOP_DOCK=[74.5,63.5];
+function COOP_IN(){const sl=SPD.slow, d=SPD.dirt; return [[132,LE,sl],[138.15,-104,sl],[138.15,-84,d],[134.5,-81.85,d],[56,-81.85,d],[52.15,-77.5,d],[52.15,50.5,d],[55.5,54,sl],[70,54,sl],[74.5,57.5,sl],[COOP_DOCK[0],COOP_DOCK[1]]];}   // in by the district entry, down the west road, into the loading aisle
+function COOP_BACK(slot){const sl=SPD.slow, d=SPD.dirt, h=SPD.hwy; return [[COOP_DOCK[0],COOP_DOCK[1],sl],[74.5,73,sl],[72,76,sl],[60,76,sl],[55.85,72.5,d],[55.85,-76,d],[59,-78.15,d],[137,-78.15,d],[141.85,-82,d],[141.85,-104,sl],[137,LW,h],[DX,LW,d]].concat(fromHwy(slot,d,sl));}
+function coopHit(x,y){const g=scene.getObjectByName('Livestock cooperative'); return !!g&&hitObj(g,x,y);}
+function openCoop(){bldIdx=-7; bldTab=null; renderCoop(); $('bldSheet').classList.add('open');}
+function coopTruckFor(kinds){return ['stock','truck'].filter(v=>vehFree(v)&&kinds.every(k=>LIVE_VEH[k].includes(v)));}
+function renderCoop(){$('bldTitle').textContent='🐄 Livestock Cooperative';
+  const held=COOP_KINDS.filter(k=>(S.livestock[k]||0)>0), heldN=held.reduce((a,k)=>a+S.livestock[k],0), heldV=held.reduce((a,k)=>a+S.livestock[k]*Math.round(ITEMS[k].price*COOP_RATE),0);
+  const trucks=coopTruckFor(held), cowsOnlyStock=held.includes('live_cow')&&!OWN('stock');
+  const sellBtn=heldN?`<button class="gbtn green row" data-coop="sell" ${trucks.length?'':'disabled'}>🚛 <b>Truck ${heldN} live animals from your bodega here</b><small>${held.map(k=>`${S.livestock[k]} ${ITEMS[k].icon}`).join(' + ')} · pays ₱${heldV.toLocaleString()} on arrival${trucks.length?'':cowsOnlyStock?' · cows need the livestock truck':' · no free truck right now'}</small></button>`:'';
+  const pending=(S.coopDel||[]).reduce((a,o)=>a+o.n,0);
+  $('bldBody').innerHTML=`<div class="pay">The farmers' livestock cooperative by the water works. It buys grown 🐄 cattle, 🐐 goats and 🐖 pigs for 10% more than the palengke, and raises weaned young stock to sell to members.</div>
+    <div class="pay"><b>To sell from your pens:</b> tap a pen with grown animals, choose <i>Sell live</i>, then <i>Sell to the Livestock Cooperative</i>. Your truck loads them and drives here.</div>
+    <div class="pay">They pay per head: ${COOP_KINDS.map(k=>`${ITEMS[k].icon} ₱${Math.round(ITEMS[k].price*COOP_RATE).toLocaleString()}`).join(' · ')}</div>${sellBtn}
+    <div class="pay"><b>Young stock</b> (their truck brings it to your bodega)${pending?` · ${pending} on the way`:''}:</div>
+    ${Object.entries(COOP_YOUNG).map(([k,pr])=>`<button class="gbtn gold row" data-coop="buy:${k}" ${S.coins>=pr?'':'disabled'}>${MATS[k].icon} <b>${MATS[k].name}</b><small>₱${pr.toLocaleString()} · Agrivet ₱${MATS[k].price.toLocaleString()} · you have ${S.mats[k]||0}</small></button>`).join('')}`;}
+$('bldSheet').addEventListener('click',e=>{const b=e.target.closest('[data-coop]'); if(!b||b.disabled||bldIdx!==-7) return; const a=b.dataset.coop;
+  if(a==='sell'){const held=COOP_KINDS.filter(k=>(S.livestock[k]||0)>0); const v=coopTruckFor(held)[0]; if(!v) return;
+    const animals={}; for(const k of held){animals[k]=S.livestock[k]; S.livestock[k]=0;} const n=Object.values(animals).reduce((x,y)=>x+y,0), sx=VEH[v].slot;
+    const out=[[sx,G0,SPD.slow],...toHwy(sx,SPD.dirt),[DX,LE,SPD.hwy],...COOP_IN()];
+    const tr={dest:'coop',animals,haulRoute:{out,back:COOP_BACK(sx)},cargo:[{label:n+' live animals',n,ret:animals,live:animals,coins:Object.entries(animals).reduce((x,[k,q])=>x+q*Math.round(ITEMS[k].price*COOP_RATE),0),xp:Math.max(2,n*3)}],paid:false,stopT:8,fill:1};
+    if(!beginTrip(v,tr)){for(const k in animals) S.livestock[k]+=animals[k]; return;}
+    toast(`${VEH[v].icon} Loading ${n} live animals for the Livestock Cooperative.`,3000); changed(); renderCoop(); return;}
+  if(a.startsWith('buy:')){const k=a.slice(4), pr=COOP_YOUNG[k]; if(!pr||S.coins<pr) return; S.coins-=pr; sfx('cash');
+    (S.coopDel||(S.coopDel=[])).push({k,n:1,at:Date.now()+25000}); toast(`${MATS[k].icon} Bought 1 ${MATS[k].name}. The cooperative's truck will bring it to your bodega.`,3000); changed(); renderCoop();}});
+function coopDeliveries(now){const L=S.coopDel; if(!L||!L.length) return; const due=L.filter(o=>now>=o.at); if(!due.length) return;
+  S.coopDel=L.filter(o=>now<o.at); const got={}; for(const o of due){S.mats[o.k]=(S.mats[o.k]||0)+o.n; got[o.k]=(got[o.k]||0)+o.n;}
+  toast(`🚚 The cooperative's truck dropped off ${Object.entries(got).map(([k,n])=>`${n} ${MATS[k].icon} ${MATS[k].name}`).join(', ')} at your bodega. Restock a pen with them.`,3600); changed(); if(bldIdx===-7&&bldOpen()) renderCoop();}
 const katStage=now=>{const K=S.kat; if(!K.t0) return 'idle'; return now>=K.t0+K.dur*1000?'done':'run';};
 const katMeat=q=>Object.entries(q).flatMap(([k,n])=>Object.entries(KAT_MEAT[k]).map(([m,y])=>`${y*n} ${ITEMS[m].icon} ${ITEMS[m].name}`)).join(', ');
 function renderKat(){const K=S.kat, now=Date.now(), st=katStage(now); $('bldTitle').textContent='🔪 Katayan';
@@ -6861,19 +6892,20 @@ function continueAnimalHaul(vid,tr,now){const V=VEH[vid],R=routesFor(vid,'pickup
   const exitPts=ex.map(q=>[q[0],q[1],SPD.slow]).concat([[SERVICE[G.J][0],SERVICE[G.J][1],SPD.dirt]]);   // drive out of the track and on round the ring, never back the way it came
   if(dest==='katayan'){const iK=ringIdx(8,53); out=exitPts.concat(thin(loopSeq(G.J,iK)).slice(1).map(q=>[SERVICE[q][0],SERVICE[q][1],SPD.dirt])); out.push([10,57]);
     const i=frontIdx(V.slot+3.5),a=SVC0[i]; back=[[10,57,SPD.slow],...thin(loopSeq(iK,i)).map(q=>[SERVICE[q][0],SERVICE[q][1],SPD.dirt])]; back.push([V.slot+3.5,a[1],SPD.slow,true],[V.slot,a[1],SPD.slow,true],[V.slot,G0]);}
+  else if(dest==='coop'){out=exitPts.concat(thin(loopSeq(G.J,0)).slice(1).map(q=>[SERVICE[q][0],SERVICE[q][1],SPD.dirt])); for(let q=ACCESS.length-1;q>=0;q-=2) out.push([ACCESS[q][0],ACCESS[q][1],SPD.dirt]); out.push([DX,LE,SPD.hwy],...COOP_IN()); back=COOP_BACK(V.slot);}
   else{dest='palengke';out=exitPts.concat(thin(loopSeq(G.J,0)).slice(1).map(q=>[SERVICE[q][0],SERVICE[q][1],SPD.dirt])); for(let q=ACCESS.length-1;q>=0;q-=2) out.push([ACCESS[q][0],ACCESS[q][1],SPD.dirt]);out.push([DX,LE,SPD.hwy],[PX-4,LE,SPD.slow],[PX+2,HZ-5,SPD.slow],[PX+2,-118.5,SPD.slow],[PX-3,-120.8,SPD.slow],[PX-13,-120.8,SPD.slow],[PX-16,-124,SPD.slow],[PX-16,-127]);const normal=routesFor(vid,'palengke');back=normal.back.segs.map(s=>[s.a[0],s.a[1],s.a[2]||SPD.slow,s.rev]);const last=normal.back.segs.at(-1).b;back.push([last[0],last[1]]);}
   const remaining={...animals},cargo=[];
   if(dest==='palengke'){for(let i=S.orders.length-1;i>=0;i--){const order=S.orders[i];if(Object.entries(order.items).every(([k,q])=>ITEMS[k]?.live&&(remaining[k]||0)>=q)){for(const [k,q]of Object.entries(order.items))remaining[k]-=q;cargo.push({label:order.who+': live animal order',n:Object.values(order.items).reduce((a,b)=>a+b,0),ret:{...order.items},live:{...order.items},order,coins:order.reward,xp:order.xp});S.orders.splice(i,1);}}fillOrders();}
-  const rest=Object.fromEntries(Object.entries(remaining).filter(([,q])=>q>0));if(Object.keys(rest).length)cargo.push({label:Object.values(rest).reduce((a,b)=>a+b,0)+' live animals',n:Object.values(rest).reduce((a,b)=>a+b,0),ret:rest,live:rest,coins:Object.entries(rest).reduce((sum,[k,q])=>sum+q*ITEMS[k].price,0),xp:0});
+  const rest=Object.fromEntries(Object.entries(remaining).filter(([,q])=>q>0));if(Object.keys(rest).length)cargo.push({label:Object.values(rest).reduce((a,b)=>a+b,0)+' live animals',n:Object.values(rest).reduce((a,b)=>a+b,0),ret:rest,live:rest,coins:Object.entries(rest).reduce((sum,[k,q])=>sum+q*Math.round(ITEMS[k].price*(dest==='coop'?COOP_RATE:1)),0),xp:dest==='coop'?Math.max(2,Object.values(rest).reduce((a,b)=>a+b,0)*3):0});
   S.veh[vid].trip={dest,animals,haulRoute:{out,back},cargo,t0:now,driver,paid:false,stopT:8,fill:1};
-  changed();toast(dest==='katayan'?'Loaded - driving straight to the katayan.':'Loaded - delivering live animals straight to the palengke.',3000);
+  changed();toast(dest==='katayan'?'Loaded - driving straight to the katayan.':dest==='coop'?'Loaded - driving to the Livestock Cooperative.':'Loaded - delivering live animals straight to the palengke.',3000);
 }
 function processKatQueue(now){const K=S.kat;if(!K.autoQueue||!K.owned||katStage(now)!=='idle')return;const live=Object.keys(KAT_FEE).filter(k=>Math.min(S.livestock[k]||0,K.awaiting?.[k]||0)>0),fee=live.reduce((a,k)=>a+Math.min(S.livestock[k],K.awaiting[k])*KAT_FEE[k],0);if(!live.length){K.autoQueue=false;return;}if(S.coins<fee)return;
   S.coins-=fee;K.q={};let seconds=0;for(const k of live){K.q[k]=Math.min(S.livestock[k],K.awaiting[k]);seconds+=K.q[k]*KAT_SEC[k];S.livestock[k]-=K.q[k];delete K.awaiting[k];}K.t0=now;K.dur=Math.max(10,seconds);K.autoQueue=false;save();
 }
 let pickupChoice=null;
 function chooseAnimalPickup(i,cnt){const t=S.tiles[i],L=t&&LIFE[t.b];if(!L||!(L.live||L.cull)||!(t.n>0)||(t.gp||0)<1)return;pickupChoice={i,cnt};const n=L.live?t.n:Math.min(t.n,cnt||1),kind=L.live||L.cull,fee=n*KAT_FEE[kind];bldIdx=-6;$('bldTitle').textContent='Animal pickup';
-  $('bldBody').innerHTML='<div class="animal-pickup"><p class="pickup-summary"><b>'+n+' '+ITEMS[kind].name+'</b><br>Choose where your driver takes them.</p><button class="gbtn green pickup-route" data-animal-route="katayan" '+(S.kat.owned?'':'disabled')+'><span class="pickup-icon" aria-hidden="true">&#128298;</span><span class="pickup-copy"><b>Deliver to Katayan</b><small>Butcher fee: &#8369;'+fee.toLocaleString()+'<br>'+(S.kat.owned?'Animals wait in the holding pen until processing.':'Open your katayan first.')+'</small></span></button><button class="gbtn gold pickup-route" data-animal-route="palengke"><span class="pickup-icon" aria-hidden="true">&#128666;</span><span class="pickup-copy"><b>Deliver to Palengke</b><small>Live value: &#8369;'+(n*ITEMS[kind].price).toLocaleString()+'<br>Matching buyer orders are filled first.</small></span></button><button class="pickup-cancel" data-animal-route="cancel">Keep animals in their pen</button></div>';$('bldSheet').classList.add('open');}
+  $('bldBody').innerHTML='<div class="animal-pickup"><p class="pickup-summary"><b>'+n+' '+ITEMS[kind].name+'</b><br>Choose where your driver takes them.</p><button class="gbtn green pickup-route" data-animal-route="katayan" '+(S.kat.owned?'':'disabled')+'><span class="pickup-icon" aria-hidden="true">&#128298;</span><span class="pickup-copy"><b>Deliver to Katayan</b><small>Butcher fee: &#8369;'+fee.toLocaleString()+'<br>'+(S.kat.owned?'Animals wait in the holding pen until processing.':'Open your katayan first.')+'</small></span></button>'+(COOP_KINDS.includes(kind)?'<button class="gbtn green pickup-route" data-animal-route="coop"><span class="pickup-icon" aria-hidden="true">&#128004;</span><span class="pickup-copy"><b>Sell to the Livestock Cooperative</b><small>Pays &#8369;'+(n*Math.round(ITEMS[kind].price*COOP_RATE)).toLocaleString()+' (10% over the palengke)<br>Your truck unloads at their platform.</small></span></button>':'')+'<button class="gbtn gold pickup-route" data-animal-route="palengke"><span class="pickup-icon" aria-hidden="true">&#128666;</span><span class="pickup-copy"><b>Deliver to Palengke</b><small>Live value: &#8369;'+(n*ITEMS[kind].price).toLocaleString()+'<br>Matching buyer orders are filled first.</small></span></button><button class="pickup-cancel" data-animal-route="cancel">Keep animals in their pen</button></div>';$('bldSheet').classList.add('open');}
 $('bldSheet').addEventListener('click',e=>{const b=e.target.closest('[data-animal-route]');if(!b||b.disabled||!pickupChoice)return;const choice=pickupChoice;pickupChoice=null;$('bldSheet').classList.remove('open');if(b.dataset.animalRoute!=='cancel')startPickup(choice.i,choice.cnt,b.dataset.animalRoute);});
 function startPickup(i,cnt,target){if(!target)return chooseAnimalPickup(i,cnt);const t=S.tiles[i], L=t&&LIFE[t.b];if(!L||!(t.n>0)||(t.gp||0)<1)return toast('These animals are not ready for pickup.');if(target==='katayan'&&!S.kat.owned)return toast('Open the katayan first.');const vs=pickupVeh(t); if(pickupPending(i)) return toast('A truck is already on its way to these animals.',2600);
   const v=vs.find(vehFree); if(!v) return toast(`${vs.map(x=>VEH[x].icon+' '+VEH[x].name).join(' and ')} ${vs.length>1?'are both':'is'} on the road. Try again when ${vs.length>1?'one':'it'} is back.`,3200);
@@ -9120,7 +9152,7 @@ const COOP_LIFE=(()=>{
     makeWorker(look(0x4e6e58,0x8bc34a),[{to:[68.6,61.5],act:'inspect',dur:9,face:[65.5,61.5]},{path:[[68.6,66]],act:'crouch',dur:7,face:[67,66]},{path:[[68.6,61.5]],act:'write',dur:6,face:[65.5,61.5]}],{y:.1,day:true,sp:.8}),
   ];
   for(const w of people) workerGo(w,w.steps[0]);
-  return {update(dt,t){if(document.hidden) return; const h=gameHour(), fed=h>=6.5&&h<17.5; for(const k of ticks) k(t,!fed); for(const w of people) workerTick(w,dt,t);}};
+  return {update(dt,t){coopDeliveries(Date.now()); if(document.hidden) return; const h=gameHour(), fed=h>=6.5&&h<17.5; for(const k of ticks) k(t,!fed); for(const w of people) workerTick(w,dt,t);}};
 })();
 
 /* ---------- Stage H: the sea, the port (pantalan) and the bay trading business ---------- */
@@ -9187,6 +9219,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:40,date:'Nov 11, 2026',title:'Trade with the Livestock Cooperative',items:['🐄 The Livestock Cooperative now trades with you. When you sell grown cattle, goats or pigs from a pen, a new choice sends your truck to the cooperative, which pays 10% more than the palengke (₱6,050 a cow, ₱1,540 a goat, ₱1,320 a pig).','🚛 Tap the cooperative to see its prices, to truck the live animals waiting in your bodega there, or to buy young stock (guya ₱990, batang kambing ₱270, biik ₱270, cheaper than the Agrivet). Their truck brings the young ones to your bodega, ready to restock a pen.','🛣️ Your truck drives in by the district entry, down the west road and into the cooperative\'s loading aisle, unloads at the platform, and comes home the other way.']},
   {v:39,date:'Nov 11, 2026',title:'The livestock cooperative comes alive',items:['🐄 The cattle, goats and pigs at the Livestock Cooperative (beside the water works) now walk, graze at the troughs and swish their tails like your own herd, instead of standing frozen.','👩‍🌾 By day a feeder carries feed from the store to every trough, the vet checks the goats, a hand sweeps the loading aisle and the biogas tender minds the digester.']},
   {v:38,date:'Nov 11, 2026',title:'Expansion fields and greenhouses',items:['🍅 Sunfield Greenhouses, west of the farm by the highway: four tunnel greenhouses on steel hoops, two of tomatoes on trellis wires and two of lettuce, with growers working the rows. A packing shed sorts the crates and the green produce truck is loaded beside it.','🌾 Twelve rice paddies with dikes and water: some green, some golden and being harvested, one flooded and waiting; planters work backwards along the rows.','🌽 A corn field, vegetable beds under an ampalaya trellis, an irrigation canal with footbridges, a nipa hut where the field hands rest, and a poso.','🚜 A hand tractor (kuliglig) ploughs the back field row by row, its driver walking behind; the ploughed strips darken behind it. Everyone works by daylight and goes home at dusk.']},
   {v:37,date:'Nov 11, 2026',title:'The wheel loader is back, and the landfill works by daylight',items:['🛠️ Fixed: the wheel loader vanished whenever it was parked (its position came out invalid at the start of its route). It now waits in plain sight by its heap when it is not working.','🌅 The excavator and the wheel loader only run in daylight, from about 6:30 in the morning to 5:30 in the evening. Their operators then climb down and walk to the bus shed to go home before night.']},

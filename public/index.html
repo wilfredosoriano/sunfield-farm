@@ -8042,7 +8042,7 @@ const CIVIC=(()=>{
   // ===== Sanitary landfill and materials recovery facility (MRF) =====
   {const x0=58,x1=106,z0=154,z1=214;
     B((x0+x1)/2,.025,(z0+z1)/2,x1-x0,.05,z1-z0,0x9b8a6c);
-    fence([x0,z0],[x1,z0],(x,z)=>(x>70&&x<76)||(x>91&&x<97)||(x>84.4&&x<88.6));   // two truck gates and the gate to the bus shed fence([x1,z0],[x1,z1]); fence([x1,z1],[x0,z1]); fence([x0,z1],[x0,z0]);
+    fence([x0,z0],[81,z0],(x,z)=>x>70&&x<76); fence([81,z0],[81,159.5]); fence([81,159.5],[90,159.5],(x,z)=>x>87.6&&x<89.8); fence([90,159.5],[90,z0]); fence([90,z0],[x1,z0],(x,z)=>x>91&&x<97);   // two truck gates, and a bay outside the fence for the bus shed with a people's gate fence([x1,z0],[x1,z1]); fence([x1,z1],[x0,z1]); fence([x0,z1],[x0,z0]);
     B(73,.06,166,4.4,.06,24,0x7d7a72); B(94,.06,166,4.4,.06,24,0x7d7a72); B(83.5,.06,181,21,.06,4.6,0x7d7a72);   // haul roads
     // weighbridge and the guard hut
     B(73,.16,163,3.2,.12,6.5,0x6f7774); for(const z of [160,166]) B(73,.24,z,3.2,.05,.2,0xf1c40f);
@@ -8058,7 +8058,6 @@ const CIVIC=(()=>{
     // leachate pond and the compost windrows
     B(100,.05,204,9,.1,8,conc); const lp=mesh(new THREE.PlaneGeometry(8,7),new THREE.MeshStandardMaterial({color:0x4a5a3c,roughness:.3}),100,.12,204); lp.rotation.x=-Math.PI/2; scene.add(lp);
     for(let k=0;k<3;k++) B(100,.5,160+k*4,8,1,2,0x5a4a32);
-    boardSign(['SANITARY LANDFILL','at MRF · Sunfield'],'#3e5b3a','#fff',83.5,153.2,0,5,1.1,2.2,0x55606a,false);
   }
 
   // ===== the farm's garbage point: a concrete pad by the fence with drums and the sacks waiting for the truck =====
@@ -8764,20 +8763,28 @@ const UTIL_BUS=(()=>{
     const s=signPlane([label],'#1e6fb8','#fff',3.2,.42,512,68); s.position.set(0,2.75,-.95); s.rotation.y=Math.PI; g.add(s);
     g.position.set(x,0,z); g.rotation.y=ry; scene.add(g); glow(scene,x,2.3,z,2.2,GM.warm); return g;};
   const SITES={
-    landfill:{lane:'south:lf>pw',stop:[83.4,151.85],shed:[86.5,156.8],ry:0,label:'LANDFILL · MRF'},
+    landfill:{lane:'south:lf>pw',stop:[82.1,151.85],shed:[85.4,156.9],ry:0,label:'LANDFILL · MRF'},
     power:{lane:'south:pw>sc',stop:[113.85,121],shed:[121.8,118],ry:Math.PI/2,label:'SUNFIELD POWER'},
     water:{lane:'south:sc>utility',stop:[132,91.85],shed:[132,95.6],ry:0,label:'SUNFIELD WATER'},
   };
   for(const k in SITES){const S=SITES[k]; shed(S.shed[0],S.shed[1],S.ry,S.label); S.wait=[];}
   // ===== the landfill gates: two sliding truck gates and a swing gate to the bus shed; open from before dawn until the last bus =====
   const gates=(()=>{const steel=0x5f6b68, Yl=0xf2b705, list=[];
-    for(const x of [70,76,91,97,84.4,88.6]){scene.add(mesh(new THREE.BoxGeometry(.32,2.6,.32),x===84.4||x===88.6?steel:Yl,x,1.3,154)); scene.add(mesh(new THREE.BoxGeometry(.42,.12,.42),0x333333,x,2.66,154));}
-    const panel=(w,h)=>{const g=new THREE.Group(); for(const y of [.15,h]) g.add(part(w,.08,.08,steel,0,y,0)); for(let x=-w/2;x<=w/2+.01;x+=w/10) g.add(part(.05,h-.1,.05,steel,x,(h+.15)/2,0)); g.add(part(w,.06,.06,0xc62828,0,h*.55,0)); return g;};
-    for(const [c,dir] of [[73,-1],[94,1]]){const g=panel(5.8,1.9); g.position.set(c,0,154.3); scene.add(g); list.push({g,shut:c,open:c+dir*5.9,k:1});}   // slide inside the fence line
-    for(const [x,dir] of [[84.4,1],[88.6,-1]]){const hinge=new THREE.Group(); hinge.position.set(x,0,154.1); const leaf=panel(2.05,1.7); leaf.position.x=dir*1.03; hinge.add(leaf); scene.add(hinge); list.push({hinge,dir,k:1});}
-    boardSign(['GATE 1 · PASOK'],'#3e5b3a','#fff',73,153.5,0,2,.45,2.7,0x55606a,false); boardSign(['GATE 2 · LABAS'],'#3e5b3a','#fff',94,153.5,0,2,.45,2.7,0x55606a,false);
-    return {list,update(dt){const h=gameHour(), want=h>=4.4&&h<22.8?1:0; for(const G of list){G.k+=(want-G.k)*Math.min(1,dt*.8);
-      if(G.g) G.g.position.x=G.shut+(G.open-G.shut)*G.k; else G.hinge.rotation.y=-G.dir*G.k*1.45;}}};})();
+    const panel=(w,h)=>{const g=new THREE.Group(); for(const y of [.15,h]) g.add(part(w,.08,.08,steel,0,y,0)); for(let x=-w/2;x<=w/2+.01;x+=w/8) g.add(part(.05,h-.1,.05,steel,x,(h+.15)/2,0)); g.add(part(w,.06,.06,0xc62828,0,h*.55,0)); return g;};
+    const leaf=(x,z,dir,w,h)=>{const hinge=new THREE.Group(); hinge.position.set(x,0,z); const l=panel(w,h); l.position.x=dir*(w/2+.05); hinge.add(l); scene.add(hinge); list.push({hinge,dir,k:1});};
+    // the truck gates: an arch over each with its name, two swing leaves that open into the yard
+    for(const [x0,x1,label] of [[70,76,'SANITARY LANDFILL · GATE 1 · PASOK'],[91,97,'GATE 2 · LABAS']]){
+      for(const x of [x0,x1]){scene.add(mesh(new THREE.BoxGeometry(.36,5.2,.36),Yl,x,2.6,154)); scene.add(mesh(new THREE.BoxGeometry(.46,.14,.46),0x333333,x,5.27,154));}
+      scene.add(mesh(new THREE.BoxGeometry(x1-x0+.6,.7,.3),0x3e5b3a,(x0+x1)/2,4.8,154));
+      const sg=signPlane([label],'#3e5b3a','#fff',x1-x0+.2,.6,768,64); for(const [dz,ry] of [[-.17,Math.PI],[.17,0]]){const q=sg.clone(); q.position.set((x0+x1)/2,4.8,154+dz); q.rotation.y=ry; scene.add(q);}
+      leaf(x0,154.1,1,2.85,2); leaf(x1,154.1,-1,2.85,2);}
+    // the people's gate from the bus shed's bay into the yard
+    for(const x of [87.6,89.8]) scene.add(mesh(new THREE.BoxGeometry(.24,2.3,.24),steel,x,1.15,159.5)); leaf(87.6,159.6,1,2.05,1.7);
+    // the boom barrier at the weighbridge: up from before dawn until the last bus
+    const boom=new THREE.Group(); boom.position.set(75,1.05,158.4); scene.add(mesh(new THREE.BoxGeometry(.5,1.1,.5),Yl,75,.55,158.4));
+    for(let k=0;k<6;k++) boom.add(part(.6,.12,.12,k%2?0xc62828:0xffffff,-.3-k*.6,0,0)); scene.add(boom);
+    return {list,update(dt){const h=gameHour(), want=h>=4.4&&h<22.8?1:0; for(const G of list){G.k+=(want-G.k)*Math.min(1,dt*.8); G.hinge.rotation.y=-G.dir*G.k*1.5;}
+      boom.rotation.z=-want*1.35*(list[0].k);}};})();
   // where each site's riders wait under the roof
   const seatAt=(S,i)=>{const a=S.ry, off=-1.1+(i>>1)*1.1; return [S.shed[0]+Math.cos(a)*off+Math.sin(a)*.42, S.shed[1]-Math.sin(a)*off+Math.cos(a)*.42];};
   const waitAt=(S,i)=>{const a=S.ry, off=-1.2+i*.8; return [S.shed[0]+Math.cos(a)*off, S.shed[1]-Math.sin(a)*off-Math.cos(a)*.1];};
@@ -8831,7 +8838,7 @@ const UTIL_BUS=(()=>{
     {site:'water',at:[166,70.5],top:0x0d47a1,hat:null,off:20.3},
   ].map((s,k)=>{const p=makePerson(look(s.top,s.hat)); p.root.visible=false; scene.add(p.root); return {...s,p,state:'home',path:null,i:0,ph:r()*6,k};});
   // the walk between the shed and the job: through the gate for the landfill and the plant, across the road for the water works
-  const routes={landfill:at=>[[86.5,155.2],[83.8,155.6],[83.8,159.5],[86,164],at], power:at=>[[121.8,121.6],[123,121.6],at], water:at=>[[132,93.6],[132,86],[140,80],[146,74],at]};
+  const routes={landfill:at=>[[88.7,157.4],[88.7,161],[86,164],at], power:at=>[[121.8,121.6],[123,121.6],at], water:at=>[[132,93.6],[132,86],[140,80],[146,74],at]};
   const walk=(w,dt,sp=1.25)=>{const R=w.p.root; if(!w.path||w.i>=w.path.length) return true; const q=w.path[w.i], dx=q[0]-R.position.x, dz=q[1]-R.position.z, d=Math.hypot(dx,dz);
     if(d<.08){w.i++; return w.i>=w.path.length;} const st=Math.min(d,dt*sp); R.position.x+=dx/d*st; R.position.z+=dz/d*st; R.position.y=.1; R.rotation.y=lerpAng(R.rotation.y,Math.atan2(dx,dz),Math.min(1,dt*8)); w.ph+=st*5.6; poseWalk(w.p,w.ph); return false;};
   {const h=gameHour(); if(h>=7.5&&h<22.6) for(const w of staff) w.state='work';}   // loaded in the evening: they are about to walk out to the shed
@@ -8935,7 +8942,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
-  {v:35,date:'Nov 11, 2026',title:'Landfill gates and the night bus',items:['🚧 The landfill has real gates now: two sliding truck gates (Gate 1 in, Gate 2 out) and a swing gate to the bus shed. They open before dawn and close after the last bus. Fences everywhere now leave their gateways clear instead of running the wire across them.','🌙 Utility staff finish at different times (the weighbridge clerk after the last truck, the plant\'s evening shift at nine), so in the evening you\'ll see them waiting at the lit sheds, some sitting on the bench, until the bus comes. The buses keep running until everyone waiting has been picked up.']},
+  {v:35,date:'Nov 11, 2026',title:'Landfill gates and the night bus',items:['🚧 The landfill has real gates now: an arch over each truck gate (Sanitary Landfill · Gate 1 in, Gate 2 out) with swing gates that open into the yard, and a boom barrier at the weighbridge. They open before dawn and close after the last bus. Fences everywhere now leave their gateways clear instead of running the wire across them.','🚏 The landfill bus shed now stands outside the fence in its own bay by the road, with a small gate behind it for the staff to walk in.','🌙 Utility staff finish at different times (the weighbridge clerk after the last truck, the plant\'s evening shift at nine), so in the evening you\'ll see them waiting at the lit sheds, some sitting on the bench, until the bus comes. The buses keep running until everyone waiting has been picked up.']},
   {v:34,date:'Nov 11, 2026',title:'A district bus for the utility workers, and machines at the landfill',items:['🚌 Two district buses (DISTRICT · LANDFILL · POWER · WATER) come off the highway at dawn and circle the district roads all day, stopping at new waiting sheds at the landfill, the power plant and the water works. They go back to the depot at night.','👷 Utility staff ride the bus to work: they step off at their shed in the morning and walk in, and after four they walk back to the shed and wait for the bus home.','🚜 The landfill now has a backhoe digging and swinging garbage onto the cell and a payloader pushing the heaps forward. They only start once their operators have come in on the bus, and they park when the shift ends.']},
   {v:33,date:'Nov 11, 2026',title:'The workers\' village and its daycare',items:['🏘️ Sunfield Workers\' Village, south of the power plant on a new street loop: eight blocks of colourful row houses with GI roofs, little front yards, water drums and sampayan full of washing.','🚐 The service shuttle parks overnight at the waiting shed. Before dawn the workers walk out to it and ride off to work; in the late afternoon it brings them home and they walk back to their doors.','🧸 The Daycare Center has a fenced playground with a slide, swings, a seesaw and a sandbox; the children play there all day while the teacher keeps watch.','🪣 In the daytime mothers sweep their yards, hang the washing and pump water at the poso; there is a sari-sari store, a half court, shade trees, and a lolo on the shed bench.']},
   {v:32,date:'Nov 11, 2026',title:'A rice mill and cold storage across from the bagsakan',items:['🌾 Kiskisan · Sunfield Rice Mill, just west of the west road and across from the bagsakan: a steel mill shed with a bucket elevator, a rice-hull furnace and stack, a husk pile and pallets of milled rice.','🚚 Palay trucks (the mill\'s own, Mang Tonyo\'s and the farmers\' cooperative) come in from the highway in the daytime, back up to the mill dock while the cargadores load sacks, then drive off again.','☀️ A concrete drying floor with long beds of golden palay; workers rake it over through the day and sacks wait at the ends.','❄️ The cold storage next door keeps its blue reefer truck at the dock, with a worker loading it and a checker with a clipboard.']},

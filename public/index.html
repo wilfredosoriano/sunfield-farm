@@ -476,6 +476,19 @@ button:focus-visible{outline:3px solid #4c8078!important;outline-offset:3px}#toa
 .fs .gbtn:not(:disabled):active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink2)!important}.fs .gbtn:disabled{opacity:.55;border-style:dashed!important;box-shadow:none!important}
 .fs [data-coop=sell]{display:block!important;text-align:left!important}
 .fs .gbtn{font-size:14px!important;line-height:1.25;padding:8px 12px!important;min-height:0!important;border-radius:12px}.fs .gbtn b{font-size:14px}.fs-keeper .gbtn{text-align:center;justify-items:center}
+.or-strip{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:4px}
+.sheet .or-dot{height:38px;min-width:0;padding:0!important;border-radius:9px;border:2px solid var(--ink2);background:#efe6d2;font-size:15px;font-weight:900;color:#8a7a62;display:grid;place-items:center;box-shadow:none}
+.or-dot svg.si{width:70%;height:70%;vertical-align:0}.or-dot.young,.or-dot.fruiting{background:#e3efd3}.or-dot.ready{background:#f7dc8c;border-color:#b07a12}.or-dot.empty{border-style:dashed}
+.sheet .or-dot.on{outline:3px solid #2e7d32;outline-offset:1px}
+.or-tree{display:grid;grid-template-columns:54px minmax(0,1fr);gap:6px 11px;align-items:center}
+.or-ic{width:54px;height:54px;border-radius:13px;border:2px solid var(--ink2);background:#f0e2c4;display:grid;place-items:center;font-size:30px}.or-ic svg.si{width:40px;height:40px;vertical-align:0}
+.or-tree .or-ic{grid-row:span 1}.or-nm b{font-size:17px;font-weight:900}.or-nm small{display:block;font-size:12px;font-weight:700;opacity:.75;margin-top:2px}
+.or-bar{grid-column:1/-1;height:12px;border:2px solid var(--ink2);border-radius:999px;background:#efe6d2;overflow:hidden}.or-bar i{display:block;height:100%;background:linear-gradient(90deg,#8bc34a,#c3d94e);transition:width .6s}
+.or-when{grid-column:1/-1;font-size:13px;font-weight:800;margin-top:-3px}
+.or-pick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.or-pick .gbtn{display:grid;grid-template-columns:54px minmax(0,1fr);gap:1px 10px;text-align:left;align-items:center}
+.or-pick .gbtn .or-ic{grid-row:span 4}.or-pick .gbtn .fs-tag{justify-self:start;margin-top:3px}
+.fs-tag.grow{background:#e3efd3;color:#3d6b22}
+@media(max-height:520px){.or-ic{width:42px;height:42px}.or-ic svg.si{width:30px;height:30px}.or-tree{grid-template-columns:42px minmax(0,1fr)}.or-pick .gbtn{grid-template-columns:42px minmax(0,1fr)}.sheet .or-dot{height:30px}.or-strip{gap:3px}}
 @media(max-height:520px){.fs-stat b{font-size:14px}.fs-stat{padding:4px 6px}.fs-lead{font-size:12px}.fs-prods{grid-template-columns:repeat(3,minmax(0,1fr))}}
 </style>
 </head>
@@ -691,6 +704,24 @@ const ITEMS={
   live_cow:{name:'Buhay na baka',icon:'🐄',price:5500,lvl:5,from:'cows',live:1,noOrder:1},
   live_goat:{name:'Buhay na kambing',icon:'🐐',price:1400,lvl:5,from:'goat',live:1,noOrder:1},
 };
+// Orchard produce uses the same inventory, customer orders and vehicle cargo as field crops.
+const FRUIT_TREES={
+ mango:{name:'Mangga',icon:'🥭',price:60,grow:180,period:60,yield:3,color:0xf0b429},
+ kalamansi:{name:'Kalamansi',icon:'🍋',price:45,grow:120,period:60,yield:5,color:0x89b83e},
+ bayabas:{name:'Bayabas',icon:'🍐',price:50,grow:150,period:75,yield:4,color:0xc6d780},
+ saging:{name:'Saging',icon:'🍌',price:40,grow:120,period:90,yield:6,color:0xe2c343}
+};
+for(const [k,price] of [['kalamansi',4],['bayabas',5],['saging',3]]) ITEMS[k]={name:FRUIT_TREES[k].name,icon:FRUIT_TREES[k].icon,price,lvl:1,orchard:true};
+function orchardReady(t,now=Date.now()){return !!t&&!!FRUIT_TREES[t.kind]&&now>=t.next;}
+function plantOrchard(state,i,kind,now=Date.now()){
+ const c=FRUIT_TREES[kind],key='sapling_'+kind;
+ if(!c||!Number.isInteger(i)||i<0||i>=state.orchard.length||state.orchard[i]||(state.mats[key]||0)<1)return false;
+ state.mats[key]--;state.orchard[i]={kind,planted:now,next:now+c.grow*1000};return true;
+}
+function harvestOrchard(state,i,now=Date.now()){
+ const t=state.orchard[i];if(!orchardReady(t,now))return 0;
+ const c=FRUIT_TREES[t.kind];state.inv[t.kind]=(state.inv[t.kind]||0)+c.yield;t.next=now+c.period*1000;return c.yield;
+}
 const BUYERS=['Aling Nena','Mang Tonyo','Kuya Jun','Ate Liza','Lola Caring','Mang Ben (panaderya)','Aling Rosa (karinderya)','Tito Boy','Ate Joy (sari-sari store)','Kapitan Ramon','Manang Fe','Kuya Dodong'];
 const SVG={
   hoe:`<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M12 58L44 13" stroke="#6e4426" stroke-width="7" stroke-linecap="round"/><path d="M13 56L43 14" stroke="#a8743f" stroke-width="3" stroke-linecap="round"/><path d="M43 14Q48 7 54 11" fill="none" stroke="#5f676e" stroke-width="5" stroke-linecap="round"/><path d="M50 9L63 15L59 31L45 24Z" fill="#aab3ba" stroke="#5f676e" stroke-width="2.5" stroke-linejoin="round"/><path d="M47 25L60 31" stroke="#e3e8ec" stroke-width="2" stroke-linecap="round"/></svg>`,
@@ -744,8 +775,8 @@ const FARM = {
     {id:'bodega',  name:'Bodega (storage)', x:-24,  z:-2,    w:14,   d:9},
     {id:'utility', name:'Utility yard',     x:-38,  z:-1,    w:14,   d:12},
   ],
-  // crop field: the same 12 × 12 plots (2 m each), drawn as four beds of 6 × 6 with 1.5 m soil tracks between them
-  field: {x:0, z:5, plot:2, beds:2, gap:1.5},
+  // crop field: the same 12 × 12 plots (2 m each), drawn as one continuous field without a middle track
+  field: {x:0, z:5, plot:2, beds:1, gap:0},
   orchard: {pts:[[21,-6],[35,-6],[38,12],[36,44],[22,47],[20,24]]},
   // animal areas: each has its own fence, gate and up to three slots (the game allows up to 3 of each); slot = [x, z, w, d]
   areas: [
@@ -778,7 +809,7 @@ function roadDist(x,z){let best=99; const cx=Math.floor(x/RG), cz=Math.floor(z/R
   for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){const L=ROADGRID.get((cx+i)+','+(cz+j)); if(L) for(const [a,b,h] of L){const d=Math.hypot(x-a,z-b)-h; if(d<best) best=d;}} return best;}
 const FENCE=spline(FARM.fence,true,2.4);
 function inLot(x,z){let c=false; for(let i=0,j=FENCE.length-1;i<FENCE.length;j=i++){const [xi,zi]=FENCE[i], [xj,zj]=FENCE[j]; if((zi>z)!==(zj>z)&&x<(xj-xi)*(z-zi)/(zj-zi)+xi) c=!c;} return c;}
-// the crop field: 12 × 12 plots drawn as four 6 × 6 beds with soil tracks between them (plot indexes in the save do not change)
+// the crop field: 12 × 12 plots drawn as one continuous bed (plot indexes in the save do not change)
 const FLD=FARM.field, FHALF=N*T/2+FLD.gap/2;
 const fieldX=c=>FLD.x+(c-N/2+.5)*T+(c<N/2?-FLD.gap/2:FLD.gap/2), fieldZ=r=>FLD.z+(r-N/2+.5)*T+(r<N/2?-FLD.gap/2:FLD.gap/2);
 const inField=(x,z,m=0)=>Math.abs(x-FLD.x)<FHALF+m&&Math.abs(z-FLD.z)<FHALF+m;
@@ -905,6 +936,14 @@ if(S.mats.feed_pig==null) S.mats.feed_pig=8; if(S.mats.feed_cow==null) S.mats.fe
 if(!Array.isArray(S.wild)) S.wild=[];
 if(!S.seedMig){S.seedMig=1; S.mats.seed_wheat=(S.mats.seed_wheat||0)+12; S.mats.seed_carrot=(S.mats.seed_carrot||0)+4;}   // a few starter seeds; buy more at the Binhi store
 if(S.wildMig!==3){S.wildMig=3; S.wild=[];}   // back to the old look: no wild trees on the farm plots
+// One-time, free field preparation. Keep planted crops, structures and their plot IDs intact.
+function prepareHomeField(state,count){
+  if(state.homeFieldPrepared) return;
+  for(let i=0;i<count;i++) if(['locked','grass'].includes(state.tiles[i].s)) state.tiles[i]={s:'soil'};
+  state.wild=(state.wild||[]).filter(i=>i>=count||!['soil','crop'].includes(state.tiles[i]?.s));
+  state.homeFieldPrepared=true;
+}
+prepareHomeField(S,NF);
 // Live animals have their own holding inventory, never warehouse shelf storage.
 function stockFor(k){return k.startsWith('live_')?(S.livestock||(S.livestock={})):S.inv;}
 if(!S.livestock)S.livestock={};
@@ -1250,15 +1289,9 @@ function buildRoad(){
   const l=mesh(G.roadLine,0xe9d36a,0,.24,0); l.castShadow=false; g.add(l);
   return {g};
 }
-function buildTree(){
-  const g=new THREE.Group();
-  g.add(mesh(G.trunk,0x7a5131,0,.8,0));
-  g.add(mesh(G.canopy,0x4f9d3f,0,1.85,0));
-  const c2=mesh(G.canopy,0x5fae4a,.35,2.15,.15); c2.scale.setScalar(.6); g.add(c2);
-  const ap=new THREE.Group(), rr=rng(3);
-  for(let k=0;k<9;k++){const th=rr()*Math.PI*2, ph=rr()*1.1-.35;
-    ap.add(mesh(G.apple,0xf2b23a,Math.cos(th)*Math.cos(ph)*.8,1.85+Math.sin(ph)*.8,Math.sin(th)*Math.cos(ph)*.8));}
-  ap.visible=false; g.add(ap);
+function buildTree(){   // a mango tree on a farm plot: the same model as the orchard's, smaller; the ripe fruit shows when it is ready
+  const g=new THREE.Group(), seed=(Math.random()*1e6)|0, T=fruitTree('mango',{s:.5,seed,fruit:2});
+  g.add(vcGroup(T.solid)); const ap=vcGroup(T.fruit); ap.visible=false; g.add(ap);
   return {g,setReady:r=>{ap.visible=r}};
 }
 function chicken(color){
@@ -1910,6 +1943,81 @@ const BLEAF=(()=>{const b=[], n=5, Y=x=>.55*x-.75*x*x;
     for(const sd of [1,-1]) b.push([PG.quad,Mx(xm,(Y(x0)+Y(x1))/2-.02,sd*w/2*.95,len*(i%3===2&&sd>0?.7:1.02),1,w,sd*.22,0,ang),i%2?0x7cb342:0x6fae3c]);}
   return mergeGeo(b);})();
 const LEAFMAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.85,flatShading:true,side:THREE.DoubleSide});
+/* ---------- fruit trees as they really grow ----------
+   mangga: a short, thick trunk that splits into heavy limbs under a broad, dense dome of dark leaves, with bronze-red new leaves on top;
+     the fruit hangs on long stalks round the lower edge of the crown.
+   kalamansi: a small bushy tree that branches low, a dense round crown of small dark glossy leaves, and many tiny round fruit
+     (green, turning orange when ripe).
+   bayabas: two or three crooked stems with smooth, peeling copper bark, an open, uneven crown of lighter leaves, and round pale fruit.
+   saging: a clump: the mother plant with arching, torn paddle leaves (the old ones brown and hanging down the stem), suckers round it,
+     and, when it bears, a bunch of hands on a bending stalk with the purple puso at the end.
+   fruitTree(kind,{s,seed,fruit}) gives {solid, leaves, fruit} part lists; fruit: 0 none, 1 young green fruit, 2 ripe. */
+PG.clump=new THREE.IcosahedronGeometry(.5,1); PG.limb=new THREE.CylinderGeometry(.38,.5,1,7);
+const FT_={q:new THREE.Quaternion(), up:new THREE.Vector3(0,1,0), d:new THREE.Vector3(), p:new THREE.Vector3(), s:new THREE.Vector3(), m:new THREE.Matrix4(), o:new THREE.Object3D()}; FT_.o.rotation.order='YZX';
+function limbM(ax,ay,az,bx,by,bz,r){const T=FT_; T.d.set(bx-ax,by-ay,bz-az); const L=T.d.length()||1e-4; T.q.setFromUnitVectors(T.up,T.d.normalize());
+  return T.m.compose(T.p.set((ax+bx)/2,(ay+by)/2,(az+bz)/2),T.q,T.s.set(r*2,L,r*2)).clone();}
+// a long banana blade: narrow for its length, folded a little along a pale midrib, with a few tears between the veins
+const BLEAF2=(()=>{const b=[], n=12, Y=x=>.55*x-.85*x*x;
+  for(let i=0;i<n;i++){const x0=i/n, x1=(i+1)/n, xm=(x0+x1)/2, ym=(Y(x0)+Y(x1))/2, ang=Math.atan2(Y(x1)-Y(x0),x1-x0), len=Math.hypot(x1-x0,Y(x1)-Y(x0)), w=.025+.15*Math.pow(Math.sin(Math.PI*Math.min(.98,xm*1.02)),.55);
+    for(const sd of [1,-1]){const torn=(i===4&&sd>0)||(i===7&&sd<0)||(i===9&&sd>0);
+      b.push([PG.quad,Mx(xm,ym-w*.14,sd*w/2,len*(torn?.78:1.03),1,w,sd*.3,0,ang),(i+(sd>0))%2?0x4f8f33:0x5a9a3a]);}
+    b.push([PG.box,Mx(xm,ym+.006,0,len*1.02,.014,.02,0,0,ang),0xa9bd62]);}
+  return mergeGeo(b);})();
+function leafM(x,y,z,L,yaw,pitch,w=1){const o=FT_.o; o.position.set(x,y,z); o.rotation.set(0,yaw,pitch); o.scale.set(L,L,L*w); o.updateMatrix(); return o.matrix.clone();}
+function fruitTree(kind,opt={}){
+  const s=opt.s||1, r=rng(opt.seed||7), fr=opt.fruit||0, solid=[], leaves=[], fruit=[];
+  const limb=(c,a,b,rad,to=solid)=>to.push([PG.limb,limbM(a[0]*s,a[1]*s,a[2]*s,b[0]*s,b[1]*s,b[2]*s,rad*s),c]);
+  const clump=(c,x,y,z,w,h)=>solid.push([PG.clump,Mx(x*s,y*s,z*s,w*s,(h||w*.85)*s,w*s,r()*3,r()*3,0),c]);
+  const ball=(c,x,y,z,w,h,d,rx=0,rz=0)=>fruit.push([PG.sph,Mx(x*s,y*s,z*s,w*s,(h||w)*s,(d||w)*s,rx,0,rz),c]);
+  const pick=a=>a[(r()*a.length)|0];
+  // leaves packed on a dome: a shell of clumps over a fill, a flatter underside
+  const crown=(cx,cy,cz,R,H,n,size,cols,top)=>{for(let k=0;k<n;k++){const f=(k+.5)/n, ph=Math.acos(1-f*1.75), th=k*2.39996+r()*.5, j=.85+r()*.3;
+      const x=cx+Math.sin(ph)*Math.cos(th)*R*j, y=cy+Math.cos(ph)*H*j, z=cz+Math.sin(ph)*Math.sin(th)*R*j;
+      const fl=top&&y>cy+H*.7&&r()<.35; clump(fl?pick(top):pick(cols),x,y,z,size*(fl?.6:.8+r()*.45));}
+    for(let k=0;k<Math.ceil(n/4);k++){const a=r()*6.28, d=r()*R*.6; clump(pick(cols),cx+Math.cos(a)*d,cy-H*.15+r()*H*.4,cz+Math.sin(a)*d,size*1.2);}};
+  if(kind==='mango'){
+    const BARK=[0x5a4330,0x654b35], LV=[0x2b5523,0x31612a,0x386c2f,0x27491f,0x3d7534], FLUSH=[0x7e4b33,0x8c5a3a,0x6f6233], R=1.6, CY=2.75;
+    limb(BARK[0],[0,0,0],[0,1.2,0],.27); for(let k=0;k<4;k++){const a=k*1.57+.4; limb(BARK[1],[0,.25,0],[Math.cos(a)*.42,0,Math.sin(a)*.42],.1);}   // trunk and root flare
+    for(let k=0;k<4;k++){const a=k*1.57+r()*.6, e=[Math.cos(a)*.95,2.25+r()*.3,Math.sin(a)*.95]; limb(BARK[k%2],[0,1.1,0],e,.13);
+      limb(BARK[1],e,[Math.cos(a+.4)*1.35,2.85,Math.sin(a+.4)*1.35],.065); limb(BARK[0],e,[Math.cos(a-.5)*.9,3.1,Math.sin(a-.5)*.9],.06);}
+    crown(0,CY,0,R,1.15,64,.74,LV,FLUSH);
+    if(fr){const n=fr>1?14:9; for(let k=0;k<n;k++){const a=k*2.4+r()*.6, d=R*(.88+r()*.22), x=Math.cos(a)*d, z=Math.sin(a)*d, y=CY-.62-r()*.3;
+        limb(0x55642c,[x,y+.42,z],[x,y+.12,z],.012,fruit);
+        const c=fr>1?pick([0xf0b030,0xe9a02a,0xf4c040,0xd98a2e]):0x7aa83a, sz=fr>1?1:.75;
+        ball(c,x,y,z,.15*sz,.24*sz,.13*sz,(r()-.5)*.4,(r()-.5)*.4);
+        if(fr>1&&r()<.4) ball(0xc8542e,x+.03,y+.05,z+.03,.08,.12,.08);}}   // a red blush on the sun side
+  }else if(kind==='kalamansi'){
+    const LV=[0x214c26,0x27582b,0x2e652f,0x356f33];
+    limb(0x5b4a38,[0,0,0],[0,.38,0],.07); for(let k=0;k<3;k++){const a=k*2.1+r(); limb(0x5b4a38,[0,.36,0],[Math.cos(a)*.28,.95,Math.sin(a)*.28],.045);}
+    crown(0,1.2,0,.72,.68,30,.46,LV);
+    if(fr){const n=fr>1?34:16; for(let k=0;k<n;k++){const f=(k+.5)/n, ph=Math.acos(1-f*1.7), th=k*2.39996, R=.8;
+        const c=fr>1?(r()<.35?0xf09a28:pick([0x8fc23e,0x9fcf48])):0x5f9a35;
+        ball(c,Math.sin(ph)*Math.cos(th)*R,1.2+Math.cos(ph)*.72,Math.sin(ph)*Math.sin(th)*R,fr>1?.1:.075);}}
+  }else if(kind==='bayabas'){
+    const BARK=[0xa57a56,0x8d6a4c,0xc49d78], LV=[0x56903f,0x649f49,0x4c8538,0x7aa852];
+    const stems=[[.55,2.35,.2],[-.6,2.2,-.35],[.05,2.7,-.05]];
+    stems.forEach((e,k)=>{const m=[e[0]*.45+(r()-.5)*.2,1.1+r()*.2,e[2]*.45+(r()-.5)*.2]; limb(BARK[k%3],[0,0,0],m,.09); limb(BARK[(k+1)%3],m,e,.06);
+      limb(BARK[k%3],e,[e[0]*1.5,e[1]+.35,e[2]*1.5],.035); crown(e[0]*1.1,e[1]+.25,e[2]*1.1,.78,.55,11,.68,LV);});
+    if(fr){const n=fr>1?11:8; for(let k=0;k<n;k++){const e=stems[k%3], a=r()*6.28, x=e[0]*1.1+Math.cos(a)*.7, z=e[2]*1.1+Math.sin(a)*.7, y=e[1]-.25-r()*.2;
+        limb(0x5a6a30,[x,y+.22,z],[x,y+.08,z],.01,fruit); ball(fr>1?pick([0xd3dd7e,0xc8d872,0xe3e08e]):0x77a443,x,y,z,fr>1?.17:.12,fr>1?.19:.13);}}
+  }else{   // saging
+    const STEM=[0x7c9447,0x6f8a40], DRY=0x9a8350;
+    const plant=(px,pz,h,rad,nL,Ls)=>{limb(STEM[0],[px,0,pz],[px,h,pz],rad); limb(0x8a7c48,[px,.05,pz],[px,h*.45,pz],rad*1.08);   // the old sheaths at the base are brown
+      for(let k=0;k<nL;k++){const yaw=k*2.4+r()*.5, young=k<2, old=k>=nL-2, L=(young?.75:1)*Ls*(.9+r()*.25);
+        leaves.push([BLEAF2,leafM(px*s,(h-.05)*s,pz*s,L*s,yaw,young?1.1+r()*.25:old?-.35-r()*.3:.15+r()*.4,young?.5:1),null]);}
+      if(h>1.6) for(let k=0;k<2;k++) leaves.push([BLEAF2,leafM(px*s,(h*.8)*s,pz*s,Ls*.7*s,k*3+r(),-1.3,.8),DRY]);};   // dry leaves hanging down the stem
+    plant(0,0,2.35,.15,10,2.3); plant(.5,.28,1.35,.1,6,1.5); plant(-.36,.42,.65,.07,4,.85);
+    if(fr){const ripe=fr>1, bx=.42, top=2.25, C=ripe?[0xe8cf3c,0xf0d84a]:[0x8fb53c,0x82aa36];
+      limb(0x6f8a40,[0,top,0],[bx*.8,top+.08,0],.045,fruit); limb(0x6f8a40,[bx*.8,top+.08,0],[bx,1.15,0],.04,fruit);
+      for(let t=0;t<6;t++){const y=top-.12-t*.15, w=1-t*.07; for(let k=0;k<7;k++){const a=k*.9+t*.45, cx=bx+Math.cos(a)*.06, cz=Math.sin(a)*.06;
+          limb(C[k%2],[cx,y,cz],[bx+Math.cos(a)*.17*w,y+.13,Math.sin(a)*.17*w],.028,fruit);}}
+      fruit.push([PG.limb,limbM(bx*s,1.15*s,0,bx*s,.86*s,0,.075*s),0x6a2846]);}   // the puso (banana heart)
+  }
+  return {solid,leaves,fruit};
+}
+function fruitTreeGroup(kind,opt){const T=fruitTree(kind,opt), g=new THREE.Group(); g.add(vcGroup(T.solid));
+  if(T.leaves.length){const m=new THREE.Mesh(mergeGeo(T.leaves),LEAFMAT); m.castShadow=true; m.receiveShadow=true; g.add(m);}
+  if(T.fruit.length){const f=vcGroup(T.fruit); f.userData.fruit=true; g.add(f);} return g;}
 // ---- roads, rice paddies, power poles
 (()=>{
   const L=[], R=(x,y,z,sx,sy,sz,c)=>L.push([x,y,z,sx,sy,sz,c]);
@@ -2096,7 +2204,21 @@ function farmHouse(){ // the farmhouse: a modest single-storey house with a vera
 // front garden for the concrete houses (moves with the house): stepping stones to the gate, a flower bed, a kalachuchi tree and a lamp;
 // the left side stays clear for the kubo-kubo
 function houseGarden(b){
-  for(let k=0;k<4;k++) b.push(P('cyl',0xcfc6b4,(k%2?.12:-.12),.05,4.75+k*.62,.55,.08,.42));                              // stepping stones
+  // A continuous paved walk from the veranda, with a terrace under the existing resting kubo.
+  // These details belong to the house group, so they follow a player-moved home.
+  b.push(P('box',0xb8aa8d,0,.045,5.85,1.6,.08,3.1));
+  b.push(P('box',0xb8aa8d,-2.8,.045,5.75,3.3,.08,2.6));
+  b.push(P('box',0xb8aa8d,-1.1,.045,5.75,1.1,.08,1.2));
+  for(let k=0;k<6;k++) b.push(P('box',0xa19580,0,.09,4.45+k*.54,1.6,.012,.025));
+  for(const x of [-.84,.84]) b.push(P('box',0xd0c3a8,x,.095,5.85,.08,.1,3.1));
+  // Small planted border behind the sitting area; leave all seat approaches clear.
+  b.push(P('box',0x8a7050,-2.8,.13,4.05,2.9,.24,.48));
+  b.push(P('box',0x55462f,-2.8,.26,4.05,2.7,.035,.35));
+  for(let k=0;k<6;k++){
+    const x=-3.95+k*.46;
+    b.push(P('sph',0x527a39,x,.42,4.05,.4,.34,.35));
+    b.push(P('sph',k%2?0xe9b751:0xc46b79,x,.62,4.05,.14,.12,.14));
+  }
   b.push(P('box',0x8d6e4b,2.75,.12,5.75,2.7,.2,1.7)); b.push(P('box',0x5d4630,2.75,.2,5.75,2.5,.06,1.5));               // raised bed with soil
   [[1.8,5.3,0x3f7f3a,.55],[2.5,6.15,0x4a8a3c,.6],[3.3,5.4,0x3a7434,.5],[3.7,6.2,0x3f7f3a,.45]].forEach(([x,z,c,s])=>b.push(P('sph',c,x,.32+s*.35,z,s*1.2,s,s*1.2)));
   [[2.1,5.95,0xe84a7a],[2.9,5.2,0xf4c542],[3.4,6.0,0xffffff],[2.6,6.4,0xe84a7a],[1.7,5.7,0xf08a4b]].forEach(([x,z,c])=>b.push(P('sph',c,x,.75,z,.24,.2,.24)));
@@ -3861,7 +3983,8 @@ function groundLook(i){
   const t=S.tiles[i], g=tiles[i].ground; if(!g) return; const bed=t.s==='soil'||t.s==='crop';
   if(isYard(i)){g.visible=false; return;}   // animal slots draw their own pads (see the animal areas)
   g.visible=true; g.scale.x=g.scale.z=1;
-  if(gridShown||bed) return;
+  if(bed){if(!gridShown) g.scale.x=g.scale.z=1/.94; return;}
+  if(gridShown) return;
   if(t.s==='locked'){g.visible=false; return;}
   g.scale.x=g.scale.z=1/.94; g.material=isYard(i)?YARD_MATS[zoneOf(i)]:LAWN_MAT;}
 function syncGrid(){const w=gridWanted(); if(w===gridShown) return; gridShown=w; for(let i=0;i<NT;i++){if(w) refreshGroundMat(i); groundLook(i);}}
@@ -4040,31 +4163,74 @@ function boardSign(lines,bg,fg,x,z,ry,w=3.2,h=1,y=1.6,post=0x6d4c41,two=true){
 (()=>{const b=[], banana=[], r=rng(314), [x0,x1,z0,z1]=ORCH;
   {const fl=new THREE.Mesh(new THREE.PlaneGeometry(x1-x0,z1-z0),worldGrass(0xc6dbb0)); fl.rotation.x=-Math.PI/2; fl.position.set((x0+x1)/2,.02,(z0+z1)/2); fl.receiveShadow=true; scene.add(fl);}   // mowed floor
   b.push(P('box',0xb08a5a,x0+1.6,.032,(z0+z1)/2,1.5,.02,z1-z0-1));                                      // picking path
-  const fruitRing=(x,y,z,R,n,cols,sz)=>{for(let k=0;k<n;k++){const a=r()*6.28, e=(r()-.6)*1.1; b.push(P('sph',cols[k%cols.length],x+Math.cos(a)*Math.cos(e)*R,y+Math.sin(e)*R*.8,z+Math.sin(a)*Math.cos(e)*R,sz,sz*1.25,sz));}};
-  const mango=(x,z,s)=>{b.push(P('cyl',0x6b4a2a,x,.9*s,z,.36*s,1.8*s,.36*s)); b.push(P('sph',0x2f6b2a,x,2.6*s,z,3*s,2.3*s,3*s));
-    for(let k=0;k<5;k++){const a=k*1.26+r(); b.push(P('sph',[0x356f2e,0x3a7a32,0x2a5f26][k%3],x+Math.cos(a)*.95*s,(2.2+r()*.5)*s,z+Math.sin(a)*.95*s,1.7*s,1.4*s,1.7*s));}
-    fruitRing(x,1.95*s,z,1.45*s,9,[0xf2b23a,0x9ccc3a,0xe6a12a],.2*s);};
-  const kalamansi=(x,z,s)=>{b.push(P('cyl',0x5d4630,x,.35*s,z,.14*s,.7*s,.14*s)); b.push(P('sph',0x2e6b2e,x,1.15*s,z,1.6*s,1.45*s,1.6*s)); b.push(P('sph',0x3a7a32,x+.25*s,1.45*s,z-.15*s,1*s,.9*s,1*s));
-    fruitRing(x,1.15*s,z,.78*s,14,[0x9ccc3a,0x8bc34a,0xf0a030],.1*s);};
-  const bayabas=(x,z,s)=>{for(const a of [-.25,.3]) b.push(P('cyl',0x9a7b5a,x+a*.6*s,.85*s,z,.2*s,1.8*s,.2*s,0,0,a)); b.push(P('sph',0x5fae4a,x-.3*s,2.05*s,z,2*s,1.5*s,2*s)); b.push(P('sph',0x6aa84a,x+.5*s,2.2*s,z+.2*s,1.6*s,1.3*s,1.6*s));
-    fruitRing(x,1.85*s,z,1.05*s,8,[0xc5e17a,0xd4e98a],.17*s);};
-  const KX=25.6, KZ=19;                                                                                  // the kubol
-  for(let z=z0+2;z<z1-1.5;z+=3.4){const row=Math.round((z-z0)/3.4); for(const x of [25,28.6,32.2]){const xx=x+(row%2?1:0)+(r()-.5)*.5, zz=z+(r()-.5)*.6;
-      if(Math.hypot(xx-KX,zz-KZ)<3.5) continue;
-      if(z<z0+14) mango(xx,zz,.6+r()*.08); else if(z<z0+32) (row%2?kalamansi(xx,zz,.85+r()*.15):bayabas(xx,zz,.62+r()*.1)); else mango(xx,zz,.55+r()*.08);}}
-  for(let z=z0+1.5;z<z1-1;z+=3.6){const bx=x1-1.1+(r()-.5)*.5, bz=z+(r()-.5)*.8;                          // saging along the fence
-    for(let q=0;q<2;q++){const x=bx+(r()-.5)*.9, zz=bz+(r()-.5)*.9, h=1.4+r()*.5; b.push(P('cyl',0x7d9a3a,x,h/2,zz,.24,h,.24));
-      for(let k=0;k<6;k++){const L=1.05+r()*.35; banana.push([x,h-.08,zz,L,L,L,k?0xffffff:0xb8a070,k/6*6.28+r(),0,.35+r()*.45]);}}}
+  const KX=25.6, KZ=19;
   // kubol: bamboo posts, nipa roof, a sorting table with crates of mangga and kalamansi
   const kx=KX, kz=KZ; for(const dx of [-1.3,1.3]) for(const dz of [-1,1]) b.push(P('cyl',0xc9a96a,kx+dx,1.1,kz+dz,.12,2.2,.12));
   b.push(P('pyr',0xb8945a,kx,2.65,kz,3.6,1.1,2.9)); b.push(P('box',0xa98a52,kx,.78,kz,2.2,.08,1.2)); for(const dx of [-.95,.95]) b.push(P('box',0x8d6e4b,kx+dx,.39,kz,.08,.78,1.1));
   [[-.6,0xf2b23a],[0,0x9ccc3a],[.6,0xf2b23a]].forEach(([dx,c])=>{b.push(P('box',0x8d6e4b,kx+dx,.94,kz,.5,.22,.42)); for(let k=0;k<4;k++) b.push(P('sph',c,kx+dx+(k%2-.5)*.18,1.07,kz+((k>>1)-.5)*.16,.15,.17,.15));});
   for(let i=0;i<5;i++) b.push(P('box',[0x8d6e4b,0x7a5a3a][i%2],kx-1.2+(i%3)*.55,.2+(i>2?.4:0),kz+1.7,.5,.38,.42));      // empty kaing (crates)
-  b.push(P('box',0x8d6e4b,27.4,1.4,z0+5.4,.08,2.8,.08,.25,0,.12)); b.push(P('box',0x8d6e4b,28,1.4,z0+5.4,.08,2.8,.08,.25,0,.12));   // a bamboo ladder against a mango tree
-  for(let i=0;i<6;i++) b.push(P('box',0x8d6e4b,27.7,.3+i*.45,z0+5.4+(.3+i*.45)*.25,.62,.05,.05));
   scene.add(vcGroup(b));
-  const bl=instR(BLEAF,banana,LEAFMAT); bl.castShadow=true; scene.add(bl);
+
   boardSign(['HALAMANAN','mangga · kalamansi · bayabas · saging'],'#33691e','#fff',x0+.3,z0+8,-Math.PI/2,2.8,.8,1.2);
+})();
+// Saved, selectable orchard plots beside the crop field. No crop tile IDs or traffic routes change.
+const ORCHARD=(()=>{
+ const spots=[];for(const z of [-2,5,12,26,33,40])for(const x of [25,29,33])spots.push([x,z]);
+ if(!Array.isArray(S.orchard)) S.orchard=spots.map((_,i)=>i<6?{kind:['mango','kalamansi','bayabas','saging'][i%4],planted:Date.now()-300000,next:Date.now()+60000}:null);
+ while(S.orchard.length<spots.length)S.orchard.push(null);
+ const g=new THREE.Group();g.name='Harvestable home orchard';scene.add(g);let selected=0,last=0,shown='';
+ const views=spots.map(([x,z],i)=>{const root=new THREE.Group();root.position.set(x,0,z);root.userData.orchard=i;g.add(root);return {root,signature:''};});
+ const growth=(t,now=Date.now())=>t?Math.min(1,Math.max(0,(now-t.planted)/(FRUIT_TREES[t.kind].grow*1000))):0;
+ // 0 no fruit, 1 young green fruit (the second half of the wait), 2 ripe
+ const fruitStage=(t,now=Date.now())=>!t?0:orchardReady(t,now)?2:growth(t,now)>=1&&(t.next-now)<FRUIT_TREES[t.kind].period*500?1:0;
+ const status=(t,now=Date.now())=>!t?'empty':orchardReady(t,now)?'ready':growth(t,now)<1?'young':'fruiting';
+ function draw(i){const t=S.orchard[i],v=views[i],stage=t?Math.max(.22,growth(t)):0, fs=fruitStage(t);
+  const sig=t?`${t.kind}:${fs}:${Math.floor(stage*10)}`:'empty';if(sig===v.signature)return;v.signature=sig;clearGroup(v.root);
+  const b=[];
+  b.push(P('cyl',0x8a6e4c,0,.03,0,1.9,.05,1.9)); b.push(P('cyl',0x6e5638,0,.045,0,1.2,.04,1.2));   // a mulched basin round the trunk
+  if(!t){b.push(P('box',0x88633f,0,.35,0,.08,.7,.08)); b.push(P('box',0xe8dcb6,0,.66,.03,.78,.32,.05)); b.push(P('box',0x6e5638,0,.66,0,.82,.36,.04)); v.root.add(vcGroup(b)); return;}
+  v.root.add(vcGroup(b));
+  const model=fruitTreeGroup(t.kind,{seed:31+i*17,fruit:stage>=1?fs:0}); model.rotation.y=i*1.9; model.scale.setScalar(stage); v.root.add(model);}
+ const ICON={mango:'🥭',kalamansi:'🍋',bayabas:'🍐',saging:'🍌'};
+ const LOOK={mango:'Broad shade tree, fruit hangs under the leaves',kalamansi:'Small bushy tree, lots of tiny fruit',bayabas:'Crooked stems, round pale fruit',saging:'Clump of stems, one bunch at a time'};
+ const STAT={empty:['Empty plot',''],young:['Growing','grow'],fruiting:['Fruiting','grow'],ready:['Ready to pick','go']};
+ function timing(t,now=Date.now()){const c=FRUIT_TREES[t.kind], st=status(t,now);
+  if(st==='ready') return {txt:'Ripe now',pct:100};
+  if(st==='young') return {txt:'First harvest in '+fmt(Math.max(0,(t.next-now)/1000)),pct:Math.round(growth(t,now)*100)};
+  return {txt:'Next harvest in '+fmt(Math.max(0,(t.next-now)/1000)),pct:Math.round(100*(1-Math.max(0,t.next-now)/(c.period*1000)))};}
+ function strip(){return '<div class="or-strip">'+S.orchard.map((t,i)=>`<button class="or-dot ${status(t)}${i===selected?' on':''}" data-orchard="go" data-kind="${i}" aria-label="Plot ${i+1}">${t?ICON[t.kind]:'+'}</button>`).join('')+'</div>';}
+ function render(){const t=S.orchard[selected],c=t&&FRUIT_TREES[t.kind],now=Date.now(),st=status(t,now);shown=st+':'+selected+':'+(t?t.kind:'');
+  const planted=S.orchard.filter(Boolean).length, ripe=S.orchard.filter(x=>orchardReady(x,now)).length;
+  $('bldTitle').textContent='🌳 Halamanan · plot '+(selected+1)+' of '+spots.length;
+  let h='<div class="fs or">'+strip()+'<div class="fs-lead">'+planted+' trees planted · <b>'+ripe+' ready to pick</b>. Tap a plot above to switch.</div>';
+  if(t){const tm=timing(t,now), price=ITEMS[t.kind]?ITEMS[t.kind].price:0;
+   h+='<div class="fs-card or-tree"><span class="or-ic">'+c.icon+'</span><div class="or-nm"><b>'+c.name+'</b> <span class="fs-tag '+STAT[st][1]+'">'+STAT[st][0]+'</span><small>'+LOOK[t.kind]+'</small></div>'
+     +'<div class="or-bar"><i id="orchardBar" style="width:'+tm.pct+'%"></i></div><div class="or-when" id="orchardStatus">'+tm.txt+'</div></div>'
+     +'<div class="fs-stats"><div class="fs-stat"><b>'+c.yield+'</b><small>fruit per pick</small></div><div class="fs-stat"><b>'+fmt(c.period)+'</b><small>between picks</small></div>'
+     +'<div class="fs-stat"><b>₱'+price+'</b><small>palengke, each</small></div><div class="fs-stat"><b>'+(S.inv[t.kind]||0)+'</b><small>in your bodega</small></div></div>'
+     +'<div class="fs-actions"><button class="gbtn green" data-orchard="harvest" '+(st==='ready'?'':'disabled')+'>🧺 <b>Pick '+c.yield+' '+c.name+'</b><small>'+(st==='ready'?'Goes straight to your bodega':'Not ripe yet')+'</small></button>'
+     +'<button class="gbtn" data-orchard="remove">🪓 <b>Cut down</b><small>Frees the plot for another tree</small></button></div>';}
+  else{h+='<h3>Plant a tree here</h3><div class="or-pick">'+Object.entries(FRUIT_TREES).map(([k,c])=>{const have=S.mats['sapling_'+k]||0;
+     return '<button class="gbtn gold" data-orchard="plant" data-kind="'+k+'" '+(have?'':'disabled')+'><span class="or-ic">'+c.icon+'</span><b>'+c.name+'</b><small>'+LOOK[k]+'</small><small>'+c.yield+' per pick · first in '+fmt(c.grow)+'</small><span class="fs-tag '+(have?'go':'low')+'">'+(have?'have '+have:'none · ₱'+c.price+' at Binhi')+'</span></button>';}).join('')+'</div>';}
+  h+='<div class="fs-actions"><button class="gbtn" data-orchard="binhi">🌱 <b>Binhi store</b><small>Buy planting stock</small></button><button class="gbtn" data-orchard="market">🏪 <b>Palengke</b><small>Orders and delivery</small></button></div></div>';
+  $('bldBody').innerHTML=h;}
+ function tickOpen(){const t=S.orchard[selected],st=status(t);if(st+':'+selected+':'+(t?t.kind:'')!==shown) return render(); if(!t) return;
+  const tm=timing(t), a=$('orchardStatus'), b=$('orchardBar'); if(a) a.textContent=tm.txt; if(b) b.style.width=tm.pct+'%';}
+ function open(i){selected=i;bldIdx=-8;render();$('bldSheet').classList.add('open');}
+ function hit(x,y){for(let i=0;i<views.length;i++)if(hitObj(views[i].root,x,y)){open(i);return true;}return false;}
+ function act(action,kind){
+  if(action==='go'){selected=Math.max(0,Math.min(spots.length-1,+kind||0)); buzz();}
+  else if(action==='prev'||action==='next')selected=(selected+(action==='next'?1:spots.length-1))%spots.length;
+  else if(action==='plant'){if(plantOrchard(S,selected,kind)){toast('Planted '+FRUIT_TREES[kind].name);changed();}}
+  else if(action==='harvest'){const t=S.orchard[selected],n=harvestOrchard(S,selected);if(n){sfx('harvest');toast(`${n} ${FRUIT_TREES[t.kind].name} added to your bodega.`);changed();}}
+  else if(action==='remove'){const c=FRUIT_TREES[S.orchard[selected].kind];
+   $('bldBody').innerHTML='<div class="fs or"><div class="fs-card"><div class="fs-lead">Cut down this <b>'+c.name+'</b>? Any fruit still on it is lost, and you will need new planting stock to replant the plot.</div></div><div class="fs-actions"><button class="gbtn" data-orchard="cancel"><b>Keep the tree</b></button><button class="gbtn" data-orchard="confirm-remove">🪓 <b>Cut it down</b></button></div></div>';shown='confirm';return;}
+  else if(action==='confirm-remove'){S.orchard[selected]=null;changed();}
+  else if(action==='binhi'||action==='market'){$('bldSheet').classList.remove('open');return action==='binhi'?openHW('seeds'):openMarket();}
+  draw(selected);render();
+ }
+ views.forEach((_,i)=>draw(i));
+ return {hit,open,act,render,spots,update(t){if(t-last<1)return;last=t;views.forEach((_,i)=>draw(i));if(bldIdx===-8&&bldOpen()&&shown!=='confirm')tickOpen();}};
 })();
 // ---- talyer at imbakan (utility yard): water tower, workshop, feed bodega, and a shed for the kuliglig
 (()=>{const b=[], [x0,x1,z0,z1]=UTIL, cx=(x0+x1)/2, cz=(z0+z1)/2, CHB=0xcfc8b8, GI=0x9aa3a8, r=rng(57);
@@ -4214,7 +4380,7 @@ function endPtr(e){
   if(moving){ if(e.type==='pointerup') dropBuilding(e.clientX,e.clientY); else cancelMove(); }
   moveCand=-1;
   if(ptrs.size===1&&!moved&&e.type==='pointerup'){const x=e.clientX,y=e.clientY;
-    if(hitObj(farmBodega.g,x,y))openBodega();else if(hitObj(farmShop.g,x,y))openFarmShop();else if(hitMarket(x,y)) openMarket(); else if(hitObj(hwG,x,y)) openHW('hardware'); else if(hitObj(psG,x,y)) openHW('poultry'); else if(hitObj(ssG,x,y)) openHW('seeds'); else if(hitObj(whG,x,y)||hitObj(facG,x,y)) openBiz(); else if(hitObj(houseG,x,y)) openHome(); else if(hitObj(katG,x,y)) openKat(); else if(coopHit(x,y)) openCoop();
+    if(ORCHARD.hit(x,y)){}else if(hitObj(farmBodega.g,x,y))openBodega();else if(hitObj(farmShop.g,x,y))openFarmShop();else if(hitMarket(x,y)) openMarket(); else if(hitObj(hwG,x,y)) openHW('hardware'); else if(hitObj(psG,x,y)) openHW('poultry'); else if(hitObj(ssG,x,y)) openHW('seeds'); else if(hitObj(whG,x,y)||hitObj(facG,x,y)) openBiz(); else if(hitObj(houseG,x,y)) openHome(); else if(hitObj(katG,x,y)) openKat(); else if(coopHit(x,y)) openCoop();
     else if(hitObj(garageG,x,y)||(OWN('jeep')&&!S.veh.jeep.trip&&hitObj(jeep,x,y))||(S.veh.truck.owned&&!S.veh.truck.trip&&hitObj(truck,x,y))) openUp('garage');
     else onTap(pick(x,y)); }
   if(stroke) endStroke();
@@ -5095,7 +5261,7 @@ $('picker').addEventListener('click',e=>{if(e.target.closest('[data-buyseeds]'))
   S.crop=id; changed();});
 
 /* ---------- Palengke: orders and selling ---------- */
-function canMake(id){const it=ITEMS[id]; if(S.level<it.lvl) return false; return !it.from||S.tiles.some(t=>t.s==='bld'&&t.b===it.from);}
+function canMake(id){const it=ITEMS[id]; if(FRUIT_TREES[id])return !!S.orchard?.some(t=>t?.kind===id)||(id==='mango'&&S.tiles.some(t=>t.s==='bld'&&t.b==='tree')); if(S.level<it.lvl) return false; return !it.from||S.tiles.some(t=>t.s==='bld'&&t.b===it.from);}
 function genOrder(){
   const pool=Object.keys(ITEMS).filter(id=>canMake(id)&&!ITEMS[id].noOrder).sort(()=>Math.random()-.5);
   const kinds=Math.min(pool.length,1+((Math.random()*Math.min(3,1+S.level/2))|0));
@@ -5193,6 +5359,8 @@ const MATS={wood:{name:'Kahoy',sub:'lumber',icon:'🪵',price:8,store:'hardware'
   pandesal:{name:'Pandesal',sub:'a bag of 5 bread rolls',icon:'🥖',price:15,store:'sari',food:1},
   kape:{name:'Kape',sub:'a sachet of 3-in-1 coffee: wakes your farmer up',icon:'☕',price:6,store:'sari',food:1}};
 for(const id in CROPS){const c=CROPS[id]; MATS['seed_'+id]={name:`Binhi ng ${c.name}`,sub:`seeds for 1 plot · ready in ${fmt(c.time)}`,icon:c.icon,price:c.cost,store:'seeds',crop:id};}
+
+for(const [k,c] of Object.entries(FRUIT_TREES)) MATS['sapling_'+k]={name:c.name+' planting stock',sub:'1 orchard plot · first harvest '+fmt(c.grow),icon:c.icon,price:c.price,store:'seeds'};
 
 if((S.balanceVersion||0)<1){
   if(lifeTiles().some(i=>S.tiles[i].n>0)){
@@ -5491,7 +5659,7 @@ function placeVehicles(now,dt){
 /* ---------- the load: what rides in the Elf's bed and on the jeepney's roof is built from the trip's own contents and counts.
    Each kind of goods has its own model (a crate of that vegetable, a rice sack, egg trays, milk cans, a cooler of meat, feed sacks,
    lumber, roof sheets, cement, hollow blocks, chick boxes) and live animals are the same pigs, goats and cows as on the farm, one per animal. */
-const PROD_COL={carrot:0xe67e22,corn:0xf1c40f,pechay:0x6ab04c,kamatis:0xd63031,talong:0x6c3483,sitaw:0x58a83a,ampalaya:0x3e8e41,sili:0xc0392b,mango:0xf0b429,kamote:0x8e5a3c,sibuyas:0xb0506e,bawang:0xeee6d8};
+const PROD_COL={kalamansi:0x89b83e,bayabas:0xc6d780,saging:0xe2c343,carrot:0xe67e22,corn:0xf1c40f,pechay:0x6ab04c,kamatis:0xd63031,talong:0x6c3483,sitaw:0x58a83a,ampalaya:0x3e8e41,sili:0xc0392b,mango:0xf0b429,kamote:0x8e5a3c,sibuyas:0xb0506e,bawang:0xeee6d8};
 const CG_={};
 function cgUnit(kind){ // [geometry, footprint w, footprint d, height, stack layers]
   if(CG_[kind]) return CG_[kind]; const b=[]; let fp=[.5,.4,.32,2];
@@ -5731,7 +5899,7 @@ const STORE={hardware:{title:'🔨 Mabuhay Hardware',name:'Mabuhay Hardware',x:H
   sari:{title:'🛒 Tindahan ni Aling Nena · sari-sari',name:'the sari-sari store',x:22,z:-100,crew:'Aling Nena bags your order.'}};
 const hwOpen=()=>$('hwSheet').classList.contains('open'), upOpen=()=>$('upSheet').classList.contains('open');
 const SHOP_LV={seeds:1,poultry:2,hardware:3,sari:1};
-function openHW(st){const want=typeof st==='string'?st:'hardware'; if(S.level<(SHOP_LV[want]||1)) return toast(`🔒 ${STORE[want].title.replace(/ ·.*/,'')} opens to you at level ${SHOP_LV[want]}.`,2800);if(typeof st==='string'&&st!==curStore){curStore=st; hwQty={};} else if(typeof st!=='string'&&curStore!=='hardware'){curStore='hardware'; hwQty={};} $('hwTitle').textContent=STORE[curStore].title; $('hwHead').textContent=curStore==='seeds'?'Seeds (binhi)':curStore==='poultry'?'Feeds':curStore==='sari'?'Pagkain · food to cook':'Materials'; renderHW(); $('hwSheet').classList.add('open');}
+function openHW(st){const want=typeof st==='string'?st:'hardware'; if(S.level<(SHOP_LV[want]||1)) return toast(`🔒 ${STORE[want].title.replace(/ ·.*/,'')} opens to you at level ${SHOP_LV[want]}.`,2800);if(typeof st==='string'&&st!==curStore){curStore=st; hwQty={};} else if(typeof st!=='string'&&curStore!=='hardware'){curStore='hardware'; hwQty={};} $('hwTitle').textContent=STORE[curStore].title; $('hwHead').textContent=curStore==='seeds'?'Seeds & fruit-tree planting stock':curStore==='poultry'?'Feeds':curStore==='sari'?'Pagkain · food to cook':'Materials'; renderHW(); $('hwSheet').classList.add('open');}
 function renderHW(){
   const avail=v=>OWN(v)&&!S.veh[v].trip;
   if(hwVeh!=='pasabay'&&!avail(hwVeh)) hwVeh=avail('truck')?'truck':avail('jeep')?'jeep':'pasabay';
@@ -5802,6 +5970,7 @@ function bldFill(t,now){const L=LIFE[t.b];
   return Math.min(1,(t.stored||0)/capOf(t));}
 const needsCare=t=>!!LIFE[t.b]&&!underConstruction(t,Date.now())&&(t.sick||hotNow(t)||(t.hungry&&t.n>0)||(!(t.n>0)&&!t.stored));
 function renderBld(){
+  if(bldIdx===-8)return ORCHARD.render();
   if(bldIdx===-5)return renderBodega();
   if(bldIdx===-4)return renderFarmShop();
   if(bldIdx===-2) return renderKat();
@@ -5866,6 +6035,7 @@ function renderInc(t){const now=Date.now(); if(!t.inc) t.inc={egg:0,duckegg:0,t0
 $('drvSheet').addEventListener('click',e=>{if(e.target.id==='drvSheet'||e.target.closest('#closeDrv')) return closeDriverPick(null); const b=e.target.closest('[data-drv]'); if(b&&!b.disabled){closeDriverPick(b.dataset.drv); buzz(); refreshSheets();}});
 $('bldSheet').addEventListener('click',e=>{
   if(e.target.id==='bldSheet'||e.target.closest('#closeBld')) return $('bldSheet').classList.remove('open');
+  const orchardAction=e.target.closest('[data-orchard]');if(orchardAction){if(!orchardAction.disabled)ORCHARD.act(orchardAction.dataset.orchard,orchardAction.dataset.kind);return;}
   const tb=e.target.closest('[data-tab]'); if(tb){bldTab=bldTab===tb.dataset.tab?null:tb.dataset.tab; buzz(); return renderBld();}
   const rs=e.target.closest('[data-restock]'); if(rs&&!rs.disabled) return restock(bldIdx,rs.dataset.restock);
   const cu=e.target.closest('[data-cull]'); if(cu){if(!cu.disabled){$('bldSheet').classList.remove('open'); startPickup(bldIdx,1);} return;}
@@ -9372,6 +9542,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:47,date:'Nov 12, 2026',title:'Your orchard looks like the real thing',items:['🥭 Mango trees now grow a short, thick trunk with heavy limbs under a broad, dark crown, with bronze new leaves on top. Ripe mangoes hang on long stalks round the edge, some with a red blush.','🍋 Kalamansi is a small bushy tree that branches low, with a dense crown of dark glossy leaves and lots of tiny fruit that turn orange as they ripen.','🍐 Bayabas grows two or three crooked stems with copper bark, an open crown of lighter leaves, and round pale fruit.','🍌 Saging is now a clump: the main plant with long, torn leaves (old ones dry and hanging), two suckers, and a bunch of hands with the purple puso hanging at the end. Young fruit shows green before it ripens.','🌳 The orchard menu is redesigned: every plot in a row at the top (tap one to switch), a growth bar to the next harvest, what each tree gives, and one-tap picking and planting.']},
   {v:45,date:'Nov 12, 2026',title:'Cooler and smoother on phones',items:['🔥 The game now draws much less each frame: fields of crops, garbage and animals off screen are skipped, people far from the camera are not drawn (they keep walking), small parts no longer cast shadows, and only nearby people do. A normal view now takes about half the drawing work it did before.','🔋 With Battery saver on (the default on phones), shadows refresh every other frame as well. Turn it on from the ⋯ menu if your phone still gets warm.']},
   {v:44,date:'Nov 12, 2026',title:'People walk the proper way',items:['🚶 Everyone now walks round buildings, fences and water instead of through them: townspeople going to the palengke, workers on their rounds, shoppers, commuters, school children, church families and your own farmer. A walking map of the whole town (made from the real walls, fences and canals) finds the way, keeps to the roadside and crosses the road only where it has to.','🌉 Every house on the barangay road now has a concrete crossing over the kanal at its front path, and a wider one at the carport, so families can walk out to the street. Garden gates now stand open.','⏱️ The walking map is built a few seconds after the game loads, and rebuilt when you put up or move a farm building.']},
   {v:43,date:'Nov 11, 2026',title:'Your mini-mart grows into a supermart',items:['🏪 The mini-mart now upgrades in three steps from its menu: Mini-Mart, Mini-Mart Plus (level 8, ₱15,000) and Sunfield Supermart (level 12, ₱35,000). Each step adds shelf space (180, 300, 450 units, up to 60, 90, 120 of each product), more shoppers and another parking spot.','🛒 Inside: a tiled floor, a long wall shelf, up to four gondolas, up to three lit drinks fridges, an ice-cream freezer, a fresh produce stand and rice sacks, all stocked with packs and bottles that fill up as you restock. Ate Lorna works the counter and, at the top level, a stock clerk tends the aisles.','🚶 Shoppers really go inside now: they come through the glass door, walk the aisles or check the fridges, pay at the counter and leave. Cars park in front (up to four spots) and their drivers come in too.','🎁 Farms from before this update get their mini-mart opened and fully upgraded to the Sunfield Supermart.']},
@@ -9538,6 +9709,7 @@ function frame(now){
   if(ECO&&now-lastFrame<31) return;               // battery saver: about 30 frames a second
   const rawDt=(now-lastFrame)/1000, dt=Math.min(.05,rawDt); lastFrame=now; const t=now/1000;
   try{
+  ORCHARD.update(t);
   IRRIGATION_VISUAL.update(t);
   DISTRICT_LIFE.update(dt,t);
   CIVIC.update(dt,t);
@@ -9585,7 +9757,7 @@ function frame(now){
   try{updateCam();followSun();mountains.position.set(camera.position.x,0,camera.position.z);drawFrame();}
   catch(error){reportGameError('render',error);}
 }
-if(/[?&]debug\b/.test(location.search)) window.SF={districtLife:DISTRICT_LIFE,livestock:{stockFor,choose:chooseAnimalPickup,continue:continueAnimalHaul,process:processKatQueue,path:farmHaulPath},bodega:{world:farmBodega,open:openBodega,tick:updateBodega},farmDispatch:{loading:LOADING_DISPATCH,state:FARM_DISPATCH,tick:updateFarmDispatch,setSlots,simulate:(now,dt)=>{roadSnapshot();updateFarmDispatch(now,dt);updateVehicles(now);placeVehicles(now,dt);}},shop:{config:SHOP,world:farmShop,open:openFarmShop,unlock:shopUnlock,sale:shopSale,deliver:shopDeliver,dispatch:shopDispatch,refund:shopRefund,incoming:shopIncoming,setDraft:q=>{shopDraft=q;},tick:updateFarmShop},resCars,junctions:TRAFFIC_JUNCTIONS,health:gameHealth,trafficUpdate:updateTraffic,setTrafficUpdate:fn=>{updateTraffic=fn;},pointerCount:()=>ptrs.size,canvas,cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,holdPose,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,vans,traffic,models:{vkCar,CAR_SPECS,tripLoad,buildLoad,cageCart,animalGeo,makePerson,bakePerson,poseWalk,poseStand,poseSit,randLook,makeCar,makePUJ,makeBus,makeTrike,makeVan,makeTraderTruck,makeLiner,VEH:()=>VEH},lanes:LN,laneStep:lnStep,laneMs:()=>LN_MS,trikes,puvs,traders,JEEPS:()=>JEEPS,townStep:updateTownVehicles,transitStep:updateTransit,bizStep:updateBiz,trikeStep:updateTrikes,shiftDays:n=>{TIME_SHIFT+=n*DAY_MS;},LINERS:()=>LINERS,PATROL:()=>PATROL,FIESTA:()=>FIESTA,loadWalkers,STOP,homeAct:(a,r)=>homeAct(a,{dataset:{r}}),openHome,FISH,startRain,dayAt:f=>{const g=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((f-g+1)%1)*DAY_MS;},step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
+if(/[?&]debug\b/.test(location.search)) window.SF={orchard:ORCHARD,fruitTrees:FRUIT_TREES,districtLife:DISTRICT_LIFE,livestock:{stockFor,choose:chooseAnimalPickup,continue:continueAnimalHaul,process:processKatQueue,path:farmHaulPath},bodega:{world:farmBodega,open:openBodega,tick:updateBodega},farmDispatch:{loading:LOADING_DISPATCH,state:FARM_DISPATCH,tick:updateFarmDispatch,setSlots,simulate:(now,dt)=>{roadSnapshot();updateFarmDispatch(now,dt);updateVehicles(now);placeVehicles(now,dt);}},shop:{config:SHOP,world:farmShop,open:openFarmShop,unlock:shopUnlock,sale:shopSale,deliver:shopDeliver,dispatch:shopDispatch,refund:shopRefund,incoming:shopIncoming,setDraft:q=>{shopDraft=q;},tick:updateFarmShop},resCars,junctions:TRAFFIC_JUNCTIONS,health:gameHealth,trafficUpdate:updateTraffic,setTrafficUpdate:fn=>{updateTraffic=fn;},pointerCount:()=>ptrs.size,canvas,cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,holdPose,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,vans,traffic,models:{vkCar,CAR_SPECS,tripLoad,buildLoad,cageCart,animalGeo,makePerson,bakePerson,poseWalk,poseStand,poseSit,randLook,makeCar,makePUJ,makeBus,makeTrike,makeVan,makeTraderTruck,makeLiner,VEH:()=>VEH},lanes:LN,laneStep:lnStep,laneMs:()=>LN_MS,trikes,puvs,traders,JEEPS:()=>JEEPS,townStep:updateTownVehicles,transitStep:updateTransit,bizStep:updateBiz,trikeStep:updateTrikes,shiftDays:n=>{TIME_SHIFT+=n*DAY_MS;},LINERS:()=>LINERS,PATROL:()=>PATROL,FIESTA:()=>FIESTA,loadWalkers,STOP,homeAct:(a,r)=>homeAct(a,{dataset:{r}}),openHome,FISH,startRain,dayAt:f=>{const g=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((f-g+1)%1)*DAY_MS;},step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
 renderHUD();
 requestAnimationFrame(frame);
 if(!S.seenHelp){S.seenHelp=true; save(); setTimeout(()=>toast('Open 🧰 Tools, pick a tool, and drag across the field. Sell your harvest at the 🏪 Palengke!',4800),600);}
@@ -9683,6 +9855,9 @@ portraitMQ.addEventListener('change',()=>{resize(); if(!portraitMQ.matches){ptrs
   '🍠':P('M5 20q0-10 11-12t12 4q0 10-11 12T5 20Z','#a5555e')+P('M9 17l2 1M15 13l2 1M20 19l2 1'),
   '🍅':C(16,18,10,RD)+P('M11 9l5 3 5-3-2 5h-6Z',GR)+P('M16 9V5')+P('M10 16q1-3 4-4',WH),
   '🍆':P('M22 6q4 4 0 13t-14 9q-4-3 1-11T22 6Z',PU)+P('M20 4q-1 3 2 4l4-2-2-3Z',GR),
+  '🍋':P('M27 9q-4-5-9-2',)+P('M20 7q3-5 8-3-2 5-8 3Z',DG)+C(12,20,7.5,'#9ccc4a')+C(12,20,4.6,'#d9ec9a')+P('M12 15.4v9.2M7.4 20h9.2M8.8 16.8l6.4 6.4M15.2 16.8l-6.4 6.4','#9ccc4a')+C(22.5,16,5.5,OR)+P('M20 13.5q1.5-1 3-.5',WH),
+  '🍐':P('M16 7q-4 0-4 6-6 3-6 8 1 8 10 8t10-8q0-5-6-8 0-6-4-6Z','#c9dc7a')+P('M16 7q0-3 2-4M18 5q4-2 6 1-4 2-6-1Z',DG)+P('M11 18q1-3 3-4',WH),
+  '🍌':P('M5 9q1 14 13 16 7 1 10-3-2-1-6 0-11-2-5-4-6-11Z',YE)+P('M8 10q3 11 14 12',)+P('M9 7q5 12 17 9-4-2-9-3-6-4-8-6Z','#e9cf3c')+P('M5 9l-1-3 3-1 1 3Z',BR),
   '🥭':P('M8 14q4-9 13-7t6 11-12 10T8 14Z',OR)+P('M21 7q2-3 5-2',DG)+P('M12 12q2-2 4-2',YE),
   '🥕':P('M7 27q1-9 13-18l3 3Q14 26 7 27Z',OR)+P('M20 9q1-5 4-6M22 10q4-3 7-2M21 9q-3-4-2-7',DG)+P('M11 21l2 1M14 17l2 1'),
   '🎃':E(16,18,12,9,OR)+P('M16 9v18M10 10q-3 8 0 16M22 10q3 8 0 16')+P('M15 9q0-4 3-5',DG),

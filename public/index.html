@@ -9615,6 +9615,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:52,date:'Nov 12, 2026',title:'Clearer animal icons',items:['🐐 The animal pictures on the buttons are redrawn so each is easy to tell apart: the goat has its beard, swept-back horns and long legs; the cow its black patches, horns and udder; the pig its snout and curly tail; the hen and rooster their red combs (and the rooster his tall tail); the duck its flat orange bill; and the tilapia its fins and stripes.']},
   {v:50,date:'Nov 12, 2026',title:'Old dirt roads and tidy gates',items:['🛤️ The farm roads are back to their old dirt look. Where each animal track and footpath meets the service road, the surfaces no longer flicker.','🚪 Every animal area\'s gate is rebuilt: the fence stops flush at two square posts, two gate leaves fold back flat inside, and the name board stands beside the gate facing the road, clear of the road and of the gate.']},
   {v:49,date:'Nov 12, 2026',title:'A tidier home farm',items:['🌱 The field\'s ploughed rows now run unbroken from plot to plot, the soil varies a little from plot to plot, and low edging boards on stakes frame the beds.','💧 The irrigation canal in front of the field is lined with stone lips and grassy banks, with a slatted footbridge and two flush plank crossings. A hose reel, a bucket, a watering can and a hoe and rake sit on the grass edge beside the beds.','🌳 Young orchard trees now start as staked saplings (bananas as small suckers) before growing into full trees. Every plot has a marker stake, ripe trees get a picking basket and a windfall or two, and trodden paths run between the rows and past the kubol.','🛤️ The footpaths are packed earth, and the farm canal\'s road crossing is a culvert slab with pipe mouths in its headwalls.']},
   {v:48,date:'Nov 12, 2026',title:'A fuller orchard',items:['🌳 The halamanan now has 54 plots instead of 18, planted closer together like a real orchard: four rows across, 3 m apart, and fourteen along it. Your trees moved to the nearest new plot and keep their growth.','🗺️ The orchard menu shows all plots as a small map laid out like the orchard; tap one to switch.']},
@@ -10074,6 +10075,62 @@ portraitMQ.addEventListener('change',()=>{resize(); if(!portraitMQ.matches){ptrs
   '🪑':P('M9 3h4v13H9ZM9 16h15v4H9Z',WD)+P('M10 20v9M22 20v9M9 7h4M9 11h4'),
   '📊':R(4,4,24,24,WH,2)+R(8,16,4,8,BL,0)+R(14,10,4,14,GR,0)+R(20,13,4,11,OR,0),
   };
+  // farm animals redrawn as clear side views (faces for the dairy cow and the pig) with the features that tell them apart:
+  // the goat's beard, swept-back horns and long legs, the cow's patches, horns and udder, the pig's snout and curly tail, combs, bills and fins
+  const N=(d,f)=>`<path d="${d}" fill="${f}" stroke="none"/>`;
+  const NEW_ANIMALS=(H)=>{const {K,WH,PK,DK,OR,YE,RD,GR,DG,BL,DB,BR,TN,GY,P,C,E,R,N}=H;
+ const leg=(x,y,h,f,w=2.2)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx=".6" fill="${f}" stroke-width="1.1"/>`+N(`M${x-.3} ${y+h-1.5}h${w+.6}v1.9h-${w+.6}Z`,K);   // a leg (thin outline) with a dark hoof
+ return {
+ // cow: boxy body with black patches, horned head with a pink muzzle, udder, tufted tail
+ '🐄': P('M4 13q-2 4-1 9',)+C(3,22.5,1.1,K)
+   +leg(6.5,19,8.5,WH)+leg(10,19,8.5,WH)+leg(18.5,19,8.5,WH)+leg(22,19,8.5,WH)
+   +P('M4 12.5q0-3 3.5-3h13q3.5 0 4 3.5l.3 6q0 2.6-2.8 2.6H7q-3 0-3-3Z',WH)
+   +P('M8 10q4 .5 3.5 4.5T7 18q-2-2-1.5-5T8 10Z',K)+P('M15.5 13q3.5-1 4.5 2t-2.5 4q-3-.2-2-6Z',K)
+   +E(17,21.6,2.3,1.4,PK)
+   +P('M23.5 8.5q4-1.5 6 1.5l1.2 5.6q.3 2.4-2.2 2.4h-2.6q-2.2 0-3-2.6Z',WH)+E(28.6,16,2.6,2,PK)+C(29.2,15.6,.45,K)
+   +P('M24.5 9q-1.2-3.4 1.2-4.6M28 9.3q.8-3.2 3.3-3.4',)+P('M23.6 10.2l-3.3.6 2.6 1.6Z',WH)+C(26.4,11.4,.75,K),
+ // cow face for the dairy: broad white face, black patch, big pink muzzle, horns and side ears
+ '🐮': P('M10 7q6-2 12 0l1.5 9q1 3-1 5H9.5q-2-2-1-5Z',WH)+P('M17 7.3q4 0 5 1.5l.8 5q-3 1-5-2T17 7.3Z',K)
+   +P('M9 9.5l-6-1q0 4 5 4ZM23 9.5l6-1q0 4-5 4Z',WH)+P('M10 7q-2-4 0-5.5M22 7q2-4 0-5.5',)
+   +E(16,22.5,8,5.5,PK)+E(13,22.5,1.1,1.6,K)+E(19,22.5,1.1,1.6,K)+C(12.5,13,1.2,K)+C(19.5,13,1.2,K),
+ // pig: round pink body, snout disc, floppy ear, curly tail, short legs
+ '🐖': P('M4.5 15q-3-1-2-3.5t2.5 0',)
+   +leg(7.5,20.5,6.5,PK,2.4)+leg(11,20.5,6.5,PK,2.4)+leg(18.5,20.5,6.5,PK,2.4)+leg(22,20.5,6.5,PK,2.4)
+   +P('M4 17q0-7 9-7h8q6 0 7 5.5t-4 7.5H9q-5 0-5-6Z','#f3aaa1')
+   +P('M26.5 14.5h3q1.6 0 1.6 2t-1.6 2h-3Z','#e98f87')+C(29.4,15.8,.45,K)+C(29.4,17.4,.45,K)+C(24.6,13.4,.75,K)
+   +P('M22.5 10.6l1.8-3.6 2.5 4.6q-1.6 1.6-4.3-1Z','#e98f87'),
+ // pig face: wide pink head, floppy triangle ears folding forward, big snout with nostrils
+ '🐷': P('M5 16q0-10 11-10t11 10-11 11T5 16Z','#f3aaa1')+P('M7 9.5l-2-6.5 7 3.5ZM25 9.5l2-6.5-7 3.5Z','#e98f87')
+   +E(16,19.5,6,4.2,'#e98f87')+E(14,19.5,1,1.6,K)+E(18,19.5,1,1.6,K)+C(11,13,1.2,K)+C(21,13,1.2,K),
+ // goat: lean brown body, long thin legs, short upright tail, head with swept-back horns, side ear and a beard
+ '🐐': P('M6.4 12.6l-2.3-3.3 1.4-.6 2.2 2.6','#d3a86f')
+   +leg(7.6,18,10,'#c99b64',1.7)+leg(10.6,18,10,'#c99b64',1.7)+leg(18.2,18,10,'#c99b64',1.7)+leg(21,18,10,'#c99b64',1.7)
+   +P('M5.8 14.2q0-3.2 3.5-3.2h10.5q3.6 0 4 3.2v3.6q0 2.4-2.8 2.4H8.8q-3 0-3-2.6Z','#d3a86f')+N('M8 12.2q5 1 10.5 0v1.6q-5 1-10.5 0Z','#bd8f58')
+   +P('M19.5 12.6l3-5.6q1.1-2.2 3.4-2.2t3.1 2l1.5 3.8q.5 1.7-.9 2.5l-1.9.9q-1.5.5-2.2-.9L24.2 10l-1.6 4.4Z','#d3a86f')
+   +P('M25.3 5.3q-1.2-3.6-5-3.4 2.9 1.5 3.2 4.6Z','#8a7a66')+P('M23.8 7.8l-3.8 1 2.9 1.8Z','#c99b64')
+   +P('M28.7 13.4q.5 3.4-1.5 4.8-.9-2.6.1-4.7Z',DK)+C(26.4,7.8,.75,K)+C(29.6,11.2,.4,K),
+ // hen: plump body, tail tipped up, red comb and wattle, small beak, yellow legs
+ '🐔': P('M12 26v3.5M17 26v3.5M10.5 29.5h3M15.5 29.5h3',)
+   +P('M4 13q4 1 6 4 3-3 9-3 4 0 5 3v4q-1 6-9 6-10 0-11-14Z',WH)+P('M8 18q5 5 11 0',)
+   +P('M19.5 17V10q0-5 4.5-5t4.5 5q0 3-2 4.5Z',WH)+P('M21.5 5.3q.5-2.6 2-2.3 0 1.6 1.2.8.8-1.4 2 0 .4 1.6-1 2.6Z',RD)
+   +P('M28.5 9l3 1.3-3 1.1Z',OR)+P('M27.5 12q1.3 3-.8 3.6-1-1.8.8-3.6Z',RD)+C(25.6,8.6,.8,K),
+ // rooster: copper body, big arched dark tail feathers, tall red comb and long wattles
+ '🐓': P('M12 26v3.5M17 26v3.5M10.5 29.5h3M15.5 29.5h3',)
+   +P('M10.5 17q-8-2-8.5-11 5 2 6.5 6-1-6 3-9 1 6 2 9',DB)+P('M9 13q-4-5-2-10 3 3 3 8',DG)
+   +P('M9 15q2-2 9-2 5 0 6 4v4q-1 6-8 6-8 0-7-12Z',OR)+P('M10 19q5 4 10 0',)
+   +P('M19.5 17V10q0-5 4.5-5t4.5 5q0 3-2 4.5Z','#e2733b')+P('M20.5 5.8q0-3.6 2-3.4.3 2 1.3 1.1.6-2.2 2-1.3.3 2.2 1.4 1.4.6 2.2-1 3.2Z',RD)
+   +P('M28.5 9l3 1.3-3 1.1Z',YE)+P('M27.3 12q1.8 4-.8 5-1.4-2.6.8-5Z',RD)+C(25.6,8.6,.8,K),
+ // duck: boat-shaped white body, tail tip, curved neck, green head, long flat orange bill, webbed feet
+ '🦆': P('M13 25.5v3M18 25.5v3',OR)+P('M11 28.5h4l-2 1.4ZM16 28.5h4l-2 1.4Z',OR)
+   +P('M3 13l4 3.5q2-1 6-1h5q3 0 4-3l2 1.5q1 5-2 8.5-3 3-10 3-8 0-9-12.5Z',WH)+P('M9 19q5 3 11 0',)
+   +P('M21.5 15q-1-4 0-7 1.2-3.5 4.5-3.5t4 3.5q0 2-1.5 3l-2.5 1.3q-1 1.5-.5 4Z',DG)+P('M21.6 13.2q2.5 1 4.3-.3',WH)
+   +P('M28.6 8.2q2.7 0 3 1.2t-3 1.4Z',OR)+C(25.6,7.6,.8,K),
+ // tilapia: deep grey-green body with dark bars, spiny dorsal fin, tail fin, gill line and eye
+ '🐟': P('M8 11.5q4-6 11-5.5l2-1.8 1 2.6q2 1 3.5 3',BL)
+   +P('M3 16q4-8 13-8t11 6l3.6-4.6v13.2L27 18q-3 6-11 6T3 16Z','#7f9c94')+N('M9.2 10.2h1.8v12h-1.8ZM13.7 8.6h1.8v15h-1.8ZM18.2 8.9h1.8v14h-1.8Z','#5f7d75')+P('M3 16q4-8 13-8t11 6l3.6-4.6v13.2L27 18q-3 6-11 6T3 16Z')
+   +P('M8 12q1.8 4 0 8',)+P('M13 22q2 4 5 2.6',)+C(6.5,14.5,1.3,WH)+C(6.6,14.5,.6,K),
+ };};
+  Object.assign(I,NEW_ANIMALS({K,WH,PK,DK,OR,YE,RD,GR,DG,BL,DB,BR,TN,GY,P,C,E,R,N}));
   // regional flags: the PH flag
   I['🇵🇭']=P('M3 7h26v18H3Z',WH)+P('M3 7h26v9H3Z',DB)+P('M3 16h26v9H3Z',RD)+P('M3 7l12 9-12 9Z',WH)+C(8,16,2,YE);
   const keys=Object.keys(I), norm=k=>k.replace(/️/g,''), ID={}; keys.forEach((k,i)=>ID[norm(k)]='si'+i);

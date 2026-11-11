@@ -2747,7 +2747,7 @@ function lnNet(){ // built on first use, once every road, store and stop exists
   if(LN.built) return !LN.broken; LN.built=true; try{lnBuild(); return true;}catch(e){LN.broken=true; console.error('lane network failed to build',e); if(typeof gameHealth!=='undefined'&&gameHealth.errors) gameHealth.errors.push('lanes: '+e.message); return false;}
 }
 // Shared geometry for the expansion roads; southwest farm and southeast shoreline stay untouched.
-const SOUTH_ROADS={nodes:{entry:[140,-110],north:[140,-80],nw:[54,-80],ne:[190,-80],mw:[54,40],mc:[112,40],me:[190,40],sw:[54,90],sc:[112,90],utility:[150,90],se:[190,90],pw:[112,150],lf:[54,150]},edges:[['entry','north'],['nw','north'],['north','ne'],['nw','mw'],['mw','sw'],['mw','mc'],['mc','me'],['me','ne'],['me','se'],['sw','sc'],['sc','utility'],['utility','se'],['mc','sc'],['sc','pw'],['pw','lf'],['lf','sw']]};   // pw/lf: the road out to the power plant and the landfill
+const SOUTH_ROADS={nodes:{entry:[140,-110],north:[140,-80],nw:[54,-80],ne:[190,-80],mw:[54,40],mc:[112,40],me:[190,40],sw:[54,90],sc:[112,90],utility:[150,90],se:[190,90],pw:[112,150],lf:[54,150],vw:[112,212],ve:[196,212],vn:[196,154]},edges:[['entry','north'],['nw','north'],['north','ne'],['nw','mw'],['mw','sw'],['mw','mc'],['mc','me'],['me','ne'],['me','se'],['sw','sc'],['sc','utility'],['utility','se'],['mc','sc'],['sc','pw'],['pw','lf'],['lf','sw'],['pw','vw'],['vw','ve'],['ve','vn'],['vn','pw']]};   // pw/lf: the road out to the power plant and the landfill
 function southRoadPoints(a,b){
   const A=SOUTH_ROADS.nodes[a],B=SOUTH_ROADS.nodes[b],dx=B[0]-A[0],dz=B[1]-A[1],len=Math.hypot(dx,dz),n=Math.ceil(len/2),east=[a,b].includes('me')&&[a,b].includes('ne'),south=[a,b].includes('sw')&&[a,b].includes('sc');
   return Array.from({length:n+1},(_,i)=>{const t=i/n,d=t*len,u=Math.max(0,Math.min(1,(d-12)/(len-24)));return [A[0]+dx*t+(east?16*Math.sin(Math.PI*u)**2:0),A[1]+dz*t+(south?4*Math.sin(Math.PI*u)**2:0)];});
@@ -3528,7 +3528,8 @@ const WW_CLEAR=[[3.8,[268,-252],[276,-236],[290,-218],[307,-202],[315,-191],[315
 function wwNear(x,z,m){for(const [w,...P] of WW_CLEAR) for(let i=0;i<P.length-1;i++){const [ax,az]=P[i], [bx,bz]=P[i+1], dx=bx-ax, dz=bz-az, L=dx*dx+dz*dz||1, t=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/L)); if(Math.hypot(x-ax-dx*t,z-az-dz*t)<w+m) return true;} return false;}
 // Visual-only irrigation site and maintenance approach; keep procedural foliage clear.
 // Southeast utilities parcel and its maintenance path, reserved from procedural foliage.
-function irrigationSite(x,z,m=0){m=Math.max(0,m);return (x>-11-m&&x<36+m&&z>-155-m&&z<-118+m)||   // the rice mill and the cold storage
+function irrigationSite(x,z,m=0){m=Math.max(0,m);return (x>116-m&&x<193+m&&z>156-m&&z<228+m)||   // the workers' village
+  (x>-11-m&&x<36+m&&z>-155-m&&z<-118+m)||   // the rice mill and the cold storage
   (x>335-m&&x<362+m&&z>-188-m&&z<-159+m)||(x>362-m&&x<426+m&&z>-270-m&&z<-176+m)||(x>364-m&&x<368+m&&z>-228-m&&z<-158+m)||   // the fire station, the hospital, the evacuation center
   (x>2-m&&x<60+m&&z>-248-m&&z<-188+m)||(x>58-m&&x<98+m&&z>-240-m&&z<-212+m)||   // the school and the health center
   (x>118-m&&x<190+m&&z>100-m&&z<146+m)||(x>58-m&&x<108+m&&z>154-m&&z<215+m)||(x>44-m&&x<51+m&&z>-32-m&&z<-2+m)||(x>59-m&&x<107+m&&z>46-m&&z<85+m)||(x>111-m&&x<184+m&&z>-73-m&&z<34+m)||(x>60-m&&x<108+m&&z>-70-m&&z<28+m)||southRoadNear(x,z,m)||(x>120-m&&x<180+m&&z>52-m&&z<78+m);}
@@ -8643,6 +8644,111 @@ const AGRO=(()=>{
   return {fleet,update(dt,t){if(document.hidden||!lnNet()) return; for(const T of fleet) truckTick(T,dt); for(const w of people) workerTick(w,dt,t);}};
 })();
 
+/* ---------- The workers' village (masterplan phase 5): row houses, a daycare, a court, a poso and the service shuttle ----------
+   South of the power plant, on a street loop off the power-plant road. Before six the workers walk to the waiting shed and the
+   service shuttle takes them out to work; after five it brings them home. In the day the children play at the daycare while
+   their mothers sweep, hang the washing and pump water at the poso. */
+const VILLAGE=(()=>{
+  const r=rng(5150), b=[], B=(x,y,z,w,h,d,c,rx=0,ry=0,rz=0)=>b.push(P('box',c,x,y,z,w,h,d,rx,ry,rz)), C=(x,y,z,rad,h,c,rx=0,ry=0,rz=0)=>b.push(P('cyl',c,x,y,z,rad*2,h,rad*2,rx,ry,rz));
+  const WALLS=[0xfff3e0,0xe3f2fd,0xfce4ec,0xf1f8e9,0xfffde7,0xede7f6,0xe0f2f1,0xfbe9e7], ROOFS=[0xc62828,0x1565c0,0x2e7d32,0x6d4c41,0x00838f,0xbf360c,0x4527a0,0x37474f];
+  // ===== row houses: blocks of four, a hipped GI roof, a door and a window each, a low wall and a yard in front =====
+  const UW=4.6;
+  const block=(cx,cz,face,k)=>{const q=[], Q=(t,c,x,y,z,w,h,d,rx=0,ry=0,rz=0)=>q.push(P(t,c,x,y,z,w,h,d,rx,ry,rz));
+    for(let i=0;i<4;i++){const ux=(i-1.5)*UW, col=WALLS[(k*3+i)%WALLS.length];
+      Q('box',col,ux,1.45,0,UW-.05,2.9,6.4); Q('box',0x6d4c41,ux-1,1.05,3.22,.9,2,.06); Q('box',0xffffff,ux+.9,1.65,3.21,1.36,1.06,.05); Q('box',0x2b3a48,ux+.9,1.65,3.24,1.2,.9,.04);
+      Q('box',0xbdbdbd,ux-1,.08,3.9,1.4,.16,1.2); Q('box',0xc9c0ad,ux,.03,4.6,UW-.1,.04,2.6);   // step and yard
+      if((i+k)%3===0) Q('cyl',0x1565c0,ux+1.7,.45,4.9,.7,.9,.7);   // water drum
+      if((i+k)%2===0){Q('box',0x8d6e4b,ux-2,.9,5.6,.06,1.8,.06); Q('box',0x8d6e4b,ux+2,.9,5.6,.06,1.8,.06); Q('box',0xeeeeee,ux,1.75,5.6,4,.02,.02);
+        [0xe53935,0x1e88e5,0xfdd835,0xffffff].forEach((c,j)=>Q('box',c,ux-1.4+j*.95,1.5,5.6,.5,.45,.03));}   // sampayan
+      Q('box',0xd7ccc8,ux+.75,.45,6,UW-2.1,.9,.18);}
+    for(let i=0;i<5;i++) Q('box',0xffffff,(i-2)*UW,1.45,0,.14,2.95,6.5);
+    Q('pyr',ROOFS[k%ROOFS.length],0,3.6,0,4*UW+.8,1.4,7.4); Q('box',0xeeeeee,0,.1,0,4*UW+.2,.2,6.6);
+    const g=new THREE.Mesh(mergeGeo(q),VCMAT); g.castShadow=g.receiveShadow=true; g.position.set(cx,0,cz); g.rotation.y=face>0?0:Math.PI; scene.add(g);
+    const W=(lx,lz)=>face>0?[cx+lx,cz+lz]:[cx-lx,cz-lz];
+    const out=[]; for(let i=0;i<4;i++){const ux=(i-1.5)*UW, dr=W(ux-1,3.6), gt=W(ux-1,6.6); out.push({door:dr,gate:gt,yard:W(ux+.4,4.6),line:W(ux,5.1),face}); const l=W(ux-1,4); glow(scene,l[0],2.3,l[1],1.6,GM.warm);}
+    return out;};
+  // inside the loop facing the north road, facing the south road, and the row outside the loop facing in
+  const homes=[[152,163,-1],[174,163,-1],[130,201,1],[152,201,1],[174,201,1],[130,223,-1],[152,223,-1],[174,223,-1]].flatMap(([x,z,f],k)=>block(x,z,f,k));
+  // ===== the daycare: a bright single-storey school room, a fenced playground with a slide, swings, a seesaw and a sandbox =====
+  B(130,.04,175,22,.08,30,0xc6d3a3);
+  B(130,1.6,166,16,3.2,8,0xfff176); b.push(P('pyr',0xe53935,130,3.9,166,17,1.5,9)); B(130,.12,166,16.4,.24,8.4,0xeeeeee);
+  B(130,1.1,161.96,1,2.1,.06,0x1e88e5); for(const x of [124,127,133,136]){B(x,1.7,161.95,1.6,1,.06,0xffffff); B(x,1.7,161.92,1.4,.85,.05,0x2b3a48);}
+  for(const [x,c] of [[122.6,0xe53935],[125,0x43a047],[135,0x1e88e5],[137.4,0xfdd835]]) B(x,2.5,161.93,.8,.8,.05,c);   // painted ABC blocks over the windows
+  B(130,.05,181,20,.06,15,0x5aa469);   // rubber mat
+  {const x=124,z=180; B(x,1.6,z,1.6,.12,4.2,0xe53935,-.62,0,0); B(x,1.2,z-2.6,1.4,2.4,1.2,0x1e88e5); for(let y=.3;y<2.4;y+=.4) B(x,y,z-3.3,1.2,.06,.1,0xfdd835);}   // slide
+  {const x=131,z=184; for(const sx of [-2.4,2.4]){B(x+sx,1.3,z-.8,.12,2.7,.12,0xfdd835,.3,0,0); B(x+sx,1.3,z+.8,.12,2.7,.12,0xfdd835,-.3,0,0);} B(x,2.55,z,5,.14,.14,0xfdd835);
+    for(const sx of [-1.1,1.1]){B(x+sx,1.55,z,.03,2,.03,0x555555); B(x+sx,.55,z,.8,.08,.4,0xe53935);}}   // swings
+  {const x=136,z=178; B(x,.25,z,.3,.5,.3,0x6d4c41); B(x,.55,z,.3,.08,4,0x43a047,.12,0,0);}   // seesaw
+  B(136,.12,186,3.6,.2,3.6,0xe9d8a6); for(const [sx,sz] of [[-1.8,0],[1.8,0],[0,-1.8],[0,1.8]]) B(136+sx,.2,186+sz,sx?.15:3.7,.3,sz?.15:3.7,0x1e88e5);   // sandbox
+  for(const [a,c] of [[[119,160.5],[141,160.5]],[[141,160.5],[141,190]],[[141,190],[119,190]],[[119,190],[119,160.5]]]){const len=Math.hypot(c[0]-a[0],c[1]-a[1]), n=Math.ceil(len/1.2);
+    for(let i=0;i<=n;i++){const f=i/n, x=a[0]+(c[0]-a[0])*f, z=a[1]+(c[1]-a[1])*f; if(z<161&&x>128&&x<132) continue; B(x,.5,z,.16,1,.16,[0xe53935,0xfdd835,0x1e88e5,0x43a047][i%4]);}}
+  boardSign(['DAYCARE CENTER','Sunfield Workers\' Village'],'#e53935','#fff',130,159.4,0,4.4,1,2.4,0x3b4a3f,false);
+  // ===== the middle of the village: a half court, the poso, a sari-sari store, the waiting shed by the west road =====
+  B(168,.06,183,18,.06,14,0xb8b3a6); B(168,.09,182,.1,.02,10,0xffffff); B(168,1.8,176.6,.18,3.6,.18,0x37474f); B(168,3.6,177,1.8,1.1,.08,0xffffff); C(168,3.05,177.6,.3,.04,0xe65100);   // half court
+  for(const x of [160.6,175.4]) B(x,.25,183,.5,.5,10,0x8d6e4b);   // benches either side
+  B(150,.06,184,4,.08,4,0x9e9e9e); B(150,.6,184,.3,1.2,.3,0x37474f); B(150,1.1,184.3,.12,.12,.8,0x37474f,-.4,0,0); B(150,.25,184.6,.8,.3,.5,0x78909c);   // poso
+  B(186,1.4,180,6,2.8,6,0xfffde7); b.push(P('pyr',0x2e7d32,186,3.5,180,7,1.3,7)); B(182.96,1.5,180,.06,1.1,3,0x2b2b2b); B(182.6,.95,180,.6,.1,3.4,0xfbc02d);
+  for(let i=0;i<6;i++) B(182.94,1.85,178.8+i*.45,.04,.3,.16,[0xe53935,0x1e88e5,0x43a047,0xfdd835][i%4]);   // sari-sari with its window shelf
+  B(118.2,2.4,189,3,.12,6,0x1e88e5); for(const z of [186.4,191.6]) B(119.4,1.2,z,.15,2.4,.15,0x9e9e9e); B(119.4,1.2,189,.12,.6,5,0xbdbdbd); B(118.6,.45,189,.5,.1,4.6,0x8d6e4b);   // waiting shed
+  boardSign(['SUNFIELD WORKERS\' VILLAGE','Pabahay ng Manggagawa'],'#2e7d32','#fff',117.6,156.6,-Math.PI/2,4.8,1,2.4,0x3b4a3f,false);
+  for(const [x,z] of [[146,172],[146,194],[190,170],[190,194],[120,196],[160,208.5],[188,208.5]]){C(x,1,z,.18,2,0x6b4a2a); b.push(P('sph',[0x4f8a3c,0x5a9a40,0x3f7a33][(x+z)%3|0],x,2.8,z,3.2,2.6,3.2));}   // a few shade trees
+  const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.castShadow=m.receiveShadow=true; m.name='Workers village'; scene.add(m);
+  for(const [x,y,z] of [[130,2.6,161.6],[118.4,2.3,189],[182.7,2.4,180],[168,3.6,176.4]]) glow(scene,x,y,z,2.6,GM.warm);
+  {const q=bakePerson((()=>{const L=randLook(r); L.bag=null; L.hair=0xdddddd; return L;})(),poseSit); q.position.set(118.6,.15,190.6); q.rotation.y=-Math.PI/2; scene.add(q);}   // lolo on the shed bench
+
+  // ===== the service shuttle and the workers who ride it =====
+  const SHED=[118.8,189], look=(o={})=>{const L=randLook(r); L.bag=null; Object.assign(L,o); return L;};
+  const van=makeCar('l300',0xf5f5f5); van.visible=false; van.add(part(1.9,.18,4.5,0x2e7d32,0,.95,-.1));
+  {const s=signPlane(['SERVICE · SUNFIELD'],'#2e7d32','#fff',2.6,.36,512,72); for(const sd of [-1,1]){const q=s.clone(); q.position.set(sd*.9,1.5,-.2); q.rotation.y=sd*Math.PI/2; van.add(q);}}
+  const sh={state:'idle',run:'',day:-1,lv:null,timer:0};
+  const picks=[0,5,9,12,17,22,26,30].map(i=>homes[i]);
+  const riders=picks.map((h,k)=>{const p=makePerson(look({top:[0x1e6fb8,0x2e7d32,0x7f8c8d,0xc0392b][k%4]})); p.root.visible=false; scene.add(p.root); return {p,h,state:'home',path:null,i:0,ph:r()*6,wait:[SHED[0]+.6+(k%4)*.7,SHED[1]-2.4+(k>>2)*4.8]};});
+  const walkTo=(w,dt,sp=1.2)=>{const R=w.p.root; if(!w.path||w.i>=w.path.length) return true; const q=w.path[w.i], dx=q[0]-R.position.x, dz=q[1]-R.position.z, d=Math.hypot(dx,dz);
+    if(d<.08){w.i++; return w.i>=w.path.length;} const st=Math.min(d,dt*sp); R.position.x+=dx/d*st; R.position.z+=dz/d*st; R.position.y=.1; R.rotation.y=lerpAng(R.rotation.y,Math.atan2(dx,dz),Math.min(1,dt*8)); w.ph+=st*5.6; poseWalk(w.p,w.ph); return false;};
+  const streetX=115.4, route=(h,w)=>[h.gate,[streetX,h.gate[1]],w.wait];   // out the gate, along the verge of the west road, to the shed
+  const init=()=>{const hr=gameHour(); for(const w of riders) if(hr>=6.6&&hr<17.6) w.state='away';};
+  init();
+  const park=v=>{const L=LN.by['south:vw>pw']; if(!L) return false; let best=0,bd=1e9; for(let k=0;k<L.pts.length;k++){const d=Math.hypot(L.pts[k][0]-113.85,L.pts[k][1]-189); if(d<bd){bd=d; best=L.cum[k];}}
+    lnGo(v,[L],best); v.v=0; lnStopAt(v,113.85,189); return true;};
+  const shuttleTick=(dt,t)=>{if(!sh.lv){sh.lv=lnVeh(van,{len:4.9,width:2.1,vmax:10,acc:1.6}); const h=gameHour(); if((h>=18||h<6)&&park(sh.lv)) sh.state='parked';} const v=sh.lv, h=gameHour(), day=gameDayN();
+    if(sh.state==='idle'){if(!(h>=15.3&&h<17.5)||sh.day===day) return; sh.timer-=dt; if(sh.timer>0) return; sh.timer=3;   // the evening run brings the workers home
+      const P=lnPath('LE:66','south:sc>pw','south:pw>vn','south:vn>ve','south:ve>vw','south:vw>pw');
+      if(P&&lnFreeAt(P[0],v.len/2,v.len,v,25)){lnGo(v,P,null,{v:9}); lnStopAt(v,113.85,189); sh.state='coming'; sh.day=day;}}
+    else if(sh.state==='coming'&&(v.atStop||v.done)){sh.state='stop'; riders.forEach((w,k)=>{if(w.state==='away'){w.state='alight'; w.delay=k*.9;}});}
+    else if(sh.state==='stop'){if(!riders.some(w=>w.state==='alight')) sh.state='parked';}   // parked for the night at the shed
+    else if(sh.state==='parked'){const morning=h>=5.9&&h<12; if(!morning) return;
+      riders.forEach(w=>{if(w.state==='wait'){w.state='away'; w.p.root.visible=false;}});
+      if(h>=6.9||h>=6.1&&!riders.some(w=>w.state==='going'||w.state==='home')){const P=lnPath('south:vw>pw','south:pw>sc','LW$'); if(P&&lnNext(v,P)) sh.state='leaving';}}
+    else if(sh.state==='leaving'&&v.done){lnHide(v); sh.state='idle'; sh.timer=0;}};
+  const riderTick=(dt)=>{const h=gameHour(); for(const w of riders){const R=w.p.root;
+    if(w.state==='home'&&h>=4&&h<6.5&&sh.state==='parked'){R.position.set(w.h.door[0],.1,w.h.door[1]); R.visible=true; w.path=route(w.h,w); w.i=0; w.state='going';}
+    else if(w.state==='going'){if(walkTo(w,dt,1.45)){w.state='wait'; R.rotation.y=-Math.PI/2;}}
+    else if(w.state==='wait'){poseStand(w.p,performance.now()/1000+w.ph); if(h>=7.2&&sh.state!=='parked'){w.path=route(w.h,w).slice().reverse(); w.i=0; w.state='back';}}   // missed it: home again
+    else if(w.state==='alight'){w.delay-=dt; if(w.delay<=0){R.position.set(SHED[0]+.4,.1,SHED[1]); R.visible=true; w.path=route(w.h,w).slice(0,2).reverse().concat([w.h.door]); w.i=0; w.state='back';}}
+    else if(w.state==='back'){if(walkTo(w,dt,1.0)){R.visible=false; w.state='home';}}
+    else if(w.state==='away'&&(h>=19.5||h<5)&&sh.state!=='coming'&&sh.state!=='stop'){w.state='home';}}};   // the shuttle never came: they are home anyway
+
+  // ===== the people who stay in the village in the daytime =====
+  const kid=o=>look({h:.62+r()*.12,...o});
+  const H=i=>homes[i];
+  const people=[
+    makeWorker(look({top:0xf06292,f:true}),[{to:[124,164],act:'stand',dur:3},{path:[[124,170]],act:'write',dur:10,face:[130,178]},{path:[[130,175]],act:'wave',dur:4,face:[131,184]},{path:[[128,170]],act:'stand',dur:6,face:[124,180]}],{y:.1,day:true}),   // the daycare teacher
+    makeWorker(kid({top:0xfdd835}),[{to:[124,183.6],act:'stand',dur:2},{path:[[124,178.6]],act:'crouch',dur:2},{path:[[121.6,177],[121.6,183.6]],act:'wave',dur:2,face:[124,180]}],{y:.1,day:true,sp:1.4}),
+    makeWorker(kid({top:0xe53935,f:true}),[{to:[130,184],act:'stand',dur:5,face:[131,184.8]},{path:[[132.2,184]],act:'stand',dur:5,face:[131,184.8]},{path:[[134,182]],act:'wave',dur:2}],{y:.1,day:true,sp:1.3}),
+    makeWorker(kid({top:0x1e88e5}),[{to:[136,186],act:'crouch',dur:9,face:[136.4,186]},{path:[[135,186.6]],act:'crouch',dur:8,face:[136,186]},{path:[[136,180]],act:'stand',dur:3}],{y:.1,day:true,sp:1.3}),
+    makeWorker(kid({top:0x43a047,f:true}),[{to:[136,176],act:'crouch',dur:4,face:[136,178]},{path:[[136,180.4]],act:'crouch',dur:4,face:[136,178]},{path:[[127,176]],act:'wave',dur:3}],{y:.1,day:true,sp:1.4}),
+    makeWorker(kid({top:0xff7043}),[{to:[128,178],act:'stand',dur:2},{path:[[134,181],[126,186],[128,178]],act:'wave',dur:1}],{y:.1,day:true,sp:1.8}),
+    // mothers at home: sweeping the yard, hanging the washing, pumping water at the poso
+    makeWorker(look({top:0xab47bc,f:true}),[{to:H(9).yard,act:'sweep',dur:10,face:H(9).door},{path:[H(9).gate,[150,184.9]],act:'pump',dur:9,face:[150,184]},{path:[H(9).gate,H(9).line],act:'wave',dur:8,carry:'pail',face:[H(9).line[0]+1,H(9).line[1]]}],{y:.1,day:true,sp:.9}),
+    makeWorker(look({top:0x26a69a,f:true}),[{to:H(14).line,act:'wave',dur:9,face:[H(14).line[0]+1,H(14).line[1]]},{path:[H(14).yard],act:'sweep',dur:9,face:H(14).door},{path:[H(14).gate,[150.4,185]],act:'pump',dur:8,face:[150,184]},{path:[H(14).gate,H(14).door],act:'stand',dur:6}],{y:.1,day:true,sp:.9}),
+    makeWorker(look({top:0xffa726,f:true}),[{to:H(1).yard,act:'sweep',dur:11,face:H(1).door},{path:[H(1).gate,[182,181.5]],act:'stand',dur:7,face:[186,180]},{path:[H(1).gate,H(1).door],act:'stand',dur:5}],{y:.1,day:true,sp:.9}),
+    makeWorker(look({top:0xfff176,f:true}),[{to:[184.4,180],act:'stand',dur:14,face:[180,180]},{path:[[184.4,178.6]],act:'write',dur:8,face:[180,180]}],{y:.1}),   // the sari-sari keeper
+    makeWorker(look({top:0xffffff}),[{to:[168,180.5],act:'wave',dur:2.5,face:[168,177.4]},{path:[[164,184]],act:'stand',dur:2},{path:[[171,183]],act:'wave',dur:2.5,face:[168,177.4]},{path:[[166,186.5]],act:'stand',dur:2}],{y:.1,day:true,sp:2.2}),   // a night-shift man shooting hoops
+  ];
+  for(const w of people) workerGo(w,w.steps[0]);
+  return {sh,riders,homes,update(dt,t){if(document.hidden||!lnNet()) return; shuttleTick(dt,t); riderTick(dt); for(const w of people) workerTick(w,dt,t);}};
+})();
+
 /* ---------- Stage H: the sea, the port (pantalan) and the bay trading business ---------- */
 if(!S.bay) S.bay={owned:false,stock:{},ship:null};
 const BAY_LV=12, BAY_PRICE=50000, BAY_RATE=1.6, SHIP_T={out:30,away:45,back:30};
@@ -8707,6 +8813,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:33,date:'Nov 11, 2026',title:'The workers\' village and its daycare',items:['🏘️ Sunfield Workers\' Village, south of the power plant on a new street loop: eight blocks of colourful row houses with GI roofs, little front yards, water drums and sampayan full of washing.','🚐 The service shuttle parks overnight at the waiting shed. Before dawn the workers walk out to it and ride off to work; in the late afternoon it brings them home and they walk back to their doors.','🧸 The Daycare Center has a fenced playground with a slide, swings, a seesaw and a sandbox; the children play there all day while the teacher keeps watch.','🪣 In the daytime mothers sweep their yards, hang the washing and pump water at the poso; there is a sari-sari store, a half court, shade trees, and a lolo on the shed bench.']},
   {v:32,date:'Nov 11, 2026',title:'A rice mill and cold storage across from the bagsakan',items:['🌾 Kiskisan · Sunfield Rice Mill, just west of the west road and across from the bagsakan: a steel mill shed with a bucket elevator, a rice-hull furnace and stack, a husk pile and pallets of milled rice.','🚚 Palay trucks (the mill\'s own, Mang Tonyo\'s and the farmers\' cooperative) come in from the highway in the daytime, back up to the mill dock while the cargadores load sacks, then drive off again.','☀️ A concrete drying floor with long beds of golden palay; workers rake it over through the day and sacks wait at the ends.','❄️ The cold storage next door keeps its blue reefer truck at the dock, with a worker loading it and a checker with a clipboard.']},
   {v:31,date:'Nov 11, 2026',title:'A fire station, a hospital and an evacuation center',items:['🚒 Sunfield Fire Station on the east road, past the police station: a drive-through bay, a drill tower and a yard. Firefighters sweep the bay, check the hoses and climb the tower. A few times a day the alarm goes, the crew runs to the truck and it drives out with lights flashing, round the town and back into its bay.','🏥 Sunfield Regional Hospital behind the fire station: three floors of wards, a rooftop helipad, an emergency bay with an ambulance and a triage nurse, visitor parking and a garden with benches.','🏟️ The Evacuation Center doubles as the town gym: an arched-roof hall, a basketball court with a running track and bleachers. Joggers circle the track and kids shoot hoops during the day; a tanod keeps the hall door.']},
   {v:30,date:'Nov 11, 2026',title:'A school and a health center for the barangay',items:['🏫 Sunfield Elementary School, west of the park: green-roofed classroom wings round a quadrangle with the flag and a stage, a covered court, a school garden, a canteen and a guard at the gate.','🎒 On school days (Monday to Friday) children in white shirts and backpacks walk from the barangay at dawn, stay in class, run round the quad at recess, and walk home after four. Teachers write and check on the corridors, the canteen lady serves, a gardener tends the gulayan.','🏥 The Barangay Health Center, north of the park: a nurse and a doctor at work, patients waiting on the benches, a midwife who walks her round of the barangay, and the ambulance parked by the door.']},
@@ -8868,6 +8975,7 @@ function frame(now){
   SCHOOL_CLINIC.update(dt,t);
   HEALTH_EMERGENCY.update(dt,t);
   AGRO.update(dt,t);
+  VILLAGE.update(dt,t);
   updateFarmDispatch(Date.now(),dt);
   if(now-lastTick>300){lastTick=now; const d=Date.now(); updateVehicles(d); updateTravelHUD(d); for(let i=0;i<NT;i++){const s=S.tiles[i].s; if(s==='crop'||s==='bld') updateTile(i,d);}}
   popping.forEach(g=>{const k=Math.min(1,(now-g.userData.born)/380), e=easeBack(k);

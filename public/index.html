@@ -3528,7 +3528,8 @@ const WW_CLEAR=[[3.8,[268,-252],[276,-236],[290,-218],[307,-202],[315,-191],[315
 function wwNear(x,z,m){for(const [w,...P] of WW_CLEAR) for(let i=0;i<P.length-1;i++){const [ax,az]=P[i], [bx,bz]=P[i+1], dx=bx-ax, dz=bz-az, L=dx*dx+dz*dz||1, t=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/L)); if(Math.hypot(x-ax-dx*t,z-az-dz*t)<w+m) return true;} return false;}
 // Visual-only irrigation site and maintenance approach; keep procedural foliage clear.
 // Southeast utilities parcel and its maintenance path, reserved from procedural foliage.
-function irrigationSite(x,z,m=0){m=Math.max(0,m);return (x>116-m&&x<193+m&&z>156-m&&z<228+m)||   // the workers' village
+function irrigationSite(x,z,m=0){m=Math.max(0,m);return (x>-206-m&&x<-114+m&&z>-102-m&&z<100+m)||   // the expansion fields and greenhouses
+  (x>116-m&&x<193+m&&z>156-m&&z<228+m)||   // the workers' village
   (x>-11-m&&x<36+m&&z>-155-m&&z<-118+m)||   // the rice mill and the cold storage
   (x>335-m&&x<362+m&&z>-188-m&&z<-159+m)||(x>362-m&&x<426+m&&z>-270-m&&z<-176+m)||(x>364-m&&x<368+m&&z>-228-m&&z<-158+m)||   // the fire station, the hospital, the evacuation center
   (x>2-m&&x<60+m&&z>-248-m&&z<-188+m)||(x>58-m&&x<98+m&&z>-240-m&&z<-212+m)||   // the school and the health center
@@ -9001,6 +9002,105 @@ const UTIL_BUS=(()=>{
     const work=s=>staff.some(w=>w.job===s&&w.state==='work'), h=gameHour(); LANDFILL_WORKS.update(dt,t,work('backhoe')&&h>=6.3&&h<17.5,work('loader')&&h>=6.3&&h<17.5);}};
 })();
 
+/* ---------- Expansion fields and greenhouses (masterplan phase 6) ----------
+   West of the farm, between the highway and the hills: four tunnel greenhouses of tomatoes and lettuce with a packing shed and the
+   produce truck by the highway; rice paddies with their dikes and water; a corn field; vegetable beds with an ampalaya trellis; and a
+   field being ploughed row by row by a hand tractor (kuliglig) with its driver walking behind. An irrigation canal runs along the
+   east side, and a nipa hut gives the field hands shade. Everyone works by day. */
+const EXPANSION=(()=>{
+  const r=rng(6606), b=[], B=(x,y,z,w,h,d,c,rx=0,ry=0,rz=0)=>b.push(P('box',c,x,y,z,w,h,d,rx,ry,rz)), C=(x,y,z,rad,h,c,rx=0,ry=0,rz=0)=>b.push(P('cyl',c,x,y,z,rad*2,h,rad*2,rx,ry,rz));
+  const seg3=(bb,c,p0,p1)=>{const dx=p1[0]-p0[0], dy=p1[1]-p0[1]; bb.push(P('box',c,(p0[0]+p1[0])/2,(p0[1]+p1[1])/2,p0[2],Math.hypot(dx,dy)+.04,.08,.08,0,0,Math.atan2(dy,dx)));};
+  const DIRT=0x8b6a45, DIKE=0x8d7a55, STEEL=0x7c8285;
+  const inst=(geo,mat,list)=>{const im=new THREE.InstancedMesh(geo,mat,list.length), o=new THREE.Object3D(), c=new THREE.Color();
+    list.forEach((q,i)=>{o.position.set(q[0],q[1],q[2]); o.rotation.set(0,q[3]||0,q[6]||0); o.scale.set(q[4]||1,q[5]||1,q[4]||1); o.updateMatrix(); im.setMatrixAt(i,o.matrix); if(q[7]!=null) im.setColorAt(i,c.setHex(q[7]));});
+    im.castShadow=true; im.receiveShadow=true; scene.add(im); return im;};
+  // ===== the farm road from the highway, and the canal =====
+  B(-160,.05,-72,5,.06,60,0xa38b62); B(-160,.07,-72,.5,.04,60,0x8f7a52);   // the dirt road in from the highway, between the greenhouses and the packing shed
+  B(-118,.03,0,4.2,.04,196,0x8d7a55); B(-118,.06,0,2.6,.04,196,0x4f7f8f);   // the canal, its banks
+  for(const z of [-30,12,56]) B(-118,.3,z,3.2,.6,1.2,0xb8b3a6);   // footbridges / headgates
+  // ===== greenhouses: steel hoops, a translucent cover, end walls, rows of tomatoes and lettuce inside =====
+  const GH_X=[-197,-188,-179,-170], GH_Z=-72, GL=30, GR=3.4;
+  const cover=new THREE.MeshStandardMaterial({color:0xf2f7f3,transparent:true,opacity:.5,roughness:.4,side:THREE.DoubleSide,depthWrite:false});
+  const plants=[];
+  for(const x of GH_X){const t=new THREE.Mesh(new THREE.CylinderGeometry(GR,GR,GL,18,1,true,Math.PI/2,Math.PI),cover); t.rotation.x=Math.PI/2; t.position.set(x,1.1,GH_Z); scene.add(t);
+    for(const sd of [-1,1]){const w=new THREE.Mesh(new THREE.PlaneGeometry(GL,1.1),cover); w.rotation.y=Math.PI/2; w.position.set(x+sd*GR,.55,GH_Z); scene.add(w);
+      const e=new THREE.Mesh(new THREE.CircleGeometry(GR,18,0,Math.PI),cover); e.position.set(x,1.1,GH_Z+sd*GL/2); scene.add(e); const e2=new THREE.Mesh(new THREE.PlaneGeometry(GR*2,1.1),cover); e2.position.set(x,.55,GH_Z+sd*GL/2); scene.add(e2);
+      B(x,1.1,GH_Z+sd*GL/2,1.4,2.2,.06,0x7c8285);}   // doors at both ends
+    for(let k=0;k<=10;k++){const z=GH_Z-GL/2+k*GL/10; for(let a=0;a<12;a++){const t0=a/12*Math.PI, t1=(a+1)/12*Math.PI; seg3(b,STEEL,[x+GR*Math.cos(t0),1.1+GR*Math.sin(t0),z],[x+GR*Math.cos(t1),1.1+GR*Math.sin(t1),z]);} for(const sd of [-1,1]) B(x+sd*GR,.55,z,.08,1.1,.08,STEEL);}
+    B(x,4.5,GH_Z,.1,.1,GL,STEEL); B(x,.04,GH_Z,GR*2,.05,GL,0x7a5a3a);
+    const tomato=x===GH_X[0]||x===GH_X[2];
+    for(const dx of tomato?[-1.6,0,1.6]:[-2.2,-1.1,0,1.1,2.2]){B(x+dx,.12,GH_Z,.7,.2,GL-2,0x5d4129); for(let z=GH_Z-GL/2+1.5;z<GH_Z+GL/2-1;z+=tomato?.9:.55) plants.push([x+dx+(r()-.5)*.1,tomato?1.3:.38,z,r()*6,tomato?.55:.45,tomato?2.4:.6,0,tomato?0x3f8f3a:0x7cc25a]);}
+    if(tomato) for(const dx of [-1.6,0,1.6]) B(x+dx,2.2,GH_Z,.03,.03,GL-2,0xdddddd);}   // trellis wires
+  inst(new THREE.ConeGeometry(.5,1,6),new THREE.MeshStandardMaterial({roughness:.9}),plants);
+  {const red=[]; for(const x of [GH_X[0],GH_X[2]]) for(const dx of [-1.6,0,1.6]) for(let z=GH_Z-GL/2+1.5;z<GH_Z+GL/2-1;z+=.9) if(r()<.7) red.push([x+dx+(r()-.5)*.4,.7+r()*1.2,z+(r()-.5)*.3,0,.14,.14,0,r()<.8?0xd63a2b:0xf39c12]);
+    inst(new THREE.SphereGeometry(1,6,5),new THREE.MeshStandardMaterial({roughness:.5}),red);}
+  // ===== the packing shed and the produce truck =====
+  B(-150,.05,-88,16,.1,11,0xbdb6a6); for(const x of [-157,-150,-143]) for(const z of [-93,-83]) B(x,2.1,z,.25,4.2,.25,STEEL); b.push(P('pyr',0x2e7d32,-150,4.9,-88,17,1.4,12));
+  B(-150,.85,-88,8,.12,2.2,0x8d6e4b); for(const x of [-153,-147]) for(const z of [-89,-87]) B(x,.4,z,.12,.8,.12,0x6d4c41);   // sorting table
+  for(let i=0;i<18;i++){const x=-155.5+(i%3)*1.0, z=-85+((i/3|0)%3)*.9, y=.25+(i/9|0)*.5; B(x,y,z,.9,.45,.65,i%2?0x2e7d32:0x1565c0); B(x,y+.2,z,.75,.1,.5,i%3?0xd63a2b:0x7cc25a);}   // crates of tomatoes and lettuce
+  const truck=makeTraderTruck(0x2e7d32,0xeef2ee,'SUNFIELD GREENHOUSES'); truck.visible=true; truck.position.set(-139.5,0,-87); truck.rotation.y=Math.PI;
+  boardSign(['SUNFIELD GREENHOUSES','Kamatis · Letsugas · Gulay'],'#2e7d32','#fff',-163.5,-101.5,0,4.6,1.1,2.4,0x3b4a3f,false);
+  // ===== rice paddies: dikes, water, rows of rice (green, and golden where it is ready) =====
+  const rice=[];
+  for(let i=0;i<4;i++) for(let j=0;j<3;j++){const x0=-200+i*18.5, z0=-38+j*15, ready=(i+j)%3===0;
+    B(x0+8.5,.06,z0+7,17,.04,14,0x6f9aa3); for(const [x,z,w,d] of [[x0+8.5,z0-.2,18,.6],[x0+8.5,z0+14.2,18,.6],[x0-.2,z0+7,.6,15],[x0+17.2,z0+7,.6,15]]) B(x,.2,z,w,.4,d,DIKE);
+    if((i*3+j)%5===4) continue;   // one paddy flooded, waiting to be planted
+    for(let x=x0+1;x<x0+16.5;x+=.75) for(let z=z0+1;z<z0+13.5;z+=.75) rice.push([x+(r()-.5)*.1,.25,z+(r()-.5)*.1,r()*6,.28,.5+(ready?.15:0),0,ready?0xd8b54a:0x5fae4a]);}
+  inst(new THREE.ConeGeometry(.6,1,5),new THREE.MeshStandardMaterial({roughness:.9}),rice);
+  // ===== the corn field and the vegetable beds =====
+  B(-180,.04,31,40,.05,38,DIRT); const corn=[]; for(let x=-198.5;x<=-161.5;x+=1.25) for(let z=13.5;z<=48.5;z+=.9) corn.push([x+(r()-.5)*.15,1.05,z+(r()-.5)*.1,r()*6,.42,2.1,0,r()<.15?0x8fae4a:0x4f9a3c]);
+  inst(new THREE.ConeGeometry(.5,1,5),new THREE.MeshStandardMaterial({roughness:.9}),corn);
+  B(-138,.04,31,30,.05,38,DIRT); const veg=[];
+  for(let k=0;k<7;k++){const x=-150.5+k*4; B(x,.14,31,1.4,.22,36,0x5d4129); for(let z=14;z<48;z+=.8) veg.push([x+(r()-.5)*.2,.4,z,r()*6,.45+r()*.2,.5,0,[0x3f8f3a,0x5fae4a,0x6b4fa0][k%3]]);}
+  inst(new THREE.SphereGeometry(1,6,5),new THREE.MeshStandardMaterial({roughness:.9}),veg.map(q=>{q[5]=q[4]*.8; return q;}));
+  for(let x=-151;x<=-125;x+=4.33) for(const z of [15,31,47]) B(x,1.1,z-0,.1,2.2,.1,0x8d6e4b); for(let k=0;k<7;k++){const x=-150.5+k*4; B(x,2.2,31,2.2,.05,34,0x4f9a3c); for(let z=15;z<47;z+=1.6) B(x+(r()-.5)*1.2,1.95,z,.12,.45,.12,0x6aa84f);} for(const z of [15,31,47]) B(-138,2.2,z,27,.06,.06,0x8d6e4b);   // ampalaya vines along the trellis, gourds hanging
+  // ===== the ploughing field, a nipa hut, the pump =====
+  B(-161,.03,78,78,.04,40,0x9c7d52);
+  B(-128,1.3,-48,4,2.6,3.5,0xc8a165); b.push(P('pyr',0x9c7a45,-128,3.3,-48,5.4,1.6,5)); for(const x of [-129.8,-126.2]) for(const z of [-49.6,-46.4]) B(x,.4,z,.15,.8,.15,0x6d4c41);   // nipa hut by the canal
+  B(-122,.55,-46,.35,1.1,.35,0x37474f); B(-122,1.05,-45.7,.12,.12,.7,0x37474f,-.4,0,0); B(-122,.06,-46,2,.08,2,0x9e9e9e);   // poso
+  const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.castShadow=m.receiveShadow=true; m.name='Expansion fields'; scene.add(m);
+  // the ploughed strips appear behind the hand tractor, row by row
+  const ROWS=[]; for(let z=61;z<=95;z+=2.6) ROWS.push(z); const X0=-197, X1=-125;
+  const strips=ROWS.map(z=>{const s=part(1,.05,1.9,0x5b3e22,0,.07,z); s.visible=false; scene.add(s); return s;});
+  // the hand tractor: engine, two wheels, long handles, a rotavator behind; the driver walks behind it
+  const K=(()=>{const g=new THREE.Group(); g.add(part(.7,.55,.9,0xc0392b,0,.85,.15)); g.add(part(.5,.35,.45,0x2b2b2b,0,1.3,.1)); g.add(part(.3,.25,.35,0xc0392b,0,1.55,-.15));
+    const wheels=[]; for(const sd of [-1,1]){const w=new THREE.Mesh(new THREE.CylinderGeometry(.5,.5,.22,14),new THREE.MeshStandardMaterial({color:0x222222})); w.rotation.z=Math.PI/2; w.position.set(sd*.55,.5,.25); g.add(w); wheels.push(w);}
+    for(const sd of [-1,1]){const h=part(.06,.06,1.9,0x555555,sd*.28,1.25,-1.0); h.rotation.x=-.32; g.add(h);} g.add(part(.6,.06,.06,0x555555,-0,1.55,-1.85));
+    g.add(part(.9,.35,.45,0x666666,0,.3,-.75)); g.add(part(.95,.06,.6,0x888888,0,.52,-.75));
+    const d=makePerson((()=>{const L=randLook(r); L.bag=null; L.top=0x2e86de; L.style='cap'; L.capC=0xf5e6a8; return L;})()); d.root.position.set(0,.05,-2.2); g.add(d.root);
+    scene.add(g); return {g,wheels,d};})();
+  const path=[]; ROWS.forEach((z,i)=>{const fwd=i%2===0, a=fwd?X0:X1, c=fwd?X1:X0; path.push([a,z],[c,z]); if(i<ROWS.length-1){const zn=ROWS[i+1], cx=c, mz=(z+zn)/2, rr=(zn-z)/2, sd=fwd?1:-1; for(let k=1;k<8;k++){const t=k/8*Math.PI; path.push([cx+sd*Math.sin(t)*rr*1.3,mz-Math.cos(t)*rr]);}}});
+  const cum=[0]; for(let i=1;i<path.length;i++) cum.push(cum[i-1]+Math.hypot(path[i][0]-path[i-1][0],path[i][1]-path[i-1][1])); const PL=cum[cum.length-1];
+  const at=s=>{let i=1; while(i<cum.length-1&&cum[i]<s) i++; const k=Math.max(0,Math.min(1,(s-cum[i-1])/(cum[i]-cum[i-1]||1))); return [path[i-1][0]+(path[i][0]-path[i-1][0])*k,path[i-1][1]+(path[i][1]-path[i-1][1])*k,Math.atan2(path[i][0]-path[i-1][0],path[i][1]-path[i-1][1])];};
+  const T={s:(r()*.4)*PL,v:0,ph:0};
+  const placeK=dt=>{const p=at(T.s); K.g.position.set(p[0],0,p[1]); K.g.rotation.y=lerpAng(K.g.rotation.y,p[2],Math.min(1,dt*3)); for(const w of K.wheels) w.rotation.x+= (T.v*dt)/.5;
+    // which strips are ploughed: every row before the current one in full, the current one up to the tractor
+    for(let i=0;i<ROWS.length;i++){const s=strips[i], done=Math.abs(p[1]-ROWS[i])<.3?Math.abs(p[0]-(i%2===0?X0:X1)):(at(T.s)[1]>ROWS[i]+.3?X1-X0:0); s.visible=done>.2; s.scale.x=Math.max(.2,done); s.position.x=(i%2===0?X0+done/2:X1-done/2);}};
+  placeK(1);
+  // ===== the people: rice planters and harvesters, the corn and vegetable hands, the greenhouse growers, the packers =====
+  const look=(o={})=>{const L=randLook(r); L.bag=null; L.style='cap'; L.capC=[0xf5e6a8,0xffffff,0xe0c070][(r()*3)|0]; Object.assign(L,o); return L;};
+  const pace=(x0,z0,x1,z1,act,n=4)=>{const s=[]; for(let k=0;k<n;k++){const f=k/(n-1); s.push({to:[x0+(x1-x0)*f,z0+(z1-z0)*f],act,dur:5+r()*3,face:[x0+(x1-x0)*f,z0+(z1-z0)*f+1]});} s[0]={...s[0],to:undefined,path:[s[0].to]}; return s.concat(s.slice(1,-1).reverse().map(q=>({...q,act:'stand',dur:1.5})));};
+  const people=[
+    makeWorker(look({top:0xe67e22}),pace(-196,-33,-186,-33,'crouch'),{y:.12,day:true,sp:.7}),   // planting rice, walking backwards along the row
+    makeWorker(look({top:0x16a085,f:true}),pace(-196,-28,-186,-28,'crouch'),{y:.12,day:true,sp:.7}),
+    makeWorker(look({top:0x8e44ad,f:true}),pace(-195,-21,-185,-21,'crouch'),{y:.12,day:true,sp:.7}),
+    makeWorker(look({top:0xc0392b}),[{to:[-180,-8],act:'crouch',dur:6,face:[-180,-6]},{path:[[-176,-8]],act:'crouch',dur:6,face:[-176,-6]},{path:[[-172,-8]],act:'crouch',dur:6,face:[-172,-6]},{path:[[-170,-.8],[-161.5,-.8]],act:'stand',dur:3,carry:'sack'},{path:[[-170,-.8],[-180,-8]],act:'stand',dur:2}],{y:.12,day:true,sp:.8}),   // harvesting the golden paddy, sacks to the road
+    makeWorker(look({top:0x27ae60}),pace(-175,20,-175,44,'inspect'),{y:.1,day:true,sp:.8}),   // checking the corn
+    makeWorker(look({top:0xf1c40f,f:true}),pace(-146.5,16,-146.5,44,'crouch'),{y:.1,day:true,sp:.7}),   // weeding the beds
+    makeWorker(look({top:0x2980b9}),pace(-134.5,18,-134.5,42,'inspect'),{y:.1,day:true,sp:.7}),   // picking ampalaya under the trellis
+    makeWorker(look({top:0xecf0f1,f:true}),pace(-197.8,-82,-197.8,-62,'inspect'),{y:.1,day:true,sp:.7}),   // the growers inside the greenhouses
+    makeWorker(look({top:0x7f8c8d}),pace(-178.2,-82,-178.2,-62,'crouch'),{y:.1,day:true,sp:.7}),
+    makeWorker(look({top:0x34495e,f:true}),pace(-187,-84,-187,-60,'crouch'),{y:.1,day:true,sp:.7}),
+    makeWorker(look({top:0xd35400}),[{to:[-153,-86.6],act:'crouch',dur:4,face:[-153,-88]},{path:[[-150,-86.4]],act:'write',dur:6,face:[-150,-88]},{path:[[-147,-86.6]],act:'crouch',dur:4,face:[-147,-88]}],{y:.1,day:true}),   // sorting
+    makeWorker(look({top:0x1abc9c}),[{to:[-154.5,-84.2],act:'crouch',dur:2,face:[-155,-85]},{path:[[-146,-84.2],[-141.6,-84.6]],act:'crouch',dur:2,carry:'sack',face:[-140,-85]},{path:[[-146,-84.2],[-154.5,-84.2]],act:'stand',dur:1}],{y:.1,day:true,sp:1.1}),   // loading the truck
+  ];
+  for(const w of people) workerGo(w,w.steps[0]);
+  const lunch=[[-128.8,-48],[-127.2,-48]].map(([x,z])=>{const q=bakePerson(look(),poseSit); q.position.set(x,.2,z); scene.add(q); return q;});   // resting in the hut
+  return {K,T,PL,people,update(dt,t){if(document.hidden) return; const h=gameHour(), day=h>=6.3&&h<17.4;
+    const want=day?.9:0; T.v+=(want-T.v)*Math.min(1,dt*1.5); T.s+=T.v*dt; if(T.s>=PL){T.s=0;} K.d.root.visible=day; if(day){T.ph+=T.v*dt*5.6; poseWalk(K.d,T.ph);} placeK(dt);
+    for(const q of lunch) q.visible=day; for(const w of people) workerTick(w,dt,t);}};
+})();
+
 /* ---------- Stage H: the sea, the port (pantalan) and the bay trading business ---------- */
 if(!S.bay) S.bay={owned:false,stock:{},ship:null};
 const BAY_LV=12, BAY_PRICE=50000, BAY_RATE=1.6, SHIP_T={out:30,away:45,back:30};
@@ -9065,6 +9165,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:38,date:'Nov 11, 2026',title:'Expansion fields and greenhouses',items:['🍅 Sunfield Greenhouses, west of the farm by the highway: four tunnel greenhouses on steel hoops, two of tomatoes on trellis wires and two of lettuce, with growers working the rows. A packing shed sorts the crates and the green produce truck is loaded beside it.','🌾 Twelve rice paddies with dikes and water: some green, some golden and being harvested, one flooded and waiting; planters work backwards along the rows.','🌽 A corn field, vegetable beds under an ampalaya trellis, an irrigation canal with footbridges, a nipa hut where the field hands rest, and a poso.','🚜 A hand tractor (kuliglig) ploughs the back field row by row, its driver walking behind; the ploughed strips darken behind it. Everyone works by daylight and goes home at dusk.']},
   {v:37,date:'Nov 11, 2026',title:'The wheel loader is back, and the landfill works by daylight',items:['🛠️ Fixed: the wheel loader vanished whenever it was parked (its position came out invalid at the start of its route). It now waits in plain sight by its heap when it is not working.','🌅 The excavator and the wheel loader only run in daylight, from about 6:30 in the morning to 5:30 in the evening. Their operators then climb down and walk to the bus shed to go home before night.']},
   {v:36,date:'Nov 11, 2026',title:'A real landfill: the garbage mound, an excavator and a wheel loader',items:['⛰️ The landfill cell is now a big mound of mixed garbage (bags, boxes, sacks and plastics), with the far side already capped with soil, and loose heaps where the trucks tip.','🦾 A new excavator works the tipping floor: crawler tracks, a house that swings, a bent boom, a stick and a toothed bucket, all on hydraulic cylinders. It reaches out, digs into the heap, curls the bucket, lifts, swings round and dumps up on the slope, then swings back. The bucket never goes into the ground.','🚜 A new articulated wheel loader runs a proper Y-cycle: into its heap with the bucket flat, scoop and roll back, reverse out bending in the middle, forward to the slope, arms up, tip, and back again. The garbage it dumps falls and lands on the mound.']},
   {v:35,date:'Nov 11, 2026',title:'Landfill gates and the night bus',items:['🚧 The landfill has real gates now: an arch over each truck gate (Sanitary Landfill · Gate 1 in, Gate 2 out) with swing gates that open into the yard, and a boom barrier at the weighbridge. They open before dawn and close after the last bus. Fences everywhere now leave their gateways clear instead of running the wire across them.','🚏 The landfill bus shed now stands outside the fence in its own bay by the road, with a small gate behind it for the staff to walk in.','🌙 Utility staff finish at different times (the weighbridge clerk after the last truck, the plant\'s evening shift at nine), so in the evening you\'ll see them waiting at the lit sheds, some sitting on the bench, until the bus comes. The buses keep running until everyone waiting has been picked up.']},
@@ -9233,6 +9334,7 @@ function frame(now){
   AGRO.update(dt,t);
   VILLAGE.update(dt,t);
   UTIL_BUS.update(dt,t);
+  EXPANSION.update(dt,t);
   updateFarmDispatch(Date.now(),dt);
   if(now-lastTick>300){lastTick=now; const d=Date.now(); updateVehicles(d); updateTravelHUD(d); for(let i=0;i<NT;i++){const s=S.tiles[i].s; if(s==='crop'||s==='bld') updateTile(i,d);}}
   popping.forEach(g=>{const k=Math.min(1,(now-g.userData.born)/380), e=easeBack(k);

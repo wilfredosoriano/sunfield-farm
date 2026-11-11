@@ -476,9 +476,9 @@ button:focus-visible{outline:3px solid #4c8078!important;outline-offset:3px}#toa
 .fs .gbtn:not(:disabled):active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink2)!important}.fs .gbtn:disabled{opacity:.55;border-style:dashed!important;box-shadow:none!important}
 .fs [data-coop=sell]{display:block!important;text-align:left!important}
 .fs .gbtn{font-size:14px!important;line-height:1.25;padding:8px 12px!important;min-height:0!important;border-radius:12px}.fs .gbtn b{font-size:14px}.fs-keeper .gbtn{text-align:center;justify-items:center}
-.or-strip{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:4px}
-.sheet .or-dot{height:38px;min-width:0;padding:0!important;border-radius:9px;border:2px solid var(--ink2);background:#efe6d2;font-size:15px;font-weight:900;color:#8a7a62;display:grid;place-items:center;box-shadow:none}
-.or-dot svg.si{width:70%;height:70%;vertical-align:0}.or-dot.young,.or-dot.fruiting{background:#e3efd3}.or-dot.ready{background:#f7dc8c;border-color:#b07a12}.or-dot.empty{border-style:dashed}
+.or-strip{display:grid;grid-template-columns:repeat(14,minmax(0,1fr));grid-template-rows:repeat(4,32px);gap:3px}
+.sheet .or-dot{height:100%!important;min-height:0!important;margin:0!important;line-height:1;overflow:hidden;min-width:0;padding:0!important;border-radius:9px;border:2px solid var(--ink2);background:#efe6d2;font-size:15px;font-weight:900;color:#8a7a62;display:grid;place-items:center;box-shadow:none}
+.sheet .or-dot{display:flex!important;align-items:center;justify-content:center;padding:0!important}.or-dot svg.si{width:22px;height:22px;margin:0!important;vertical-align:0;flex:none}.or-dot.young,.or-dot.fruiting{background:#e3efd3}.or-dot.ready{background:#f7dc8c;border-color:#b07a12}.or-dot.empty{border-style:dashed}
 .sheet .or-dot.on{outline:3px solid #2e7d32;outline-offset:1px}
 .or-tree{display:grid;grid-template-columns:54px minmax(0,1fr);gap:6px 11px;align-items:center}
 .or-ic{width:54px;height:54px;border-radius:13px;border:2px solid var(--ink2);background:#f0e2c4;display:grid;place-items:center;font-size:30px}.or-ic svg.si{width:40px;height:40px;vertical-align:0}
@@ -488,7 +488,7 @@ button:focus-visible{outline:3px solid #4c8078!important;outline-offset:3px}#toa
 .or-pick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.or-pick .gbtn{display:grid;grid-template-columns:54px minmax(0,1fr);gap:1px 10px;text-align:left;align-items:center}
 .or-pick .gbtn .or-ic{grid-row:span 4}.or-pick .gbtn .fs-tag{justify-self:start;margin-top:3px}
 .fs-tag.grow{background:#e3efd3;color:#3d6b22}
-@media(max-height:520px){.or-ic{width:42px;height:42px}.or-ic svg.si{width:30px;height:30px}.or-tree{grid-template-columns:42px minmax(0,1fr)}.or-pick .gbtn{grid-template-columns:42px minmax(0,1fr)}.sheet .or-dot{height:30px}.or-strip{gap:3px}}
+@media(max-height:520px){.or-ic{width:42px;height:42px}.or-ic svg.si{width:30px;height:30px}.or-tree{grid-template-columns:42px minmax(0,1fr)}.or-pick .gbtn{grid-template-columns:42px minmax(0,1fr)}.or-strip{grid-template-rows:repeat(4,26px);gap:2px}}
 @media(max-height:520px){.fs-stat b{font-size:14px}.fs-stat{padding:4px 6px}.fs-lead{font-size:12px}.fs-prods{grid-template-columns:repeat(3,minmax(0,1fr))}}
 </style>
 </head>
@@ -4175,8 +4175,14 @@ function boardSign(lines,bg,fg,x,z,ry,w=3.2,h=1,y=1.6,post=0x6d4c41,two=true){
 })();
 // Saved, selectable orchard plots beside the crop field. No crop tile IDs or traffic routes change.
 const ORCHARD=(()=>{
- const spots=[];for(const z of [-2,5,12,26,33,40])for(const x of [25,29,33])spots.push([x,z]);
+ // a close planting: 4 rows across (3 m apart) and 14 along (3.5 m apart), leaving room for the kubol; cell = [column, row] for the menu's map
+ const spots=[], cell=[], OX=[24.8,27.8,30.8,33.6]; for(let j=0;j<14;j++){const z=-3+j*3.5; OX.forEach((x,k)=>{if(k===0&&z>16&&z<23) return; spots.push([x,z]); cell.push([j,k]);});}
+ const OLD=[];for(const z of [-2,5,12,26,33,40])for(const x of [25,29,33])OLD.push([x,z]);
  if(!Array.isArray(S.orchard)) S.orchard=spots.map((_,i)=>i<6?{kind:['mango','kalamansi','bayabas','saging'][i%4],planted:Date.now()-300000,next:Date.now()+60000}:null);
+ else if(S.orchardV!==2){const old=S.orchard, out=spots.map(()=>null);   // older saves: each tree moves to the nearest plot of the new layout
+  old.forEach((t,i)=>{if(!t||!OLD[i]) return; let best=-1,bd=1e9; spots.forEach(([x,z],k)=>{const d=Math.hypot(x-OLD[i][0],z-OLD[i][1]); if(!out[k]&&d<bd){bd=d;best=k;}}); if(best>=0) out[best]=t;});
+  S.orchard=out;}
+ S.orchardV=2;
  while(S.orchard.length<spots.length)S.orchard.push(null);
  const g=new THREE.Group();g.name='Harvestable home orchard';scene.add(g);let selected=0,last=0,shown='';
  const views=spots.map(([x,z],i)=>{const root=new THREE.Group();root.position.set(x,0,z);root.userData.orchard=i;g.add(root);return {root,signature:''};});
@@ -4190,7 +4196,7 @@ const ORCHARD=(()=>{
   b.push(P('cyl',0x8a6e4c,0,.03,0,1.9,.05,1.9)); b.push(P('cyl',0x6e5638,0,.045,0,1.2,.04,1.2));   // a mulched basin round the trunk
   if(!t){b.push(P('box',0x88633f,0,.35,0,.08,.7,.08)); b.push(P('box',0xe8dcb6,0,.66,.03,.78,.32,.05)); b.push(P('box',0x6e5638,0,.66,0,.82,.36,.04)); v.root.add(vcGroup(b)); return;}
   v.root.add(vcGroup(b));
-  const model=fruitTreeGroup(t.kind,{seed:31+i*17,fruit:stage>=1?fs:0}); model.rotation.y=i*1.9; model.scale.setScalar(stage); v.root.add(model);}
+  const model=fruitTreeGroup(t.kind,{s:t.kind==='mango'?.86:1,seed:31+i*17,fruit:stage>=1?fs:0}); model.rotation.y=i*1.9; model.scale.setScalar(stage); v.root.add(model);}
  const ICON={mango:'🥭',kalamansi:'🍋',bayabas:'🍐',saging:'🍌'};
  const LOOK={mango:'Broad shade tree, fruit hangs under the leaves',kalamansi:'Small bushy tree, lots of tiny fruit',bayabas:'Crooked stems, round pale fruit',saging:'Clump of stems, one bunch at a time'};
  const STAT={empty:['Empty plot',''],young:['Growing','grow'],fruiting:['Fruiting','grow'],ready:['Ready to pick','go']};
@@ -4198,11 +4204,11 @@ const ORCHARD=(()=>{
   if(st==='ready') return {txt:'Ripe now',pct:100};
   if(st==='young') return {txt:'First harvest in '+fmt(Math.max(0,(t.next-now)/1000)),pct:Math.round(growth(t,now)*100)};
   return {txt:'Next harvest in '+fmt(Math.max(0,(t.next-now)/1000)),pct:Math.round(100*(1-Math.max(0,t.next-now)/(c.period*1000)))};}
- function strip(){return '<div class="or-strip">'+S.orchard.map((t,i)=>`<button class="or-dot ${status(t)}${i===selected?' on':''}" data-orchard="go" data-kind="${i}" aria-label="Plot ${i+1}">${t?ICON[t.kind]:'+'}</button>`).join('')+'</div>';}
+ function strip(){return '<div class="or-strip">'+S.orchard.map((t,i)=>`<button class="or-dot ${status(t)}${i===selected?' on':''}" style="grid-column:${cell[i][0]+1};grid-row:${cell[i][1]+1}" data-orchard="go" data-kind="${i}" aria-label="Plot ${i+1}">${t?ICON[t.kind]:'+'}</button>`).join('')+'</div>';}
  function render(){const t=S.orchard[selected],c=t&&FRUIT_TREES[t.kind],now=Date.now(),st=status(t,now);shown=st+':'+selected+':'+(t?t.kind:'');
   const planted=S.orchard.filter(Boolean).length, ripe=S.orchard.filter(x=>orchardReady(x,now)).length;
   $('bldTitle').textContent='🌳 Halamanan · plot '+(selected+1)+' of '+spots.length;
-  let h='<div class="fs or">'+strip()+'<div class="fs-lead">'+planted+' trees planted · <b>'+ripe+' ready to pick</b>. Tap a plot above to switch.</div>';
+  let h='<div class="fs or">'+strip()+'<div class="fs-lead">'+planted+' of '+spots.length+' plots planted · <b>'+ripe+' ready to pick</b>. The map is laid out like the orchard; tap a plot to switch.</div>';
   if(t){const tm=timing(t,now), price=ITEMS[t.kind]?ITEMS[t.kind].price:0;
    h+='<div class="fs-card or-tree"><span class="or-ic">'+c.icon+'</span><div class="or-nm"><b>'+c.name+'</b> <span class="fs-tag '+STAT[st][1]+'">'+STAT[st][0]+'</span><small>'+LOOK[t.kind]+'</small></div>'
      +'<div class="or-bar"><i id="orchardBar" style="width:'+tm.pct+'%"></i></div><div class="or-when" id="orchardStatus">'+tm.txt+'</div></div>'
@@ -9542,6 +9548,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:48,date:'Nov 12, 2026',title:'A fuller orchard',items:['🌳 The halamanan now has 54 plots instead of 18, planted closer together like a real orchard: four rows across, 3 m apart, and fourteen along it. Your trees moved to the nearest new plot and keep their growth.','🗺️ The orchard menu shows all plots as a small map laid out like the orchard; tap one to switch.']},
   {v:47,date:'Nov 12, 2026',title:'Your orchard looks like the real thing',items:['🥭 Mango trees now grow a short, thick trunk with heavy limbs under a broad, dark crown, with bronze new leaves on top. Ripe mangoes hang on long stalks round the edge, some with a red blush.','🍋 Kalamansi is a small bushy tree that branches low, with a dense crown of dark glossy leaves and lots of tiny fruit that turn orange as they ripen.','🍐 Bayabas grows two or three crooked stems with copper bark, an open crown of lighter leaves, and round pale fruit.','🍌 Saging is now a clump: the main plant with long, torn leaves (old ones dry and hanging), two suckers, and a bunch of hands with the purple puso hanging at the end. Young fruit shows green before it ripens.','🌳 The orchard menu is redesigned: every plot in a row at the top (tap one to switch), a growth bar to the next harvest, what each tree gives, and one-tap picking and planting.']},
   {v:45,date:'Nov 12, 2026',title:'Cooler and smoother on phones',items:['🔥 The game now draws much less each frame: fields of crops, garbage and animals off screen are skipped, people far from the camera are not drawn (they keep walking), small parts no longer cast shadows, and only nearby people do. A normal view now takes about half the drawing work it did before.','🔋 With Battery saver on (the default on phones), shadows refresh every other frame as well. Turn it on from the ⋯ menu if your phone still gets warm.']},
   {v:44,date:'Nov 12, 2026',title:'People walk the proper way',items:['🚶 Everyone now walks round buildings, fences and water instead of through them: townspeople going to the palengke, workers on their rounds, shoppers, commuters, school children, church families and your own farmer. A walking map of the whole town (made from the real walls, fences and canals) finds the way, keeps to the roadside and crosses the road only where it has to.','🌉 Every house on the barangay road now has a concrete crossing over the kanal at its front path, and a wider one at the carport, so families can walk out to the street. Garden gates now stand open.','⏱️ The walking map is built a few seconds after the game loads, and rebuilt when you put up or move a farm building.']},

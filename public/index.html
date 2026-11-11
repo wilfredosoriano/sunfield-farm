@@ -580,6 +580,9 @@ body:not(#z):not(#y) #menu .sheet>.mhead h2{font-size:16px!important;line-height
 #deco-ctl [data-c=ok]{background:#cfe8b6}#deco-ctl [data-c=del]{background:#f5d9cf;color:#9a3324}#deco-ctl.bad [data-c=ok]{opacity:.5;border-style:dashed}
 #deco-ctl button:active{transform:translateY(1px)}
 @media(orientation:landscape) and (max-height:520px){#deco-ctl button{width:36px;height:36px;font-size:18px}}
+#deco-conn{position:fixed;left:0;top:0;width:0;height:0;z-index:5;pointer-events:none}#deco-conn[hidden]{display:none}
+#deco-conn .cn{position:absolute;left:0;top:0;white-space:nowrap;font:700 11.5px Mali,Nunito,sans-serif;padding:2px 8px;border-radius:999px;border:1.4px solid #4a3f34;background:#fbf7ec;color:#3b2e24;box-shadow:1px 1.5px 0 #4a3f3526}
+#deco-conn .cn.ok{background:#dcebc8}#deco-conn .cn.no{background:#f5d9cf;color:#8e2a1c}
 </style>
 </head>
 <body>
@@ -908,10 +911,10 @@ function nearestOn(S,x,z){let bi=0,bd=1e9; S.forEach(([a,b],i)=>{const d=(x-a)**
 // the front stretch of the service road (gate → past the garage and house): what the garage and the house face
 const SVC0=SERVICE.slice(0,nearestOn(SERVICE,-18,-10.5)+1);
 function frontIdx(x){let bi=0,bd=1e9; SVC0.forEach(([a],i)=>{const d=Math.abs(a-x); if(d<bd){bd=d; bi=i;}}); return bi;}
-const frontZ=x=>SVC0[frontIdx(x)][1]-2.25;   // the road's north edge in front of x
+const frontZ=x=>{const f=typeof FARMNET!=='undefined'&&FARMNET?FARMNET.frontZ(x):null; return f!=null?f:SVC0[frontIdx(x)][1]-2.25;};   // the road's north edge in front of x
 // vehicle legs between a garage bay at x = sx and the highway junction, along the service road and the farm road
-function toHwy(sx,d){const p=[]; for(let k=frontIdx(sx);k>=0;k-=2) p.push([SVC0[k][0],SVC0[k][1],d]); for(let k=ACCESS.length-1;k>=0;k-=2) p.push([ACCESS[k][0],ACCESS[k][1],d]); return p;}
-function fromHwy(sx,d,sl){const p=[]; for(let k=0;k<ACCESS.length;k+=2) p.push([ACCESS[k][0],ACCESS[k][1],d]); const i=frontIdx(sx-3.5);
+function toHwy(sx,d){const F=typeof FARMNET!=='undefined'&&FARMNET&&FARMNET.toHwy(sx,d); if(F) return F; const p=[]; for(let k=frontIdx(sx);k>=0;k-=2) p.push([SVC0[k][0],SVC0[k][1],d]); for(let k=ACCESS.length-1;k>=0;k-=2) p.push([ACCESS[k][0],ACCESS[k][1],d]); return p;}
+function fromHwy(sx,d,sl){const F=typeof FARMNET!=='undefined'&&FARMNET&&FARMNET.fromHwy(sx,d,sl); if(F) return F; const p=[]; for(let k=0;k<ACCESS.length;k+=2) p.push([ACCESS[k][0],ACCESS[k][1],d]); const i=frontIdx(sx-3.5);
   for(let k=0;k<=i;k+=2) p.push([SVC0[k][0],SVC0[k][1],d]); const az=SVC0[i][1]; p.push([sx-3.5,az,sl,true],[sx,az-2.5,sl,true],[sx,G0]); return p;}   // drive past the bay, then back into it
 // walking between the house and the bus stop by the highway: along the roadside of the same roads
 function walkOut(){const p=[], off=(S,k,o)=>{const a=S[Math.max(0,k-1)], b=S[Math.min(S.length-1,k+1)], L=Math.hypot(b[0]-a[0],b[1]-a[1])||1; return [S[k][0]-(b[1]-a[1])/L*o,S[k][1]+(b[0]-a[0])/L*o];};
@@ -2129,6 +2132,132 @@ function blobGeo(r,seed,squash,color,y){ // a flat patch with a ragged, uneven o
     const x=Math.cos(a)*rr, z=Math.sin(a)*rr*squash; k?sh.lineTo(x,z):sh.moveTo(x,z);}
   const g=new THREE.ShapeGeometry(sh,1); g.rotateX(Math.PI/2); g.translate(0,y,0); return [g,color];
 }
+/* ---------- the farm's own roads: everything inside the fence is the player's to build, remove and reroute ----------
+   The road from the highway to the arko (ACCESS) and the farm fence stay fixed. Inside, the roads are a list of curves in the save
+   (S.farmRoads), started from the farm's original loop and tracks. They are painted as one surface (so junctions and bends join
+   cleanly), and turned into a graph that the farm vehicles drive on: a trip only goes where the roads really connect. */
+const ROADGRID0=new Map([...ROADGRID].map(([k,v])=>[k,v.slice()]));   // the original layout, kept for the canal culverts
+function roadDist0(x,z){let best=99; const cx=Math.floor(x/RG), cz=Math.floor(z/RG);
+  for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){const L=ROADGRID0.get((cx+i)+','+(cz+j)); if(L) for(const [a,b,h] of L){const d=Math.hypot(x-a,z-b)-h; if(d<best) best=d;}} return best;}
+var COVER_REFRESH=null;   // set by the ground cover further down
+var FARMNET=(()=>{
+  const OWNED=['service','t-water','t-duck','t-goat','t-cow','t-broil','t-egg','t-pig'], GATE=ACCESS[ACCESS.length-1];
+  if(!Array.isArray(S.farmRoads)){S.farmRoads=OWNED.map((id,k)=>{const r=FARM.roads.find(q=>q.id===id); return {id:k+1,pts:r.pts.map(p=>[p[0],p[1]]),w:r.w};}); S.farmRoadN=OWNED.length+1;}
+  let SAMP=[], NODES=[], EDGES=[], gateN=-1, reach=null;
+  // ---- the graph: a node every metre along each road; roads that overlap are joined; the arko joins whatever reaches it
+  function build(){SAMP=S.farmRoads.map(r=>r.pts.length>1?spline(r.pts,false,1):[]);
+    NODES=[]; EDGES=[]; const add=(x,z,w,r)=>{NODES.push([x,z,w,r]); EDGES.push([]); return NODES.length-1;}, link=(a,b)=>{if(a===b||EDGES[a].some(e=>e[0]===b)) return; const d=Math.hypot(NODES[a][0]-NODES[b][0],NODES[a][1]-NODES[b][1]); EDGES[a].push([b,d]); EDGES[b].push([a,d]);};
+    SAMP.forEach((P,ri)=>{let prev=-1; for(const [x,z] of P){const n=add(x,z,S.farmRoads[ri].w,ri); if(prev>=0) link(prev,n); prev=n;}});
+    const H=new Map(), key=(x,z)=>Math.floor(x/3)+','+Math.floor(z/3); NODES.forEach((p,i)=>{const k=key(p[0],p[1]); if(!H.has(k)) H.set(k,[]); H.get(k).push(i);});
+    NODES.forEach((p,i)=>{const cx=Math.floor(p[0]/3), cz=Math.floor(p[1]/3); for(let a=-1;a<=1;a++) for(let b=-1;b<=1;b++) for(const j of H.get((cx+a)+','+(cz+b))||[]){
+      if(j<=i||NODES[j][3]===p[3]) continue; if(Math.hypot(NODES[j][0]-p[0],NODES[j][1]-p[1])<Math.min(2.4,(p[2]+NODES[j][2])*.3)) link(i,j);}});
+    gateN=add(GATE[0],GATE[1],4.5,-1); NODES.forEach((p,i)=>{if(i!==gateN&&Math.hypot(p[0]-GATE[0],p[1]-GATE[1])<3.2) link(gateN,i);});
+    // what roadDist() and everything that avoids roads now sees: the fixed road and footpaths, plus the player's roads
+    ROADGRID.clear(); const put=(x,z,h)=>{const k=rgKey(x,z); if(!ROADGRID.has(k)) ROADGRID.set(k,[]); ROADGRID.get(k).push([x,z,h]);};
+    for(const id of LIVE_ROADS) if(!OWNED.includes(id)) for(const [x,z] of ROADS[id].s) put(x,z,ROADS[id].w/2);
+    SAMP.forEach((P,ri)=>{for(const [x,z] of P) put(x,z,S.farmRoads[ri].w/2);});
+    reach=dijkstra(gateN);
+    try{for(const k in ROUTES) delete ROUTES[k];}catch(e){}   // (at start-up the trip cache does not exist yet)
+    if(COVER_REFRESH) COVER_REFRESH();}
+  function dijkstra(s){const n=NODES.length, dist=new Float64Array(n).fill(Infinity), prev=new Int32Array(n).fill(-1); if(s<0) return {dist,prev}; dist[s]=0;
+    const hp=[[0,s]], push=(d,i)=>{hp.push([d,i]); let c=hp.length-1; while(c){const q=(c-1)>>1; if(hp[q][0]<=hp[c][0]) break; [hp[q],hp[c]]=[hp[c],hp[q]]; c=q;}},
+      pop=()=>{const t=hp[0], l=hp.pop(); if(hp.length){hp[0]=l; let c=0; for(;;){const a=2*c+1,b=a+1; let m=c; if(a<hp.length&&hp[a][0]<hp[m][0]) m=a; if(b<hp.length&&hp[b][0]<hp[m][0]) m=b; if(m===c) break; [hp[m],hp[c]]=[hp[c],hp[m]]; c=m;}} return t;};
+    while(hp.length){const [d,u]=pop(); if(d>dist[u]) continue; for(const [v,w] of EDGES[u]) if(d+w<dist[v]){dist[v]=d+w; prev[v]=u; push(dist[v],v);}} return {dist,prev};}
+  function near(x,z,max){let bi=-1,bd=max*max; NODES.forEach((p,i)=>{if(p[3]<0) return; const d=(p[0]-x)**2+(p[1]-z)**2; if(d<bd){bd=d; bi=i;}}); return bi;}
+  function nodePath(a,b){if(a<0||b<0) return null; const D=dijkstra(a); if(!isFinite(D.dist[b])) return null; const out=[]; for(let u=b;u>=0;u=D.prev[u]) out.unshift(u); return out;}
+  const P=i=>NODES[i], thinIdx=L=>L.filter((_,k)=>k%2===0||k===L.length-1);
+  // ---- where things meet the roads
+  const garageNode=sx=>near(sx,G0+5,10), bodegaNode=()=>near(BODEGA_STOP[0],BODEGA_STOP[1],3.5), katNode=()=>near(10,57,6);
+  const gateOf=type=>{const A=FARM.areas.find(a=>a.type===type); return A?near(A.gate[0],A.gate[1],4):-1;};
+  const linked=i=>i>=0&&reach&&isFinite(reach.dist[i]);
+  function frontZ(x){const n=near(x,G0+5,12); return n<0?null:P(n)[1]-P(n)[2]/2;}
+  // ---- legs for the vehicles: [x,z,speed,reverse] points, like the rest of the trip code
+  const pts=(L,sp)=>thinIdx(L).map(i=>[P(i)[0],P(i)[1],sp]);
+  function bayIn(sx,e,from,sl){const h=[P(e)[0]-P(from)[0],P(e)[1]-P(from)[1]], hl=Math.hypot(...h)||1, past=[P(e)[0]+h[0]/hl*3.5,P(e)[1]+h[1]/hl*3.5];   // drive past the bay, then back into it
+    const fz=P(e)[1]-G0, q=[sx,P(e)[1]-Math.sign(fz||1)*2.5];   // straight back into the bay, like before
+    return [[past[0],past[1],sl,true],[q[0],q[1],sl,true],[sx,G0]];}
+  function toHwy(sx,d){const n=garageNode(sx), L=nodePath(n,gateN); if(!L) return null; const p=pts(L,d); for(let k=ACCESS.length-1;k>=0;k-=2) p.push([ACCESS[k][0],ACCESS[k][1],d]); return p;}
+  function fromHwy(sx,d,sl){const n=garageNode(sx), L=nodePath(gateN,n); if(!L) return null; const p=[]; for(let k=0;k<ACCESS.length;k+=2) p.push([ACCESS[k][0],ACCESS[k][1],d]);
+    p.push(...pts(L,d)); return p.concat(bayIn(sx,n,L[Math.max(0,L.length-3)],sl));}
+  // a pickup: along the roads to the last junction before the area's gate, a little past it, then back down the branch until the tailgate is at the gate
+  function pickup(vid,type,eggs){const V=VEH[vid], sx=V.slot, sl=SPD.slow, d=SPD.dirt, n=garageNode(sx), X=gateOf(type), L=nodePath(n,X); if(!L) return null;
+    const want=(V.rear||3)+.4; let m=L.length-1, acc=0; while(m>0&&acc<want){acc+=Math.hypot(P(L[m])[0]-P(L[m-1])[0],P(L[m])[1]-P(L[m-1])[1]); m--;}
+    let j=-1; for(let k=m-1;k>0;k--) if(EDGES[L[k]].length>=3){j=k; break;}
+    const out=[[sx,G0,sl]], back=[];
+    if(j>0){const J=L[j], inDir=[P(J)[0]-P(L[j-1])[0],P(J)[1]-P(L[j-1])[1]];
+      let best=null, bs=-9; for(const [v] of EDGES[J]){if(v===L[j-1]||v===L[j+1]) continue; const dv=[P(v)[0]-P(J)[0],P(v)[1]-P(J)[1]], s=(dv[0]*inDir[0]+dv[1]*inDir[1])/((Math.hypot(...dv)||1)*(Math.hypot(...inDir)||1)); if(s>bs){bs=s; best=v;}}
+      const run=[J]; let prev=J, cur=best, g=0; while(cur!=null&&g<6){run.push(cur); const nx=EDGES[cur].map(e=>e[0]).filter(v=>v!==prev).sort((a,b)=>EDGES[a].length-EDGES[b].length)[0]; prev=cur; cur=nx; g++;}   // a few metres up the other branch
+      out.push(...pts(L.slice(0,j+1),d)); const K=run[run.length-1]; out.push([P(K)[0],P(K)[1],sl,true],[P(J)[0],P(J)[1],sl,true]);
+      for(let k=j+1;k<=m;k++) out.push([P(L[k])[0],P(L[k])[1],sl,true]);
+      for(let k=m;k>j;k--) back.push([P(L[k])[0],P(L[k])[1],sl]);}
+    else {out.push(...pts(L.slice(0,m+1),d)); back.push([P(L[m])[0],P(L[m])[1],sl,true]); for(let k=m-1;k>0;k--) back.push([P(L[k])[0],P(L[k])[1],sl,true]); back.push([P(L[0])[0],P(L[0])[1],sl,true],[sx,G0]); return [out,back];}   // a dead end: back all the way out
+    const from=L[j]; let tail;
+    if(eggs){const B=bodegaNode(), a=nodePath(from,B), b=nodePath(B,n); if(a&&b){back.push(...pts(a,d).slice(1)); const hp=[P(B)[0],P(B)[1],.01]; hp.hold=true; const nb=P(b[Math.min(1,b.length-1)]), dl=Math.hypot(nb[0]-P(B)[0],nb[1]-P(B)[1])||1;
+        back.push(hp,[P(B)[0]+(nb[0]-P(B)[0])/dl*.12,P(B)[1]+(nb[1]-P(B)[1])/dl*.12,d]); tail=b;} }
+    if(!tail){tail=nodePath(from,n); back.push(...pts(tail,d));} else back.push(...pts(tail,d).slice(1));
+    return [out,back.concat(bayIn(sx,n,tail[Math.max(0,tail.length-3)],sl))];}
+  // after loading at a gate: on to the katayan, or out through the arko (to the cooperative or the palengke)
+  function haulOut(from,target){const s=near(from[0],from[1],6); const t=target==='katayan'?katNode():gateN, L=nodePath(s,t); if(!L) return null; const p=[[from[0],from[1],SPD.slow],...pts(L,SPD.dirt)];
+    if(target==='katayan') p.push([10,57]); else for(let k=ACCESS.length-1;k>=0;k-=2) p.push([ACCESS[k][0],ACCESS[k][1],SPD.dirt]); return p;}
+  function katBack(sx){const n=garageNode(sx), K=katNode(), L=nodePath(K,n); if(!L) return null; return [[10,57,SPD.slow],...pts(L,SPD.dirt),...bayIn(sx,n,L[Math.max(0,L.length-3)],SPD.slow)];}
+  // ---- can this trip go? (the reason if not, in words)
+  function blocked(vid,tr){const V=VEH[vid]; if(!V) return ''; const n=garageNode(V.slot);
+    if(n<0) return '🛣️ No road reaches your garage. Build a dirt road in front of it (Decorate → Dirt road).';
+    if(!linked(n)) return '🛣️ Your garage\'s road doesn\'t connect to the arko. Join it up with a dirt road (Decorate → Dirt road).';
+    if(tr.dest==='pickup'){const A=FARM.areas.find(a=>a.type===tr.area), X=gateOf(tr.area); if(!linked(X)) return `🛣️ No road reaches the ${A?A.name.toLowerCase():'animal area'} gate. Build a dirt road to it (Decorate → Dirt road).`;
+      if(tr.eggs&&!linked(bodegaNode())) return '🛣️ The egg trays go to the bodega, but no road passes its door. Build a dirt road past the bodega.';
+      if(tr.pickupTarget==='katayan'&&!linked(katNode())) return '🛣️ No road reaches the katayan. Build a dirt road to it.';}
+    return '';}
+  // ---- the painted surface: every road drawn in layers onto one big canvas, so junctions and bends merge into one dirt road
+  const BX0=-118, BX1=48, BZ0=-52, BZ1=94, CW=2048, CH=Math.round(CW*(BZ1-BZ0)/(BX1-BX0)), ppm=CW/(BX1-BX0);
+  let cv=null, ctx=null, tex=null, mesh=null;
+  function draw(preview){if(!cv){cv=document.createElement('canvas'); cv.width=CW; cv.height=CH; ctx=cv.getContext('2d'); tex=new THREE.CanvasTexture(cv); tex.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+      mesh=new THREE.Mesh(new THREE.PlaneGeometry(BX1-BX0,BZ1-BZ0),new THREE.MeshStandardMaterial({map:tex,transparent:true,depthWrite:false,roughness:1,metalness:0,polygonOffset:true,polygonOffsetFactor:-2.4,polygonOffsetUnits:-2.4}));
+      mesh.rotation.x=-Math.PI/2; mesh.position.set((BX0+BX1)/2,.036,(BZ0+BZ1)/2); mesh.receiveShadow=true; mesh.renderOrder=1; scene.add(mesh);}
+    ctx.clearRect(0,0,CW,CH); const X=x=>(x-BX0)*ppm, Z=z=>(z-BZ0)*ppm;
+    const lines=SAMP.map((L,ri)=>({L,w:S.farmRoads[ri].w})); if(preview&&preview.pts.length>1) lines.push({L:spline(preview.pts,false,1),w:4.2,pv:preview.bad?'bad':'ok'});
+    const stroke=(L,w,col,off=0,a=1)=>{if(L.length<2) return; ctx.beginPath(); for(let k=0;k<L.length;k++){const p=L[k], q=L[Math.min(L.length-1,k+1)], o=L[Math.max(0,k-1)], dx=q[0]-o[0], dz=q[1]-o[1], dl=Math.hypot(dx,dz)||1;
+        const x=X(p[0]-dz/dl*off), z=Z(p[1]+dx/dl*off); k?ctx.lineTo(x,z):ctx.moveTo(x,z);} ctx.globalAlpha=a; ctx.strokeStyle=col; ctx.lineWidth=w*ppm; ctx.stroke(); ctx.globalAlpha=1;};
+    ctx.lineCap='round'; ctx.lineJoin='round';
+    for(const r of lines) stroke(r.L,r.w+.9,r.pv==='bad'?'#c9705a':'#8f8c5e',0,.55);            // soft grassy shoulder
+    for(const r of lines) stroke(r.L,r.w+.2,r.pv==='bad'?'#b8644f':'#8a8a5c');                  // worn edge
+    for(const r of lines) stroke(r.L,r.w-.5,r.pv==='bad'?'#c47a63':'#8c7657');                  // dirt
+    for(const r of lines) stroke(r.L,r.w*.36,r.pv==='bad'?'#d08d74':'#a89272');                 // lighter crown
+    for(const r of lines) for(const o of [-1,1]) stroke(r.L,.34,r.pv==='bad'?'#a6553f':'#7f6a4c',o*r.w*.26,.8);   // the two wheel ruts
+    const rr=rng(4242); ctx.fillStyle='#9e968a'; for(const r of lines){for(let k=0;k<r.L.length;k+=2){if(rr()<.55) continue; const p=r.L[k], a=rr()*6.28, d=(rr()-.5)*r.w*.8; ctx.beginPath(); ctx.arc(X(p[0]+Math.cos(a)*d),Z(p[1]+Math.sin(a)*d),(1+rr()*1.6),0,6.28); ctx.fill();}}   // pebbles
+    tex.needsUpdate=true;}
+  // ---- where a new road may go
+  function okAt(x,z,w){if(!inLot(x,z)) return 'Roads stay inside your farm fence.';
+    for(const [ox,oz] of [[w/2+.6,0],[-w/2-.6,0],[0,w/2+.6],[0,-w/2-.6]]) if(!inLot(x+ox,z+oz)) return 'Too close to the farm fence.';
+    if(inField(x,z,w/2+.3)) return 'Not across the crop field.';
+    if(x>ORCH[0]-w/2&&x<ORCH[1]+w/2&&z>ORCH[2]-w/2&&z<ORCH[3]+w/2) return 'Not through the orchard.';
+    const ai=AREA_BOX.findIndex(b=>x>b.x0+.6&&x<b.x1-.6&&z>b.z0+.6&&z<b.z1-.6); if(ai>=0&&Math.hypot(x-FARM.areas[ai].gate[0],z-FARM.areas[ai].gate[1])>2.6) return 'Not inside an animal area: end your road at its gate.';
+    if(typeof WWAYS!=='undefined'&&wwNear(x,z,w/2)&&roadDist0(x,z)>.3) return 'Not across canal water: roads cross only on the culverts.';
+    if(Array.isArray(S.deco)&&S.deco.some(d=>Math.hypot(d.x-x,d.z-z)<w/2+.7)) return 'A decoration is in the way. Move it first (press and hold it).';
+    if(NAV&&NAV.ready){for(const [ox,oz] of [[0,0],[w*.3,0],[-w*.3,0],[0,w*.3],[0,-w*.3]]){if(NAV.blocked(x+ox,z+oz)&&roadDist0(x+ox,z+oz)>.2) return 'Something is in the way (a building, fence, tree or decoration).';}}
+    return '';}
+  function check(ptsIn,w){const L=spline(ptsIn,false,1); for(const [x,z] of L){const e=okAt(x,z,w); if(e) return e;} return '';}
+  const vehiclesOut=()=>Object.keys(S.veh||{}).some(v=>S.veh[v]&&S.veh[v].trip);
+  // snap the ends of a new road onto a road it touches, so the two really join
+  function snapEnd(p){let best=null, bd=3.6; SAMP.forEach(L=>{for(const q of L){const d=Math.hypot(q[0]-p[0],q[1]-p[1]); if(d<bd){bd=d; best=q;}}}); if(Math.hypot(GATE[0]-p[0],GATE[1]-p[1])<4) best=GATE; return best?[best[0],best[1]]:p;}
+  function addRoad(raw,w=4){if(raw.length<2) return {err:'Drag a little further to draw a road.'};
+    const simp=[raw[0]]; for(const p of raw){const l=simp[simp.length-1]; if(Math.hypot(p[0]-l[0],p[1]-l[1])>=3) simp.push(p);} const last=raw[raw.length-1], l=simp[simp.length-1]; if(Math.hypot(last[0]-l[0],last[1]-l[1])>.8) simp.push(last);
+    if(simp.length<2) return {err:'Drag a little further to draw a road.'};
+    simp[0]=snapEnd(simp[0]); simp[simp.length-1]=snapEnd(simp[simp.length-1]);
+    let len=0; for(let k=1;k<simp.length;k++) len+=Math.hypot(simp[k][0]-simp[k-1][0],simp[k][1]-simp[k-1][1]);
+    const e=check(simp,w); if(e) return {err:e}; const cost=Math.max(5,Math.round(len*2));
+    return {road:{id:S.farmRoadN++,pts:simp,w},cost,len};}
+  // erase: cut away every part of a road within reach of the eraser's path; the pieces left over stay as separate roads
+  function erase(path){const R=2.6; let removed=0; const keep=[];
+    S.farmRoads.forEach((r,ri)=>{const L=SAMP[ri]; if(!L||!L.length){return;} const off=L.map(p=>path.some(q=>Math.hypot(p[0]-q[0],p[1]-q[1])<R+r.w*.3));
+      if(!off.some(Boolean)){keep.push(r); return;} let run=[];
+      const flush=()=>{if(run.length>=4){const pts=[run[0]]; for(let k=3;k<run.length-1;k+=3) pts.push(run[k]); pts.push(run[run.length-1]); keep.push({id:S.farmRoadN++,pts,w:r.w});} run=[];};
+      L.forEach((p,k)=>{if(off[k]){removed++; flush();} else run.push([p[0],p[1]]);}); flush();});
+    if(removed) S.farmRoads=keep; return removed;}
+  build();
+  return {get ready(){return true;}, owns:id=>OWNED.includes(id), build, draw, toHwy, fromHwy, frontZ, pickup, haulOut, katBack, blocked, addRoad, erase, check, vehiclesOut,
+    gateOf, linked, garageNode, bodegaNode, katNode, nodes:()=>NODES, roads:()=>SAMP};
+})();
 // the farm's dirt roads and footpaths: one continuous strip along each curve (grassy edges, darker wheel ruts, a lighter crown,
 // slightly ragged edges), with loose stones, muddy patches, grass on the shoulders and three potholes on the farm road
 function ribbon(S,w,cols,y,seed,PR){const r=rng(seed), pos=[], col=[], idx=[], C=cols.map(c=>new THREE.Color(c));
@@ -2143,7 +2272,8 @@ function ribbon(S,w,cols,y,seed,PR){const r=rng(seed), pos=[], col=[], idx=[], C
 const ROAD_MAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,metalness:0,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
 const ROAD_TOP=ROAD_MAT.clone(), ROAD_LOW=ROAD_MAT.clone(); ROAD_TOP.polygonOffsetFactor=ROAD_TOP.polygonOffsetUnits=-2.6; ROAD_LOW.polygonOffsetFactor=ROAD_LOW.polygonOffsetUnits=-1.2;
 (()=>{const rr=rng(808), parts=[], st=[], gr=[];
-  for(const id of LIVE_ROADS){const R=ROADS[id], foot=R.kind.startsWith('footpath');
+  FARMNET.draw();
+  for(const id of LIVE_ROADS){if(FARMNET.owns(id)) continue; const R=ROADS[id], foot=R.kind.startsWith('footpath');
     // where two strips overlap (each animal track and footpath meeting the service road, the access road joining it) they would flicker
     // against each other at the same height: the service road draws on top, then the access road, then the tracks and footpaths
     const lay=id==='service'?ROAD_TOP:id==='access'?ROAD_MAT:ROAD_LOW, y=id==='service'?.036:id==='access'?.035:foot?.03:.033;
@@ -2154,7 +2284,7 @@ const ROAD_TOP=ROAD_MAT.clone(), ROAD_LOW=ROAD_MAT.clone(); ROAD_TOP.polygonOffs
   POTHOLES.forEach(p=>{parts.push(put(blobGeo(p.r*1.45,p.s+.5,.85,0x5f4a30,.054),p.x,p.z,p.s));        // wet mud around the hole
     parts.push(put(blobGeo(p.r*1.05,p.s+1.7,.8,0x4e3c27,.056),p.x,p.z,p.s));                           // darker mud
     parts.push(put(blobGeo(p.r*.8,p.s,.75,0x6c7d82,.059),p.x,p.z,p.s));});                              // muddy water
-  for(const S of [ACCESS,SERVICE]) for(let k=0;k<S.length;k+=2){
+  for(const S of [ACCESS]) for(let k=0;k<S.length;k+=2){
     if(rr()<.55){const [x,z]=along(S,k,(rr()-.5)*3); parts.push(put(blobGeo(.4+rr()*.8,rr()*9,.5+rr()*.5,[0x93805f,0xa89474,0x9b8666,0xb19d7d][(rr()*4)|0],.051),x,z,rr()*6));}   // small worn patches in close, muted tones
     for(let q=0;q<2;q++){const [x,z]=along(S,k,(rr()-.5)*3.6); st.push([x,.07,z,.06+rr()*.1,.04+rr()*.05,.06+rr()*.1,[0x8d8d8d,0xa39e93,0x7a7468][(rr()*3)|0],rr()*3]);}
     for(const sd of [-1,1]) if(rr()<.8){const [x,z]=along(S,k,sd*(2.3+rr()*.6)); if(!POTHOLES.some(p=>Math.hypot(x-p.x,z-p.z)<p.r*1.5)&&!inField(x,z,.5)) gr.push([x,.05,z,.7+rr()*.6,.6+rr()*.7,.7+rr()*.6,[0x6aa84a,0x7cb342,0x8fbf4a][(rr()*3)|0],rr()*6]);}
@@ -2749,7 +2879,7 @@ function loopPickupRoute(vid,type,eggs){
     back.push([SERVICE[q][0],SERVICE[q][1],d]);}
   const az2=SVC0[e][1]; back.push([sx+3.5,az2,sl,true],[sx,az2,sl,true],[sx,G0]);   // finish the turn on the apron, reverse into the bay
   return [out,back];}
-function pickupRoute(vid,type,eggs){return loopPickupRoute(vid,type,eggs);}
+function pickupRoute(vid,type,eggs){const F=typeof FARMNET!=='undefined'&&FARMNET&&FARMNET.pickup(vid,type,eggs); return F||loopPickupRoute(vid,type,eggs);}
 function routesFor(vid,dest,tr){
   if(tr&&tr.haulRoute){if(!HAUL_ROUTES.has(tr))HAUL_ROUTES.set(tr,{out:mkRoute(tr.haulRoute.out),back:mkRoute(tr.haulRoute.back)});return HAUL_ROUTES.get(tr);}
   const key=vid+dest+(dest==='pickup'&&tr?tr.area+':'+(tr.pickupLayout||1)+(tr.eggs?':egg':''):''); if(ROUTES[key]) return ROUTES[key];
@@ -3893,8 +4023,11 @@ function irrigationSite(x,z,m=0){m=Math.max(0,m);return (x>-206-m&&x<-114+m&&z>-
     else {x=-180+rr()*470; z=HZ+(rr()<.5?-1:1)*(5.6+rr()*1.8);}
     if(busy(x,z,-.5)||onRoad(x,z,.1)) continue;
     const s=1.4+rr()*1.2; grass.push([x,0,z,s,s*1.3,s,[0xa3b35a,0xb5b85a,0x8fa84a][(rr()*3)|0],rr()*6]);}
-  softCover(instR(tuft,grass,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,flatShading:true})));
-  softCover(instR(new THREE.SphereGeometry(1,5,4),flowers));
+  // grass and flowers inside the farm are redrawn when the player's roads change: none grows on a road, and it grows back where one is removed
+  {const tm=new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,flatShading:true}), sph=new THREE.SphereGeometry(1,5,4); let gm=null, fm=null;
+   const keep=p=>!(inLot(p[0],p[2])&&roadDist(p[0],p[2])<.3);
+   const draw=()=>{for(const o of [gm,fm]) if(o&&o.parent) o.parent.remove(o); gm=softCover(instR(tuft,grass.filter(keep),tm)); fm=softCover(instR(sph,flowers.filter(keep)));};
+   draw(); COVER_REFRESH=draw;}
 })();
 // gentle hills (burol) beyond the farm, the town and the factory, where nothing is built
 (()=>{const r=rng(606), b=[], CL=[0x7fb352,0x86b85a,0x78ab4e,0x8fbf5e];
@@ -5535,6 +5668,7 @@ function closeDriverPick(pick){const vid=drvVid; drvVid=null; $('drvSheet').clas
 function refundTrip(tr){shopRefund(tr);if(tr.cargo) S.load.push(...tr.cargo); if(tr.goods) for(const k in tr.goods) stockFor(k)[k]=(stockFor(k)[k]||0)+tr.goods[k]; changed();}
 function beginTrip(vid,tr,by){ // you choose who drives when more than one person is free (a Biyahero delivering on his own drives himself)
   const st=S.veh[vid], free=driverChoices().filter(c=>c.free);
+  {const why=typeof FARMNET!=='undefined'&&FARMNET&&FARMNET.blocked(vid,tr); if(why){toast(why,3600); return false;}}
   if(!free.length){noDriver(); return false;}
   st.trip=tr; tr.t0=null;
   if(by&&free.some(c=>c.id===by)){assignDriver(vid,by); return true;}
@@ -6065,7 +6199,7 @@ $('hwSheet').addEventListener('click',e=>{
       toast(`🚌 Your farmer is riding the bus to ${STORE[curStore].name}.`,3000); buzz(); changed(); return renderHW();}
     const V=VEH[hwVeh];
     if(S.veh[hwVeh].trip||load<1||load>V.cap||S.coins<total) return;
-    if(!driverFree()) return noDriver(); S.coins-=total; beginTrip(hwVeh,{dest:curStore,mats:{...hwQty}}); hwQty={};
+    if(!driverFree()) return noDriver(); if(!beginTrip(hwVeh,{dest:curStore,mats:{...hwQty}})) return; S.coins-=total; hwQty={};
     toast(`${V.icon} ${driverName(S.veh[hwVeh].trip,true)} is driving the ${vname(hwVeh)} to ${STORE[curStore].name}. ${STORE[curStore].crew}`,3200); buzz(); changed(); renderHW();
   }
 });
@@ -7363,6 +7497,8 @@ function continueAnimalHaul(vid,tr,now){const V=VEH[vid],R=routesFor(vid,'pickup
     const i=frontIdx(V.slot+3.5),a=SVC0[i]; back=[[10,57,SPD.slow],...thin(loopSeq(iK,i)).map(q=>[SERVICE[q][0],SERVICE[q][1],SPD.dirt])]; back.push([V.slot+3.5,a[1],SPD.slow,true],[V.slot,a[1],SPD.slow,true],[V.slot,G0]);}
   else if(dest==='coop'){out=exitPts.concat(thin(loopSeq(G.J,0)).slice(1).map(q=>[SERVICE[q][0],SERVICE[q][1],SPD.dirt])); for(let q=ACCESS.length-1;q>=0;q-=2) out.push([ACCESS[q][0],ACCESS[q][1],SPD.dirt]); out.push([DX,LE,SPD.hwy],...COOP_IN()); back=COOP_BACK(V.slot);}
   else{dest='palengke';out=exitPts.concat(thin(loopSeq(G.J,0)).slice(1).map(q=>[SERVICE[q][0],SERVICE[q][1],SPD.dirt])); for(let q=ACCESS.length-1;q>=0;q-=2) out.push([ACCESS[q][0],ACCESS[q][1],SPD.dirt]);out.push([DX,LE,SPD.hwy],[PX-4,LE,SPD.slow],[PX+2,HZ-5,SPD.slow],[PX+2,-118.5,SPD.slow],[PX-3,-120.8,SPD.slow],[PX-13,-120.8,SPD.slow],[PX-16,-124,SPD.slow],[PX-16,-127]);const normal=routesFor(vid,'palengke');back=normal.back.segs.map(s=>[s.a[0],s.a[1],s.a[2]||SPD.slow,s.rev]);const last=normal.back.segs.at(-1).b;back.push([last[0],last[1]]);}
+  {const FN=typeof FARMNET!=='undefined'&&FARMNET, fo=FN&&FN.haulOut(from,dest==='katayan'?'katayan':'gate');
+   if(fo){if(dest==='katayan'){out=fo; back=FN.katBack(V.slot)||back;} else {const i=out.findIndex(q=>q[0]===DX&&q[1]===LE); if(i>=0) out=fo.concat(out.slice(i));}}}
   const remaining={...animals},cargo=[];
   if(dest==='palengke'){for(let i=S.orders.length-1;i>=0;i--){const order=S.orders[i];if(Object.entries(order.items).every(([k,q])=>ITEMS[k]?.live&&(remaining[k]||0)>=q)){for(const [k,q]of Object.entries(order.items))remaining[k]-=q;cargo.push({label:order.who+': live animal order',n:Object.values(order.items).reduce((a,b)=>a+b,0),ret:{...order.items},live:{...order.items},order,coins:order.reward,xp:order.xp});S.orders.splice(i,1);}}fillOrders();}
   const rest=Object.fromEntries(Object.entries(remaining).filter(([,q])=>q>0));if(Object.keys(rest).length)cargo.push({label:Object.values(rest).reduce((a,b)=>a+b,0)+' live animals',n:Object.values(rest).reduce((a,b)=>a+b,0),ret:rest,live:rest,coins:Object.entries(rest).reduce((sum,[k,q])=>sum+q*Math.round(ITEMS[k].price*(dest==='coop'?COOP_RATE:1)),0),xp:dest==='coop'?Math.max(2,Object.values(rest).reduce((a,b)=>a+b,0)*3):0});
@@ -7953,7 +8089,7 @@ const WWAYS=(()=>{
   const covered=(x,z,m)=>houseCrossing(x,z,m-(m>.5?.6:0))||(Math.abs(x-140)<5+m&&Math.abs(z+103.8)<4)||stopDrainCovered(x,z,m)||(Math.abs(z-HZ)<5.2+m)||(Math.abs(z-STZ)<4.3+m&&x>35-m&&x<335+m)||(Math.abs(x-SRX)<4.3+m&&z>STZ&&z<HZ)||((Math.abs(x-40)<4.3+m||Math.abs(x-330)<4.3+m)&&z>STZ-4.3&&z<HZ)
     ||(Math.abs(x-PX)<7+m&&Math.abs(z+116.4)<3+m) // palengke entrance culvert
     ||([273,300].some(a=>Math.abs(x-a)<3.5+m)&&Math.abs(z+116.4)<2.9+m)||(Math.abs(x-236)<5+m&&Math.abs(z+116.4)<2.9+m)   // terminal driveways, bus entrance
-    ||(Math.abs(x-TWN.wx)<TWN.w/2+1.3+m&&z>TWN.bz&&z<HZ)||(Math.abs(z-TWN.bz)<TWN.w/2+1.3+m&&x>TWN.wx&&x<SRX)||hr(x,z,m)||roadDist(x,z)<m||turn(x,z,m-.5);
+    ||(Math.abs(x-TWN.wx)<TWN.w/2+1.3+m&&z>TWN.bz&&z<HZ)||(Math.abs(z-TWN.bz)<TWN.w/2+1.3+m&&x>TWN.wx&&x<SRX)||hr(x,z,m)||roadDist0(x,z)<m||turn(x,z,m-.5);
   const gy=(x,z)=>{const h=hillH(x,z); return h>0?h+.08:0;};
   const tex=(rough)=>{const cv=document.createElement('canvas'); cv.width=64; cv.height=256; const c=cv.getContext('2d'); c.fillStyle=rough?'#e6e6e6':'#d4d4d4'; c.fillRect(0,0,64,256); const r=rng(rough?5:3);
     for(let k=0;k<(rough?150:60);k++){const x=r()*64, y=r()*256, l=8+r()*(rough?40:30); c.fillStyle=r()<(rough?.75:.55)?`rgba(255,255,255,${rough?.9:.6})`:'rgba(150,150,150,.45)'; c.fillRect(x,y,1+r()*(rough?3:2),l); if(y+l>256) c.fillRect(x,y-256,2,l);}
@@ -9710,6 +9846,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:57,date:'Nov 12, 2026',title:'Build your own farm roads',items:['🛣️ The roads inside your farm are now yours: in Decorate, drag Dirt road to build one (₱2 a metre) and drag Remove road to take part of one away. The road from the highway to the arko and the farm fence stay as they are.','🔗 Roads join wherever they touch, curves and junctions blend into one dirt road, and grass clears off them.','🚚 Your trucks drive only on roads that connect to the arko. While a road tool is chosen, labels show which animal gates, the garage, the bodega and the katayan your roads reach; a pickup to a place with no road tells you so.','↶ Road changes can be undone. To keep trucks from getting lost, roads can\'t be changed while a vehicle is out.']},
   {v:56,date:'Nov 12, 2026',title:'Undo, and pick things up',items:['↶ Decorate has an Undo button (Ctrl/Cmd+Z on a computer). It takes back placing, a whole dragged fence line, moving, turning, removing and sign edits, one step at a time, and returns the coins.','✋ Press and hold anything you placed to pick it up: drag it to a new spot, then ✓ to put it down, ↻ to turn it or ✕ to remove it. The ring under it turns red where it can\'t go.']},
   {v:55,date:'Nov 12, 2026',title:'Sign in with Google, done right',items:['☁️ A new sketched welcome screen: continue with Google to keep your farm safe online, or play as a guest. On a phone it asks you to turn sideways first.','🌱 A sketched loading screen with a little tractor while your farm is built.','⚙️ Your account now lives in Settings: who is signed in, the auto-sync status, Sync now and Sign out.','🛟 Safer saves: the game picks the newest copy of your farm on its own and only asks when two devices both have new progress, keeps a backup of the copy it replaces, renews your sign-in while you keep playing, and if your sign-in ever runs out you can still open your own farm on this device.']},
   {v:54,date:'Nov 12, 2026',title:'Decorate your farm',items:['🌼 A new Decorate button: drag to build wooden, bamboo or picket fences, hollow-block walls, santan hedges and little canals, or tap to place a signboard, flowers, pots, a banga, rocks, a kalachuchi, a bench, a lamp post, a plank bridge or a kubo.','🪧 Write your own words on a signboard (up to 24 letters); the board fits the text, in four colours.','✋ Tap anything you placed to turn it, move it or remove it (half the price back). Decorations stay off roads, gates, fields and pens, so your farm keeps working, and people walk around them.']},
@@ -9943,6 +10080,8 @@ var DECO=(()=>{
   if(!Array.isArray(S.deco)) S.deco=[]; if(!S.decoN) S.decoN=1;
   const WOOD=0x8d6e4b, DARK=0x5d4037, CON=0xb9b2a3;
   const CAT={
+    road:{name:'Dirt road',sub:'drag to draw',cost:2,per:'m',roadTool:true,line:true,svg:'<path d="M6 36q4-14 14-18t14-16" stroke="#8c7657" stroke-width="9"/><path d="M6 36q4-14 14-18t14-16" stroke="#a89272" stroke-width="3"/>'},
+    eraser:{name:'Remove road',sub:'drag over a road',cost:0,roadTool:true,line:true,svg:'<path d="M6 36q4-14 14-18t14-16" stroke="#8c7657" stroke-width="9" opacity=".55"/><path d="M12 14l16 16M28 14L12 30" stroke="#c4553f" stroke-width="3.2"/>'},
     sign:{name:'Karatula',sub:'your own words',cost:40,r:.5,block:true,sign:true,svg:'<path d="M9 30V20M31 30V20" /><rect x="5" y="9" width="30" height="12" rx="2" fill="#d9b382"/><path d="M10 15h20"/>'},
     fence:{name:'Bakod na kahoy',sub:'drag a line',cost:12,line:true,block:true,svg:'<path d="M7 33V10l2-3 2 3v23M19 33V10l2-3 2 3v23M31 33V10l2-3 2 3v23" fill="#c49a6c"/><path d="M5 16h32M5 26h32"/>'},
     bamboo:{name:'Bakod na kawayan',sub:'drag a line',cost:10,line:true,block:true,svg:'<path d="M8 34V8M14 34V10M20 34V8M26 34V10M32 34V8" stroke-width="3.2" stroke="#9fb35a"/><path d="M5 17h30M5 26h30"/>'},
@@ -10074,11 +10213,12 @@ var DECO=(()=>{
       else dist=Math.hypot(d.x-x,d.z-z)-(c.sign?signW(d.t||'')/2:c.r)*.6;
       if(dist<bd){bd=dist; best=d;}} return bd<.9?best:null;};
   // ---- undo: a snapshot of the decorations (and the coins they cost or refunded) before every change; a dragged line is one step
-  const hist=[], shot=()=>({deco:JSON.parse(JSON.stringify(S.deco)),c0:S.coins});
-  function finish(r){if(!r||JSON.stringify(S.deco)===JSON.stringify(r.deco)) return; const n=S.deco.length-r.deco.length;
-    r.delta=S.coins-r.c0; r.label=n>0?(n>1?`${n} pieces placed`:'Placing'):n<0?'Removing':'That change'; hist.push(r); if(hist.length>40) hist.shift(); renderHUD();}
+  const hist=[], shot=()=>({deco:JSON.parse(JSON.stringify(S.deco)),roads:JSON.parse(JSON.stringify(S.farmRoads||[])),c0:S.coins});
+  function finish(r){if(!r) return; const roadsChanged=JSON.stringify(S.farmRoads||[])!==JSON.stringify(r.roads); if(!roadsChanged&&JSON.stringify(S.deco)===JSON.stringify(r.deco)) return; const n=roadsChanged?0:S.deco.length-r.deco.length;
+    r.delta=S.coins-r.c0; r.label=roadsChanged?(r.roadLabel||'Road change'):n>0?(n>1?`${n} pieces placed`:'Placing'):n<0?'Removing':'That change'; hist.push(r); if(hist.length>40) hist.shift(); renderHUD();}
   function undo(){if(active){cancelActive(); return;} const r=hist.pop(); if(!r) return toast('Nothing to undo yet.');
     if(r.delta>0&&S.coins<r.delta){hist.push(r); return toast(`You need ₱${r.delta} to undo that: the refund goes back.`,2600);}
+    if(JSON.stringify(S.farmRoads||[])!==JSON.stringify(r.roads)){if(FARMNET.vehiclesOut()){hist.push(r); return toast('Wait until your vehicles are back in the garage, then undo the road change.',2800);} S.farmRoads=r.roads; FARMNET.build(); FARMNET.draw(); connCheck();}
     S.coins-=r.delta; S.deco=r.deco; moving=null; if(bldIdx===-9) $('bldSheet').classList.remove('open'); rebuild(); changed(); buzz();
     toast(`↶ ${r.label} undone${r.delta<0?` · +₱${-r.delta} back`:r.delta>0?` · −₱${r.delta}`:''}.`); renderHUD();}
   function tap(x,y){const r=shot(), res=tap0(x,y); finish(r); return res;}
@@ -10088,13 +10228,18 @@ var DECO=(()=>{
     if(moving){const d=S.deco.find(o=>o.id===moving); moving=null; if(!d) return true; const ox=d.x, oz=d.z; d.x=snap(gx); d.z=snap(gz); const e=okFor(d); if(e){d.x=ox; d.z=oz; toast('Can\'t move it there. '+e,2600); rebuild(); return true;} rebuild(); changed(); toast(`${CAT[d.k].name} moved.`); return true;}
     const hit=atPoint(gx,gz); if(hit&&!sel){openEdit(hit.id); return true;}
     if(!sel){if(hit) openEdit(hit.id); else toast('Pick a decoration from the bar first, or tap one you placed to change it.',2600); return true;}
+    if(CAT[sel].roadTool){toast(sel==='road'?'Drag across your land to draw a dirt road.':'Drag across a road to remove that part of it.',2200); return true;}
     const res=add(sel,snap(gx),snap(gz),rot); if(res==='coins') return true; if(typeof res==='string'){toast('Can\'t put it there. '+res,2600); return true;}
     rebuild(); changed(); sfx('hammer',res.x,res.z); if(CAT[sel].sign) openEdit(res.id); return true;}
   // a line: start where the finger went down, lay a 2 m piece each time the drag has gone 2 m, turned to the nearest 45°
   let line=null;
   const lineOn=()=>openCat==='decor'&&(dragArm||(!!sel&&!!CAT[sel].line&&!moving&&!active));
-  function lineStart(x,y){if(dragArm) return; const g=ground(x,y); if(!g) return; line={p:[snap(g[0]),snap(g[1])],n:0,bad:'',rec:shot()};}
-  function lineTo(x,y){if(dragArm&&active){const g=ground(x,y); if(!g) return; active.x=snap(g[0]+active.off[0]); active.z=snap(g[1]+active.off[1]); place(); return;} if(!line) return; const g=ground(x,y); if(!g) return; let changedAny=false;
+  let roadT=0;
+  function lineStart(x,y){if(dragArm) return; const g=ground(x,y); if(!g) return;
+    if(sel&&CAT[sel].roadTool){if(FARMNET.vehiclesOut()){line=null; toast('Wait until your vehicles are back in the garage before changing roads.',2800); return;} line={road:sel,raw:[[g[0],g[1]]],rec:shot(),n:0,bad:''}; return;} line={p:[snap(g[0]),snap(g[1])],n:0,bad:'',rec:shot()};}
+  function lineTo(x,y){if(line&&line.road){const g=ground(x,y); if(!g) return; const l=line.raw[line.raw.length-1]; if(Math.hypot(g[0]-l[0],g[1]-l[1])>=.8) line.raw.push([g[0],g[1]]);
+      const now=performance.now(); if(now-roadT>110){roadT=now; const bad=line.road==='road'?FARMNET.check(line.raw,4):''; line.bad=bad; FARMNET.draw({pts:line.raw,bad:line.road==='eraser'||!!bad});} return;}
+    if(dragArm&&active){const g=ground(x,y); if(!g) return; active.x=snap(g[0]+active.off[0]); active.z=snap(g[1]+active.off[1]); place(); return;} if(!line) return; const g=ground(x,y); if(!g) return; let changedAny=false;
     for(let guard=0;guard<20;guard++){const dx=g[0]-line.p[0], dz=g[1]-line.p[1], L=Math.hypot(dx,dz); if(L<2) break;
       const a=Math.round(Math.atan2(dz,dx)/(Math.PI/4))*(Math.PI/4), ux=Math.cos(a), uz=Math.sin(a), step=2;
       const cx=line.p[0]+ux*step/2, cz=line.p[1]+uz*step/2, r=Math.atan2(-uz,ux);
@@ -10102,11 +10247,17 @@ var DECO=(()=>{
       const res=add(sel,cx,cz,r); if(res&&typeof res==='object'){line.n++; changedAny=true;} else if(res==='coins'){line.p=[g[0],g[1]]; break;} else line.bad=res;
       line.p=[line.p[0]+ux*step,line.p[1]+uz*step];}
     if(changedAny) rebuild();}
-  function lineEnd(){if(dragArm){dragArm=false; return;} if(!line) return; const n=line.n, bad=line.bad, rec=line.rec; line=null; finish(rec); if(n){changed(); toast(`${CAT[sel].name}: ${n} piece${n>1?'s':''} (₱${n*CAT[sel].cost}).`);} else if(bad) toast('Can\'t build there. '+bad,2600); else toast('Drag a little further: each piece is 2 m.');}
+  function lineEnd(){if(dragArm){dragArm=false; return;} if(!line) return;
+    if(line.road){const L=line; line=null;
+      if(L.road==='eraser'){const n=FARMNET.erase(L.raw); FARMNET.build(); FARMNET.draw(); if(n){L.rec.roadLabel='Removing road'; finish(L.rec); changed(); toast('Road removed. Trucks only use the roads that are left.',2600); connCheck();} else toast('Drag across a road to remove that part of it.',2400); return;}
+      const res=FARMNET.addRoad(L.raw,4); if(res.err){FARMNET.draw(); toast('Can\'t build that road. '+res.err,3000); return;}
+      if(S.coins<res.cost){FARMNET.draw(); toast(`That road costs ₱${res.cost}.`,2400); return;}
+      S.coins-=res.cost; S.farmRoads.push(res.road); FARMNET.build(); FARMNET.draw(); L.rec.roadLabel='Building road'; finish(L.rec); changed(); sfx('hammer',cam.target.x,cam.target.z);
+      toast(`🛣️ Dirt road built: ${Math.round(res.len)} m (₱${res.cost}).`,2400); connCheck(); return;} const n=line.n, bad=line.bad, rec=line.rec; line=null; finish(rec); if(n){changed(); toast(`${CAT[sel].name}: ${n} piece${n>1?'s':''} (₱${n*CAT[sel].cost}).`);} else if(bad) toast('Can\'t build there. '+bad,2600); else toast('Drag a little further: each piece is 2 m.');}
   // ---- the bar under the Decorate button
-  function bar(){if(active) return ''; return `<button class="tool" data-deco-undo="1" ${hist.length?'':'disabled'} aria-label="Undo the last change"><span class="ti">↶</span><span class="tl">Undo</span><span class="tc">${hist.length?hist.length+(hist.length>1?' steps':' step'):'nothing yet'}</span></button>`+ORDER.map(k=>{const c=CAT[k], on=sel===k; return `<button class="tool ${on?'on':''}" data-deco="${k}" aria-pressed="${on}"><span class="ti svg" aria-hidden="true">${c.svgFull}</span><span class="tl">${c.name}</span><span class="tc">₱${c.cost}</span></button>`;}).join('')
+  function bar(){if(active) return ''; return `<button class="tool" data-deco-undo="1" ${hist.length?'':'disabled'} aria-label="Undo the last change"><span class="ti">↶</span><span class="tl">Undo</span><span class="tc">${hist.length?hist.length+(hist.length>1?' steps':' step'):'nothing yet'}</span></button>`+ORDER.map(k=>{const c=CAT[k], on=sel===k; return `<button class="tool ${on?'on':''}" data-deco="${k}" aria-pressed="${on}"><span class="ti svg" aria-hidden="true">${c.svgFull}</span><span class="tl">${c.name}</span><span class="tc">${c.roadTool?(c.cost?'₱'+c.cost+' / m':'free'):'₱'+c.cost}</span></button>`;}).join('')
     +`<button class="tool" data-deco-rot="1" aria-label="Turn the next piece"><span class="ti">↻</span><span class="tl">Turn</span><span class="tc">${Math.round(rot*180/Math.PI)%360}°</span></button>`;}
-  function hint(){if(!sel&&!active&&!moving) return 'Pick a decoration, then tap your farm to place it. Press and hold something you placed to pick it up and move it; tap it to edit it.'; if(active) return 'Drag it to a new spot. ✓ puts it down, ↻ turns it, ✕ removes it (half back). Tap elsewhere to put it back.'; if(moving) return 'Tap where you want to move it.'; if(!sel) return 'Pick a decoration, then tap your farm to place it. Tap something you placed to turn, move, edit or remove it.';
+  function hint(){if(sel==='road') return 'Drag across your land to draw a dirt road (₱2 per metre). Its ends join any road they touch. Labels show what your roads reach: trucks only go where they connect.'; if(sel==='eraser') return 'Drag across a road to remove that part of it. Trucks only use roads that still connect.'; if(!sel&&!active&&!moving) return 'Pick a decoration, then tap your farm to place it. Press and hold something you placed to pick it up and move it; tap it to edit it.'; if(active) return 'Drag it to a new spot. ✓ puts it down, ↻ turns it, ✕ removes it (half back). Tap elsewhere to put it back.'; if(moving) return 'Tap where you want to move it.'; if(!sel) return 'Pick a decoration, then tap your farm to place it. Tap something you placed to turn, move, edit or remove it.';
     return CAT[sel].line?`Drag across your land to build ${CAT[sel].name.toLowerCase()} (₱${CAT[sel].cost} per 2 m). Tap to place one piece.`:`Tap your farm to place a ${CAT[sel].name.toLowerCase()} (₱${CAT[sel].cost}). Tap "Turn" to face it another way.`;}
   $('tools').addEventListener('click',e=>{const b=e.target.closest('[data-deco],[data-deco-rot],[data-deco-undo]'); if(!b||b.disabled) return;
     if(b.dataset.decoUndo){undo(); return;}
@@ -10136,9 +10287,15 @@ var DECO=(()=>{
       rebuild(); changed(); $('bldSheet').classList.remove('open'); toast('Sign updated.'); return;}}
   $('bldSheet').addEventListener('click',e=>{if(bldIdx!==-9) return; const b=e.target.closest('[data-deco-act]'); if(!b||b.disabled) return; e.stopPropagation(); act(b.dataset.decoAct,b.dataset.v);},true);
   addEventListener('keydown',e=>{if(openCat!=='decor'||!(e.ctrlKey||e.metaKey)||e.key.toLowerCase()!=='z'||e.shiftKey) return; const t=e.target; if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA')) return; e.preventDefault(); undo();});
+  const conn=document.createElement('div'); conn.id='deco-conn'; document.body.append(conn); let connList=[];
+  function connCheck(){const L=[]; const t=(label,x,z,ok)=>L.push({label,x,z,ok});
+    const gn=FARMNET.garageNode(GX); t('Garage',GX,G0+4,FARMNET.linked(gn)); t('Bodega',BODEGA_STOP[0],BODEGA_STOP[1],FARMNET.linked(FARMNET.bodegaNode())); t('Katayan',10,57,FARMNET.linked(FARMNET.katNode()));
+    for(const a of FARM.areas) t(a.name,a.gate[0],a.gate[1],FARMNET.linked(FARMNET.gateOf(a.type)));
+    connList=L; conn.replaceChildren(...L.map(o=>{const e=document.createElement('span'); e.className='cn '+(o.ok?'ok':'no'); e.textContent=(o.ok?'✓ ':'✕ ')+o.label; o.el=e; return e;}));}
   const pv=new THREE.Vector3();
   function update(){const r=!!(NAV&&NAV.ready); if(r&&!navWas) navApply(); navWas=r;
     if(active&&openCat!=='decor') cancelActive();
+    const showConn=openCat==='decor'&&!!sel&&CAT[sel]&&CAT[sel].roadTool; conn.hidden=!showConn; if(showConn){if(!connList.length) connCheck(); for(const o of connList){pv.set(o.x,2.2,o.z).project(camera); const vis=pv.z<1&&Math.abs(pv.x)<1.1&&Math.abs(pv.y)<1.1; o.el.style.display=vis?'':'none'; if(vis) o.el.style.transform=`translate(${Math.round((pv.x+1)/2*innerWidth)}px,${Math.round((1-pv.y)/2*innerHeight)}px) translate(-50%,-100%)`;}}
     if(active){const k=S.deco.find(o=>o.id===active.id)?.k, c=CAT[k]||{}; pv.set(active.x,(c.sign?2.2:k==='kubo'?3.6:k==='tree'||k==='lamp'?3.1:1.6),active.z).project(camera);
       const sx=(pv.x+1)/2*innerWidth, sy=(1-pv.y)/2*innerHeight; ctl.hidden=pv.z>1; ctl.style.transform=`translate(${Math.round(sx)}px,${Math.round(sy)}px) translate(-50%,-100%)`;}}
   if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>{if(S.deco.some(d=>CAT[d.k]&&CAT[d.k].sign)) rebuild();});

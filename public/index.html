@@ -2865,10 +2865,12 @@ function lnBuild(){
   const JIN=lnLane('t:jin',[[300,-115],[300,-123]],{vmax:POCK}), JQ=lnLane('t:jq',[[297,-126],[282,-126]],{vmax:POCK});
   lnTurn(E(292),JIN,{pri:2}); lnTurn(W(304),JIN,{pri:1}); lnTurn(JIN,JQ,{}); lnTurn(JQ,TEX,{});
   // the east end road with the police station, and the barangay back road
-  const eN=lnRoad('eN',[331.75,-115],[331.75,-181],{vmax:SIDE,cuts:[-140.5,-154.25],boxes:[[-139,-157],[-177,-181]],w:2.6}), eS=lnRoad('eS',[328.25,-177],[328.25,-119],{vmax:SIDE,w:2.6});   // stops short of the highway and the back road so a bus turns wide
+  const eN=lnRoad('eN',[331.75,-115],[331.75,-181],{vmax:SIDE,cuts:[-140.5,-154.25,-161,-177.25],boxes:[[-139,-157],[-159,-181]],w:2.6}), eS=lnRoad('eS',[328.25,-177],[328.25,-119],{vmax:SIDE,w:2.6});   // stops short of the highway and the back road so a bus turns wide
   lnTurn(W(335),eN.first,{pri:1}); lnTurn(E(325),eN.first,{pri:2}); lnTurn(eS.last,Ws(321),{pri:3}); lnTurn(eS.last,Es(339),{pri:3});
   {const YIN=lnLane('pol:in',[[336,-144.75],[338.5,-144.75]],{vmax:POCK,solo:true}), YU=lnLane('pol:park',lnCurve([338.5,-144.75],[1,0],[342,-150],[-1,0]),{vmax:POCK,solo:true}), YOUT=lnLane('pol:out',[[342,-150],[336,-150]],{vmax:POCK,solo:true});
     lnLink(YIN,YU); lnLink(YU,YOUT); lnTurn(eN.endAt(-140.5),YIN,{pri:1}); lnTurn(YOUT,eN.startAt(-154.25),{pri:3});}
+  {const FIN=lnLane('fire:in',[[336,-165.25],[349,-165.25]],{vmax:POCK,solo:true}), FU=lnLane('fire:turn',lnCurve([349,-165.25],[1,0],[349,-173],[-1,0]),{vmax:POCK,solo:true}), FOUT=lnLane('fire:out',[[349,-173],[336,-173]],{vmax:POCK,solo:true});   // the fire station: in at the back, out through the bay
+    lnLink(FIN,FU); lnLink(FU,FOUT); lnTurn(eN.endAt(-161),FIN,{pri:1}); lnTurn(FOUT,eN.startAt(-177.25),{pri:3});}
   const zE=lnRoad('zE',[49,-184.25],[321,-184.25],{vmax:9,boxes:[[49,53],[146,160],[204,220],[317,321]],cuts:[158,206,218],w:2.6}), zW=lnRoad('zW',[325,-187.75],[45,-187.75],{vmax:9,boxes:[[325,321],[160,146],[220,204],[49,45]],cuts:[155,206,218],w:2.6});
   lnTurn(wN.last,zE.first,{pri:1}); lnTurn(zW.last,wS.first,{pri:2}); lnTurn(zE.last,eS.first,{pri:1}); lnTurn(eN.last,zW.first,{pri:2});
   lnTurn(sN.last,zE.startAt(218),{pri:3}); lnTurn(sN.last,zW.startAt(206),{pri:3}); lnTurn(zW.endAt(218),sS.first,{pri:2}); lnTurn(zE.endAt(206),sS.first,{pri:1});
@@ -3524,7 +3526,8 @@ const WW_CLEAR=[[3.8,[268,-252],[276,-236],[290,-218],[307,-202],[315,-191],[315
 function wwNear(x,z,m){for(const [w,...P] of WW_CLEAR) for(let i=0;i<P.length-1;i++){const [ax,az]=P[i], [bx,bz]=P[i+1], dx=bx-ax, dz=bz-az, L=dx*dx+dz*dz||1, t=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/L)); if(Math.hypot(x-ax-dx*t,z-az-dz*t)<w+m) return true;} return false;}
 // Visual-only irrigation site and maintenance approach; keep procedural foliage clear.
 // Southeast utilities parcel and its maintenance path, reserved from procedural foliage.
-function irrigationSite(x,z,m=0){m=Math.max(0,m);return (x>2-m&&x<60+m&&z>-248-m&&z<-188+m)||(x>58-m&&x<98+m&&z>-240-m&&z<-212+m)||   // the school and the health center
+function irrigationSite(x,z,m=0){m=Math.max(0,m);return (x>335-m&&x<362+m&&z>-188-m&&z<-159+m)||(x>362-m&&x<426+m&&z>-270-m&&z<-176+m)||(x>364-m&&x<368+m&&z>-228-m&&z<-158+m)||   // the fire station, the hospital, the evacuation center
+  (x>2-m&&x<60+m&&z>-248-m&&z<-188+m)||(x>58-m&&x<98+m&&z>-240-m&&z<-212+m)||   // the school and the health center
   (x>118-m&&x<190+m&&z>100-m&&z<146+m)||(x>58-m&&x<108+m&&z>154-m&&z<215+m)||(x>44-m&&x<51+m&&z>-32-m&&z<-2+m)||(x>59-m&&x<107+m&&z>46-m&&z<85+m)||(x>111-m&&x<184+m&&z>-73-m&&z<34+m)||(x>60-m&&x<108+m&&z>-70-m&&z<28+m)||southRoadNear(x,z,m)||(x>120-m&&x<180+m&&z>52-m&&z<78+m);}
 // countryside: acacia, mango, niyog, saging and kawayan trees, wild grass and flowers (all instanced, all cast shadows)
 (()=>{const rr=rng(42);
@@ -8462,6 +8465,118 @@ const SCHOOL_CLINIC=(()=>{
       else if(k.mode==='leaving'){if(step(k,dt,1.6)){k.mode='home'; R.visible=false;}}}
     last=phase;}};
 })();
+/* ---------- Health and emergency (masterplan phase 3): the fire station, the regional hospital, and the evacuation and sports center ----------
+   East of the east road, behind the police station. The fire truck waits in its bay facing the street; a few times a day the alarm
+   goes, the crew climbs in and it drives out with its lights and siren, round the town and back. The hospital has its emergency
+   bay with an ambulance, nurses and visitors. The evacuation center doubles as the town gym, with a court and a running track. */
+const HEALTH_EMERGENCY=(()=>{
+  const r=rng(1911), b=[], B=(x,y,z,w,h,d,c,rx=0,ry=0,rz=0)=>b.push(P('box',c,x,y,z,w,h,d,rx,ry,rz)), C=(x,y,z,rad,h,c,rx=0,ry=0,rz=0)=>b.push(P('cyl',c,x,y,z,rad*2,h,rad*2,rx,ry,rz));
+  const white=0xf4efe4, red=0xc62828, steel=0x3b4a3f, pave=0xd8cfbd, glass=0x8db7c9, blue=0x1f5f9e;
+
+  // ===== fire station: two bays facing the east road, the crew quarters above, a drill tower, the yard round the back =====
+  B(349,.05,-171,26,.1,22,0x9a9a92);                                   // apron and yard
+  // the station: x 339-349, z -178.5 to -168.3; the truck drives in at the back (east) door and waits facing the open west door
+  B(344,3.2,-176.9,10,6.4,3.2,0xe9e3d3); B(344,3.2,-169.3,10,6.4,2,0xe9e3d3); B(344,5.6,-173,10,1.6,4.4,0xe9e3d3);   // walls either side of the drive-through bay
+  B(344,6.6,-173.4,10.6,.4,10.8,red); B(344,5.1,-168.25,10,.3,.12,red); for(const x of [338.94,349.06]) B(x,4.85,-173,.12,.18,4.4,red);
+  B(338.95,5.2,-177,.08,1.2,1.6,glass); B(338.95,5.2,-169.4,.08,1.2,1.2,glass); B(344,.06,-173,10,.04,4.2,0x7d7d76);
+  B(343.5,5.85,-168.2,5,.7,.1,red);
+  // drill tower
+  B(346,7,-183,4,14,4,0xd9cfba); B(346,14.2,-183,4.4,.4,4.4,red); for(let y=3;y<13;y+=3.2) B(343.95,y,-183,.06,1.6,1.4,glass); for(let y=.3;y<13;y+=.45) B(348.05,y,-183.6,.06,.06,.7,steel);
+  B(346,.06,-183,8,.08,8,0x9a9a92);
+  boardSign(['FIRE STATION','Kagawaran ng Bumbero · BFP Sunfield'],'#c62828','#fff',337.6,-160.6,-Math.PI/2,5,1.1,2.6,0x3b4a3f,false);
+
+  // ===== Sunfield Regional Hospital: three storeys, the emergency bay with its canopy, a car park, a garden =====
+  const hx=392, hz=-200;
+  B(hx,.05,hz,58,.1,44,0xc9c2b2);
+  B(hx+4,5.4,hz,36,10.8,16,white); B(hx+4,10.85,hz,36.4,.1,16.4,0xcfd2d0);   // the ward block with a pale roof
+  for(const [x,w] of [[hx+4,36.6]]) for(const [z,d] of [[hz+8.2,.4],[hz-8.2,.4]]) B(x,11.1,z,w,.5,d,blue); for(const x of [hx-14.2,hx+22.2]) B(x,11.1,hz,.4,.5,16.8,blue);   // parapet
+  for(const y of [3.6,7.2]) for(const z of [hz+8.06,hz-8.06]) B(hx+4,y,z,36.1,.22,.1,0xd9e6ef);   // floor bands
+  B(hx+4,6.2,hz+8.6,6,12.4,1.4,0x9cc3d6); B(hx+4,12.6,hz+8.6,6.6,.4,1.8,blue);   // glass stair and lift core over the main entrance
+  B(hx+4,1.7,hz+10.4,9,.25,3.2,blue); for(const x of [-4,4]) B(hx+4+x,.85,hz+11.8,.2,1.7,.2,white);   // entrance canopy
+  B(hx+14,11.6,hz-2,7,1.2,7,0xbfc3c4); C(hx+14,12.25,hz-2,3,.1,0x4e5a5e); B(hx+14,12.32,hz-2,2,.02,.45,0xffffff); for(const sd of [-1.1,1.1]) B(hx+14+sd,12.32,hz-2,.4,.02,3,0xffffff);   // rooftop helipad
+  for(const [x,z] of [[hx-6,hz-3],[hx-2,hz+3]]) B(x,11.4,z,2.4,.8,1.6,0x9aa3a6);   // aircon plant
+  for(const y of [1.8,5.4,9]) for(let x=-16;x<=16;x+=4){B(hx+4+x,y,hz+8.04,2.8,1.6,.08,glass); B(hx+4+x,y,hz-8.04,2.8,1.6,.08,glass);}
+  for(const y of [1.8,5.4,9]) for(let z=-6;z<=6;z+=4) B(hx-14.04,y,hz+z,.08,1.6,2.8,glass);
+  B(hx-14.08,9.6,hz,.1,2.2,2.2,0xffffff); B(hx-14.12,9.6,hz,.1,1.8,.6,red); B(hx-14.12,9.6,hz,.1,.6,1.8,red);   // red cross on the west face
+  B(hx-17,3.2,hz-4,6,.3,8,blue); for(const z of [-7.6,-.4]) B(hx-19.6,1.6,hz+z-0,.25,3.2,.25,white); B(hx-14.06,1.4,hz-4,.08,2.6,3.2,glass);   // emergency canopy and doors
+  B(hx-17,3.55,hz-4,5,.5,.1,red);
+  B(hx-21,.08,hz-4,10,.1,8,pave); 
+  for(let k=0;k<6;k++){B(hx-6+k*3,.09,hz+15,.1,.02,5,0xf1eee4);} B(hx+1.5,.08,hz+15,22,.06,6,0x4a4c50);   // visitor parking
+  for(const [x,z] of [[hx+20,hz+14],[hx+24,hz+14],[hx+20,hz-14],[hx+24,hz-14]]){C(x,1.1,z,.2,2.2,0x6b4a2a); b.push(P('sph',0x4f8a3c,x,3,z,3,2.6,3));}
+  for(const z of [hz+12.5,hz-12.5]){B(hx-6,.45,z,2,.08,.5,0x8d6e4b); B(hx+2,.45,z,2,.08,.5,0x8d6e4b);}
+  boardSign(['SUNFIELD REGIONAL HOSPITAL','Pambansang Ospital ng Sunfield'],'#1f5f9e','#fff',hx-25,hz+12,-Math.PI/2,6.5,1.2,2.6,0x3b4a3f,false);
+  boardSign(['EMERGENCY'],'#c62828','#fff',hx-20.5,hz-9.2,-Math.PI/2,2.6,.6,2.2,0x3b4a3f,false);
+
+  // ===== evacuation center and sports complex: an arched-roof gym, an outdoor court, a running track =====
+  const ex=394, ez=-248;
+  B(ex,.05,ez,62,.1,40,0xb7c79a);
+  B(ex-8,3,ez,30,6,20,0xece2c6); for(const x of [-14,-7,0,7,14]) for(const sd of [-1,1]) B(ex-8+x,3.8,ez+sd*10.08,4.4,1.4,.08,0x8db7c9); b.push(P('cyl',0x8fa6b2,ex-8,6,ez,6,30.6,21,0,0,Math.PI/2));   // gym with a barrel roof
+  B(ex-8,6.05,ez,30.4,.1,21,0xece2c6); for(const sd of [-1,1]) B(ex-8,3,ez+sd*10.05,30,6,.1,0xe2d6b6);
+  B(ex-23.06,2.2,ez,.1,4,6,0x8a8f94); B(ex-23.1,5,ez,.1,1.1,8,0x1f8a70);
+  // outdoor court and the oval track round it
+  B(ex+19,.08,ez,22,.06,30,0xc0623b); B(ex+19,.11,ez,14,.04,26,0x2e7d4f); B(ex+19,.12,ez,.1,.02,26,0xffffff); for(const sd of [-1,1]){B(ex+19,.12,ez+sd*12.9,14,.02,.1,0xffffff); B(ex+19,3,ez+sd*12.3,.15,6,.15,0xffffff); B(ex+19,4.3,ez+sd*12,1.6,1,.08,0xffffff);}
+  for(let k=0;k<3;k++) B(ex+31.6+k*.9,.4+k*.4,ez,1.2,.25,16,0x9e9e9e);   // bleachers
+  boardSign(['EVACUATION CENTER','Sports Complex · Sunfield'],'#1f8a70','#fff',ex-24.8,ez+10.8,-Math.PI/2,5.4,1.1,2.4,0x3b4a3f,false);
+  // paths from the east road between the police and fire stations
+  B(350,.07,-160.5,30,.06,2.6,pave); B(366,.07,-194,2.6,.06,68,pave); B(hx-20,.07,hz+6,8,.06,2.4,pave);
+  const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.castShadow=m.receiveShadow=true; m.name='Health and emergency'; scene.add(m);
+  for(const [x,z] of [[338.6,-176.9],[hx-17,hz-4],[ex-23.2,ez]]) glow(scene,x,3.4,z,3.2,GM.white);
+  // the ambulance at the emergency bay and a few cars in the visitor park
+  const amb=makeCar('l300',0xffffff); amb.position.set(hx-21,0,hz-4); amb.rotation.y=-Math.PI/2; amb.add(part(1.76,.12,4.42,red,0,1.25,-.1)); amb.add(part(1.2,.14,.3,red,0,2.0,1.2));
+  {const s=signPlane(['AMBULANSYA'],'#fff','#d32f2f',2.6,.4,512,80); for(const sd of [-1,1]){const q=s.clone(); q.position.set(sd*.89,1.55,-.1); q.rotation.y=sd*Math.PI/2; amb.add(q);}}
+  for(const [k,x] of [[0,hx-4.5],[1,hx+1.5],[2,hx+7.5]]){const c=makeCar(['vios','innova','fortuner'][k],CAR_COLS[(k*4+2)%CAR_COLS.length]); c.position.set(x,0,hz+15); c.rotation.y=Math.PI; if(c.userData.drv) c.userData.drv.visible=false;}
+
+  // ===== the fire truck =====
+  const ft=(()=>{const bb=[]; bb.push(RB(0x2a2a2a,0,.62,-.3,1.9,.26,8,.05)); vkCab(bb,{zf:3.9,zr:2.0,w:2.3,h:2.5,yb:.55,col:red,wz:2.9,ra:.55,lampY:1.05});
+    bb.push(RB(red,0,1.75,-1.5,2.4,2.2,5.2,.08)); for(let k=0;k<4;k++) bb.push(P('box',0xb0b6ba,0,1.75,-.1-k*1.3,2.42,1.6,.04)); bb.push(P('box',0xf5f5f5,0,1.2,-1.5,2.42,.14,5.22));
+    bb.push(P('box',0xd8d8d8,0,3.05,-1.1,.8,.12,6.2)); for(let z=-4;z<=1.8;z+=.5) bb.push(P('box',0xd8d8d8,0,3.12,z,.8,.06,.06)); bb.push(P('cyl',0x9e9e9e,0,2.9,-4,.3,.3,.3));   // ladder on top
+    [2.9,-2.6,-3.8].forEach(z=>[-1,1].forEach(sd=>vkWheel(bb,sd*.98,.48,z,.48,.32,sd,{spokes:6})));
+    const g=new THREE.Group(), mm=new THREE.Mesh(mergeGeo(bb),PAINT); mm.castShadow=true; g.add(mm);
+    const lr=new THREE.Mesh(new THREE.BoxGeometry(.5,.14,.25),new THREE.MeshBasicMaterial({color:0xff2b2b})), lb=new THREE.Mesh(new THREE.BoxGeometry(.5,.14,.25),new THREE.MeshBasicMaterial({color:0xff2b2b}));
+    lr.position.set(-.45,2.6,2.3); lb.position.set(.45,2.6,2.3); g.add(lr,lb); const gl=glow(g,0,2.7,2.3,3,glowMat(0xff3030,1)); gl.visible=false;
+    [-.75,.75].forEach(x=>{glow(g,x,1.05,3.95,1.4,GM.head); glow(g,x,.95,-4.4,.8,GM.tail);});
+    const s=signPlane(['BUMBERO · SUNFIELD'],'#c62828','#fff',3.4,.45,512,64); for(const sd of [-1,1]){const q=s.clone(); q.position.set(sd*1.22,2.3,-1.5); q.rotation.y=sd*Math.PI/2; g.add(q);}
+    const d=bakePerson(randLook(Math.random),poseSit,true); d.position.set(.5,1.0,2.9); g.add(d);
+    g.visible=false; scene.add(g); return {g,lr,lb,gl};})();
+  const fire={state:'init',timer:60+r()*60,v:null};
+  const crew=[0,1,2].map(k=>makeWorker({...randLook(r),top:0x5d4037,bottom:0x3e2723,style:'cap',capC:0xc62828,bag:null},
+    k===0?[{to:[337.6,-177.4],act:'sweep',dur:9,face:[339,-177]},{path:[[337.6,-169.6]],act:'sweep',dur:9,face:[339,-170]},{path:[[341,-162.4]],act:'stand',dur:5}]
+    :k===1?[{to:[346,-180.2],act:'inspect',dur:8,face:[346,-183]},{path:[[348.4,-182]],act:'stand',dur:5,face:[348.1,-183.6]},{path:[[341,-180]],act:'crouch',dur:9,face:[341,-181]}]
+    :[{to:[357,-178],act:'crouch',dur:10,face:[357,-180]},{path:[[358.4,-171]],act:'write',dur:8,face:[354,-171]},{path:[[352,-162.4]],act:'stand',dur:6,face:[352,-158]}],{y:.1}));
+  for(const w of crew) workerGo(w,w.steps[0]);
+
+  // ===== people at the hospital and the sports complex =====
+  const look=(o={})=>{const L=randLook(r); L.bag=null; Object.assign(L,o); return L;};
+  const people=[
+    makeWorker(look({top:0xffffff,bottom:0xffffff,f:true}),[{to:[hx-15,hz-6],act:'write',dur:9,face:[hx-21,hz-4]},{path:[[hx-18,hz-1.6]],act:'inspect',dur:7,face:[hx-21,hz-4]},{path:[[hx-15,hz-2]],act:'stand',dur:6}],{y:.1}),   // triage nurse
+    makeWorker(look({top:0xff7043}),[{to:[hx-22.6,hz-6.4],act:'crouch',dur:8,face:[hx-21,hz-4]},{path:[[hx-22.6,hz-1.6]],act:'inspect',dur:7,face:[hx-21,hz-4]}],{y:.1}),   // a paramedic checking the ambulance
+    makeWorker(look({top:0x8e44ad,f:true}),[{to:[hx-6,hz+11.8],act:'stand',dur:10},{path:[[hx-14.6,hz+5],[hx-14.6,hz+2]],act:'stand',dur:4},{path:[[hx-14.6,hz+5],[hx-6,hz+11.8]],act:'stand',dur:6}],{y:.1}),   // visitors
+    makeWorker(look({top:0x2e86de}),[{to:[hx+2,hz+11.8],act:'stand',dur:12},{path:[[hx+1.5,hz+15],[hx-6,hz+15]],act:'stand',dur:5},{path:[[hx+2,hz+11.8]],act:'inspect',dur:6}],{y:.1}),
+    makeWorker(look({top:0x27ae60}),[{to:[366,-160.5],act:'stand',dur:4},{path:[[366,hz+6],[hx-14.6,hz+6]],act:'stand',dur:5},{path:[[366,hz+6],[366,-160.5],[340,-160.5]],act:'stand',dur:3}],{y:.1,day:true,sp:.9}),
+    // joggers on the track, kids shooting hoops, the tanod at the gym door
+    makeWorker(look({top:0xf1c40f}),[{to:[ex+8.5,ez-15],act:'stand',dur:1},{path:[[ex+30,ez-15],[ex+30,ez+15],[ex+8.5,ez+15],[ex+8.5,ez-15]],act:'stand',dur:1}],{y:.1,day:true,sp:2.4}),
+    makeWorker(look({top:0xe84393,f:true}),[{to:[ex+30,ez+15],act:'stand',dur:1},{path:[[ex+8.5,ez+15],[ex+8.5,ez-15],[ex+30,ez-15],[ex+30,ez+15]],act:'stand',dur:1}],{y:.1,day:true,sp:2.1}),
+    makeWorker(look({top:0xffffff,h:.75}),[{to:[ex+19,ez+9],act:'wave',dur:3,face:[ex+19,ez+12]},{path:[[ex+16,ez+5]],act:'stand',dur:2},{path:[[ex+21,ez+10]],act:'wave',dur:3,face:[ex+19,ez+12]}],{y:.1,day:true,sp:2.6}),
+    makeWorker(look({top:0xe74c3c,h:.72}),[{to:[ex+17,ez+7],act:'stand',dur:2},{path:[[ex+20,ez+10.5]],act:'wave',dur:3,face:[ex+19,ez+12]},{path:[[ex+15,ez+4]],act:'stand',dur:2}],{y:.1,day:true,sp:2.8}),
+    makeWorker(look({top:0x37474f,style:'cap',capC:0x263238}),[{to:[ex-24.4,ez-3.6],act:'stand',dur:12,face:[ex-30,ez]},{path:[[ex-24.4,ez+3.6]],act:'write',dur:8,face:[ex-30,ez]}],{y:.1}),
+  ];
+  for(const w of people) workerGo(w,w.steps[0]);
+  for(const [x,z] of [[hx-6.6,hz+12.5],[hx-5.4,hz+12.5],[hx+2,hz-12.5]]){const q=bakePerson(look(),poseSit); q.position.set(x,.15,z); scene.add(q);}
+  for(const [k,z] of [[0,-4],[0,-3.2],[1,2],[2,5.5],[1,-6]]){const q=bakePerson(look(),poseSit,true); q.position.set(ex+31.6+k*.9,.525+k*.4-.3,ez+z); q.rotation.y=-Math.PI/2; scene.add(q);}   // fans on the bleachers
+
+  function fireTick(dt,t){const F=fire; if(!F.v) F.v=lnVeh(ft.g,{len:8.4,width:2.5,vmax:10,acc:1.4}); const v=F.v, h=gameHour();
+    const lights=F.state==='out'||F.state==='alarm';
+    ft.gl.visible=lights; const f=Math.floor(t*5)%2; ft.lr.material.color.setHex(lights&&f?0xff2b2b:0x661111); ft.lb.material.color.setHex(lights&&!f?0xff2b2b:0x661111);
+    if(F.state==='init'){const L=LN.by['fire:out']; if(L){lnGo(v,[L],6.5); v.v=0; lnStopAt(v,342.5,-173); F.state='ready';}}
+    else if(F.state==='ready'){F.timer-=dt; if(F.timer<=0&&h>=6&&h<22){F.state='alarm'; F.timer=6; toast('🚒 Fire alarm! The Sunfield fire truck is responding.',2600); for(const w of crew){w.leg=[[350.6,-171.4+(crew.indexOf(w)-1)*.7]]; w.wp=0;}}}
+    else if(F.state==='alarm'){F.timer-=dt; if(F.timer<=0){const P=lnPath('fire:out',r()<.6?'sS':'zW$','LE:318','fire:in','fire:turn','fire:out'); if(P&&lnNext(v,P)){F.stopSet=false; F.state='out'; for(const w of crew) w.p.root.visible=false;} else F.timer=2;}}
+    else if(F.state==='out'&&!F.stopSet&&v.pi>0&&v.path[v.pi]&&v.path[v.pi].name==='fire:turn'){lnStopAt(v,342.5,-173); F.stopSet=true;}
+    else if(F.state==='out'&&F.stopSet&&(v.atStop||v.done)){F.state='ready'; F.timer=240+r()*240; for(const w of crew){w.p.root.visible=true; w.p.root.position.set(350.6,.1,-170.6); workerGo(w,w.steps[w.i]);}}
+    if(F.state!=='out'&&F.state!=='alarm') for(const w of crew) workerTick(w,dt,t);
+    else if(F.state==='alarm') for(const w of crew){if(w.p.root.visible){const R=w.p.root, q=w.leg&&w.leg[0]; if(q){const dx=q[0]-R.position.x, dz=q[1]-R.position.z, d=Math.hypot(dx,dz); if(d>.06){const st=Math.min(d,dt*2.6); R.position.x+=dx/d*st; R.position.z+=dz/d*st; R.rotation.y=Math.atan2(dx,dz); poseWalk(w.p,t*9);}}}}}
+  return {fire,update(dt,t){if(document.hidden||!lnNet()) return; fireTick(dt,t); for(const w of people) workerTick(w,dt,t);}};
+})();
+
 /* ---------- Stage H: the sea, the port (pantalan) and the bay trading business ---------- */
 if(!S.bay) S.bay={owned:false,stock:{},ship:null};
 const BAY_LV=12, BAY_PRICE=50000, BAY_RATE=1.6, SHIP_T={out:30,away:45,back:30};
@@ -8526,6 +8641,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:31,date:'Nov 11, 2026',title:'A fire station, a hospital and an evacuation center',items:['🚒 Sunfield Fire Station on the east road, past the police station: a drive-through bay, a drill tower and a yard. Firefighters sweep the bay, check the hoses and climb the tower. A few times a day the alarm goes, the crew runs to the truck and it drives out with lights flashing, round the town and back into its bay.','🏥 Sunfield Regional Hospital behind the fire station: three floors of wards, a rooftop helipad, an emergency bay with an ambulance and a triage nurse, visitor parking and a garden with benches.','🏟️ The Evacuation Center doubles as the town gym: an arched-roof hall, a basketball court with a running track and bleachers. Joggers circle the track and kids shoot hoops during the day; a tanod keeps the hall door.']},
   {v:30,date:'Nov 11, 2026',title:'A school and a health center for the barangay',items:['🏫 Sunfield Elementary School, west of the park: green-roofed classroom wings round a quadrangle with the flag and a stage, a covered court, a school garden, a canteen and a guard at the gate.','🎒 On school days (Monday to Friday) children in white shirts and backpacks walk from the barangay at dawn, stay in class, run round the quad at recess, and walk home after four. Teachers write and check on the corridors, the canteen lady serves, a gardener tends the gulayan.','🏥 The Barangay Health Center, north of the park: a nurse and a doctor at work, patients waiting on the benches, a midwife who walks her round of the barangay, and the ambulance parked by the door.']},
   {v:29,date:'Nov 11, 2026',title:'Sunday mass at the parokya',items:['📅 The clock now shows the day of the week. Every seventh day is Linggo (Sunday).','⛪ On Sundays, families drive to church from about 7 in the morning until mid-afternoon: up to a dozen cars, vans and pickups.','🅿️ A new church car park across the west road: two rows of marked stalls, lamp posts, a sign, and a crosswalk and footpath round to the church door. Cars drive in nose first, the family walks over for mass, comes back, and the car backs out and drives home.']},
   {v:28,date:'Nov 11, 2026',title:'The poblacion gets its civic center',items:['🏛️ The Munisipyo (town hall) now stands between the palengke and the barangay: two storeys, an arcade of columns, a balcony over the door, the town seal and a flag on the roof.','🇵🇭 In front of it, the plaza: the flagpole with the Philippine flag, a fountain, benches, lamp posts, trees in grass plots, a small stage and café tables under red umbrellas.','⛪ The Parokya ni San Isidro, with its white facade, rose window and bell tower, faces the plaza from the west.','🚶 A guard on the town hall steps, a clerk going out for merienda, a lola on her way to mass, strollers round the fountain, a street sweeper, a magtataho on his round, and people resting on the benches.']},
@@ -8683,6 +8799,7 @@ function frame(now){
   CIVIC_CENTER.update(dt,t);
   SUNDAY_MASS.update(dt,t);
   SCHOOL_CLINIC.update(dt,t);
+  HEALTH_EMERGENCY.update(dt,t);
   updateFarmDispatch(Date.now(),dt);
   if(now-lastTick>300){lastTick=now; const d=Date.now(); updateVehicles(d); updateTravelHUD(d); for(let i=0;i<NT;i++){const s=S.tiles[i].s; if(s==='crop'||s==='bld') updateTile(i,d);}}
   popping.forEach(g=>{const k=Math.min(1,(now-g.userData.born)/380), e=easeBack(k);
@@ -8763,6 +8880,7 @@ canvas.addEventListener('pointerdown',lockLandscape);
 document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement) locked=false; resize();});
 if(canLock&&screen.orientation) screen.orientation.lock('landscape').then(()=>{locked=true;}).catch(()=>{}); // works when installed to the home screen
 portraitMQ.addEventListener('change',()=>{resize(); if(!portraitMQ.matches){ptrs.clear(); pinch=null;}});
+
 })();
 </script>
 </body>

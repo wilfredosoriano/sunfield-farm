@@ -575,6 +575,11 @@ body:not(#z):not(#y) #menu .sheet>.mhead h2{font-size:16px!important;line-height
 .deco-sign{display:flex;gap:8px;align-items:center}.deco-sign input{flex:1;min-width:0;font:inherit;font-size:15px;font-weight:700;padding:8px 10px;border:1.5px solid var(--sk-ink,#4a3f34);border-radius:9px 11px 8px 10px/10px 8px 11px 9px;background:#fffdf6;color:#3b2e24;user-select:text;-webkit-user-select:text;touch-action:manipulation}
 .deco-sty{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.deco-sty .gbtn{min-height:44px!important;flex-direction:row;gap:6px}.deco-sty .sw{display:inline-grid;place-items:center;width:30px;height:22px;border-radius:5px;font-weight:700;font-size:12px;border:1px solid #4a3f3560}
 #tools .tool[data-deco] .ti.svg svg{width:26px;height:26px}
+#deco-ctl{position:fixed;left:0;top:0;z-index:6;display:flex;gap:8px;pointer-events:auto;padding:5px;background:#fbf7ec;border:1.8px solid #4a3f34;border-radius:999px;box-shadow:1.5px 2px 0 #4a3f3526}
+#deco-ctl[hidden]{display:none}#deco-ctl button{width:40px;height:40px;border-radius:50%;border:1.6px solid #4a3f34;font:700 20px Mali,Nunito,sans-serif;line-height:1;display:grid;place-items:center;color:#3b2e24;background:#f1eadb;cursor:pointer}
+#deco-ctl [data-c=ok]{background:#cfe8b6}#deco-ctl [data-c=del]{background:#f5d9cf;color:#9a3324}#deco-ctl.bad [data-c=ok]{opacity:.5;border-style:dashed}
+#deco-ctl button:active{transform:translateY(1px)}
+@media(orientation:landscape) and (max-height:520px){#deco-ctl button{width:36px;height:36px;font-size:18px}}
 </style>
 </head>
 <body>
@@ -9705,6 +9710,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:56,date:'Nov 12, 2026',title:'Undo, and pick things up',items:['↶ Decorate has an Undo button (Ctrl/Cmd+Z on a computer). It takes back placing, a whole dragged fence line, moving, turning, removing and sign edits, one step at a time, and returns the coins.','✋ Press and hold anything you placed to pick it up: drag it to a new spot, then ✓ to put it down, ↻ to turn it or ✕ to remove it. The ring under it turns red where it can\'t go.']},
   {v:55,date:'Nov 12, 2026',title:'Sign in with Google, done right',items:['☁️ A new sketched welcome screen: continue with Google to keep your farm safe online, or play as a guest. On a phone it asks you to turn sideways first.','🌱 A sketched loading screen with a little tractor while your farm is built.','⚙️ Your account now lives in Settings: who is signed in, the auto-sync status, Sync now and Sign out.','🛟 Safer saves: the game picks the newest copy of your farm on its own and only asks when two devices both have new progress, keeps a backup of the copy it replaces, renews your sign-in while you keep playing, and if your sign-in ever runs out you can still open your own farm on this device.']},
   {v:54,date:'Nov 12, 2026',title:'Decorate your farm',items:['🌼 A new Decorate button: drag to build wooden, bamboo or picket fences, hollow-block walls, santan hedges and little canals, or tap to place a signboard, flowers, pots, a banga, rocks, a kalachuchi, a bench, a lamp post, a plank bridge or a kubo.','🪧 Write your own words on a signboard (up to 24 letters); the board fits the text, in four colours.','✋ Tap anything you placed to turn it, move it or remove it (half the price back). Decorations stay off roads, gates, fields and pens, so your farm keeps working, and people walk around them.']},
   {v:53,date:'Nov 12, 2026',title:'A lighter, sketched interface',items:['✏️ The top bar is now a compact sketched strip that only takes the room it needs, and Settings has its own gear button in the top-right corner.','📄 Every window and button is flat paper with a thin pencil outline instead of raised 3D buttons, with smaller text and smaller buttons so more of the farm stays on screen.','🖋️ All the interface text uses a hand-lettered font (Mali) that matches the sketched look and stays easy to read.']},
@@ -10024,12 +10030,39 @@ var DECO=(()=>{
     NAV.clearCache&&NAV.clearCache();}
   // ---- drawing: every non-sign piece merged into one mesh (cheap on phones), signs and lamp bulbs on their own
   function rebuild(){clearGroup(root); const all=[], W=new THREE.Matrix4();
-    for(const d of S.deco){const c=CAT[d.k]; if(!c) continue; W.makeRotationY(d.r); W.setPosition(d.x,0,d.z);
+    for(const d of S.deco){const c=CAT[d.k]; if(!c) continue; if(active&&active.id===d.id) continue; W.makeRotationY(d.r); W.setPosition(d.x,0,d.z);
       if(c.sign){const g=signGroup(d); g.position.set(d.x,0,d.z); g.rotation.y=d.r; root.add(g); continue;}
       for(const [g,m,col] of parts(d)) all.push([g,W.clone().multiply(m),col]);
       if(d.k==='lamp'){const L=lampLight(); L.position.set(.38,2.6,0).applyMatrix4(W); root.add(L);}}
     if(all.length){const v=vcGroup(all); v.traverse(o=>{if(o.isMesh) o.userData.navSkip=true;}); root.add(v);}
-    root.traverse(o=>{o.userData.navSkip=true;}); navApply();}
+    if(active) drawActive(); root.traverse(o=>{o.userData.navSkip=true;}); navApply();}
+  // ---- press and hold a piece to pick it up: drag it about, then ✓ to put it down, ↻ to turn it, ✕ to remove it
+  let active=null, dragArm=false, justActivated=false, holdT=0, holdAt=null;
+  const ring=new THREE.Mesh(new THREE.RingGeometry(.9,1.08,40),new THREE.MeshBasicMaterial({color:0x6fbf4a,transparent:true,opacity:.85,depthWrite:false})); ring.rotation.x=-Math.PI/2; ring.renderOrder=3;
+  const ctl=document.createElement('div'); ctl.id='deco-ctl'; ctl.hidden=true;
+  ctl.innerHTML='<button data-c="ok" aria-label="Put it here">✓</button><button data-c="rot" aria-label="Turn it">↻</button><button data-c="del" aria-label="Remove it">✕</button>'; document.body.append(ctl);
+  const tmp=()=>{const d=S.deco.find(o=>o.id===active.id); return d&&{...d,x:active.x,z:active.z,r:active.r};};
+  function drawActive(){const t=tmp(); if(!t) return; const c=CAT[t.k], W=new THREE.Matrix4(); let g;
+    if(c.sign){g=signGroup(t);} else {g=vcGroup(parts(t)); if(t.k==='lamp'){const L=lampLight(); L.position.set(.38,2.6,0); g.add(L);}}
+    g.position.set(t.x,.12,t.z); g.rotation.y=t.r; g.userData.active=true; root.add(g); active.g=g;
+    const R=c.line?1.25:c.sign?Math.max(.9,signW(t.t||'')/2+.2):Math.max(.6,c.r+.25); ring.scale.setScalar(R); ring.position.set(t.x,.06,t.z); root.add(ring); check();}
+  function check(){const e=okFor(tmp()); active.err=e; ring.material.color.setHex(e?0xe0735a:0x6fbf4a); ctl.classList.toggle('bad',!!e); ctl.querySelector('[data-c=ok]').title=e||'Put it here';}
+  function place(){if(active.g){active.g.position.set(active.x,.12,active.z); active.g.rotation.y=active.r;} ring.position.set(active.x,.06,active.z); check();}
+  function activate(d){if(active) cancelActive(); sel=null; active={id:d.id,x:d.x,z:d.z,r:d.r,rec:shot()}; justActivated=true; buzz(); rebuild(); renderHUD();}
+  function cancelActive(){if(!active) return; active=null; dragArm=false; ctl.hidden=true; rebuild(); renderHUD();}
+  function okActive(){if(!active) return; const t=tmp(); if(!t) return cancelActive(); if(active.err) return toast('Can\'t put it there. '+active.err,2400);
+    const d=S.deco.find(o=>o.id===active.id), rec=active.rec; d.x=t.x; d.z=t.z; d.r=t.r; active=null; ctl.hidden=true; rebuild(); changed(); sfx('hammer',d.x,d.z); finish(rec);}
+  function delActive(){if(!active) return; const d=S.deco.find(o=>o.id===active.id), rec=active.rec; if(!d) return cancelActive(); const c=CAT[d.k], back=Math.floor(c.cost/2);
+    S.deco=S.deco.filter(o=>o.id!==d.id); S.coins+=back; active=null; ctl.hidden=true; rebuild(); changed(); finish(rec); toast(`${c.name} removed. +₱${back}`);}
+  ctl.addEventListener('pointerdown',e=>e.stopPropagation()); ctl.addEventListener('click',e=>{const b=e.target.closest('[data-c]'); if(!b||!active) return; e.stopPropagation();
+    if(b.dataset.c==='ok') okActive(); else if(b.dataset.c==='del') delActive(); else {active.r=(active.r+Math.PI/4)%(Math.PI*2); place(); buzz();}});
+  const nearActive=(gx,gz)=>{if(!active) return false; const c=CAT[S.deco.find(o=>o.id===active.id)?.k]||{}; return Math.hypot(gx-active.x,gz-active.z)<Math.max(1.3,(c.r||0)+.8);};
+  canvas.addEventListener('pointerdown',e=>{clearTimeout(holdT); holdAt=null; if(openCat!=='decor'||e.button) return;
+    const g=ground(e.clientX,e.clientY); if(!g) return;
+    if(active&&nearActive(g[0],g[1])){dragArm=true; active.off=[active.x-g[0],active.z-g[1]]; return;}   // a finger on the picked-up piece drags it
+    holdAt=[e.clientX,e.clientY]; holdT=setTimeout(()=>{if(!holdAt) return; const h=atPoint(g[0],g[1]); if(h){activate(h); line=null;}},450);},true);
+  canvas.addEventListener('pointermove',e=>{if(holdAt&&Math.hypot(e.clientX-holdAt[0],e.clientY-holdAt[1])>8){clearTimeout(holdT); holdAt=null;}},true);
+  for(const t of ['pointerup','pointercancel']) canvas.addEventListener(t,()=>{clearTimeout(holdT); holdAt=null; setTimeout(()=>{dragArm=false;},0);},true);
   // ---- input
   const ray2=new THREE.Raycaster(), nd=new THREE.Vector2(), gp=new THREE.Plane(new THREE.Vector3(0,1,0),0), hv=new THREE.Vector3();
   function ground(x,y){nd.set(x/innerWidth*2-1,-(y/innerHeight)*2+1); ray2.setFromCamera(nd,camera); return ray2.ray.intersectPlane(gp,hv)?[hv.x,hv.z]:null;}
@@ -10040,7 +10073,18 @@ var DECO=(()=>{
       if(c.line){const [[ax,az],,[bx,bz]]=ends(d), dx=bx-ax, dz=bz-az, u=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/(dx*dx+dz*dz))); dist=Math.hypot(ax+dx*u-x,az+dz*u-z);}
       else dist=Math.hypot(d.x-x,d.z-z)-(c.sign?signW(d.t||'')/2:c.r)*.6;
       if(dist<bd){bd=dist; best=d;}} return bd<.9?best:null;};
-  function tap(x,y){if(openCat!=='decor'&&!moving) return false; const g=ground(x,y); if(!g) return true; const [gx,gz]=g;
+  // ---- undo: a snapshot of the decorations (and the coins they cost or refunded) before every change; a dragged line is one step
+  const hist=[], shot=()=>({deco:JSON.parse(JSON.stringify(S.deco)),c0:S.coins});
+  function finish(r){if(!r||JSON.stringify(S.deco)===JSON.stringify(r.deco)) return; const n=S.deco.length-r.deco.length;
+    r.delta=S.coins-r.c0; r.label=n>0?(n>1?`${n} pieces placed`:'Placing'):n<0?'Removing':'That change'; hist.push(r); if(hist.length>40) hist.shift(); renderHUD();}
+  function undo(){if(active){cancelActive(); return;} const r=hist.pop(); if(!r) return toast('Nothing to undo yet.');
+    if(r.delta>0&&S.coins<r.delta){hist.push(r); return toast(`You need ₱${r.delta} to undo that: the refund goes back.`,2600);}
+    S.coins-=r.delta; S.deco=r.deco; moving=null; if(bldIdx===-9) $('bldSheet').classList.remove('open'); rebuild(); changed(); buzz();
+    toast(`↶ ${r.label} undone${r.delta<0?` · +₱${-r.delta} back`:r.delta>0?` · −₱${r.delta}`:''}.`); renderHUD();}
+  function tap(x,y){const r=shot(), res=tap0(x,y); finish(r); return res;}
+  function tap0(x,y){if(openCat!=='decor'&&!moving) return false; const g=ground(x,y); if(!g) return true; const [gx,gz]=g;
+    if(justActivated){justActivated=false; return true;}
+    if(active){if(!nearActive(gx,gz)){cancelActive(); toast('Put back where it was.');} return true;}
     if(moving){const d=S.deco.find(o=>o.id===moving); moving=null; if(!d) return true; const ox=d.x, oz=d.z; d.x=snap(gx); d.z=snap(gz); const e=okFor(d); if(e){d.x=ox; d.z=oz; toast('Can\'t move it there. '+e,2600); rebuild(); return true;} rebuild(); changed(); toast(`${CAT[d.k].name} moved.`); return true;}
     const hit=atPoint(gx,gz); if(hit&&!sel){openEdit(hit.id); return true;}
     if(!sel){if(hit) openEdit(hit.id); else toast('Pick a decoration from the bar first, or tap one you placed to change it.',2600); return true;}
@@ -10048,9 +10092,9 @@ var DECO=(()=>{
     rebuild(); changed(); sfx('hammer',res.x,res.z); if(CAT[sel].sign) openEdit(res.id); return true;}
   // a line: start where the finger went down, lay a 2 m piece each time the drag has gone 2 m, turned to the nearest 45°
   let line=null;
-  const lineOn=()=>openCat==='decor'&&!!sel&&!!CAT[sel].line&&!moving;
-  function lineStart(x,y){const g=ground(x,y); if(!g) return; line={p:[snap(g[0]),snap(g[1])],n:0,bad:''};}
-  function lineTo(x,y){if(!line) return; const g=ground(x,y); if(!g) return; let changedAny=false;
+  const lineOn=()=>openCat==='decor'&&(dragArm||(!!sel&&!!CAT[sel].line&&!moving&&!active));
+  function lineStart(x,y){if(dragArm) return; const g=ground(x,y); if(!g) return; line={p:[snap(g[0]),snap(g[1])],n:0,bad:'',rec:shot()};}
+  function lineTo(x,y){if(dragArm&&active){const g=ground(x,y); if(!g) return; active.x=snap(g[0]+active.off[0]); active.z=snap(g[1]+active.off[1]); place(); return;} if(!line) return; const g=ground(x,y); if(!g) return; let changedAny=false;
     for(let guard=0;guard<20;guard++){const dx=g[0]-line.p[0], dz=g[1]-line.p[1], L=Math.hypot(dx,dz); if(L<2) break;
       const a=Math.round(Math.atan2(dz,dx)/(Math.PI/4))*(Math.PI/4), ux=Math.cos(a), uz=Math.sin(a), step=2;
       const cx=line.p[0]+ux*step/2, cz=line.p[1]+uz*step/2, r=Math.atan2(-uz,ux);
@@ -10058,13 +10102,14 @@ var DECO=(()=>{
       const res=add(sel,cx,cz,r); if(res&&typeof res==='object'){line.n++; changedAny=true;} else if(res==='coins'){line.p=[g[0],g[1]]; break;} else line.bad=res;
       line.p=[line.p[0]+ux*step,line.p[1]+uz*step];}
     if(changedAny) rebuild();}
-  function lineEnd(){if(!line) return; const n=line.n, bad=line.bad; line=null; if(n){changed(); toast(`${CAT[sel].name}: ${n} piece${n>1?'s':''} (₱${n*CAT[sel].cost}).`);} else if(bad) toast('Can\'t build there. '+bad,2600); else toast('Drag a little further: each piece is 2 m.');}
+  function lineEnd(){if(dragArm){dragArm=false; return;} if(!line) return; const n=line.n, bad=line.bad, rec=line.rec; line=null; finish(rec); if(n){changed(); toast(`${CAT[sel].name}: ${n} piece${n>1?'s':''} (₱${n*CAT[sel].cost}).`);} else if(bad) toast('Can\'t build there. '+bad,2600); else toast('Drag a little further: each piece is 2 m.');}
   // ---- the bar under the Decorate button
-  function bar(){return ORDER.map(k=>{const c=CAT[k], on=sel===k; return `<button class="tool ${on?'on':''}" data-deco="${k}" aria-pressed="${on}"><span class="ti svg" aria-hidden="true">${c.svgFull}</span><span class="tl">${c.name}</span><span class="tc">₱${c.cost}</span></button>`;}).join('')
+  function bar(){if(active) return ''; return `<button class="tool" data-deco-undo="1" ${hist.length?'':'disabled'} aria-label="Undo the last change"><span class="ti">↶</span><span class="tl">Undo</span><span class="tc">${hist.length?hist.length+(hist.length>1?' steps':' step'):'nothing yet'}</span></button>`+ORDER.map(k=>{const c=CAT[k], on=sel===k; return `<button class="tool ${on?'on':''}" data-deco="${k}" aria-pressed="${on}"><span class="ti svg" aria-hidden="true">${c.svgFull}</span><span class="tl">${c.name}</span><span class="tc">₱${c.cost}</span></button>`;}).join('')
     +`<button class="tool" data-deco-rot="1" aria-label="Turn the next piece"><span class="ti">↻</span><span class="tl">Turn</span><span class="tc">${Math.round(rot*180/Math.PI)%360}°</span></button>`;}
-  function hint(){if(moving) return 'Tap where you want to move it.'; if(!sel) return 'Pick a decoration, then tap your farm to place it. Tap something you placed to turn, move, edit or remove it.';
+  function hint(){if(!sel&&!active&&!moving) return 'Pick a decoration, then tap your farm to place it. Press and hold something you placed to pick it up and move it; tap it to edit it.'; if(active) return 'Drag it to a new spot. ✓ puts it down, ↻ turns it, ✕ removes it (half back). Tap elsewhere to put it back.'; if(moving) return 'Tap where you want to move it.'; if(!sel) return 'Pick a decoration, then tap your farm to place it. Tap something you placed to turn, move, edit or remove it.';
     return CAT[sel].line?`Drag across your land to build ${CAT[sel].name.toLowerCase()} (₱${CAT[sel].cost} per 2 m). Tap to place one piece.`:`Tap your farm to place a ${CAT[sel].name.toLowerCase()} (₱${CAT[sel].cost}). Tap "Turn" to face it another way.`;}
-  $('tools').addEventListener('click',e=>{const b=e.target.closest('[data-deco],[data-deco-rot]'); if(!b) return;
+  $('tools').addEventListener('click',e=>{const b=e.target.closest('[data-deco],[data-deco-rot],[data-deco-undo]'); if(!b||b.disabled) return;
+    if(b.dataset.decoUndo){undo(); return;}
     if(b.dataset.decoRot){rot=(rot+Math.PI/4)%(Math.PI*2); renderHUD(); return;}
     const k=b.dataset.deco; sel=sel===k?null:k; if(sel){S.tool=null;} moving=null; buzz(); renderHUD();});
   // ---- the edit sheet: turn, move, remove; for a sign, its words and colour
@@ -10081,7 +10126,8 @@ var DECO=(()=>{
     $('bldBody').innerHTML=h;
     if(c.sign){const inp=$('decoText'), cnt=$('decoCount'); inp.value=d.t||''; const upd=()=>cnt.textContent=(24-inp.value.length)+' left'; upd(); inp.addEventListener('input',upd);
       inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault(); act('text');}});}}
-  function act(a,v){const d=S.deco.find(o=>o.id===editId); if(!d) return; const c=CAT[d.k];
+  function act(a,v){const r=shot(); act0(a,v); finish(r);}
+  function act0(a,v){const d=S.deco.find(o=>o.id===editId); if(!d) return; const c=CAT[d.k];
     if(a==='turnL'||a==='turnR'){const old=d.r; d.r=(d.r+(a==='turnL'?1:-1)*Math.PI/4+Math.PI*2)%(Math.PI*2); const e=okFor(d); if(e){d.r=old; toast('It doesn\'t fit turned that way. '+e,2400); return;} rebuild(); changed(); return;}
     if(a==='move'){moving=d.id; $('bldSheet').classList.remove('open'); toast('Tap where you want to move it.',2200); return;}
     if(a==='remove'){S.deco=S.deco.filter(o=>o.id!==d.id); S.coins+=Math.floor(c.cost/2); $('bldSheet').classList.remove('open'); rebuild(); changed(); toast(`${c.name} removed. +₱${Math.floor(c.cost/2)}`); return;}
@@ -10089,10 +10135,15 @@ var DECO=(()=>{
     if(a==='text'){const t=clean($('decoText')?$('decoText').value:''); if(!t) return toast('Write something for the sign first.'); const old=d.t; d.t=t; const e=okFor(d); if(e){d.t=old; toast('That sign is too wide for this spot. '+e,2600); return;}
       rebuild(); changed(); $('bldSheet').classList.remove('open'); toast('Sign updated.'); return;}}
   $('bldSheet').addEventListener('click',e=>{if(bldIdx!==-9) return; const b=e.target.closest('[data-deco-act]'); if(!b||b.disabled) return; e.stopPropagation(); act(b.dataset.decoAct,b.dataset.v);},true);
-  function update(){const r=!!(NAV&&NAV.ready); if(r&&!navWas) navApply(); navWas=r;}
+  addEventListener('keydown',e=>{if(openCat!=='decor'||!(e.ctrlKey||e.metaKey)||e.key.toLowerCase()!=='z'||e.shiftKey) return; const t=e.target; if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA')) return; e.preventDefault(); undo();});
+  const pv=new THREE.Vector3();
+  function update(){const r=!!(NAV&&NAV.ready); if(r&&!navWas) navApply(); navWas=r;
+    if(active&&openCat!=='decor') cancelActive();
+    if(active){const k=S.deco.find(o=>o.id===active.id)?.k, c=CAT[k]||{}; pv.set(active.x,(c.sign?2.2:k==='kubo'?3.6:k==='tree'||k==='lamp'?3.1:1.6),active.z).project(camera);
+      const sx=(pv.x+1)/2*innerWidth, sy=(1-pv.y)/2*innerHeight; ctl.hidden=pv.z>1; ctl.style.transform=`translate(${Math.round(sx)}px,${Math.round(sy)}px) translate(-50%,-100%)`;}}
   if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>{if(S.deco.some(d=>CAT[d.k]&&CAT[d.k].sign)) rebuild();});
   rebuild();
-  return {CAT,tap,lineOn,lineStart,lineTo,lineEnd,bar,hint,render,update,rebuild,get sel(){return sel;},set sel(v){sel=v;},get moving(){return moving;},clearSel(){sel=null; moving=null;},add,okFor,atPoint};
+  return {CAT,tap,lineOn,lineStart,lineTo,lineEnd,bar,hint,render,update,rebuild,get sel(){return sel;},set sel(v){sel=v;},get moving(){return moving;},clearSel(){sel=null; moving=null;},add,okFor,atPoint,undo,get undoSteps(){return hist.length;}};
 })();
 if(/[?&]debug\b/.test(location.search)) window.SF={deco:DECO,orchard:ORCHARD,fruitTrees:FRUIT_TREES,districtLife:DISTRICT_LIFE,livestock:{stockFor,choose:chooseAnimalPickup,continue:continueAnimalHaul,process:processKatQueue,path:farmHaulPath},bodega:{world:farmBodega,open:openBodega,tick:updateBodega},farmDispatch:{loading:LOADING_DISPATCH,state:FARM_DISPATCH,tick:updateFarmDispatch,setSlots,simulate:(now,dt)=>{roadSnapshot();updateFarmDispatch(now,dt);updateVehicles(now);placeVehicles(now,dt);}},shop:{config:SHOP,world:farmShop,open:openFarmShop,unlock:shopUnlock,sale:shopSale,deliver:shopDeliver,dispatch:shopDispatch,refund:shopRefund,incoming:shopIncoming,setDraft:q=>{shopDraft=q;},tick:updateFarmShop},resCars,junctions:TRAFFIC_JUNCTIONS,health:gameHealth,trafficUpdate:updateTraffic,setTrafficUpdate:fn=>{updateTraffic=fn;},pointerCount:()=>ptrs.size,canvas,cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,holdPose,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,vans,traffic,models:{vkCar,CAR_SPECS,tripLoad,buildLoad,cageCart,animalGeo,makePerson,bakePerson,poseWalk,poseStand,poseSit,randLook,makeCar,makePUJ,makeBus,makeTrike,makeVan,makeTraderTruck,makeLiner,VEH:()=>VEH},lanes:LN,laneStep:lnStep,laneMs:()=>LN_MS,trikes,puvs,traders,JEEPS:()=>JEEPS,townStep:updateTownVehicles,transitStep:updateTransit,bizStep:updateBiz,trikeStep:updateTrikes,shiftDays:n=>{TIME_SHIFT+=n*DAY_MS;},LINERS:()=>LINERS,PATROL:()=>PATROL,FIESTA:()=>FIESTA,loadWalkers,STOP,homeAct:(a,r)=>homeAct(a,{dataset:{r}}),openHome,FISH,startRain,dayAt:f=>{const g=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((f-g+1)%1)*DAY_MS;},step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
 // keep the open Tools / Build panel clear of the bottom bar: measure the bar and hand its height to the CSS

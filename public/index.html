@@ -8876,9 +8876,9 @@ const LANDFILL_WORKS=(()=>{
     const cL=[-.55,.55].map(x=>cyl(F,x,.13,.075)), cT=cyl(arms,0,.12,.07);
     // its two paths: a curve from the V-point into the heap, and straight from the V-point to the slope
     const V=[68,179.5], C1=lnCurve(V,[0,1],[63.6,186.4],[-.866,.5]), C2=[V,[68,195]];
-    const mk=pts=>{const c=[0]; for(let i=1;i<pts.length;i++) c.push(c[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1])); return {pts,c,L:c[c.length-1]};};
+    const mk=raw=>{const pts=raw.filter((q,i)=>i===0||Math.hypot(q[0]-raw[i-1][0],q[1]-raw[i-1][1])>1e-4), c=[0]; for(let i=1;i<pts.length;i++) c.push(c[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1])); return {pts,c,L:c[c.length-1]};};
     const P1=mk(C1), P2=mk(C2);
-    const at=(P,s)=>{if(s<=0){const d=[P.pts[1][0]-P.pts[0][0],P.pts[1][1]-P.pts[0][1]], l=Math.hypot(...d); return [P.pts[0][0]+d[0]/l*s,P.pts[0][1]+d[1]/l*s];}
+    const at=(P,s)=>{if(s<0){const d=[P.pts[1][0]-P.pts[0][0],P.pts[1][1]-P.pts[0][1]], l=Math.hypot(...d); return [P.pts[0][0]+d[0]/l*s,P.pts[0][1]+d[1]/l*s];}
       if(s>=P.L){const n=P.pts.length, d=[P.pts[n-1][0]-P.pts[n-2][0],P.pts[n-1][1]-P.pts[n-2][1]], l=Math.hypot(...d); return [P.pts[n-1][0]+d[0]/l*(s-P.L),P.pts[n-1][1]+d[1]/l*(s-P.L)];}
       let i=1; while(P.c[i]<s) i++; const k=(s-P.c[i-1])/(P.c[i]-P.c[i-1]); return [P.pts[i-1][0]+(P.pts[i][0]-P.pts[i-1][0])*k,P.pts[i-1][1]+(P.pts[i][1]-P.pts[i-1][1])*k];};
     const ALOW=-27*Math.PI/180, ACAR=-12*Math.PI/180, AHIGH=42*Math.PI/180;
@@ -8950,8 +8950,8 @@ const UTIL_BUS=(()=>{
 
   // ===== the staff who ride the bus =====
   const staff=[
-    {site:'landfill',job:'backhoe',at:[99.8,186.6],top:0xff7043,hat:0xf1c40f,off:16.4},
-    {site:'landfill',job:'loader',at:[70.6,177.4],top:0xef6c00,hat:0xf1c40f,off:16.5},
+    {site:'landfill',job:'backhoe',at:[99.8,186.6],top:0xff7043,hat:0xf1c40f,off:17.6},
+    {site:'landfill',job:'loader',at:[70.6,177.4],top:0xef6c00,hat:0xf1c40f,off:17.7},
     {site:'landfill',at:[66,163.4],top:0x6d4c41,hat:0x8bc34a,off:17.4},   // to the MRF shed
     {site:'landfill',at:[77.4,161],top:0x37474f,hat:0x263238,off:19.6},   // the weighbridge clerk, the last truck in
     {site:'power',at:[126,111.5],top:0x2a5e93,hat:0xf1c40f,off:21.2},   // the evening shift ends at nine
@@ -8998,7 +8998,7 @@ const UTIL_BUS=(()=>{
     else if(w.state==='board'){w.delay-=dt; if(w.delay<=0&&walk(w,dt,1.4)){R.visible=false; w.state='home';}}
   }};
   return {buses,staff,SITES,update(dt,t){if(document.hidden||!lnNet()) return; for(const B of buses) busTick(B,dt); staffTick(dt); gates.update(dt);
-    const work=s=>staff.some(w=>w.job===s&&w.state==='work'), h=gameHour(); LANDFILL_WORKS.update(dt,t,work('backhoe')&&h<16.3,work('loader')&&h<16.3);}};
+    const work=s=>staff.some(w=>w.job===s&&w.state==='work'), h=gameHour(); LANDFILL_WORKS.update(dt,t,work('backhoe')&&h>=6.3&&h<17.5,work('loader')&&h>=6.3&&h<17.5);}};
 })();
 
 /* ---------- Stage H: the sea, the port (pantalan) and the bay trading business ---------- */
@@ -9065,6 +9065,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:37,date:'Nov 11, 2026',title:'The wheel loader is back, and the landfill works by daylight',items:['🛠️ Fixed: the wheel loader vanished whenever it was parked (its position came out invalid at the start of its route). It now waits in plain sight by its heap when it is not working.','🌅 The excavator and the wheel loader only run in daylight, from about 6:30 in the morning to 5:30 in the evening. Their operators then climb down and walk to the bus shed to go home before night.']},
   {v:36,date:'Nov 11, 2026',title:'A real landfill: the garbage mound, an excavator and a wheel loader',items:['⛰️ The landfill cell is now a big mound of mixed garbage (bags, boxes, sacks and plastics), with the far side already capped with soil, and loose heaps where the trucks tip.','🦾 A new excavator works the tipping floor: crawler tracks, a house that swings, a bent boom, a stick and a toothed bucket, all on hydraulic cylinders. It reaches out, digs into the heap, curls the bucket, lifts, swings round and dumps up on the slope, then swings back. The bucket never goes into the ground.','🚜 A new articulated wheel loader runs a proper Y-cycle: into its heap with the bucket flat, scoop and roll back, reverse out bending in the middle, forward to the slope, arms up, tip, and back again. The garbage it dumps falls and lands on the mound.']},
   {v:35,date:'Nov 11, 2026',title:'Landfill gates and the night bus',items:['🚧 The landfill has real gates now: an arch over each truck gate (Sanitary Landfill · Gate 1 in, Gate 2 out) with swing gates that open into the yard, and a boom barrier at the weighbridge. They open before dawn and close after the last bus. Fences everywhere now leave their gateways clear instead of running the wire across them.','🚏 The landfill bus shed now stands outside the fence in its own bay by the road, with a small gate behind it for the staff to walk in.','🌙 Utility staff finish at different times (the weighbridge clerk after the last truck, the plant\'s evening shift at nine), so in the evening you\'ll see them waiting at the lit sheds, some sitting on the bench, until the bus comes. The buses keep running until everyone waiting has been picked up.']},
   {v:34,date:'Nov 11, 2026',title:'A district bus for the utility workers, and machines at the landfill',items:['🚌 Two district buses (DISTRICT · LANDFILL · POWER · WATER) come off the highway at dawn and circle the district roads all day, stopping at new waiting sheds at the landfill, the power plant and the water works. They go back to the depot at night.','👷 Utility staff ride the bus to work: they step off at their shed in the morning and walk in, and after four they walk back to the shed and wait for the bus home.','🚜 The landfill now has a backhoe digging and swinging garbage onto the cell and a payloader pushing the heaps forward. They only start once their operators have come in on the bus, and they park when the shift ends.']},

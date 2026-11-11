@@ -394,12 +394,20 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 #bldSheet .sheet:has(.animal-pickup) .mhead h2{font-size:19px;line-height:1.25}
 .animal-pickup{display:grid;gap:10px;padding:4px 0}
 .animal-pickup .pickup-summary{margin:0 0 2px;font-size:13px;line-height:1.5;opacity:.8}
-.animal-pickup .pickup-route{display:grid;grid-template-columns:32px minmax(0,1fr);gap:10px;align-items:center;justify-content:start;min-height:80px;width:100%;padding:13px 14px;text-align:left;font-size:16px;line-height:1.4;border-radius:14px}
-.animal-pickup .pickup-copy{display:grid;gap:4px;min-width:0}
-.animal-pickup .pickup-route b{font-size:15px;line-height:1.3;font-weight:900}
-.animal-pickup .pickup-route small{margin:0;font-size:12px;line-height:1.45;font-weight:600;opacity:.8}
-.animal-pickup .pickup-icon{font-size:25px;text-align:center}
-.animal-pickup .pickup-cancel{min-height:42px;padding:8px;font-size:13px;font-weight:800;line-height:1.4;text-align:center;text-decoration:underline;text-underline-offset:3px}
+.animal-pickup .pickup-route{display:grid;grid-template-columns:46px minmax(0,1fr);gap:12px;align-items:center;justify-content:start;min-height:0;width:100%;padding:10px 12px;text-align:left;font-size:15px;line-height:1.35;border-radius:14px;background:#fbf6ec!important;color:var(--ink2)!important;border:2px solid var(--ink2)!important;box-shadow:0 3px 0 var(--ink2)!important}
+.animal-pickup .pickup-route:not(:disabled):active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink2)!important}
+.animal-pickup .pickup-route:disabled{opacity:.6;border-style:dashed!important;box-shadow:none!important;filter:grayscale(.7);cursor:not-allowed}
+.animal-pickup .pickup-copy{display:grid;gap:3px;min-width:0}
+.animal-pickup .pickup-route b{font-size:15px;line-height:1.25;font-weight:900}
+.animal-pickup .pickup-route small{margin:0;font-size:12px;line-height:1.4;font-weight:700;opacity:.78}
+.animal-pickup .pickup-icon{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:24px;border:2px solid var(--ink2);background:#e9dcc3}
+.animal-pickup [data-animal-route=coop] .pickup-icon{background:#cfe3b5}.animal-pickup [data-animal-route=palengke] .pickup-icon{background:#f0cf9a}.animal-pickup [data-animal-route=katayan] .pickup-icon{background:#eab9a6}
+.animal-pickup .pickup-cancel{min-height:40px;padding:8px;font-size:13px;font-weight:800;line-height:1.4;text-align:center;text-decoration:underline;text-underline-offset:3px;background:none!important;border:none!important;box-shadow:none!important}
+@media(max-height:520px){#bldSheet .sheet:has(.animal-pickup){width:min(760px,96vw)!important;max-width:none!important}.animal-pickup .pickup-summary b::after{content:' · '}.animal-pickup{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.animal-pickup .pickup-summary,.animal-pickup .pickup-cancel{grid-column:1/-1}
+ .animal-pickup .pickup-route{grid-template-columns:34px minmax(0,1fr);align-items:start;gap:8px;padding:8px 9px}.animal-pickup .pickup-icon{width:34px;height:34px;font-size:18px;border-radius:9px}.animal-pickup .pickup-icon svg.si{width:24px;height:24px}
+ .animal-pickup .pickup-route b{font-size:13px}.animal-pickup .pickup-route small{font-size:11px;line-height:1.3}.animal-pickup .pickup-summary{font-size:12px;line-height:1.3}.animal-pickup .pickup-summary br{display:none}.animal-pickup .pickup-cancel{min-height:30px;padding:2px}#bldSheet .sheet:has(.animal-pickup) .mhead h2{font-size:17px}}
+#menu{z-index:10}#menu .sheet{max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);overflow-y:auto}
+@media(max-height:520px){#menu{padding:10px}#menu .sheet{width:min(600px,96vw);padding:12px 14px}#menu .sheet p{font-size:13px}}
 /* Phase 6: original illustrated paper interface; existing control IDs and actions are retained. */
 :root{--paper:#faf7ef;--paper2:#eee8da;--ink2:#493f35;--accent:#d98765;--sel:#f2d4bc;--gold:#dca85b;--muted:#716557}
 #hud{top:calc(env(safe-area-inset-top,0px) + 10px);left:calc(env(safe-area-inset-left,0px) + 12px);right:calc(env(safe-area-inset-right,0px) + 12px);padding:5px 8px;gap:0;min-height:54px;border:2px solid var(--ink2);border-radius:18px;background:var(--paper);box-shadow:0 4px 0 #493f3530;z-index:4}
@@ -8355,7 +8363,7 @@ const CIVIC_CENTER=(()=>{
   {const v=W[6].p, pole=part(1.8,.06,.06,0x8d6e4b,0,1.45,0); v.root.add(pole); for(const sd of [-1,1]){const k=mesh(new THREE.CylinderGeometry(.22,.18,.36,10),0xcfd6dc,sd*.85,1.02,0); v.root.add(k);}}
   for(const w of W) workerGo(w,w.steps[0]);
   // people sitting on the benches and at the café tables
-  for(const [x,z,ry] of benches.concat(umbrellas.map(([x,z])=>[x+.95,z,-Math.PI/2]))) if(r()<.75){const q=bakePerson(look(),poseSit); q.position.set(x,.15,z); q.rotation.y=ry+Math.PI; scene.add(q);}
+  for(const [x,z,ry,cafe] of benches.concat(umbrellas.map(([x,z])=>[x+.95,z,-Math.PI/2,1]))) if(r()<.75){const q=bakePerson(look(),poseSit); q.position.set(x-Math.sin(ry)*.06,cafe?.15:.22,z-Math.cos(ry)*.06); q.rotation.y=ry; scene.add(q);}   // facing out from the backrest, or in to the café table
   return {update(dt,t){if(document.hidden) return; flag.rotation.y=Math.sin(t*1.5)*.12; roofFlag.rotation.y=Math.sin(t*1.7+1)*.12; for(const w of W) workerTick(w,dt,t);}};
 })();
 /* ---------- Sunday mass: families drive to church from morning until afternoon, park in the church car park, walk over for mass and drive home after ---------- */
@@ -9219,6 +9227,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:41,date:'Nov 11, 2026',title:'Hand-drawn icons and tidier menus',items:['✏️ Every icon in the menus, the top bar, the messages and the news is now drawn in ink and wash like the rest of Sunfield, instead of phone emojis.','🧾 The animal pickup choices are now clear cards side by side (an unavailable one is dashed and greyed), and they fit a sideways phone without scrolling.','⚙️ The settings menu now opens above the top bar and the toolbar, so nothing covers it, and it is wider on phones.','🪑 People on the plaza benches by the town hall now sit facing out from the backrest, and the café customers face their tables.']},
   {v:40,date:'Nov 11, 2026',title:'Trade with the Livestock Cooperative',items:['🐄 The Livestock Cooperative now trades with you. When you sell grown cattle, goats or pigs from a pen, a new choice sends your truck to the cooperative, which pays 10% more than the palengke (₱6,050 a cow, ₱1,540 a goat, ₱1,320 a pig).','🚛 Tap the cooperative to see its prices, to truck the live animals waiting in your bodega there, or to buy young stock (guya ₱990, batang kambing ₱270, biik ₱270, cheaper than the Agrivet). Their truck brings the young ones to your bodega, ready to restock a pen.','🛣️ Your truck drives in by the district entry, down the west road and into the cooperative\'s loading aisle, unloads at the platform, and comes home the other way.']},
   {v:39,date:'Nov 11, 2026',title:'The livestock cooperative comes alive',items:['🐄 The cattle, goats and pigs at the Livestock Cooperative (beside the water works) now walk, graze at the troughs and swish their tails like your own herd, instead of standing frozen.','👩‍🌾 By day a feeder carries feed from the store to every trough, the vet checks the goats, a hand sweeps the loading aisle and the biogas tender minds the digester.']},
   {v:38,date:'Nov 11, 2026',title:'Expansion fields and greenhouses',items:['🍅 Sunfield Greenhouses, west of the farm by the highway: four tunnel greenhouses on steel hoops, two of tomatoes on trellis wires and two of lettuce, with growers working the rows. A packing shed sorts the crates and the green produce truck is loaded beside it.','🌾 Twelve rice paddies with dikes and water: some green, some golden and being harvested, one flooded and waiting; planters work backwards along the rows.','🌽 A corn field, vegetable beds under an ampalaya trellis, an irrigation canal with footbridges, a nipa hut where the field hands rest, and a poso.','🚜 A hand tractor (kuliglig) ploughs the back field row by row, its driver walking behind; the ploughed strips darken behind it. Everyone works by daylight and goes home at dusk.']},
@@ -9472,6 +9481,225 @@ canvas.addEventListener('pointerdown',lockLandscape);
 document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement) locked=false; resize();});
 if(canLock&&screen.orientation) screen.orientation.lock('landscape').then(()=>{locked=true;}).catch(()=>{}); // works when installed to the home screen
 portraitMQ.addEventListener('change',()=>{resize(); if(!portraitMQ.matches){ptrs.clear(); pinch=null;}});
+
+/* ---------- Sketch icons: every emoji in the interface is drawn instead, in ink and wash like the toolbar and the world ----------
+   One hidden sprite of <symbol>s (32x32, ink outline, flat warm fills, a slight hand-drawn wobble), and a watcher that swaps any emoji
+   that appears in the interface's text for its drawing. Emojis without a drawing stay as they are. */
+(()=>{
+  const K='#3b2e24', CR='#f6ecd6', WD='#c08a52', DK='#5b4a3c', GR='#7cb36b', DG='#4f8a3c', RD='#d9573b', OR='#e8a04a', YE='#f2c84b', BL='#7fb3dc', DB='#3f6f9e',
+        PK='#f2b0a6', GY='#aaa69c', WH='#fbf8f0', BR='#8d6038', PU='#8e6bb8', SK='#f1c9a0', LG='#cfe3b5', TN='#e3c08a';
+  const R=(x,y,w,h,f=CR,rx=1.5)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${f}"/>`, C=(x,y,r,f=CR)=>`<circle cx="${x}" cy="${y}" r="${r}" fill="${f}"/>`,
+        E=(x,y,rx,ry,f=CR)=>`<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="${f}"/>`, P=(d,f='none')=>`<path d="${d}" fill="${f}"/>`, T=(x,y,t,s=10,f=K)=>`<text x="${x}" y="${y}" font-size="${s}" font-weight="900" text-anchor="middle" fill="${f}" stroke="none" font-family="Nunito,sans-serif">${t}</text>`;
+  const wheels=(a,b,y=24,r=3)=>C(a,y,r,DK)+C(a,y,1,GY)+C(b,y,r,DK)+C(b,y,1,GY);
+  const person=(top,body=BL,hat)=>C(16,9,4.5,SK)+(hat?P('M10.5 8.5Q16 1 21.5 8.5Z',hat):P('M11.6 8Q12 3.8 16 3.8T20.4 8',DK))+P('M8 28Q8 16 16 16T24 28Z',top||body);
+  const face=(f,extra)=>C(16,16,12,f)+extra;
+  const I={
+  // ---- vehicles
+  '🚚':R(2,10,17,13,OR)+P('M19 14h6l4 5v4H19Z',CR)+P('M21 15.5h3.5l2.5 3.5H21Z',BL)+wheels(8,24),
+  '🚛':R(2,9,19,14,'#e9e2d0')+P('M5 9v14M9 9v14M13 9v14M17 9v14',)+P('M21 13h5l4 5v5h-9Z',WH)+P('M23 14.5h2.8l2.4 3.5H23Z',BL)+wheels(7,25)+C(15,24,3,DK),
+  '🚐':P('M3 22V12q0-3 3-3h15q3 0 5 3l3 4v6Z',WH)+P('M6 12h5v4H6ZM13 12h5v4h-5ZM20 12h3l3 4h-6Z',BL)+wheels(9,23),
+  '🛻':P('M2 22v-6h12l3-5h7l4 5h2v6Z',RD)+P('M18 12.5h5l2.6 3.5H17Z',BL)+wheels(8,24),
+  '🚙':P('M3 22v-6l4-6h15l5 6h2v6Z',DB)+P('M8 11.5h5v4H6.5ZM15 11.5h6l3 4h-9Z',BL)+wheels(9,24),
+  '🚗':P('M3 22v-5l4-6h17l5 6v5Z',RD)+P('M8 12.5h6v4H6ZM16 12.5h7l3 4H16Z',BL)+wheels(9,23),
+  '🚌':R(3,6,26,17,YE,3)+R(6,9,5,5,BL,1)+R(13,9,5,5,BL,1)+R(20,9,6,5,BL,1)+P('M3 17h26')+wheels(9,24),
+  '🚜':P('M4 21v-6h9V8h8l2 7h4v6Z',GR)+P('M15 9.5h4.5l1.5 5.5H15Z',BL)+C(9,22,5,DK)+C(9,22,2,GY)+C(25,24,3,DK)+P('M7 8v7',DK),
+  '🚒':R(2,10,27,13,RD,2)+P('M4 7h18M6 7l-1 3M20 7l1 3',GY)+R(22,13,5,4,BL,1)+wheels(8,24),
+  '🚓':P('M3 22v-5l4-6h17l5 6v5Z',WH)+P('M3 18h26',DB)+R(13,7,6,3,RD,1)+P('M8 12.5h6v4H6ZM16 12.5h7l3 4H16Z',BL)+wheels(9,23),
+  '🚢':P('M3 19h26l-4 7H7Z',RD)+R(8,12,16,7,WH,1)+R(12,7,5,5,OR,1)+P('M3 28q3-2 6 0t6 0 6 0 6 0 6 0',BL),
+  '⚓':C(16,7,3,CR)+P('M16 10v17M10 14h12M6 19q2 8 10 8t10-8',),
+  // ---- animals
+  '🐄':E(15,18,10,6,WH)+P('M10 14q3 3 0 6M19 15q-2 3 1 5',)+E(26,14,4,3.5,WH)+C(27.5,13,0.6,K)+P('M7 23v5M11 23v5M18 23v5M22 23v5M24 10l-1-3M28 10l1-3',),
+  '🐮':face(WH,E(16,22,7,4.5,PK)+C(13,22,.9,K)+C(19,22,.9,K)+C(11.5,14,1,K)+C(20.5,14,1,K)+P('M6 8l-3-3M26 8l3-3')+P('M8 11q2-5 6-3',DK)),
+  '🐖':E(15,18,10,7,PK)+E(26,17,4,4,PK)+E(28,18,1.6,2,'#e98f87')+C(25,14.5,.7,K)+P('M7 24v4M12 24v4M18 24v4M22 24v4M5 16q-3-2-1-4')+P('M23 12l1-3 2 3Z',PK),
+  '🐷':face(PK,E(16,20,5.5,4,'#e98f87')+C(14,20,.9,K)+C(18,20,.9,K)+C(11.5,13,1,K)+C(20.5,13,1,K)+P('M6 9l2-5 4 4ZM26 9l-2-5-4 4Z',PK)),
+  '🐔':E(15,19,9,7,WH)+C(23,11,4,WH)+P('M21 7l1-3 1.5 2.5 1.5-2.5 1 3Z',RD)+P('M27 11l3 1-3 1Z',OR)+C(23.5,10.5,.7,K)+P('M24 15q1 3-1 3',RD)+P('M12 26v3M17 26v3',OR)+P('M8 17q5 4 11 0',),
+  '🐓':E(14,19,9,7,OR)+C(22,11,4,OR)+P('M19 7l1-4 1.5 3 1.5-3 1 4Z',RD)+P('M26 11l3 1-3 1Z',YE)+C(22.5,10.5,.7,K)+P('M5 17q-3-8 3-9q-1 5 3 6',DB)+P('M11 26v3M16 26v3',YE),
+  '🐣':P('M7 18q0-11 9-11t9 11Z',YE)+C(13,13,.9,K)+P('M16 15l3 1-3 1Z',OR)+P('M5 18l3 3 3-3 3 3 3-3 3 3 3-3 3 3 2-3q0 10-11 10T5 18Z',WH),
+  '🐥':C(16,17,10,YE)+C(13,14,1,K)+C(19,14,1,K)+P('M14 18l2 3 2-3Z',OR)+P('M10 26l-1 3M22 26l1 3',OR),
+  '🦆':E(14,20,10,6,WH)+C(23,11,4.5,DG)+P('M27 11.5l4 1-4 1.5Z',OR)+C(24,10,.8,K)+P('M9 18q5 4 10 0'),
+  '🐐':E(14,18,9,6,'#e9e2d0')+C(24,13,4,'#e9e2d0')+P('M22 9q-1-5 3-6M25 9q1-4 4-4')+P('M25 17l-1 4',DK)+C(25,12,.7,K)+P('M8 23v5M12 23v5M17 23v5M20 23v5'),
+  '🐟':P('M4 16q6-8 16-6l7-4v20l-7-4Q10 24 4 16Z',BL)+C(9,15,1.2,K)+P('M14 12q2 4 0 8'),
+  '🐠':P('M4 16q6-9 15-7l7-4v22l-7-4Q10 25 4 16Z',OR)+P('M12 9v14M17 9v15',WH)+C(8,15,1.2,K),
+  '🐦':E(15,18,9,7,BL)+C(22,12,5,BL)+P('M26 12l4 1-4 1.5Z',OR)+C(23,11,.8,K)+P('M7 16q-5 1-5 6 5-1 7-3',DB)+P('M12 25l-1 4M17 25l1 4',OR),
+  '🐾':E(16,21,6,5,DK)+C(8,13,2.5,DK)+C(13,8,2.5,DK)+C(20,8,2.5,DK)+C(25,13,2.5,DK),
+  '🦾':P('M5 26l6-10 8 2 7-9',)+C(11,16,3,GY)+C(19,18,3,GY)+R(23,4,6,6,DB,1.5),
+  // ---- crops and food
+  '🌱':P('M16 28V15',)+P('M16 16Q8 17 5 9q8-2 11 7Z',GR)+P('M16 14q2-9 11-9-1 9-11 9Z',DG)+P('M9 28h14',BR),
+  '🌾':P('M16 29V9M11 29q2-9 0-17M21 29q-2-9 0-17',)+E(16,7,2,4,YE)+E(11,10,2,4,YE)+E(21,10,2,4,YE)+E(13.5,15,1.6,3,YE)+E(18.5,15,1.6,3,YE),
+  '🌽':P('M16 4q7 6 4 22h-8Q9 10 16 4Z',YE)+P('M13 9h6M12 13h8M12 17h8M12.5 21h7M16 5v21')+P('M12 26Q6 18 7 9q6 8 8 17Z',GR)+P('M20 26q6-8 5-17-6 8-8 17Z',DG),
+  '🥬':P('M16 28q-10-1-11-12Q5 6 16 4q11 2 11 12T16 28Z',GR)+P('M16 28V8M16 14l-6-4M16 19l7-5M16 23l-6-4'),
+  '🍠':P('M5 20q0-10 11-12t12 4q0 10-11 12T5 20Z','#a5555e')+P('M9 17l2 1M15 13l2 1M20 19l2 1'),
+  '🍅':C(16,18,10,RD)+P('M11 9l5 3 5-3-2 5h-6Z',GR)+P('M16 9V5')+P('M10 16q1-3 4-4',WH),
+  '🍆':P('M22 6q4 4 0 13t-14 9q-4-3 1-11T22 6Z',PU)+P('M20 4q-1 3 2 4l4-2-2-3Z',GR),
+  '🥭':P('M8 14q4-9 13-7t6 11-12 10T8 14Z',OR)+P('M21 7q2-3 5-2',DG)+P('M12 12q2-2 4-2',YE),
+  '🥕':P('M7 27q1-9 13-18l3 3Q14 26 7 27Z',OR)+P('M20 9q1-5 4-6M22 10q4-3 7-2M21 9q-3-4-2-7',DG)+P('M11 21l2 1M14 17l2 1'),
+  '🎃':E(16,18,12,9,OR)+P('M16 9v18M10 10q-3 8 0 16M22 10q3 8 0 16')+P('M15 9q0-4 3-5',DG),
+  '🫛':P('M4 22q4-12 22-16-2 12-22 16Z',GR)+C(11,18,2.2,DG)+C(16,15,2.2,DG)+C(21,12,2.2,DG),
+  '🥒':P('M6 25q-3-3 4-11T24 4q4 3-3 11T6 25Z',DG)+P('M10 18l1 1M15 13l1 1M20 9l1 1',LG),
+  '🌶️':P('M24 8q2 8-6 15T5 27q8-4 12-11t7-8Z',RD)+P('M24 8q-1-4 3-5',DG),
+  '🧅':P('M16 5q-12 9-8 18t16 0q4-9-8-18Z','#e8b98a')+P('M16 5v-2M12 25q-1-9 4-19M20 25q1-9-4-19'),
+  '🧄':P('M16 4q-12 10-9 19 3 5 9 5t9-5q3-9-9-19Z',WH)+P('M16 28q-3-10 0-23M11 26q-2-7 2-15M21 26q2-7-2-15'),
+  '🍉':P('M3 12h26q0 13-13 13T3 12Z',RD)+P('M3 12q1 11 13 11t13-11',DG)+C(10,15,.9,K)+C(16,17,.9,K)+C(22,15,.9,K),
+  '🍍':E(16,20,8,9,YE)+P('M10 15l12 10M22 15L10 25M8 20h16')+P('M16 11l-4-8 4 4 4-4Z',DG),
+  '🌳':P('M14 29h4l-1-11h-2Z',BR)+C(16,12,9,GR)+C(10,15,5,DG)+C(22,15,5,DG),
+  '🌸':C(16,9,5,PK)+C(9,15,5,PK)+C(23,15,5,PK)+C(11,23,5,PK)+C(21,23,5,PK)+C(16,16,3,YE),
+  '🍚':P('M4 16h24q-1 11-12 11T4 16Z',DB)+P('M6 16q2-8 10-8t10 8Z',WH)+P('M10 21h12',BL),
+  '🍗':P('M6 26l5-5',)+C(5,27,2.2,WH)+P('M10 20q-6-8 2-14t13 4-6 12-9-2Z',OR),
+  '🥩':P('M5 15q2-9 13-9t10 9-9 12T5 15Z','#c9504a')+P('M8 15q2-5 9-5t8 5-7 7-10-7Z','#f0a8a0')+C(19,14,2.5,WH),
+  '🥓':P('M4 10q6-4 12 0t12 0v6q-6-4-12 0t-12 0Z','#d36b5a')+P('M4 16q6-4 12 0t12 0v6q-6-4-12 0t-12 0Z','#e8a49a'),
+  '🍖':P('M8 22q-6-6 1-14t15-1-1 15-15 0Z','#c9504a')+P('M20 20l6 6')+C(27,27,2.4,WH)+C(25,29,1.8,WH),
+  '🥚':E(16,17,9,11,WH)+P('M11 12q2-3 4-3'),
+  '🥖':P('M4 22L22 5q5 0 6 4L10 27q-5 0-6-5Z',TN)+P('M11 18l3 1M15 14l3 1M19 10l3 1'),
+  '☕':P('M5 12h17v9q0 6-8.5 6T5 21Z',WH)+P('M22 14h2q4 0 4 4t-5 3')+P('M10 9q-2-3 0-5M15 9q-2-3 0-5'),
+  '🍦':P('M10 15l6 14 6-14Z',TN)+P('M9 15q-2-5 3-6 0-5 4-5t4 5q5 1 3 6Z',WH),
+  '🍳':P('M3 16a11 9 0 1 0 22 0a11 9 0 1 0-22 0',DK)+P('M8 14q2-5 7-3t3 7-6 3-4-4Z',WH)+C(13,15,2.6,YE)+P('M24 13l6-3'),
+  '🥫':R(8,7,16,20,RD,2)+R(8,12,16,9,WH,0)+E(16,7,8,2,GY),
+  '🍜':P('M4 15h24q-1 12-12 12T4 15Z',RD)+P('M8 15V5M12 15V6M16 15V5M20 15V6',YE)+P('M22 3l-6 12M26 4l-8 11'),
+  '🥘':P('M3 15h26q-2 9-13 9T3 15Z',DK)+E(16,15,13,4,OR)+C(11,15,1.5,RD)+C(18,14,1.5,GR)+C(22,16,1.5,YE),
+  '🍢':P('M5 28L27 4')+C(11,21,3.5,TN)+C(16,16,3.5,'#c9504a')+C(21,11,3.5,GR),
+  '🍲':P('M4 14h24v6q0 7-12 7T4 20Z',DK)+E(16,14,12,3,OR)+P('M2 14h3M27 14h3')+P('M11 10q-1-3 1-5M16 10q-1-3 1-5M21 10q-1-3 1-5'),
+  '🍽️':C(16,16,9,WH)+C(16,16,5.5,WH)+P('M3 6v20M5 6v6M1 6v6M1 12h4M29 6q-3 4 0 9v11'),
+  '🥛':P('M10 6h12l-1 21H11Z',WH)+P('M10.5 13h11',BL),
+  '🍼':R(11,9,10,18,WH,3)+P('M13 9V6h6v3Z',PK)+P('M14.5 6l1.5-4 1.5 4Z',PK)+P('M11 16h4M11 20h4'),
+  '🥗':P('M4 15h24q-1 12-12 12T4 15Z',WH)+C(10,13,3,GR)+C(16,11,3.5,DG)+C(22,13,3,GR)+C(13,14,1.5,RD),
+  '🎂':R(5,15,22,12,PK,2)+P('M5 19q5 3 11 0t11 0',WH)+R(14,9,4,6,WH,1)+P('M16 9q-2-3 0-6 2 3 0 6Z',OR),
+  // ---- places and buildings
+  '🏠':P('M4 15L16 5l12 10',)+P('M7 13v14h18V13L16 6Z',CR)+P('M3 16L16 5l13 11',RD)+R(13,19,6,8,WD,1)+R(9,16,3,3,BL,.5)+R(20,16,3,3,BL,.5),
+  '🏡':P('M7 13v14h18V13L16 6Z',CR)+P('M3 16L16 5l13 11',RD)+R(13,19,6,8,WD,1)+C(5,24,3.5,GR)+C(27,24,3.5,GR),
+  '🏬':R(4,9,24,18,CR,1)+P('M3 9l2-4h22l2 4Z',DB)+R(7,12,4,4,BL,.5)+R(14,12,4,4,BL,.5)+R(21,12,4,4,BL,.5)+R(12,20,8,7,WD,.5),
+  '🏪':R(4,12,24,15,CR,1)+P('M3 12l2-6h22l2 6Z',GR)+P('M3 12q2.2 3 4.4 0t4.4 0 4.4 0 4.4 0 4.4 0 4.4 0',WH)+R(7,17,7,6,BL,.5)+R(18,17,6,10,WD,.5),
+  '🏭':P('M3 27V15l7 4v-4l7 4v-4l7 4V5h4v22Z',GY)+R(6,21,3,3,YE,.5)+R(13,21,3,3,YE,.5)+R(20,21,3,3,YE,.5)+P('M24 5q1-3 4-3',GY),
+  '🏙️':R(3,13,8,15,GY,1)+R(11,6,9,22,DB,1)+R(20,10,9,18,BL,1)+P('M14 10h3M14 14h3M14 18h3M23 14h3M23 18h3M5 17h4M5 21h4'),
+  '⛪':P('M8 14v14h16V14L16 7Z',CR)+P('M6 15l10-9 10 9',RD)+P('M16 7V1M13 3.5h6')+P('M14 28v-6q2-3 4 0v6Z',WD)+C(16,15,2,BL),
+  '🏥':R(5,8,22,20,WH,1)+R(13.5,11,5,13,RD,0)+R(9.5,15,13,5,RD,0),
+  '🏫':R(4,13,24,15,'#e8c9a0',1)+P('M2 14L16 5l14 9',RD)+R(13,19,6,9,WD,.5)+C(16,11,2.2,WH)+P('M16 3V-1M16 0h4',RD),
+  '🏛️':P('M3 11L16 4l13 7Z',CR)+R(4,11,24,3,CR,0)+P('M7 14v11M12 14v11M20 14v11M25 14v11')+R(3,25,26,3,CR,0),
+  '🏟️':E(16,18,13,8,GY)+E(16,18,8,4,GR)+P('M3 18v4q0 6 13 6t13-6v-4'),
+  '🏘️':P('M2 17l7-7 7 7v10H2Z',CR)+P('M16 17l7-7 7 7v10H16Z','#e8d6b6')+P('M1 18l8-8 8 8M15 18l8-8 8 8',RD),
+  '🏗️':P('M6 28V5h3v23M9 6h19M9 10l6-4M24 6v10',)+R(21,16,6,5,OR,1)+R(13,20,10,8,'#c9b18a',0),
+  '🏝️':P('M2 26q14-8 28 0',TN)+P('M14 24q1-10-2-16',BR)+P('M12 8q-8-1-10 4 6-2 10-4ZM12 8q4-5 11-2-6 0-11 2ZM12 8q6 1 7 7-3-4-7-7Z',GR)+P('M1 28q4 2 8 0t8 0 8 0 8 0',BL),
+  '⛰️':P('M2 27L12 9l5 8 4-5 9 15Z',GY)+P('M12 9l-3 5 3-1 2 2Z',WH),
+  '🌄':R(3,5,26,22,'#f6d9a0',3)+C(16,20,6,YE)+P('M3 27l7-10 6 6 5-4 8 8Z',GR),
+  '🌅':R(3,5,26,22,'#f8c99a',3)+C(16,20,6,OR)+P('M3 21h26',)+P('M3 24q4 2 8 0t8 0 8 0',BL),
+  '🌇':R(3,5,26,22,'#f8c99a',3)+C(22,13,4,OR)+R(5,15,6,12,DK,0)+R(12,11,6,16,DK,0)+R(19,18,8,9,DK,0),
+  '🌊':P('M2 22q3-14 13-12-6 3-3 8 5 4 9 1 9 4 7 7H2Z',BL)+P('M2 26q4 2 7 0t7 0 7 0 7 0'),
+  '🗺️':P('M3 7l8-3 10 3 8-3v21l-8 3-10-3-8 3Z',LG)+P('M11 4v21M21 7v21')+P('M6 12q4 6 9 2t10 4',RD),
+  '🚏':P('M16 29V12',)+R(9,3,14,10,DB,2)+T(16,11,'BUS',6,WH)+P('M12 29h8'),
+  '🅿️':R(5,5,22,22,DB,4)+T(16,23,'P',17,WH),
+  '🛣️':P('M11 3L4 29h24L21 3Z',GY)+P('M16 5v4M16 13v5M16 22v6',WH),
+  '⛽':R(6,6,13,22,RD,2)+R(9,9,7,6,WH,1)+P('M19 11h3l3 3v10q0 2 2 2')+P('M5 28h15'),
+  '🚰':P('M6 9h15q4 0 4 4v4h-4v-3H6Z',GY)+P('M13 9V5M10 5h6')+P('M23 20q-3 4 0 6 3-2 0-6Z',BL),
+  // ---- status and interface
+  '✅':R(4,4,24,24,GR,5)+P('M9 16l5 5 9-10',)+P('M9 16l5 5 9-10'),
+  '🔒':R(6,14,20,14,YE,3)+P('M10 14v-4q0-6 6-6t6 6v4')+C(16,21,2,DK),
+  '🔨':P('M5 27L18 14',)+P('M4.5 25.5l2 2 13-13-2-2Z',WD)+P('M14 6l6-3 8 8-3 3-3-1-5 5-4-4 4-5Z',GY),
+  '🔪':P('M4 28l6-6 2 2-6 6Z',DK)+P('M10 22L26 5q3 6-4 11l-10 8Z',GY),
+  '💧':P('M16 3Q6 16 6 21a10 10 0 0 0 20 0Q26 16 16 3Z',BL)+P('M11 21q0-4 3-6',WH),
+  '📍':P('M16 29Q6 17 6 12a10 10 0 0 1 20 0q0 5-10 17Z',RD)+C(16,12,3.5,WH),
+  '⭐':P('M16 3l4 8.5 9 1.2-6.6 6.3 1.7 9L16 23.6 7.9 28l1.7-9L3 12.7l9-1.2Z',YE),
+  '🏆':P('M9 4h14v7q0 8-7 8t-7-8Z',YE)+P('M9 7H4q0 6 6 6M23 7h5q0 6-6 6')+P('M14 19h4v4h-4Z',YE)+R(10,23,12,5,WD,1),
+  '📋':R(6,5,20,23,TN,2)+R(11,3,10,5,GY,1.5)+P('M10 13h12M10 17h12M10 21h8'),
+  '📦':P('M4 10l12-5 12 5v14l-12 5-12-5Z',TN)+P('M4 10l12 5 12-5M16 15v14M10 7.5l12 5'),
+  '🧾':P('M7 3h18v25l-3-2-3 2-3-2-3 2-3-2-3 2Z',WH)+P('M11 9h10M11 13h10M11 17h7'),
+  '🧺':P('M4 13h24l-3 15H7Z',TN)+P('M8 13q0-9 8-9t8 9')+P('M5 17h22M6 21h20M10 13v15M16 13v15M22 13v15'),
+  '🪵':R(4,9,20,14,TN,7)+E(24,16,4,7,'#e8c79a')+E(24,16,2,3.5)+P('M8 13h10M8 19h12'),
+  '🚶':C(17,5,3,SK)+P('M17 9l-3 8 4 4 2 8M14 17l-5 11M16 11l5 4 3 0M15 11l-4 4-2 0'),
+  '😴':face(YE,P('M9 15q2.5 2 5 0M18 15q2.5 2 5 0')+E(16,22,3,2,DK))+T(26,8,'z',9,DB),
+  '💉':P('M7 25l13-13 3 3-13 13Z',WH)+P('M20 12l3 3M22 6l6 6M25 9l-3 3M4 28l3-3',)+P('M9 23l5-5',BL),
+  '💊':P('M9 23a6 6 0 0 1 0-8.5l5.5-5.5 8.5 8.5-5.5 5.5a6 6 0 0 1-8.5 0Z',RD)+P('M14.5 9a6 6 0 0 1 8.5 8.5l-.1.1-8.5-8.5Z',WH),
+  '🎣':P('M3 29L26 4',WD)+P('M26 4q4 6 0 14')+P('M26 18q-3 0-3 3t3 3',)+E(20,26,4,2,BL),
+  '🥵':face(RD,C(11,14,1.5,K)+C(21,14,1.5,K)+P('M11 21q5 4 10 0',DK)+P('M14 23q2 4 4 0',PK))+P('M27 7q2 3 0 5',BL),
+  '😟':face(YE,C(11,15,1.5,K)+C(21,15,1.5,K)+P('M11 23q5-4 10 0')+P('M8 10l5 2M24 10l-5 2')),
+  '🤒':face(YE,C(11,14,1.5,K)+C(21,14,1.5,K)+P('M12 21q4 2 8 0'))+P('M18 22l10 4',WH)+C(28,26,1.5,RD),
+  '🛒':P('M2 5h4l4 15h15l3-11H8',)+P('M8 9h20l-3 11H10Z',BL)+C(12,26,2.2,DK)+C(23,26,2.2,DK),
+  '🎉':P('M4 28l7-18 11 11Z',YE)+P('M7 20l5 5M9 15l8 8',RD)+P('M18 4l1 4M26 8l-3 2M24 15l4 1M14 6q2 2 0 4',),
+  '👨‍🌾':person(GR,BL,YE),'👩‍🌾':person(PK,BL,YE),'👷':person(OR,OR,YE),'🧍':person(BL),'👵':C(16,9,4.5,SK)+C(16,5,3,GY)+P('M8 28Q8 16 16 16T24 28Z',PU),
+  '👨‍👩‍👦':C(9,9,3.5,SK)+C(23,9,3.5,SK)+C(16,15,3,SK)+P('M3 27q0-11 6-11t6 11Z',BL)+P('M17 27q0-11 6-11t6 11Z',PK)+P('M11 28q0-8 5-8t5 8Z',GR),
+  '⚡':P('M18 2L6 18h8l-2 12 13-17h-8Z',YE),
+  '☀️':C(16,16,6.5,YE)+P('M16 2v5M16 25v5M2 16h5M25 16h5M6 6l3.5 3.5M22.5 22.5L26 26M6 26l3.5-3.5M22.5 9.5L26 6',),
+  '🌙':P('M20 3a13 13 0 1 0 9 22A10 10 0 0 1 20 3Z',YE),
+  '🌧️':P('M8 18q-5 0-5-4.5T8 9q1-6 8-6 6 0 8 5 5 0 5 5t-5 5Z',GY)+P('M9 22l-2 5M16 22l-2 5M23 22l-2 5',BL),
+  '📰':R(4,6,22,21,WH,2)+P('M26 10h3v14q0 3-3 3')+R(8,10,7,6,GY,0)+P('M18 11h5M18 15h5M8 20h15M8 23h12'),
+  '🚫':C(16,16,12,WH)+P('M7.5 7.5l17 17'),
+  '🧰':R(3,11,26,16,RD,2)+P('M11 11V7h10v4M3 17h26')+R(14,15,4,4,GY,1),
+  '🔥':P('M16 29q-10 0-10-9 0-7 6-12 0 5 3 6 0-8 6-12-1 7 3 11 3 3 3 7 0 9-11 9Z',OR)+P('M16 29q-5 0-5-5 0-4 4-6 0 3 2 3 3 2 3 5t-4 3Z',YE),
+  '✋':P('M9 28q-4-5-4-11V12q0-2 2-2t2 2v4V6q0-2 2-2t2 2v8V4q0-2 2-2t2 2v10V7q0-2 2-2t2 2v12q0 9-9 9Z',SK),
+  '🧹':P('M24 3l-9 15',WD)+P('M15 17l-9 6 3 6 13-6-4-7Z',YE)+P('M9 29l2-4M13 28l2-4M17 26l1-3'),
+  '💀':P('M5 15q0-11 11-11t11 11q0 6-4 8v4H9v-4q-4-2-4-8Z',WH)+C(11,15,3,DK)+C(21,15,3,DK)+P('M16 19l-1.5 3h3Z',DK)+P('M13 27v-3M16 27v-3M19 27v-3'),
+  '⏱':C(16,18,11,WH)+P('M16 18l5-5M13 3h6M16 3v4M25 9l2-2'),
+  '🔔':P('M7 23q2-2 2-9t7-8 7 8 2 9Z',YE)+P('M5 23h22')+C(16,26,2.5,YE)+P('M16 6V4'),
+  '🔋':R(3,9,24,14,WH,2)+R(27,13,3,6,DK,1)+R(6,12,14,8,GR,1),
+  '📢':P('M4 13h5l14-7v20L9 19H4Z',RD)+P('M9 19l2 8h4l-2-8')+P('M26 12q3 4 0 8'),
+  '🛏️':R(3,15,26,8,WH,1)+R(5,11,8,5,BL,2)+R(13,13,16,4,DB,1)+P('M3 9v19M29 15v13'),
+  '⚠️':P('M16 3L2 28h28Z',YE)+P('M16 11v9')+C(16,24,1.3,K),
+  '🚪':R(8,3,16,26,WD,1.5)+R(11,6,10,9,TN,1)+R(11,17,10,9,TN,1)+C(21,17,1.2,YE),
+  '💤':T(10,26,'z',14,DB)+T(19,18,'z',11,DB)+T(26,10,'z',8,DB),
+  '👋':P('M10 28q-6-4-6-11l2-5q2-2 3 1l1 3 1-10q1-2 3-1l1 9 1-11q2-2 3 0l1 11 1-8q2-2 3 0l1 13q0 9-11 9Z',SK)+P('M26 4q3 2 3 5M3 9q-1-3 1-5'),
+  '🧱':R(3,6,26,21,'#c9604a',1)+P('M3 13h26M3 20h26M12 6v7M22 6v7M7 13v7M17 13v7M27 13v7M12 20v7M22 20v7',WH),
+  '🗑️':P('M7 9h18l-2 19H9Z',GY)+P('M4 9h24M12 9V5h8v4M12 13l1 11M16 13v11M20 13l-1 11'),
+  '💨':P('M3 12h17q5 0 5-4t-4-4-4 3M3 18h22q4 0 4 4t-4 4-4-3M6 24h10',),
+  '📅':R(4,6,24,22,WH,2)+R(4,6,24,7,RD,2)+P('M10 3v6M22 3v6')+T(16,25,'7',10,K),
+  '😂':face(YE,P('M8 13q3-3 6 0M18 13q3-3 6 0')+P('M9 18h14q-1 7-7 7t-7-7Z',DK)+P('M6 15q-3 3-1 6',BL)),
+  '📻':R(3,11,26,16,WD,2)+C(11,19,5,DK)+P('M20 15h6M20 19h6M20 23h6M8 11l14-7'),
+  '🎵':P('M11 24V8l14-4v16')+E(8,24,3.5,2.8,K)+E(22,20,3.5,2.8,K),
+  '🪓':P('M8 28L22 6',WD)+P('M18 5q8-4 11 3l-6 6q-2-5-7-5Z',GY),
+  '💸':R(4,11,22,13,LG,2)+C(15,17.5,3.5,GR)+P('M26 9q3-5 6-1M4 9Q1 4-2 8',),
+  '🙅':person(PK,PK)+P('M9 19l14 8M23 19L9 27',RD),
+  '🔩':P('M12 3h8l3 5-3 5h-8l-3-5Z',GY)+R(14,13,4,15,GY,1)+P('M14 17l4-1M14 21l4-1M14 25l4-1'),
+  '🔳':R(4,4,24,24,WH,2)+R(9,9,14,14,DK,1),
+  '🪨':P('M4 25l3-11 8-7 9 3 4 10-3 6Z',GY)+P('M11 13l5 4 6-2'),
+  '⬆️':R(4,4,24,24,BL,4)+P('M16 23V9M10 15l6-6 6 6',WH),
+  '⛔':C(16,16,12,RD)+R(8,14,16,4,WH,1),
+  '🚭':C(16,16,12,WH)+R(8,15,14,4,GY,0)+R(22,15,3,4,OR,0)+P('M7.5 7.5l17 17',RD),
+  '💪':P('M6 26q-2-9 4-14l3-7q4-2 5 2l-3 5q8-2 11 6t-5 10Z',SK)+P('M14 15q2 3 6 2'),
+  '🟢':C(16,16,11,GR),'⚪':C(16,16,11,WH),
+  '🩴':E(16,17,8,12,TN)+P('M16 8v6M11 17l5-3 5 3',BL),
+  '🛠️':P('M5 27L20 12',WD)+P('M19 5q5-3 8 1l-3 3 1 2 2 1 3-3q3 4-1 8-4 2-7-1Z',GY)+P('M26 26L13 13M10 8l3 5-2 2-5-3Z',GY),
+  '🚧':R(3,12,26,9,YE,1)+P('M7 12l-4 9M14 12l-5 9M21 12l-5 9M28 12l-5 9',DK)+P('M7 21v7M25 21v7M7 7v5M25 7v5')+C(7,6,1.6,OR)+C(25,6,1.6,OR),
+  '🧸':C(16,20,8,TN)+C(16,10,6,TN)+C(10,6,2.5,TN)+C(22,6,2.5,TN)+C(14,9,.8,K)+C(18,9,.8,K)+E(16,12,2,1.4,'#e8c79a'),
+  '❄️':P('M16 3v26M5 9.5l22 13M5 22.5l22-13M13 5l3 3 3-3M13 27l3-3 3 3',),
+  '🎒':P('M8 11q0-7 8-7t8 7v15q0 2-2 2H10q-2 0-2-2Z',RD)+R(11,17,10,7,'#e8796a',2)+P('M12 8q4-5 8 0'),
+  '🔍':C(13,13,8,BL)+P('M19 19l9 9',WD)+P('M9 11q1-3 4-4',WH),
+  '🔊':P('M4 12h6l8-7v22l-8-7H4Z',GY)+P('M22 11q3 5 0 10M25 8q6 8 0 16'),
+  '🎨':P('M16 4C7 4 3 10 3 16s5 12 12 12c3 0 2-4 4-5s9 1 10-6C30 9 24 4 16 4Z',TN)+C(10,13,2.2,RD)+C(16,9,2.2,YE)+C(22,12,2.2,BL)+C(11,20,2.2,GR),
+  '🆕':R(2,8,28,16,DB,3)+T(16,20.5,'NEW',9,WH),
+  '💰':P('M11 8q-7 7-7 13 0 7 12 7t12-7q0-6-7-13Z',TN)+P('M11 8l-2-4h14l-2 4Z',TN)+T(16,23,'₱',10,DK),
+  '🪣':P('M6 10h20l-3 18H9Z',GY)+E(16,10,10,3,BL)+P('M6 10q10-12 20 0'),
+  '🛟':C(16,16,11,WH)+C(16,16,5,'#cfe8f0'),
+  '⚙️':P('M14 3h4l1 4 3 1 3-2 3 3-2 3 1 3 4 1v4l-4 1-1 3 2 3-3 3-3-2-3 1-1 4h-4l-1-4-3-1-3 2-3-3 2-3-1-3-4-1v-4l4-1 1-3-2-3 3-3 3 2 3-1Z',GY)+C(16,16,4.5,WH),
+  '✏️':P('M6 26l2-7L22 5l5 5-14 14Z',YE)+P('M6 26l2-7 5 5Z',TN)+P('M20 7l5 5'),
+  '🪑':P('M9 3h4v13H9ZM9 16h15v4H9Z',WD)+P('M10 20v9M22 20v9M9 7h4M9 11h4'),
+  '📊':R(4,4,24,24,WH,2)+R(8,16,4,8,BL,0)+R(14,10,4,14,GR,0)+R(20,13,4,11,OR,0),
+  };
+  // regional flags: the PH flag
+  I['🇵🇭']=P('M3 7h26v18H3Z',WH)+P('M3 7h26v9H3Z',DB)+P('M3 16h26v9H3Z',RD)+P('M3 7l12 9-12 9Z',WH)+C(8,16,2,YE);
+  const keys=Object.keys(I), norm=k=>k.replace(/️/g,''), ID={}; keys.forEach((k,i)=>ID[norm(k)]='si'+i);
+  const sprite=document.createElement('div'); sprite.style.cssText='position:absolute;width:0;height:0;overflow:hidden';
+  sprite.innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"><defs><filter id="siWob" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.09" numOctaves="2" seed="7" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="1.6"/></filter></defs>`
+    +keys.map((k,i)=>`<symbol id="si${i}" viewBox="0 0 32 32"><g filter="url(#siWob)">${I[k]}</g></symbol>`).join('')+'</svg>';
+  document.body.prepend(sprite);
+  const css=document.createElement('style'); css.textContent=`svg.si{width:1.25em;height:1.25em;vertical-align:-.28em;display:inline-block;stroke:${K};stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;overflow:visible;flex-shrink:0}
+    .ti svg.si{width:1.6em;height:1.6em}#hud svg.si{width:22px;height:22px;vertical-align:-6px}.pickup-icon svg.si{width:30px;height:30px;vertical-align:0}`;
+  document.head.appendChild(css);
+  // match any emoji we have a drawing for (longest first, so family and farmer sequences win over their parts)
+  const esc=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const RE=new RegExp(keys.map(norm).sort((a,b)=>b.length-a.length).map(k=>esc(k)+'\\uFE0F?').join('|'),'gu');
+  const SKIP=new Set(['SCRIPT','STYLE','TEXTAREA','INPUT','CANVAS','svg','SVG','OPTION','TITLE']);
+  const swap=node=>{const t=node.nodeValue; RE.lastIndex=0; if(!RE.test(t)) return; RE.lastIndex=0; const f=document.createDocumentFragment(); let last=0, m;
+    while((m=RE.exec(t))){if(m.index>last) f.appendChild(document.createTextNode(t.slice(last,m.index))); const id=ID[norm(m[0])];
+      const s=document.createElementNS('http://www.w3.org/2000/svg','svg'); s.setAttribute('class','si'); s.setAttribute('viewBox','0 0 32 32'); s.setAttribute('aria-hidden','true');
+      const u=document.createElementNS('http://www.w3.org/2000/svg','use'); u.setAttribute('href','#'+id); s.appendChild(u); f.appendChild(s); last=m.index+m[0].length;}
+    if(last<t.length) f.appendChild(document.createTextNode(t.slice(last))); node.parentNode.replaceChild(f,node);};
+  const walk=root=>{if(root.nodeType===3){if(root.parentNode&&!SKIP.has(root.parentNode.nodeName)) swap(root); return;}
+    if(root.nodeType!==1||SKIP.has(root.nodeName)||root.closest&&root.closest('svg')) return;
+    const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentNode&&!SKIP.has(n.parentNode.nodeName)&&!(n.parentNode.closest&&n.parentNode.closest('svg'))?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT}), list=[];
+    while(w.nextNode()) list.push(w.currentNode); list.forEach(swap);};
+  let pending=new Set(), sched=false;
+  const flush=()=>{sched=false; const L=[...pending]; pending.clear(); obs.disconnect(); try{for(const n of L) if(n.isConnected) walk(n);} finally{obs.observe(document.body,{childList:true,subtree:true,characterData:true});}};
+  const obs=new MutationObserver(ms=>{for(const m of ms){if(m.type==='characterData') pending.add(m.target); else m.addedNodes.forEach(n=>pending.add(n));} if(!sched){sched=true; requestAnimationFrame(flush);}});
+  walk(document.body); obs.observe(document.body,{childList:true,subtree:true,characterData:true});
+  window.SKETCH_ICONS={count:keys.length,walk};
+})();
 
 })();
 </script>

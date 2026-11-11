@@ -447,6 +447,36 @@ button:focus-visible{outline:3px solid #4c8078!important;outline-offset:3px}#toa
 }
 @media(max-width:720px){#hud .pill{padding:2px 5px}#hud .bar{width:22px}#hud #needPill .nb{width:17px;margin-right:2px}#hud .lvl{font-size:11px}#hud #coins{font-size:16px}#helpBtn,#misBtn,#achBtn{min-width:36px}}
 
+
+/* ---------- mini-mart and cooperative sheets: stat tiles, cards, product tiles with steppers ---------- */
+.fs{display:grid;gap:8px}.fs h3{margin:6px 0 0;font-size:15px}
+.fs-lead{font-size:13px;line-height:1.45;font-weight:600;opacity:.85}.fs-lead small{font-size:12px;opacity:.85}
+.fs-row,.fs-actions{display:flex;flex-wrap:wrap;gap:6px}.fs-actions>*{flex:1 1 200px}
+.fs-actions .gbtn,.fs-keeper .gbtn{display:grid;gap:2px;text-align:left}.fs .gbtn small{display:block;font-size:11px;font-weight:700;opacity:.8}
+.fs-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.fs-stat,.fs-card,.fs-prod{background:#fbf6ec;border:2px solid var(--ink2);border-radius:13px}
+.fs-stat{padding:6px 8px;text-align:center}.fs-stat b{display:block;font-size:16px;font-weight:900}.fs-stat small{font-size:11px;font-weight:800;opacity:.7}
+.fs-stat.open b{color:#2e7d32}.fs-stat.closed b{color:#a6402c}
+.fs-card{padding:9px 11px}.fs-keeper{display:flex;align-items:center;justify-content:space-between;gap:10px}.fs-keeper .gbtn{flex:0 0 auto}
+.fs-prods{display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:7px}
+.fs-prod{display:grid;grid-template-columns:40px minmax(0,1fr);gap:5px 9px;align-items:center;padding:8px}
+.fs-prod .ic{grid-row:span 2;width:40px;height:40px;border-radius:10px;border:2px solid var(--ink2);background:#f0e2c4;display:grid;place-items:center;font-size:22px}
+.fs-prod .ic svg.si{width:28px;height:28px;vertical-align:0}.fs-prod .nm b{font-size:14px;font-weight:900}.fs-prod .nm small{display:block;font-size:11px;font-weight:700;opacity:.75}
+.fs-prod .meta{display:flex;gap:4px;flex-wrap:wrap}
+.fs-tag{display:inline-block;padding:1px 7px;border-radius:999px;background:#ece4d2;border:1.5px solid #493f3540;font-size:11px;font-weight:800}
+.fs-tag.low{background:#f6d0c6;color:#8e2a1c}.fs-tag.go{background:#d7ecc4;color:#2e5e1e}
+.fs-prod .qty{grid-column:1/-1;justify-content:space-between;gap:4px}.sheet .fs-prod .qty button{flex:1;min-width:0;padding:5px 0;font-weight:900;font-size:14px}
+.fs-prod .qty b{flex:0 0 34px;font-size:16px}
+.fs-log{display:grid;grid-template-columns:1fr auto;gap:3px 10px;font-size:12px;font-weight:700}.fs-log b{color:#2e7d32}
+.fs-price{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.fs-price .fs-stat b svg.si{width:26px;height:26px}
+.fs-young{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.fs-young .gbtn{display:grid;justify-items:center;gap:3px;text-align:center;padding:9px 6px}
+.fs-young .gbtn .ic{width:42px;height:42px;border-radius:11px;border:2px solid var(--ink2);background:#f0e2c4;display:grid;place-items:center}.fs-young .gbtn .ic svg.si{width:30px;height:30px;vertical-align:0}
+#bldSheet .sheet:has(.fs){width:min(760px,96vw)!important;max-width:none!important}
+.fs .gbtn{background:#fbf6ec!important;color:var(--ink2)!important;border:2px solid var(--ink2)!important;box-shadow:0 3px 0 var(--ink2)!important}.fs .gbtn.green{background:#e3f0d4!important}.fs .gbtn.gold{background:#f7e6c4!important}
+.fs .gbtn:not(:disabled):active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink2)!important}.fs .gbtn:disabled{opacity:.55;border-style:dashed!important;box-shadow:none!important}
+.fs [data-coop=sell]{display:block!important;text-align:left!important}
+.fs .gbtn{font-size:14px!important;line-height:1.25;padding:8px 12px!important;min-height:0!important;border-radius:12px}.fs .gbtn b{font-size:14px}.fs-keeper .gbtn{text-align:center;justify-items:center}
+@media(max-height:520px){.fs-stat b{font-size:14px}.fs-stat{padding:4px 6px}.fs-lead{font-size:12px}.fs-prods{grid-template-columns:repeat(3,minmax(0,1fr))}}
 </style>
 </head>
 <body>
@@ -6223,11 +6253,24 @@ function renderBodega(){
   $('bldBody').innerHTML='<div class="pay">Your farm storage. Shelf displays follow your stored goods; the counts below show every item.</div><h3>Harvests and animal products</h3>'+(goods||'<p class="empty">No goods stored yet. Harvest crops or collect from your animals.</p>')+'<h3>Feed, seeds and supplies</h3>'+(supplies||'<p class="empty">No supplies stored yet.</p>');
 }
 function openFarmShop(){$('bizSheet').classList.remove('open');closeMarket();bldIdx=-4;bldTab=null;renderFarmShop();$('bldSheet').classList.add('open');}
-function renderFarmShop(){const own=S.shop.owned,inc=shopIncoming(),free=Object.keys(VEH).filter(vehFree);$('bldTitle').textContent='Sunfield Mini-Mart';
-  if(!own){$('bldBody').innerHTML='<div class="pay">Your own farm shop with Ate Lorna as shopkeeper. Customers pay automatically when they buy from stocked shelves. Open 6 AM-10 PM.</div><div class="pay">Level '+SHOP.level+' - '+SHOP.cost.toLocaleString()+' pesos. Includes a shopkeeper and three working days of salary.</div><button class="gbtn gold row" data-shop="unlock" '+(S.level>=SHOP.level&&S.coins>=SHOP.cost?'':'disabled')+'>Unlock my mini-mart</button><button class="gbtn row" data-shop="visit">Visit shop site</button>';return;}
-  const rows=Object.keys(SHOP.prices).map(k=>{const n=S.shop.stock[k]||0,arriving=inc[k]||0;return '<tr><td>'+shopIcon(k)+' '+shopName(k)+'<br><small>'+SHOP.prices[k]+' pesos each</small></td><td><b>'+n+'</b>'+(n<5?'<br><small style="color:#a33">'+(n?'Low stock':'Restock')+'</small>':'')+(arriving?'<br><small>+'+arriving+' incoming</small>':'')+'</td><td>'+shopAvailable(k)+'</td><td><span class="qty" role="group" aria-label="Restock '+shopName(k)+'">'+[-10,-1,1,10].map((step,i)=>(i===2?'<b aria-live="polite">'+(shopDraft[k]||0)+'</b>':'')+'<button type="button" data-shop-qty="'+k+'" data-shop-step="'+step+'" aria-label="'+(step>0?'Add ':'Remove ')+Math.abs(step)+' '+shopName(k)+'" '+((step<0?!(shopDraft[k]||0):(shopDraft[k]||0)>=60)?'disabled':'')+'>'+({'-10':'?10','-1':'?','1':'+','10':'+10'}[step])+'</button>').join('')+'</span></td></tr>';}).join('');
-  const trips=Object.keys(VEH).filter(v=>S.veh[v].trip&&S.veh[v].trip.dest==='farmshop').map(v=>VEH[v].name+': '+(S.veh[v].trip.shopDelivered?'unloaded, returning':'stock on the way')).join('<br>');
-  $('bldBody').innerHTML='<div class="pay"><b>'+(shopOpen()?'OPEN':S.shop.payroll<=0?'PAUSED - pay salary':'CLOSED - opens at 6 AM')+'</b> - '+shopUnits()+'/'+SHOP.capacity+' shelf units</div><div class="pay">Sales revenue: <b>'+S.shop.revenue.toLocaleString()+' pesos</b> - '+S.shop.sold+' items sold - '+S.shop.visits+' purchases<br>Wages paid: '+Math.floor(S.shop.wages)+' pesos. Stock costs are separate.</div><div class="pay">Ate Lorna - '+SHOP.salary+' pesos per working day.<br>Prepaid salary: <b>'+Math.floor(S.shop.payroll)+' pesos</b> ('+(S.shop.payroll/SHOP.salary).toFixed(1)+' working days). No salary or sales while you are away.</div><button class="gbtn row" data-shop="salary" '+(S.coins>=SHOP.salary*3?'':'disabled')+'>Pay 180 pesos - add 3 days of salary</button><h3>Products and restocking</h3><div class="pay">Choose quantities from your farm. Bigas uses purchased rice first, then 2 palay per pack. Stock only reaches shelves after your driver unloads.</div><table style="width:100%;text-align:left;border-spacing:4px"><thead><tr><th>Product</th><th>Shelf</th><th>Farm</th><th>Send</th></tr></thead><tbody>'+rows+'</tbody></table><div class="pay">'+(trips||'No delivery in progress')+'</div><div class="gtabs">'+(free.length?free.map(v=>'<button class="gbtn" data-shop-send="'+v+'">'+VEH[v].icon+' Deliver with '+VEH[v].name+'<br><small>Up to '+VEH[v].cap+' units - choose driver next</small></button>').join(''):'<div class="pay">Buy a delivery vehicle in your garage, or wait for one to return.</div>')+'</div><button class="gbtn row" data-shop="visit">Visit my shop</button><h3>Recent purchases</h3><div class="pay">'+(S.shop.log.map(l=>l.visitor+': '+l.n+' '+shopName(l.item)+' - +'+l.money+' pesos').join('<br>')||'Deliver stock and wait for your first customer.')+'</div>';
+function renderFarmShop(){const own=S.shop.owned,inc=shopIncoming(),free=Object.keys(VEH).filter(vehFree);$('bldTitle').textContent='🏪 Sunfield Mini-Mart';
+  if(!own){$('bldBody').innerHTML='<div class="fs"><div class="fs-card"><div class="fs-lead">Your own farm shop with Ate Lorna as shopkeeper. Customers pay automatically when they buy from stocked shelves. Open 6 AM to 10 PM.</div><div class="fs-row"><span class="fs-tag">Level '+SHOP.level+'</span><span class="fs-tag">₱'+SHOP.cost.toLocaleString()+'</span><span class="fs-tag">includes 3 days of salary</span></div></div><div class="fs-actions"><button class="gbtn gold" data-shop="unlock" '+(S.level>=SHOP.level&&S.coins>=SHOP.cost?'':'disabled')+'>🔒 Unlock my mini-mart</button><button class="gbtn" data-shop="visit">📍 Visit shop site</button></div></div>';return;}
+  const open=shopOpen(), state=open?'OPEN':S.shop.payroll<=0?'PAUSED':'CLOSED', days=S.shop.payroll/SHOP.salary;
+  const prods=Object.keys(SHOP.prices).map(k=>{const n=S.shop.stock[k]||0,arriving=inc[k]||0,q=shopDraft[k]||0,farm=shopAvailable(k);
+    const btn=step=>'<button type="button" data-shop-qty="'+k+'" data-shop-step="'+step+'" aria-label="'+(step>0?'Add ':'Remove ')+Math.abs(step)+' '+shopName(k)+'" '+((step<0?!q:q>=60||q>=farm)?'disabled':'')+'>'+(step<0?'−':'+')+(Math.abs(step)>1?Math.abs(step):'')+'</button>';
+    return '<div class="fs-prod"><span class="ic">'+shopIcon(k)+'</span><span class="nm"><b>'+shopName(k)+'</b><small>₱'+SHOP.prices[k]+' each</small></span>'
+      +'<span class="meta"><span class="fs-tag'+(n<5?' low':'')+'">Shelf '+n+(n<5?(n?' · low':' · empty'):'')+'</span><span class="fs-tag">Farm '+farm+'</span>'+(arriving?'<span class="fs-tag go">+'+arriving+' coming</span>':'')+'</span>'
+      +'<span class="qty" role="group" aria-label="Restock '+shopName(k)+'">'+btn(-10)+btn(-1)+'<b aria-live="polite">'+q+'</b>'+btn(1)+btn(10)+'</span></div>';}).join('');
+  const trips=Object.keys(VEH).filter(v=>S.veh[v].trip&&S.veh[v].trip.dest==='farmshop').map(v=>VEH[v].icon+' '+VEH[v].name+': '+(S.veh[v].trip.shopDelivered?'unloaded, coming back':'stock on the way')).join('<br>');
+  const send=free.length?free.map(v=>'<button class="gbtn green" data-shop-send="'+v+'">'+VEH[v].icon+' <b>Deliver with '+VEH[v].name+'</b><small>Up to '+VEH[v].cap+' units · choose the driver next</small></button>').join(''):'<div class="fs-lead">Buy a delivery vehicle in your garage, or wait for one to come back.</div>';
+  $('bldBody').innerHTML='<div class="fs">'
+    +'<div class="fs-stats"><div class="fs-stat '+(open?'open':'closed')+'"><b>'+state+'</b><small>'+(open?'until 10 PM':S.shop.payroll<=0?'pay the salary':'opens 6 AM')+'</small></div><div class="fs-stat"><b>'+shopUnits()+'/'+SHOP.capacity+'</b><small>shelf units</small></div><div class="fs-stat"><b>₱'+S.shop.revenue.toLocaleString()+'</b><small>sales</small></div><div class="fs-stat"><b>'+S.shop.sold+'</b><small>items sold · '+S.shop.visits+' buyers</small></div></div>'
+    +'<div class="fs-card fs-keeper"><span class="fs-lead">👩‍🌾 <b>Ate Lorna</b>, shopkeeper · ₱'+SHOP.salary+' a working day<br><small>Prepaid: ₱'+Math.floor(S.shop.payroll)+' ('+days.toFixed(1)+' days) · wages so far ₱'+Math.floor(S.shop.wages)+'</small></span><button class="gbtn gold" data-shop="salary" '+(S.coins>=SHOP.salary*3?'':'disabled')+'>🧾 Pay ₱'+(SHOP.salary*3)+'<small>+3 days</small></button></div>'
+    +'<h3>Restock the shelves</h3><div class="fs-lead">Pick how much to send from your farm. Bigas uses bought rice first, then 2 palay a pack. Stock reaches the shelves when your driver unloads.</div>'
+    +'<div class="fs-prods">'+prods+'</div>'
+    +'<div class="fs-lead">'+(trips||'No delivery on the road.')+'</div><div class="fs-actions">'+send+'</div>'
+    +'<button class="gbtn" data-shop="visit">📍 Visit my shop</button>'
+    +'<h3>Recent sales</h3><div class="fs-card fs-log">'+(S.shop.log.map(l=>'<span>'+l.visitor+' · '+l.n+' '+shopName(l.item)+'</span><b>+₱'+l.money+'</b>').join('')||'<span>Deliver stock and wait for your first customer.</span>')+'</div></div>';
 }
 $('bldSheet').addEventListener('click',e=>{const b=e.target.closest('[data-shop-step]');if(!b||b.disabled)return;const k=b.dataset.shopQty;if(!Object.hasOwn(SHOP.prices,k))return;shopDraft[k]=Math.max(0,Math.min(60,(shopDraft[k]||0)+Number(b.dataset.shopStep)));renderFarmShop();});
 $('bldSheet').addEventListener('click',e=>{const b=e.target.closest('[data-shop]'),d=e.target.closest('[data-shop-send]');if(!b&&!d)return;if((b||d).disabled)return;
@@ -6836,14 +6879,16 @@ function openCoop(){bldIdx=-7; bldTab=null; renderCoop(); $('bldSheet').classLis
 function coopTruckFor(kinds){return ['stock','truck'].filter(v=>vehFree(v)&&kinds.every(k=>LIVE_VEH[k].includes(v)));}
 function renderCoop(){$('bldTitle').textContent='🐄 Livestock Cooperative';
   const held=COOP_KINDS.filter(k=>(S.livestock[k]||0)>0), heldN=held.reduce((a,k)=>a+S.livestock[k],0), heldV=held.reduce((a,k)=>a+S.livestock[k]*Math.round(ITEMS[k].price*COOP_RATE),0);
-  const trucks=coopTruckFor(held), cowsOnlyStock=held.includes('live_cow')&&!OWN('stock');
-  const sellBtn=heldN?`<button class="gbtn green row" data-coop="sell" ${trucks.length?'':'disabled'}>🚛 <b>Truck ${heldN} live animals from your bodega here</b><small>${held.map(k=>`${S.livestock[k]} ${ITEMS[k].icon}`).join(' + ')} · pays ₱${heldV.toLocaleString()} on arrival${trucks.length?'':cowsOnlyStock?' · cows need the livestock truck':' · no free truck right now'}</small></button>`:'';
+  const trucks=coopTruckFor(held), why=held.includes('live_cow')&&!OWN('stock')?'Cows need the livestock truck.':'No free truck right now.';
   const pending=(S.coopDel||[]).reduce((a,o)=>a+o.n,0);
-  $('bldBody').innerHTML=`<div class="pay">The farmers' livestock cooperative by the water works. It buys grown 🐄 cattle, 🐐 goats and 🐖 pigs for 10% more than the palengke, and raises weaned young stock to sell to members.</div>
-    <div class="pay"><b>To sell from your pens:</b> tap a pen with grown animals, choose <i>Sell live</i>, then <i>Sell to the Livestock Cooperative</i>. Your truck loads them and drives here.</div>
-    <div class="pay">They pay per head: ${COOP_KINDS.map(k=>`${ITEMS[k].icon} ₱${Math.round(ITEMS[k].price*COOP_RATE).toLocaleString()}`).join(' · ')}</div>${sellBtn}
-    <div class="pay"><b>Young stock</b> (their truck brings it to your bodega)${pending?` · ${pending} on the way`:''}:</div>
-    ${Object.entries(COOP_YOUNG).map(([k,pr])=>`<button class="gbtn gold row" data-coop="buy:${k}" ${S.coins>=pr?'':'disabled'}>${MATS[k].icon} <b>${MATS[k].name}</b><small>₱${pr.toLocaleString()} · Agrivet ₱${MATS[k].price.toLocaleString()} · you have ${S.mats[k]||0}</small></button>`).join('')}`;}
+  const NAMES={live_cow:'Cattle',live_goat:'Goat',live_pig:'Pig'};
+  $('bldBody').innerHTML='<div class="fs">'
+    +'<div class="fs-lead">The farmers\' cooperative by the water works. It buys your grown animals for <b>10% more than the palengke</b>, and sells weaned young stock to members.</div>'
+    +'<h3>They pay per head</h3><div class="fs-price">'+COOP_KINDS.map(k=>'<div class="fs-stat"><b>'+ITEMS[k].icon+'</b><b>₱'+Math.round(ITEMS[k].price*COOP_RATE).toLocaleString()+'</b><small>'+NAMES[k]+' · palengke ₱'+ITEMS[k].price.toLocaleString()+'</small></div>').join('')+'</div>'
+    +'<div class="fs-card"><div class="fs-lead"><b>From your pens:</b> tap a pen with grown animals, choose <i>Sell live</i>, then <i>Sell to the Livestock Cooperative</i>. Your truck loads them and drives here.</div></div>'
+    +(heldN?'<button class="gbtn green" data-coop="sell" '+(trucks.length?'':'disabled')+'>🚛 <b>Truck the '+heldN+' live animals in your bodega here</b><small>'+held.map(k=>S.livestock[k]+' '+ITEMS[k].icon).join(' + ')+' · ₱'+heldV.toLocaleString()+' paid on arrival'+(trucks.length?'':' · '+why)+'</small></button>':'')
+    +'<h3>Young stock'+(pending?' <span class="fs-tag go">'+pending+' on the way</span>':'')+'</h3><div class="fs-lead">Cheaper than the Agrivet. Their truck brings it to your bodega, ready to restock a pen.</div>'
+    +'<div class="fs-young">'+Object.entries(COOP_YOUNG).map(([k,pr])=>'<button class="gbtn gold" data-coop="buy:'+k+'" '+(S.coins>=pr?'':'disabled')+'><span class="ic">'+MATS[k].icon+'</span><b>'+MATS[k].name+'</b><small>₱'+pr.toLocaleString()+' · Agrivet ₱'+MATS[k].price.toLocaleString()+'</small><small>you have '+(S.mats[k]||0)+'</small></button>').join('')+'</div></div>';}
 $('bldSheet').addEventListener('click',e=>{const b=e.target.closest('[data-coop]'); if(!b||b.disabled||bldIdx!==-7) return; const a=b.dataset.coop;
   if(a==='sell'){const held=COOP_KINDS.filter(k=>(S.livestock[k]||0)>0); const v=coopTruckFor(held)[0]; if(!v) return;
     const animals={}; for(const k of held){animals[k]=S.livestock[k]; S.livestock[k]=0;} const n=Object.values(animals).reduce((x,y)=>x+y,0), sx=VEH[v].slot;
@@ -9227,6 +9272,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:42,date:'Nov 11, 2026',title:'A cleaner mini-mart and cooperative',items:['🏪 The mini-mart menu is redone: status tiles (open, shelf space, sales, items sold), a card for Ate Lorna\'s salary, and a tile for each product with its shelf and farm stock and proper − and + buttons (they used to show question marks).','🐄 The Livestock Cooperative menu now shows its price per head next to the palengke price, a clear button to truck bodega animals over, and tiles for the young stock.']},
   {v:41,date:'Nov 11, 2026',title:'Hand-drawn icons and tidier menus',items:['✏️ Every icon in the menus, the top bar, the messages and the news is now drawn in ink and wash like the rest of Sunfield, instead of phone emojis.','🧾 The animal pickup choices are now clear cards side by side (an unavailable one is dashed and greyed), and they fit a sideways phone without scrolling.','⚙️ The settings menu now opens above the top bar and the toolbar, so nothing covers it, and it is wider on phones.','🪑 People on the plaza benches by the town hall now sit facing out from the backrest, and the café customers face their tables.']},
   {v:40,date:'Nov 11, 2026',title:'Trade with the Livestock Cooperative',items:['🐄 The Livestock Cooperative now trades with you. When you sell grown cattle, goats or pigs from a pen, a new choice sends your truck to the cooperative, which pays 10% more than the palengke (₱6,050 a cow, ₱1,540 a goat, ₱1,320 a pig).','🚛 Tap the cooperative to see its prices, to truck the live animals waiting in your bodega there, or to buy young stock (guya ₱990, batang kambing ₱270, biik ₱270, cheaper than the Agrivet). Their truck brings the young ones to your bodega, ready to restock a pen.','🛣️ Your truck drives in by the district entry, down the west road and into the cooperative\'s loading aisle, unloads at the platform, and comes home the other way.']},
   {v:39,date:'Nov 11, 2026',title:'The livestock cooperative comes alive',items:['🐄 The cattle, goats and pigs at the Livestock Cooperative (beside the water works) now walk, graze at the troughs and swish their tails like your own herd, instead of standing frozen.','👩‍🌾 By day a feeder carries feed from the store to every trough, the vet checks the goats, a hand sweeps the loading aisle and the biogas tender minds the digester.']},

@@ -3524,7 +3524,8 @@ const WW_CLEAR=[[3.8,[268,-252],[276,-236],[290,-218],[307,-202],[315,-191],[315
 function wwNear(x,z,m){for(const [w,...P] of WW_CLEAR) for(let i=0;i<P.length-1;i++){const [ax,az]=P[i], [bx,bz]=P[i+1], dx=bx-ax, dz=bz-az, L=dx*dx+dz*dz||1, t=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/L)); if(Math.hypot(x-ax-dx*t,z-az-dz*t)<w+m) return true;} return false;}
 // Visual-only irrigation site and maintenance approach; keep procedural foliage clear.
 // Southeast utilities parcel and its maintenance path, reserved from procedural foliage.
-function irrigationSite(x,z,m=0){m=Math.max(0,m);return (x>118-m&&x<190+m&&z>100-m&&z<146+m)||(x>58-m&&x<108+m&&z>154-m&&z<215+m)||(x>44-m&&x<51+m&&z>-32-m&&z<-2+m)||(x>59-m&&x<107+m&&z>46-m&&z<85+m)||(x>111-m&&x<184+m&&z>-73-m&&z<34+m)||(x>60-m&&x<108+m&&z>-70-m&&z<28+m)||southRoadNear(x,z,m)||(x>120-m&&x<180+m&&z>52-m&&z<78+m);}
+function irrigationSite(x,z,m=0){m=Math.max(0,m);return (x>2-m&&x<60+m&&z>-248-m&&z<-188+m)||(x>58-m&&x<98+m&&z>-240-m&&z<-212+m)||   // the school and the health center
+  (x>118-m&&x<190+m&&z>100-m&&z<146+m)||(x>58-m&&x<108+m&&z>154-m&&z<215+m)||(x>44-m&&x<51+m&&z>-32-m&&z<-2+m)||(x>59-m&&x<107+m&&z>46-m&&z<85+m)||(x>111-m&&x<184+m&&z>-73-m&&z<34+m)||(x>60-m&&x<108+m&&z>-70-m&&z<28+m)||southRoadNear(x,z,m)||(x>120-m&&x<180+m&&z>52-m&&z<78+m);}
 // countryside: acacia, mango, niyog, saging and kawayan trees, wild grass and flowers (all instanced, all cast shadows)
 (()=>{const rr=rng(42);
   const onRoad=(x,z,m)=>roadDist(x,z)<m||(z>HZ-5.4-m&&z<HZ+5.4+m);
@@ -8116,7 +8117,7 @@ const CIVIC=(()=>{
     const d=bakePerson(randLook(Math.random),poseSit,true); d.position.set(.45,.95,2.55); g.add(d);
     const lab=signPlane([kind==='garbage'?'BASURA · SUNFIELD':'TUBIG · SUNFIELD WATER'],kind==='garbage'?'#1b5e20':'#1e6fb8','#fff',3.8,.5,512,64);
     for(const sd of [-1,1]){const q=lab.clone(); q.position.set(sd*(kind==='garbage'?1.17:1.1),kind==='garbage'?2.4:2.0,-1.3); q.rotation.y=sd*Math.PI/2; g.add(q);}
-    scene.add(g); return g;}
+    g.visible=false; scene.add(g); return g;}   // shown once it is placed on its lane
 
   const trucks=[];
   // garbage truck: parked at the tipping face; goes out when the farm has bags, two collectors ride the step and load them
@@ -8358,6 +8359,109 @@ const SUNDAY_MASS=(()=>{
       else if(c.state==='leaving'&&v.done){lnHide(v); c.state='home'; c.timer=10+r()*30;}}
   }};
 })();
+/* ---------- School and clinic (masterplan phase 2) ----------
+   Sunfield Elementary School: two-storey classroom wings round a quadrangle with the flagpole, a covered court, a garden and a canteen.
+   Children walk from the barangay houses in the morning, play at recess, and walk home in the afternoon; teachers stand at the
+   classroom doors and the guard at the gate. The Barangay Health Center: a nurse and a doctor, mothers with babies and lolos
+   waiting on the bench, a midwife's round, and the ambulance parked by the door. */
+const SCHOOL_CLINIC=(()=>{
+  const r=rng(1946), b=[], B=(x,y,z,w,h,d,c,rx=0,ry=0,rz=0)=>b.push(P('box',c,x,y,z,w,h,d,rx,ry,rz)), C=(x,y,z,rad,h,c)=>b.push(P('cyl',c,x,y,z,rad*2,h,rad*2));
+  const white=0xf4efe4, cream=0xf2e6c4, green=0x2e7d4f, roofG=0x3f7f5a, pave=0xd8cfbd, steel=0x3b4a3f;
+  const fence=(a,c,gap)=>{const len=Math.hypot(c[0]-a[0],c[1]-a[1]), n=Math.max(1,Math.ceil(len/2.2)), ry=Math.atan2(c[0]-a[0],c[1]-a[1]);
+    for(let i=0;i<=n;i++){const f=i/n, x=a[0]+(c[0]-a[0])*f, z=a[1]+(c[1]-a[1])*f; if(gap&&gap(x,z)) continue; B(x,.6,z,.35,1.2,.35,white);}
+    for(let i=0;i<n;i++){const f=(i+.5)/n, x=a[0]+(c[0]-a[0])*f, z=a[1]+(c[1]-a[1])*f; if(gap&&gap(x,z)) continue; B(x,.9,z,.06,1.1,len/n-.4,green,0,ry,0); B(x,.28,z,.18,.55,len/n-.3,cream,0,ry,0);}};
+  // a classroom wing: two storeys, a corridor along the front with railings, green doors, windows, a green roof
+  const wing=(cx,cz,len,ry,rooms)=>{const c=Math.cos(ry), s=Math.sin(ry), at=(lx,lz)=>[cx+lx*c+lz*s,cz-lx*s+lz*c];
+    const W=(lx,y,lz,w,h,d,col)=>{const q=at(lx,lz); B(q[0],y,q[1],w,h,d,col,0,ry,0);};
+    W(0,3.2,0,len,6.4,7,cream); W(0,6.6,0,len+.6,.3,7.6,white); W(0,7.3,-1.5,len+1,.12,4.5,roofG); W(0,7.3,1.5,len+1,.12,4.5,roofG);
+    { const q=at(0,0); b.push(P('box',roofG,q[0],7.25,q[1],len+1,.12,4.6,.32,ry,0)); }
+    W(0,3.35,4.3,len,.25,1.6,white); W(0,.12,4.3,len,.24,1.6,0xcfc6b2);   // corridors
+    for(let x=-len/2+.3;x<=len/2-.3;x+=1.1){W(x,4.05,5.05,.06,1.1,.06,green); W(x,.75,5.05,.06,1.1,.06,green);} W(0,4.6,5.05,len,.08,.1,green); W(0,1.3,5.05,len,.08,.1,green);
+    for(let k=0;k<rooms;k++){const x=-len/2+(k+.5)*len/rooms; for(const y of [1.25,4.45]){W(x-2,y,3.53,1,2.3,.08,green); W(x+.8,y+.35,3.53,2.6,1.2,.07,0x8db7c9); W(x+.8,y+.35,3.55,.06,1.2,.08,white);}}
+    for(const x of [-len/2+.4,len/2-.4]) for(const y of [1.7,4.9]) W(x,y,4.3,.35,3.4,.35,white);
+    return at;};
+  // ===== Sunfield Elementary School: x 4..58, z -246..-196 =====
+  const sx0=4,sx1=58,sz0=-246,sz1=-196;
+  B((sx0+sx1)/2,.04,(sz0+sz1)/2,sx1-sx0,.08,sz1-sz0,0xb9c98e);   // the grounds
+  fence([sx0,sz1],[sx1,sz1],(x,z)=>x>27&&x<33); fence([sx1,sz1],[sx1,sz0]); fence([sx1,sz0],[sx0,sz0]); fence([sx0,sz0],[sx0,sz1]);
+  B(30,.08,-200,6,.1,8,pave); for(const sd of [-1,1]){B(30+sd*3.4,1.6,-196,.6,3.2,.6,cream); B(30+sd*3.4,3.35,-196,.8,.3,.8,white);} B(30,3.6,-196,7.6,.8,.3,green);   // the gate and its arch
+  B(30,.09,-222,22,.12,16,pave);   // quadrangle
+  wing(30,-238,34,0,5);                         // the main wing at the back, facing the quad
+  wing(11,-221,22,Math.PI/2,3);                 // west wing, facing east
+  wing(49,-221,22,-Math.PI/2,3);                // east wing, facing west
+  // flagpole and the stage in the quad
+  B(30,.3,-215,2.6,.6,2.6,white); C(30,6,-215,.07,11.5,0xe0e0e0);
+  B(30,.55,-229,10,1.1,3.2,0xcfc6b2); B(30,1.15,-229,10,.1,3.2,0x8d6e4b);
+  // the covered court in the front yard, the school garden, and the canteen
+  B(46,.1,-204.5,15,.1,10,0x5b8fb9); for(const [x,z] of [[39,-200],[53,-200],[39,-209],[53,-209]]) B(x,3,z,.3,6,.3,steel); B(46,6.3,-204.5,16,.2,11,0x9fb1bb);
+  for(const x of [39.6,52.4]){B(x,2.6,-204.5,.12,3.8,.12,0xffffff); B(x+(x<46?.4:-.4),3.6,-204.5,.1,1,1.4,0xffffff);}
+  for(let k=0;k<3;k++){B(12+k*3.2,.25,-203,2.4,.3,5,0x6d4c2e); for(let q=0;q<5;q++) b.push(P('sph',[0x4f9a3c,0x7cb342,0xd84315][q%3],12+k*3.2+(q%2-.5)*.8,.55,-205+q,.5,.4,.5));}   // gulayan sa paaralan
+  B(24,1.5,-202,6,3,4,cream); B(24,3.1,-202,6.6,.2,4.6,0xc0392b); B(24,1.05,-200.05,4,.1,.4,0x8d6e4b); B(24,1.8,-200.05,4,.9,.06,0x8db7c9);   // canteen
+  boardSign(['SUNFIELD ELEMENTARY SCHOOL','Paaralang Elementarya ng Sunfield'],'#2e7d4f','#fff',30,-195.3,0,7,1.2,3.6,0x3b4a3f,false);
+
+  // ===== Barangay Health Center: x 62..96, z -238..-215 =====
+  const hx0=62,hx1=96,hz0=-238,hz1=-215;
+  B((hx0+hx1)/2,.04,(hz0+hz1)/2,hx1-hx0,.08,hz1-hz0,0xc6d3a3); fence([hx0,hz1],[hx1,hz1],(x,z)=>x>70&&x<78); fence([hx1,hz1],[hx1,hz0]); fence([hx1,hz0],[hx0,hz0]); fence([hx0,hz0],[hx0,hz1]);
+  B(74,.08,-217.5,8,.1,5,pave); B(80,2.1,-226,22,4.2,9,white); B(80,4.35,-226,23,.3,10,0x1f8a70); for(const sd of [-1,1]) B(80,4.9,-226+sd*2.6,23.4,.12,5.4,0x1f8a70,sd*.3,0,0);
+  B(74,2.8,-221.4,6,.25,2.6,0x1f8a70); for(const x of [71.5,76.5]) B(x,1.4,-220.3,.2,2.8,.2,white); B(74,1.3,-221.48,2,2.4,.08,0x8db7c9);   // entrance canopy and glass door
+  for(const x of [66,70,84,88,92]) B(x,2.4,-221.47,2.2,1.4,.08,0x8db7c9);
+  B(80,3.6,-221.4,7,.8,.1,0xffffff); B(80,3.6,-221.36,.6,.6,.04,0xd32f2f); B(80,3.6,-221.35,.2,.6,.04,0xffffff); B(80,3.6,-221.35,.6,.2,.04,0xffffff);   // red cross
+  for(const x of [66,69]) {B(x,.45,-219.2,2,.08,.5,0x8d6e4b); B(x,.22,-219.2,.08,.45,.4,0x2b2b2b);}   // benches under the eaves
+  for(let k=0;k<4;k++) b.push(P('sph',0x5c9a44,hx0+2+k*1.6,.5,hz1-1.5,1,.8,1));
+  boardSign(['BARANGAY HEALTH CENTER','Sentrong Pangkalusugan'],'#1f8a70','#fff',74,-214.3,0,5.5,1.1,2.4,0x3b4a3f,false);
+
+  // footpaths from the back road to the school gate and to the health center
+  B(30,.07,-191.5,3,.06,9,pave); B(46,.07,-191.3,34,.06,2.2,pave); B(59.5,.07,-203,2.2,.06,24,pave); B(66.5,.07,-214.2,14,.06,2.2,pave);
+  const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.castShadow=m.receiveShadow=true; m.name='School and health center'; scene.add(m);
+  for(const [x,z] of [[30,-201],[74,-219],[46,-204]]) glow(scene,x,3.4,z,3,GM.white);
+  // the flag in the quad
+  const flag=signPlane([''],'#fff','#fff',2,1.1); {const fc=flag.material.map.image.getContext('2d'); fc.fillStyle='#0038a8'; fc.fillRect(0,0,512,64); fc.fillStyle='#ce1126'; fc.fillRect(0,64,512,64); fc.fillStyle='#fff'; fc.beginPath(); fc.moveTo(0,0); fc.lineTo(200,64); fc.lineTo(0,128); fc.fill(); fc.fillStyle='#fcd116'; fc.beginPath(); fc.arc(60,64,20,0,7); fc.fill(); flag.material.map.needsUpdate=true; flag.material.side=THREE.DoubleSide;}
+  flag.position.set(31.05,11.1,-215); scene.add(flag);
+  // the ambulance parked by the health center
+  const amb=makeCar('l300',0xffffff); amb.position.set(91,0,-218.5); amb.rotation.y=Math.PI; {const s=signPlane(['AMBULANSYA'],'#fff','#d32f2f',2.6,.4,512,80); for(const sd of [-1,1]){const q=s.clone(); q.position.set(sd*.89,1.55,-.1); q.rotation.y=sd*Math.PI/2; amb.add(q);}
+    amb.add(part(1.2,.14,.3,0xd32f2f,0,2.0,1.2)); amb.add(part(1.76,.12,4.42,0xd32f2f,0,1.25,-.1));}
+
+  // ===== people =====
+  const look=(o={})=>{const L=randLook(r); L.bag=null; Object.assign(L,o); return L;};
+  const uniform=()=>look({top:0xffffff,bottom:r()<.5?0x1b2a4a:0x2e7d4f,h:.62+r()*.12,bag:'backpack'});
+  const kids=[], homes=HOUSES.slice().sort((a,c)=>a.gate[0]-c.gate[0]).slice(0,10);   // children from the houses nearest the school
+  for(let k=0;k<16;k++){const L=uniform(); L.bag=null; const p=makePerson(L); p.root.scale.multiplyScalar(1); scene.add(p.root); const H=homes[k%homes.length];
+    const pack=part(.36,.42,.18,[0xd32f2f,0x1565c0,0xf9a825,0x6a1b9a][k%4],0,1.05,-.22); p.root.add(pack);
+    const seat=[12+((k%8))*4.4,-231+((k/8)|0)*3];   // where they stand in the quad at the flag ceremony
+    kids.push({p,H,ph:r()*6,mode:'home',path:null,i:0,seat,late:r()*1.2,play:[20+r()*20,-226+r()*12]});
+    p.root.visible=false;}
+  const route=(H,to)=>[[H.door[0],H.door[1]],[H.walk[0],H.walk[1]],[H.walk[0]>50?50:H.walk[0],H.walk[1]],[46,-191.3],[30,-191.3],[30,-200],to];
+  const step=(k,dt,sp)=>{const R=k.p.root, q=k.path[k.i]; if(!q) return true; const dx=q[0]-R.position.x, dz=q[1]-R.position.z, d=Math.hypot(dx,dz);
+    if(d<.08){k.i++; return k.i>=k.path.length;} const st=Math.min(d,dt*sp); R.position.x+=dx/d*st; R.position.z+=dz/d*st; R.position.y=.1; R.rotation.y=lerpAng(R.rotation.y,Math.atan2(dx,dz),Math.min(1,dt*8)); k.ph+=st*7; poseWalk(k.p,k.ph); return false;};
+  const staff=[
+    makeWorker(look({top:0x37474f,style:'cap',capC:0x263238}),[{to:[27.6,-197.6],act:'stand',dur:10,face:[30,-192]},{path:[[32.4,-197.6]],act:'inspect',dur:6,face:[30,-192]}],{y:.1}),   // the guard at the gate
+    makeWorker(look({top:0xd81b60,f:true}),[{to:[18,-232.5],act:'write',dur:12,face:[18,-235]},{path:[[30,-230.4]],act:'inspect',dur:8,face:[30,-222]},{path:[[42,-232.5]],act:'stand',dur:8,face:[42,-235]}],{y:.1}),   // teachers
+    makeWorker(look({top:0x5e35b1,f:true}),[{to:[16.4,-216],act:'write',dur:10,face:[13,-216]},{path:[[16.4,-226]],act:'stand',dur:8,face:[13,-226]},{path:[[22,-222]],act:'inspect',dur:6,face:[30,-222]}],{y:.1}),
+    makeWorker(look({top:0x00897b}),[{to:[43.6,-226],act:'write',dur:10,face:[47,-226]},{path:[[43.6,-216]],act:'stand',dur:8,face:[47,-216]},{path:[[40,-222]],act:'inspect',dur:6,face:[30,-222]}],{y:.1}),
+    makeWorker(look({top:0xf9a825,f:true}),[{to:[24,-199.2],act:'stand',dur:14,face:[24,-202]},{path:[[26,-199.2]],act:'pump',dur:6,face:[24,-202]}],{y:.1}),   // the canteen lady
+    makeWorker(look({top:0x6d4c41,style:'cap',capC:0x8bc34a}),[{to:[13,-203.4],act:'crouch',dur:9,face:[13,-205]},{path:[[16.2,-203.4]],act:'crouch',dur:9,face:[16.2,-205]},{path:[[19.4,-203.4]],act:'crouch',dur:9,face:[19.4,-205]},{path:[[20,-207.5]],act:'sweep',dur:6}],{y:.1,day:true}),   // the gardener
+    // health center: the nurse, the doctor, a midwife on her round, people waiting
+    makeWorker(look({top:0xffffff,f:true,bottom:0xffffff}),[{to:[74,-220.6],act:'write',dur:10,face:[74,-218]},{path:[[67,-218.4]],act:'inspect',dur:8,face:[66,-219.2]},{path:[[74,-222.6]],act:'stand',dur:8}],{y:.1}),
+    makeWorker(look({top:0xffffff,bottom:0x37474f}),[{to:[74.8,-222.2],act:'write',dur:14,face:[74,-226]},{path:[[86,-220.4]],act:'inspect',dur:7,face:[91,-218.5]},{path:[[74.8,-222.2]],act:'stand',dur:6}],{y:.1}),
+    makeWorker(look({top:0x1f8a70,f:true}),[{to:[74,-216],act:'stand',dur:4},{path:[[66.5,-214.2],[59.5,-212],[59.5,-195],[90,-192],[120,-192]],act:'write',dur:7,face:[120,-195]},{path:[[150,-192]],act:'write',dur:7,face:[150,-195]},{path:[[120,-192],[90,-192],[59.5,-195],[59.5,-212],[66.5,-214.2],[74,-216]],act:'stand',dur:4}],{y:.1,day:true,sp:.9}),
+  ];
+  for(const w of staff) workerGo(w,w.steps[0]);
+  for(const [x,z] of [[65.4,-219.2],[66.6,-219.2],[69,-219.2]]){const q=bakePerson(look({f:r()<.6}),poseSit); q.position.set(x,.15,z); q.rotation.y=0; scene.add(q);}   // waiting patients
+  // a bell for the start of class and recess
+  let last='';
+  return {kids,update(dt,t){if(document.hidden) return; flag.rotation.y=Math.sin(t*1.6)*.12; for(const w of staff) workerTick(w,dt,t);
+    const h=gameHour(), wk=weekDay()<5, phase=!wk?'none':h>=5.6&&h<7.4?'go':h>=7.4&&h<10?'class':h>=10&&h<10.5?'recess':h>=10.5&&h<16?'class':h>=16&&h<17?'home':'none';
+    for(const k of kids){const R=k.p.root;
+      if((phase==='go'||phase==='class'&&h<8.5)&&k.mode==='home'&&h>=5.6+k.late*.8){k.mode='going'; k.path=route(k.H,k.seat); k.i=0; R.position.set(k.H.door[0],.1,k.H.door[1]); R.visible=true;}
+      if(k.mode==='going'){if(step(k,dt,1.6)){k.mode='at';}}
+      else if(k.mode==='at'){   // in class they are inside; at recess they run round the quad; at the bell they line up and go home
+        if(phase==='class'){R.visible=false;}
+        else if(phase==='recess'){R.visible=true; if(!k.rp||Math.hypot(R.position.x-k.rp[0],R.position.z-k.rp[1])<.2) k.rp=[16+r()*28,-228+r()*14]; const dx=k.rp[0]-R.position.x, dz=k.rp[1]-R.position.z, d=Math.hypot(dx,dz)||1; const st=Math.min(d,dt*2.4); R.position.x+=dx/d*st; R.position.z+=dz/d*st; R.position.y=.1; R.rotation.y=Math.atan2(dx,dz); k.ph+=st*8; poseWalk(k.p,k.ph);}
+        else if(phase==='home'||phase==='none'){R.visible=true; k.mode='leaving'; k.path=[[R.position.x,R.position.z],[30,-222],[30,-200],[30,-191.3],[46,-191.3],[k.H.walk[0]>50?50:k.H.walk[0],k.H.walk[1]],[k.H.walk[0],k.H.walk[1]],[k.H.door[0],k.H.door[1]]]; k.i=0;}
+        else poseStand(k.p,t+k.ph);}
+      else if(k.mode==='leaving'){if(step(k,dt,1.6)){k.mode='home'; R.visible=false;}}}
+    last=phase;}};
+})();
 /* ---------- Stage H: the sea, the port (pantalan) and the bay trading business ---------- */
 if(!S.bay) S.bay={owned:false,stock:{},ship:null};
 const BAY_LV=12, BAY_PRICE=50000, BAY_RATE=1.6, SHIP_T={out:30,away:45,back:30};
@@ -8422,6 +8526,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:30,date:'Nov 11, 2026',title:'A school and a health center for the barangay',items:['🏫 Sunfield Elementary School, west of the park: green-roofed classroom wings round a quadrangle with the flag and a stage, a covered court, a school garden, a canteen and a guard at the gate.','🎒 On school days (Monday to Friday) children in white shirts and backpacks walk from the barangay at dawn, stay in class, run round the quad at recess, and walk home after four. Teachers write and check on the corridors, the canteen lady serves, a gardener tends the gulayan.','🏥 The Barangay Health Center, north of the park: a nurse and a doctor at work, patients waiting on the benches, a midwife who walks her round of the barangay, and the ambulance parked by the door.']},
   {v:29,date:'Nov 11, 2026',title:'Sunday mass at the parokya',items:['📅 The clock now shows the day of the week. Every seventh day is Linggo (Sunday).','⛪ On Sundays, families drive to church from about 7 in the morning until mid-afternoon: up to a dozen cars, vans and pickups.','🅿️ A new church car park across the west road: two rows of marked stalls, lamp posts, a sign, and a crosswalk and footpath round to the church door. Cars drive in nose first, the family walks over for mass, comes back, and the car backs out and drives home.']},
   {v:28,date:'Nov 11, 2026',title:'The poblacion gets its civic center',items:['🏛️ The Munisipyo (town hall) now stands between the palengke and the barangay: two storeys, an arcade of columns, a balcony over the door, the town seal and a flag on the roof.','🇵🇭 In front of it, the plaza: the flagpole with the Philippine flag, a fountain, benches, lamp posts, trees in grass plots, a small stage and café tables under red umbrellas.','⛪ The Parokya ni San Isidro, with its white facade, rose window and bell tower, faces the plaza from the west.','🚶 A guard on the town hall steps, a clerk going out for merienda, a lola on her way to mass, strollers round the fountain, a street sweeper, a magtataho on his round, and people resting on the benches.']},
   {v:27,date:'Nov 11, 2026',title:'Water, power, garbage and monthly bills',items:['💧 Your farm is on the Sunfield Water main from the irrigation reservoir: blue markers show the buried pipe, there is a water meter at your fence and the pipe comes up to your tangke. Every barangay house has its own meter too.','⚡ Sunfield Power is open south of the district: a diesel plant with fuel tanks, a solar field and a substation. Its line runs past your farm to the highway, with a kWh meter by your garage and a drop to every house in the barangay.','🧾 Bills come every month: water, power and garbage, worked out from your animal houses, planted plots and buildings. They are paid from your coins; anything unpaid gets a 10% late fee. See ⋯ → Bills.','🗑️ The sanitary landfill and MRF: the garbage truck collects your sacks by the farm fence, two collectors ride the back and load them, then it tips them at the landfill.','🚰 A water tanker fills up at the reservoir and drives up to the mountain barangay, where people come out with their pails.','⛽ More cars fill up at the farm fuel station, and the attendant walks out to pump; the co-op gets an extra van. Workers everywhere now go round real jobs: sorting, checking gauges, writing readings, sweeping, sampling the ponds. A meter reader walks the barangay.','🌳 Big acacia, mango, balete and niyog trees along the district roads and round the new buildings, and the district roads now have dirt shoulders instead of city sidewalks.','🚚 Fixed: your chicken truck, jeep and Elf could lock each other up on the highway near the farm for minutes, with traffic piling up behind them. They now ease through after waiting 12 seconds.']},
@@ -8577,6 +8682,7 @@ function frame(now){
   CIVIC.update(dt,t);
   CIVIC_CENTER.update(dt,t);
   SUNDAY_MASS.update(dt,t);
+  SCHOOL_CLINIC.update(dt,t);
   updateFarmDispatch(Date.now(),dt);
   if(now-lastTick>300){lastTick=now; const d=Date.now(); updateVehicles(d); updateTravelHUD(d); for(let i=0;i<NT;i++){const s=S.tiles[i].s; if(s==='crop'||s==='bld') updateTile(i,d);}}
   popping.forEach(g=>{const k=Math.min(1,(now-g.userData.born)/380), e=easeBack(k);

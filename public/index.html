@@ -839,7 +839,7 @@ function freshState(){
   const now=Date.now();
   [[4,5],[5,5],[6,5]].forEach(([c,r])=>{tiles[r*N+c]={s:'crop',c:'wheat',t:now-16000};});
   [[7,5],[4,6],[5,6]].forEach(([c,r])=>{tiles[r*N+c]={s:'soil'};});
-  return {coins:150,xp:0,level:1,tiles,tool:null,crop:'wheat',bld:'tree',seenHelp:false,inv:{},orders:[],queue:[],veh:{jeep:{owned:false,trip:null},truck:{owned:false,trip:null},sedan:{owned:false,trip:null},van:{owned:false,trip:null}},mats:{},house:1,garage:1,build:null,premade:true,premade2:true,yardMig:true,coop3:true,cows3:true};
+  return {coins:150,xp:0,level:1,tiles,tool:null,crop:'wheat',bld:'tree',seenHelp:false,inv:{},orders:[],queue:[],veh:{jeep:{owned:false,trip:null},truck:{owned:false,trip:null},sedan:{owned:false,trip:null},van:{owned:false,trip:null}},mats:{},house:1,garage:1,build:null,premade:true,premade2:true,shopGift:true,yardMig:true,coop3:true,cows3:true};
 }
 let S=null;
 const OUTF=new WeakMap();   // share of a house's animals already carried out to a waiting vehicle (drawn fewer; not saved)
@@ -2662,7 +2662,7 @@ let SHOPS=null; const shopList=()=>SHOPS||(SHOPS=[ // where shoppers park and wh
   {id:'hardware',x:HWX,spots:[[HWX-6,HZ-6.2],[HWX+6,HZ-6.2]],door:[HWX,HZ-8.8]},
   {id:'poultry',x:PSX,spots:[[PSX+12,HZ-7.5]],door:[PSX,HZ-12.2]},
   {id:'seeds',x:SSX,spots:[[SSX-5.5,HZ-7.5],[SSX+5.5,HZ-7.5]],door:[SSX,HZ-12.3]},
-  {id:'farmshop',x:118,spots:[[112.5,-121],[121,-121]],door:[118,-125.3]}]);
+  {id:'farmshop',x:118,spots:[[112.5,-121],[121,-121],[125,-121,{w:128,e:114,ws:119.5,es:136}],[108.5,-121,{w:117,e:97,ws:100,es:120.5}]],door:[118,-125.3]}]);
 const spotTaken=new Set();
 function spawnCar(c){ // a highway car waits off the map, then comes on at the west or east end; about one in three stops to shop, a few drive round the poblacion
   lnNet();
@@ -2671,7 +2671,7 @@ function spawnCar(c){ // a highway car waits off the map, then comes on at the w
   if(c.spot){spotTaken.delete(c.spot); c.spot=null;}
   lnHide(c.lv); c.dir=tfr()<.5?1:-1; c.lv.vmax=12+tfr()*6; c.state='wait'; c.wait=c.wait==null?tfr()*8:1+tfr()*5; c.plan=null; c.path=null;
   const start=c.dir>0?'LE':'LW', end=c.dir>0?'LE$':'LW$';
-  if(tfr()<(S.shop&&S.shop.owned?.6:.35)){const ok=shopList().filter(sh=>sh.id!=='farmshop'||S.shop&&S.shop.owned), fs=ok.find(sh=>sh.id==='farmshop'), sh=fs&&tfr()<.5?fs:ok[(tfr()*ok.length)|0], sp=sh.spots.find(q=>!spotTaken.has(q));
+  if(tfr()<(S.shop&&S.shop.owned?.6:.35)){const ok=shopList().filter(sh=>sh.id!=='farmshop'||S.shop&&S.shop.owned), fs=ok.find(sh=>sh.id==='farmshop'), sh=fs&&tfr()<(shopLv()>=2?.7:.5)?fs:ok[(tfr()*ok.length)|0], sp=(sh.id==='farmshop'?sh.spots.slice(0,MART_LV[shopLv()].spots):sh.spots).find(q=>!spotTaken.has(q));
     if(sp){spotTaken.add(sp); c.spot=sp; c.plan=sh; c.path=lnPath(start,LN.spot.get(sp));}}
   if(!c.path) c.path=tfr()<.15?lnPath(start,'tN','bE',end):lnPath(start,end);
 }
@@ -2857,18 +2857,18 @@ function lnBuild(){
   const H=16, SIDE=8, POCK=3.5, REV=2;
   // ---- highway: every store car park, side road and driveway joins it inside a box
   const HS=shopList().filter(s=>s.id!=='palengke'), cutE=[30,35,38,45,66,65,71,77,136,145,166,177,206.5,217,229,279.5,292,325,339,389,401], cutW=[35,38,45,68,90,135,145.5,162,176,207,217.5,269,304,321,335,389,401];
-  for(const sh of HS) for(const [sx] of sh.spots){cutE.push(sx-7,sx+8); cutW.push(sx+7,sx-4);}
+  for(const sh of HS) for(const [sx,,o={}] of sh.spots){cutE.push(o.e??sx-7,o.es??sx+8); cutW.push(o.w??sx+7,o.ws??sx-4);}   // a spot may reuse cuts that already exist
   const boxes=[[-75,-44],[-33,-2],[28,148],[159,180],[204,220],[226,240],[266,282],[289,307],[318,341],[386,404]];
   for(const x of cutE.concat(cutW)) if(!boxes.some(b=>x>b[0]+1&&x<b[1]-1)) LN.warn.push('highway cut outside a box '+x);
   const LEr=lnRoad('LE',[TX0,LE],[TX1,LE],{cuts:cutE,boxes,pri:0,vmax:H,w:2.6}), LWr=lnRoad('LW',[TX1,LW],[TX0,LW],{cuts:cutW,boxes,pri:0,vmax:H,w:2.6});
   const E=x=>LEr.endAt(x), Es=x=>LEr.startAt(x), W=x=>LWr.endAt(x), Ws=x=>LWr.startAt(x);
   for(const L of LEr.segs.concat(LWr.segs)){const m=(L.pts[0][0]+L.pts[1][0])/2; if((m>27&&m<41)||(m>130&&m<148)) L.soft=false;}   // keep the farm access and new four-way district junction clear
   // store car parks: in nose first from either direction, back out towards where you are going, then join the highway
-  for(const sh of HS) sh.spots.forEach((spot,i)=>{const [sx,sz]=spot, tag=sh.id+i;
+  for(const sh of HS) sh.spots.forEach((spot,i)=>{const [sx,sz,o={}]=spot, tag=sh.id+i;
     const sp=lnLane('sp:'+tag,[[sx,sz+2.3],[sx,sz]],{vmax:REV,solo:true}); LN.spot.set(spot,sp);
-    lnTurn(W(sx+7),sp,{pri:1,vmax:5}); lnTurn(E(sx-7),sp,{pri:2,vmax:5});
+    lnTurn(W(o.w??sx+7),sp,{pri:1,vmax:5}); lnTurn(E(o.e??sx-7),sp,{pri:2,vmax:5});
     const rw=lnLane(null,lnCurve([sx,sz],[0,1],[sx+5,-114.8],[1,0]),{turn:true,rev:true,vmax:REV}), re=lnLane(null,lnCurve([sx,sz],[0,1],[sx-5,-114.8],[-1,0]),{turn:true,rev:true,vmax:REV});
-    lnLink(sp,rw); lnLink(sp,re); lnTurn(rw,Ws(sx-4),{pri:3,d0:[-1,0]}); lnTurn(re,Es(sx+8),{pri:3,d0:[1,0]});});
+    lnLink(sp,rw); lnLink(sp,re); lnTurn(rw,Ws(o.ws??sx-4),{pri:3,d0:[-1,0]}); lnTurn(re,Es(o.es??sx+8),{pri:3,d0:[1,0]});});
   // the west end road up to the barangay, and the sakayan bay where the bus and jeepney load off the lane
   const wN=lnRoad('wN',[41.75,-115],[41.75,-177],{vmax:SIDE,w:2.6,boxes:[[-116,-128],[-150,-160],[-173,-177]],cuts:[-118]}), wS=lnRoad('wS',[38.25,-181],[38.25,-115],{vmax:SIDE,w:2.6,boxes:[[-181,-164],[-160,-134],[-128,-121]],cuts:[-177,-138]});   // the corner at the back road is a box; the church car park opens at -150..-174
   churchLot(wN,wS);
@@ -3118,7 +3118,7 @@ function updateTraffic(dt,t){
       if(!c.lv.on){c.e+=dt; if(c.e>=0){const P=c.P||(c.P=lnPath('LW','eN','zW','wS','LE$')); if(P&&lnFreeAt(P[0],2.3,4.6,c.lv,20)) lnGo(c.lv,P,null,{v:10}); else c.e=-.5;} continue;}
       if(c.lv.done){lnHide(c.lv); c.e=-(15+Math.random()*30);}}
     updateStreetVendors(dt,t); if(typeof updatePark==='function') updatePark(dt,t);}
-  if(!traffic.length) for(let k=0;k<2;k++) traffic.push({});
+  {const want=2+(S.shop&&S.shop.owned?shopLv():0); while(traffic.length<want) traffic.push({});}   // a busier highway once your shop is open: one more car for each shop level
   for(const c of traffic){if(!c.g||!c.lv) spawnCar(c); const g=c.g, v=c.lv;
     if(c.state==='wait'){c.wait-=dt; if(c.wait<=0){if(c.path&&lnFreeAt(c.path[0],2.3,4.6,v,25)){lnGo(v,c.path,null,{v:Math.min(v.vmax,12)}); c.state='drive';} else c.wait=.5;} continue;}
     if(c.state==='drive'&&c.plan&&lnBlocksRoad(v,LN.spot.get(c.spot))&&lnNext(v,lnPath(v.path[v.pi],c.dir>0?'LE$':'LW$'))){spotTaken.delete(c.spot); c.spot=null; c.plan=null;}   // the car park is busy: skip the shop rather than hold up the road
@@ -3128,11 +3128,12 @@ function updateTraffic(dt,t){
         c.state='shop'; const L=randLook(tfr); L.bag=null; c.look=L; c.p=makePerson(L); c.p.root.position.set(c.spot[0]+1.3,.08,c.spot[1]); scene.add(c.p.root); c.walk=0; c.leg='go'; c.timer=0;}
       else spawnCar(c);}
     else if(c.state==='shop'){
-      const p=c.p; if(c.leg==='inside'){c.timer-=dt; if(c.timer<=0){ // comes out with what they bought
+      const p=c.p; if(c.leg==='instore') continue; if(c.leg==='inside'){c.timer-=dt; if(c.timer<=0){ // comes out with what they bought
           const L={...c.look,bag:['plastic','bayong','plastic'][(tfr()*3)|0]}; c.p=makePerson(L); c.p.root.position.set(c.plan.door[0],.08,c.plan.door[1]); scene.add(c.p.root); c.leg='back';}
         continue;}
       const tgt=c.leg==='go'?c.plan.door:[c.spot[0]+1.3,c.spot[1]], r=p.root, dx=tgt[0]-r.position.x, dz=tgt[1]-r.position.z, d=Math.hypot(dx,dz);
-      if(d<.12){ if(c.leg==='go'){if(c.plan.id==='farmshop')shopSale('Customer by car');scene.remove(r); disposePerson(p); c.leg='inside'; c.timer=5+tfr()*8;}
+      if(d<.12){ if(c.leg==='go'&&c.plan.id==='farmshop'&&shopOpen()){c.leg='instore'; shopperIn(p,()=>shopSale('Customer by car'),()=>{c.leg='back';});}
+        else if(c.leg==='go'){scene.remove(r); disposePerson(p); c.leg='inside'; c.timer=5+tfr()*8;}
         else {scene.remove(r); disposePerson(p); c.p=null; c.state='out'; c.timer=1.2; g.userData.doorUntil=Date.now()+1100; if(g.userData.drv) g.userData.drv.visible=true; sfx('door',c.spot[0],c.spot[1]);} }
       else {const st=Math.min(d,1.3*dt); r.position.x+=dx/d*st; r.position.z+=dz/d*st; r.rotation.y=lerpAng(r.rotation.y,Math.atan2(dx,dz),.2); c.walk+=st*5.2; poseWalk(p,c.walk);}
     }
@@ -6220,31 +6221,93 @@ function shopDeliver(tr){if(tr.dest!=='farmshop'||tr.shopDelivered||tr.shopRefun
   tr.shopDelivered=true;tr.paid=true;changed();toast('Delivery unloaded: your mini-mart shelves are restocked.',3000);return true;}
 function shopDispatch(vid){if(!S.shop.owned||!vehFree(vid))return false;const incoming=shopIncoming(),goods={},sources={inv:{},mats:{}};let total=0;
   for(const k of Object.keys(SHOP.prices)){const q=Math.max(0,Math.floor(Number(shopDraft[k])||0));if(!q)continue;
-    if(q>shopAvailable(k)||q+(S.shop.stock[k]||0)+(incoming[k]||0)>SHOP.perProduct){toast('Check farm stock and shelf space for '+shopName(k)+'.',3000);return false;}goods[k]=q;total+=q;}
-  if(!total||total>VEH[vid].cap||total+shopUnits()+Object.values(incoming).reduce((a,b)=>a+b,0)>SHOP.capacity){toast('Choose stock within your vehicle and shelf capacity.',3000);return false;}
+    if(q>shopAvailable(k)||q+(S.shop.stock[k]||0)+(incoming[k]||0)>shopPer()){toast('Check farm stock and shelf space for '+shopName(k)+'.',3000);return false;}goods[k]=q;total+=q;}
+  if(!total||total>VEH[vid].cap||total+shopUnits()+Object.values(incoming).reduce((a,b)=>a+b,0)>shopCap()){toast('Choose stock within your vehicle and shelf capacity.',3000);return false;}
   for(const[k,q]of Object.entries(goods)){if(k==='bigas'){const rice=Math.min(q,S.mats.bigas||0);if(rice)sources.mats.bigas=rice;if(q>rice)sources.inv.wheat=(q-rice)*2;}else sources.inv[k]=q;}
   const tr={dest:'farmshop',shopGoods:goods,shopSources:sources,paid:false,fill:total/VEH[vid].cap};
   if(!beginTrip(vid,tr))return false;
   for(const source of ['inv','mats'])for(const[k,q]of Object.entries(sources[source]))S[source][k]-=q;
   shopDraft={};changed();toast('Stock loaded. Choose you or a hired driver to deliver to your mini-mart.',3200);return true;}
-const farmShop=(()=>{const g=new THREE.Group(),b=[],x=SHOP.x,z=SHOP.z;
-  b.push(P('box',0xc9c1a8,x,.08,z+3,22,.16,17));
-  b.push(P('box',0xf4ead5,x,1.7,z-4.4,14,3.4,.25));for(const side of [-1,1])b.push(P('box',0xf4ead5,x+side*6.9,1.7,z,.25,3.4,9));
-  for(const dx of [-6.7,-2.5,2.5,6.7])b.push(P('box',0x577b55,x+dx,1.7,z+4.3,.24,3.4,.24));
-  b.push(P('box',0x2f3c43,x+2,1.57,z+2.8,.5,.4,.4));
-  b.push(P('box',0x8a5e38,x,.72,z+2.8,9,1,.85));b.push(P('box',0xd9bd8a,x,1.3,z+2.8,9,.14,1));
-  for(const dx of [-4.6,4.6]){b.push(P('box',0x66855a,x+dx,1.2,z-2,2.4,2.4,1));for(let k=0;k<3;k++)b.push(P('box',0xc2a275,x+dx,.4+k*.75,z-1.7,2.2,.08,1.1));}
-  for(const px of [110,121])for(const side of [-1,1])b.push(P('box',0xf4edce,px+side*1.8,.18,-121,.1,.02,4.5));
-  b.push(P('box',0x8e999b,129,.04,-124,5,.08,13));
-  const body=new THREE.Mesh(mergeGeo(b),VCMAT);body.castShadow=body.receiveShadow=true;g.add(body);
+// ---- the mini-mart grows in three steps: more gondolas, fridges and a freezer, more walk-in customers and parking spots
+const MART_LV=[null,{name:'Mini-Mart',cap:180,per:60,walkers:2,spots:2,desc:'Two shelf gondolas, a drinks fridge, the wall shelf and Ate Lorna at the counter.'},
+  {name:'Mini-Mart Plus',lvl:8,coins:15000,cap:300,per:90,walkers:4,spots:3,desc:'A third gondola, a second fridge, an ice-cream freezer, a third parking spot and more shoppers.'},
+  {name:'Sunfield Supermart',lvl:12,coins:35000,cap:450,per:120,walkers:6,spots:4,desc:'A fourth gondola, a third fridge, a fresh produce stand and rice sacks, a stock clerk, a fourth parking spot and the busiest crowd.'}];
+const shopLv=()=>Math.max(1,Math.min(3,(S.shop&&S.shop.lvl)||1)), shopCap=()=>MART_LV[shopLv()].cap, shopPer=()=>MART_LV[shopLv()].per;
+const farmShop=(()=>{if(!S.shopGift){S.shop.owned=true; S.shop.lvl=3; S.shop.payroll=Math.max(S.shop.payroll||0,SHOP.salary*3); S.shopGift=true;}   // farms from before the upgrades: their mini-mart opens fully upgraded
+  const g=new THREE.Group(),x=SHOP.x,z=SHOP.z, lv=[null,[],[],[]], B=(L,...a)=>lv[L].push(P('box',...a)), C=(L,c,px,py,pz,r,h)=>lv[L].push(P('cyl',c,px,py,pz,r*2,h,r*2));
+  const INK=0x2f3c43, WALL=0xf4ead5, TRIM=0x577b55, TILE=0xe9e4d6, WOOD=0x8a5e38, STEEL=0xb9c0c2;
+  // ---- the shell: lot, parking for four, the building, a glass front with the door in the middle, an awning
+  B(1,0xc9c1a8,x,.08,z+3,22,.16,17); B(1,0x8e999b,129,.04,-124,5,.08,13);
+  for(const px of [108.5,112.5,121,125]) for(const sd of [-1,1]) B(1,0xf4edce,px+sd*1.75,.18,-121,.1,.02,4.5);
+  for(const px of [108.5,112.5,121,125]) B(1,0x6f6a62,px,.2,-123.4,1.6,.12,.25);   // wheel stops
+  B(1,TILE,x,.17,z,13.6,.04,8.4); for(let i=-6;i<=6;i++) B(1,0xd8d1bf,x+i,.195,z,.03,.01,8.3); for(let k=-4;k<=4;k++) B(1,0xd8d1bf,x,.196,z+k,13.5,.01,.03);   // tiled floor
+  B(1,WALL,x,1.7,z-4.4,14,3.4,.25); for(const sd of [-1,1]) B(1,WALL,x+sd*6.9,1.7,z,.25,3.4,9);
+  for(const dx of [-6.8,-1.3,1.3,6.8]) B(1,TRIM,x+dx,1.7,z+4.3,.24,3.4,.24); B(1,TRIM,x,3.25,z+4.3,14,.3,.3);   // front frame
+  B(1,0x2e7d4f,x,3.3,z+5.2,14.6,.12,2.2,-.18,0,0); for(const dx of [-6.8,6.8]) B(1,STEEL,x+dx,1.6,z+6.1,.1,3.2,.1);   // awning on posts
+  B(1,0x8d6e4b,x-4.4,.45,z+5.7,2.4,.12,.5); B(1,0x8d6e4b,x+4.4,.45,z+5.7,2.4,.12,.5);   // benches out front
+  // ---- level 1 inside: the counter and register, the wall shelf, two gondolas, one drinks fridge
+  const counter=(L)=>{B(L,WOOD,x+4.9,.6,z+2.4,2.8,1,.85); B(L,0xd9bd8a,x+4.9,1.14,z+2.4,2.9,.08,.95); B(L,INK,x+4.3,1.38,z+2.4,.55,.4,.45); B(L,0x9fd3c7,x+4.3,1.62,z+2.2,.45,.28,.05); B(L,0xc0392b,x+5.6,1.4,z+2.4,.6,.45,.4);};
+  counter(1);
+  B(1,0xc8b48a,x,1.1,z-4.0,12.4,2.2,.6); for(let k=0;k<4;k++) B(1,0xa58a5c,x,.3+k*.55,z-3.72,12.4,.05,.62);   // wall shelf
+  const gondola=(L,gx)=>{B(L,0xe0d6bf,gx,.78,z-1.2,.9,1.56,3.6); for(let k=0;k<3;k++) B(L,0xb59f78,gx,.32+k*.5,z-1.2,.98,.05,3.62); B(L,TRIM,gx,1.58,z-1.2,.95,.06,3.65); B(L,0xf1c40f,gx,1.75,z+.62,.8,.3,.04);};
+  gondola(1,x-3.4); gondola(1,x+.8);
+  const fridge=(L,fz)=>{B(L,0xdfe6e8,x-6.35,1.15,fz,.75,2.3,1.35); B(L,0x9fd3e0,x-5.96,1.15,fz,.04,1.95,1.2); B(L,0x2b6f9a,x-6.35,2.2,fz,.77,.2,1.37); for(let k=0;k<4;k++) B(L,0xc7d3d6,x-6.2,.45+k*.5,fz,.5,.04,1.2);};
+  fridge(1,z-2.6);
+  // ---- level 2: a third gondola, a second fridge, the ice-cream chest freezer
+  gondola(2,x-1.3); fridge(2,z-1.1); B(2,0xf3f6f7,x+5.6,.45,z-1.5,1,.9,2.2); B(2,0x9fd3e0,x+5.6,.92,z-1.5,.9,.04,2.0); B(2,0xd94a6a,x+5.6,1.05,z-2.62,.95,.25,.05);
+  // ---- level 3: a fourth gondola, a third fridge, the fresh produce stand, rice sacks by the door, the supermart sign and an aircon unit
+  gondola(3,x+2.9); fridge(3,z+.4);
+  for(let k=0;k<3;k++){B(3,0x8d6e4b,x-4.1+k*.95,.5,z+2.6,.85,.55,.75,-.25,0,0); B(3,[0xe8a04a,0xd9573b,0x7cb36b][k],x-4.1+k*.95,.82,z+2.6,.7,.12,.6,-.25,0,0);}
+  for(let k=0;k<4;k++) B(3,0xf0ead8,x-1.9+(k%2)*.55,.42+(k>>1)*.5,z+3.5,.5,.45,.6);
+  B(3,0x9aa3a6,x+6.4,2.4,z+4.9,.9,.6,.5);
+  const meshes=lv.map((L,i)=>{if(!L||!L.length) return null; const m=new THREE.Mesh(mergeGeo(L),VCMAT); m.castShadow=m.receiveShadow=true; g.add(m); return m;});
+  const glass=new THREE.Mesh(mergeGeo([P('box',0xcfe7ee,x-4.05,1.6,z+4.3,5.3,2.9,.06),P('box',0xcfe7ee,x+4.05,1.6,z+4.3,5.3,2.9,.06)]),new THREE.MeshStandardMaterial({vertexColors:true,transparent:true,opacity:.28,roughness:.1,depthWrite:false})); g.add(glass);
   const roofMat=VCMAT.clone();roofMat.transparent=true;const roof=new THREE.Mesh(mergeGeo([P('box',0x4d7651,x,3.65,z+.3,15,.22,10.4)]),roofMat);roof.castShadow=true;g.add(roof);
-  const label=signPlane(['SUNFIELD MINI-MART','Bigas - Itlog - Karne - Gulay'],'#244e38','#fff4cf',11,1.25);label.position.set(x,3.25,z+4.52);g.add(label);
-  const L=randLook(rng(118));Object.assign(L,{f:true,top:0xeab95a,bottom:0x315642,bag:null,style:'bun'});const worker=makePerson(L);worker.root.position.set(x,.17,z+1.4);worker.root.visible=S.shop.owned;g.add(worker.root);
-  const stockDisplay=new THREE.Group();for(let k=0;k<12;k++)stockDisplay.add(part(.45,.38,.42,[0xd3b175,0xb7d581,0xf2e4b9][k%3],x-3.8+(k%6)*1.5,1.56,z+2.8-Math.floor(k/6)*.3));g.add(stockDisplay);
-  const closed=signPlane(['UNLOCK YOUR SHOP','Level 4 - 6,000 pesos'],'#b47138','#fff',6,1);closed.position.set(x,1.8,z+4.65);g.add(closed);
+  const label=signPlane(['SUNFIELD MINI-MART','Bigas · Itlog · Karne · Gulay'],'#244e38','#fff4cf',11,1.25);label.position.set(x,3.95,z+4.52);g.add(label);
+  const label3=signPlane(['SUNFIELD SUPERMART','Bigas · Karne · Gulay · Malamig'],'#1f5e3a','#fff4cf',12,1.3);label3.position.set(x,3.95,z+4.53);g.add(label3);
+  for(const [dx,dz] of [[-3,-2],[0,-2],[3,-2],[-3,1.5],[0,1.5],[3,1.5]]) glow(g,x+dx,3.3,z+dz,1.8,GM.white);
+  // the products: one instanced mesh of packs, bottles and sacks over every shelf; the first slots belong to level 1, then 2, then 3
+  const slots=[[],[],[],[]], PC=[0xd3b175,0xb7d581,0xf2e4b9,0xd9573b,0x7fb3dc,0xf2c84b,0xe8a04a,0xffffff,0x8e6bb8,0x5fae4a];
+  const shelfRow=(L,cx,cy,cz,len,along,depth)=>{const n=Math.floor(len/.32); for(let i=0;i<n;i++){const o=-len/2+.16+i*.32; for(const d of depth) slots[L].push(along==='x'?[cx+o,cy,cz+d]:[cx+d,cy,cz+o]);}};
+  for(let k=0;k<4;k++) shelfRow(1,x,.47+k*.55,z-3.82,12,'x',[0]);
+  const gShelves=(L,gx)=>{for(let k=0;k<3;k++) shelfRow(L,gx,.48+k*.5,z-1.2,3.4,'z',[-.27,.27]);};
+  gShelves(1,x-3.4); gShelves(1,x+.8); gShelves(2,x-1.3); gShelves(3,x+2.9);
+  const fShelves=(L,fz)=>{for(let k=0;k<4;k++) for(let i=0;i<4;i++) slots[L].push([x-6.2,.6+k*.5,fz-.45+i*.3]);};
+  fShelves(1,z-2.6); fShelves(2,z-1.1); fShelves(3,z+.4);
+  const all=slots[1].concat(slots[2],slots[3]), byLv=[0,slots[1].length,slots[1].length+slots[2].length,all.length];
+  const stock=new THREE.InstancedMesh(new THREE.BoxGeometry(.24,.3,.22),new THREE.MeshStandardMaterial({roughness:.6}),all.length), o=new THREE.Object3D(), c=new THREE.Color(), rr=rng(31);
+  const looks=all.map(()=>[(rr()-.5)*.3,.8+rr()*.5,.7+rr()*.7,PC[(rr()*PC.length)|0]]);
+  const fill=n=>{const idx=all.map((_,i)=>i).slice(0,byLv[n]), r2=rng(97); for(let i=idx.length-1;i>0;i--){const j=(r2()*(i+1))|0; [idx[i],idx[j]]=[idx[j],idx[i]];}   // spread the stock over every shelf in use
+    idx.forEach((si,i)=>{const q=all[si], L=looks[si]; o.position.set(q[0],q[1]+.05,q[2]); o.rotation.set(0,L[0],0); o.scale.set(L[1],L[2],L[1]); o.updateMatrix(); stock.setMatrixAt(i,o.matrix); stock.setColorAt(i,c.setHex(L[3]));}); stock.instanceMatrix.needsUpdate=true; if(stock.instanceColor) stock.instanceColor.needsUpdate=true;};
+  stock.setColorAt(0,c.setHex(0xffffff)); stock.castShadow=true; g.add(stock);
+  const stockDisplay={set visible(v){stock.visible=v;}, get visible(){return stock.visible;}};
+  // the shopkeeper behind the counter, and at level 3 a stock clerk who works the aisles
+  const L=randLook(rng(118));Object.assign(L,{f:true,top:0xeab95a,bottom:0x315642,bag:null,style:'bun'});const worker=makePerson(L);worker.root.position.set(x+4.9,.2,z+1.55);worker.root.rotation.y=0;worker.root.visible=S.shop.owned;g.add(worker.root);
+  const closed=signPlane(['UNLOCK YOUR SHOP','Level 4 · 6,000 pesos'],'#b47138','#fff',6,1);closed.position.set(x,1.8,z+4.65);g.add(closed);
   const openSign=signPlane(['OPEN'],'#287342','#ffffff',1.8,.45),shutSign=signPlane(['CLOSED'],'#8b4636','#ffffff',1.8,.45);
-  for(const q of [openSign,shutSign]){q.position.set(x-4.7,2.7,z+4.55);g.add(q);}
-  scene.add(g);return {g,roofMat,worker,stockDisplay,closed,openSign,shutSign,customers:[],lastSpawn:0};})();
+  for(const q of [openSign,shutSign]){q.position.set(x-4.7,2.7,z+4.38);g.add(q);}
+  const setLevel=()=>{const n=shopLv(); meshes.forEach((m,i)=>{if(m&&i>1) m.visible=n>=i;}); label.visible=n<3; label3.visible=n>=3; stock.userData.max=byLv[n]; fill(n);};
+  setLevel(); scene.add(g);
+  return {g,roofMat,worker,stockDisplay,stock,closed,openSign,shutSign,customers:[],lastSpawn:0,setLevel,byLv};})();
+// a shopper inside: in by the door, down an aisle or two (or to the fridges), a look at the shelves, to the counter to pay, and out
+function shopInsideRoute(){const x=SHOP.x, z=SHOP.z, n=shopLv(), r=Math.random;
+  const aisles=[[0],[x-4.7,x-1.3,x+2.2],[x-4.7,x-2.4,x-.25,x+2.2],[x-4.7,x-2.4,x-.25,x+1.85,x+4.2]][n];
+  const pick=()=>{if(r()<.3) return {to:[x-5.55,z-2.6+(r()*(n>=2?2.9:0))],face:[x-7,null],act:'inspect'}; const a=aisles[(r()*aisles.length)|0]; const sd=r()<.5?-1:1; return {to:[a,z-2.4+r()*2.4],face:[a+sd*2,null],act:r()<.5?'inspect':'crouch'};};
+  const out=[{to:[x,z+4.9]},{to:[x,z+3.3]},{to:[x,z+1.3]}]; const k=1+(r()<.5?1:0);
+  for(let i=0;i<k;i++){const p=pick(); out.push({to:[p.to[0],z+1.3]},{to:p.to,act:p.act,dur:2.5+r()*3,face:[p.face[0],p.to[1]]},{to:[p.to[0],z+1.3]});}
+  out.push({to:[x+3.9,z+3.1]},{to:[x+3.9,z+3.25],act:'stand',dur:3,face:[x+4.9,z+2.4],pay:true},{to:[x,z+3.4]},{to:[x,z+4.9]});
+  return out;}
+const SHOP_PEOPLE=[];   // shoppers walking the route inside: {p, steps, i, wait, done, who}
+function shopperIn(p,pay,done){SHOP_PEOPLE.push({p,steps:shopInsideRoute(),i:0,wait:0,ph:Math.random()*6,done,pay});}
+function shopPeopleTick(dt,t){for(let k=SHOP_PEOPLE.length-1;k>=0;k--){const s=SHOP_PEOPLE[k], R=s.p.root, st=s.steps[s.i];
+  if(!st){SHOP_PEOPLE.splice(k,1); s.done&&s.done(); continue;}
+  if(s.wait>0){s.wait-=dt; if(st.face){const a=Math.atan2(st.face[0]-R.position.x,st.face[1]-R.position.z); R.rotation.y=lerpAng(R.rotation.y,a,Math.min(1,dt*6));} (WORK_POSE[st.act]||poseStand)(s.p,t+s.ph); if(s.wait<=0){if(st.pay) s.pay(); s.i++;} continue;}
+  const dx=st.to[0]-R.position.x, dz=st.to[1]-R.position.z, d=Math.hypot(dx,dz);
+  if(d<.06){if(st.dur){s.wait=st.dur;} else s.i++; continue;}
+  const m=Math.min(d,dt*1.25); R.position.x+=dx/d*m; R.position.z+=dz/d*m; R.position.y=.2; R.rotation.y=lerpAng(R.rotation.y,Math.atan2(dx,dz),Math.min(1,dt*8)); s.ph+=m*5.6; poseWalk(s.p,s.ph);}}
+function shopUpgrade(){const n=shopLv(), L=MART_LV[n+1]; if(!S.shop.owned||!L) return; if(S.level<L.lvl) return toast('Reach level '+L.lvl+' first.',2600); if(S.coins<L.coins) return toast('You need ₱'+L.coins.toLocaleString()+'.',2600);
+  S.coins-=L.coins; S.shop.lvl=n+1; farmShop.setLevel(); sfx('cash'); toast('🏪 Your shop is now the '+L.name+'! '+L.desc,4200); changed();}
+
 function openBodega(){closeMarket();$('bizSheet').classList.remove('open');bldIdx=-5;bldTab=null;renderBodega();$('bldSheet').classList.add('open');}
 function renderBodega(){
   $('bldTitle').textContent='Bodega - Your stored goods';
@@ -6264,8 +6327,9 @@ function renderFarmShop(){const own=S.shop.owned,inc=shopIncoming(),free=Object.
   const trips=Object.keys(VEH).filter(v=>S.veh[v].trip&&S.veh[v].trip.dest==='farmshop').map(v=>VEH[v].icon+' '+VEH[v].name+': '+(S.veh[v].trip.shopDelivered?'unloaded, coming back':'stock on the way')).join('<br>');
   const send=free.length?free.map(v=>'<button class="gbtn green" data-shop-send="'+v+'">'+VEH[v].icon+' <b>Deliver with '+VEH[v].name+'</b><small>Up to '+VEH[v].cap+' units · choose the driver next</small></button>').join(''):'<div class="fs-lead">Buy a delivery vehicle in your garage, or wait for one to come back.</div>';
   $('bldBody').innerHTML='<div class="fs">'
-    +'<div class="fs-stats"><div class="fs-stat '+(open?'open':'closed')+'"><b>'+state+'</b><small>'+(open?'until 10 PM':S.shop.payroll<=0?'pay the salary':'opens 6 AM')+'</small></div><div class="fs-stat"><b>'+shopUnits()+'/'+SHOP.capacity+'</b><small>shelf units</small></div><div class="fs-stat"><b>₱'+S.shop.revenue.toLocaleString()+'</b><small>sales</small></div><div class="fs-stat"><b>'+S.shop.sold+'</b><small>items sold · '+S.shop.visits+' buyers</small></div></div>'
+    +'<div class="fs-stats"><div class="fs-stat '+(open?'open':'closed')+'"><b>'+state+'</b><small>'+(open?'until 10 PM':S.shop.payroll<=0?'pay the salary':'opens 6 AM')+'</small></div><div class="fs-stat"><b>'+shopUnits()+'/'+shopCap()+'</b><small>shelf units</small></div><div class="fs-stat"><b>₱'+S.shop.revenue.toLocaleString()+'</b><small>sales</small></div><div class="fs-stat"><b>'+S.shop.sold+'</b><small>items sold · '+S.shop.visits+' buyers</small></div></div>'
     +'<div class="fs-card fs-keeper"><span class="fs-lead">👩‍🌾 <b>Ate Lorna</b>, shopkeeper · ₱'+SHOP.salary+' a working day<br><small>Prepaid: ₱'+Math.floor(S.shop.payroll)+' ('+days.toFixed(1)+' days) · wages so far ₱'+Math.floor(S.shop.wages)+'</small></span><button class="gbtn gold" data-shop="salary" '+(S.coins>=SHOP.salary*3?'':'disabled')+'>🧾 Pay ₱'+(SHOP.salary*3)+'<small>+3 days</small></button></div>'
+    +(()=>{const n=shopLv(), N=MART_LV[n+1]; return '<div class="fs-card fs-keeper"><span class="fs-lead">🏪 <b>'+MART_LV[n].name+'</b> · level '+n+' of 3 · '+shopCap()+' shelf units, up to '+shopPer()+' of each product<br><small>'+(N?'Next: <b>'+N.name+'</b>. '+N.desc:'Fully upgraded: four gondolas, three fridges, the freezer, the produce stand and four parking spots.')+'</small></span>'+(N?'<button class="gbtn gold" data-shop="upgrade" '+(S.level>=N.lvl&&S.coins>=N.coins?'':'disabled')+'>⬆️ Upgrade<small>'+(S.level>=N.lvl?'₱'+N.coins.toLocaleString():'level '+N.lvl)+'</small></button>':'<span class="fs-tag go">MAX</span>')+'</div>';})()
     +'<h3>Restock the shelves</h3><div class="fs-lead">Pick how much to send from your farm. Bigas uses bought rice first, then 2 palay a pack. Stock reaches the shelves when your driver unloads.</div>'
     +'<div class="fs-prods">'+prods+'</div>'
     +'<div class="fs-lead">'+(trips||'No delivery on the road.')+'</div><div class="fs-actions">'+send+'</div>'
@@ -6276,22 +6340,29 @@ $('bldSheet').addEventListener('click',e=>{const b=e.target.closest('[data-shop-
 $('bldSheet').addEventListener('click',e=>{const b=e.target.closest('[data-shop]'),d=e.target.closest('[data-shop-send]');if(!b&&!d)return;if((b||d).disabled)return;
   if(d){shopDispatch(d.dataset.shopSend);renderFarmShop();return;}
   if(b.dataset.shop==='unlock')shopUnlock();
+  if(b.dataset.shop==='upgrade')shopUpgrade();
   if(b.dataset.shop==='salary'&&S.shop.owned&&S.coins>=SHOP.salary*3){S.coins-=SHOP.salary*3;S.shop.payroll+=SHOP.salary*3;changed();}
   if(b.dataset.shop==='visit'){$('bldSheet').classList.remove('open');flyTo(SHOP.x,SHOP.z,30);return;}renderFarmShop();});
 $('farmShopBtn').addEventListener('click',openFarmShop);
 $('bizSheet').addEventListener('click',e=>{if(e.target.closest('[data-shop-open]'))openFarmShop();});
-function updateFarmShop(dt,t){const own=S.shop.owned,open=shopOpen();farmShop.closed.visible=!own;farmShop.openSign.visible=own&&open;farmShop.shutSign.visible=own&&!open;farmShop.worker.root.visible=own&&open;farmShop.stockDisplay.visible=own&&shopUnits()>0;
+function updateFarmShop(dt,t){const own=S.shop.owned,open=shopOpen();farmShop.closed.visible=!own;farmShop.openSign.visible=own&&open;farmShop.shutSign.visible=own&&!open;farmShop.worker.root.visible=own&&open;farmShop.stockDisplay.visible=own&&shopUnits()>0;{const st=farmShop.stock, f=Math.min(1,shopUnits()/shopCap()); st.count=Math.min(st.userData.max||0,Math.ceil((st.userData.max||0)*f));}
   const close=Math.hypot(cam.target.x-SHOP.x,cam.target.z-SHOP.z)<28&&cam.dist<45;farmShop.roofMat.opacity+=((close?.12:1)-farmShop.roofMat.opacity)*.15;farmShop.roofMat.depthWrite=farmShop.roofMat.opacity>.9;
   if(!own||document.hidden)return;shopPayWage(dt);
   poseStand(farmShop.worker,t*.25);if(!open)farmShop.worker.aR.rotation.x=-.1;
-  if(!farmShop.customers.length)for(let k=0;k<2;k++){const L=randLook(rng(518+k));L.bag=null;const p=makePerson(L);p.root.visible=false;p.root.traverse(o=>{if(o.isMesh)o.castShadow=false;});scene.add(p.root);farmShop.customers.push({p,k,state:'idle',wait:k*12+4,path:[],i:0,bought:false});}
-  for(const c of farmShop.customers){const p=c.p;p.root.visible=c.state!=='idle'&&Math.hypot(cam.target.x-p.root.position.x,cam.target.z-p.root.position.z)<100;
-    if(c.state==='idle'){c.wait-=dt;if(!open||c.wait>0||!shopUnits())continue;const h=HOUSES.filter(h=>h.side===-1)[c.k?5:1];
-      c.path=c.k?[h.door,h.gate,h.walk,[SRX-3.6,h.walk[1]],[SRX-3.6,-118.5],[133,-118.5],[133,-123],[118,-123],SHOP.door]:[[PX+12,-131.2],[PX+18,-118.5],[133,-118.5],[133,-123],[118,-123],SHOP.door];
-      p.root.position.set(c.path[0][0],.16,c.path[0][1]);c.i=1;c.state='arrive';c.bought=false;continue;}
-    if(c.state==='browse'){poseStand(p,t+c.k);c.wait-=dt;if(c.wait<=0){if(!c.bought){shopSale('Walk-in customer');c.bought=true;}c.path=[SHOP.door,[118,-123],[133,-123],[133,-118.5]];c.i=1;c.state='leave';}continue;}
-    let left=dt*1.6;while(c.i<c.path.length){const[x,z]=c.path[c.i],dx=x-p.root.position.x,dz=z-p.root.position.z,d=Math.hypot(dx,dz);if(d<=left+.001){p.root.position.set(x,.16,z);left=Math.max(0,left-d);c.i++;}else{p.root.position.x+=dx/d*left;p.root.position.z+=dz/d*left;p.root.rotation.y=Math.atan2(dx,dz);break;}}poseWalk(p,t*6+c.k);
-    if(c.i>=c.path.length){if(c.state==='arrive'){c.state='browse';c.wait=3;}else{c.state='idle';c.wait=12+c.k*8;p.root.visible=false;}}
+  shopPeopleTick(dt,t);
+  const lvN=shopLv(), want=MART_LV[lvN].walkers;
+  while(farmShop.customers.length<want){const k=farmShop.customers.length, L=randLook(rng(518+k)); L.bag=null; const p=makePerson(L); p.root.visible=false; p.root.traverse(o=>{if(o.isMesh)o.castShadow=false;}); scene.add(p.root); farmShop.customers.push({p,k,state:'idle',wait:k*9+4,path:[],i:0});}
+  if(lvN>=3&&!farmShop.clerk){const L=randLook(rng(77)); Object.assign(L,{top:0xeab95a,bottom:0x315642,bag:null}); const x=SHOP.x, z=SHOP.z;
+    farmShop.clerk=makeWorker(L,[{to:[x-2.4,z-2.2],act:'crouch',dur:6,face:[x-3.4,z-2.2]},{path:[[x-2.4,z+1.3],[x-.25,z+1.3],[x-.25,z-.6]],act:'inspect',dur:5,face:[x+.8,z-.6]},{path:[[x-.25,z+1.3],[x+4.2,z+1.3],[x+4.2,z-2.6]],act:'crouch',dur:6,face:[x+5.6,z-2.6]},{path:[[x+4.2,z+1.3],[x-2.4,z+1.3],[x-2.4,z-2.2]],act:'stand',dur:2}],{y:.2,sp:.9});}
+  if(farmShop.clerk){farmShop.clerk.p.root.visible=lvN>=3&&open; if(lvN>=3&&open) workerTick(farmShop.clerk,dt,t);}
+  const walk=(c,p)=>{let left=dt*1.5; while(c.i<c.path.length){const[x,z]=c.path[c.i],dx=x-p.root.position.x,dz=z-p.root.position.z,d=Math.hypot(dx,dz); if(d<=left+.001){p.root.position.set(x,.16,z);left=Math.max(0,left-d);c.i++;} else {p.root.position.x+=dx/d*left;p.root.position.z+=dz/d*left;p.root.rotation.y=Math.atan2(dx,dz);break;}} c.ph=(c.ph||0)+dt*6; poseWalk(p,c.ph); return c.i>=c.path.length;};
+  for(const c of farmShop.customers){const p=c.p;
+    if(c.k>=want){if(c.state==='idle') p.root.visible=false; if(c.state==='idle') continue;}
+    if(c.state==='idle'){p.root.visible=false; c.wait-=dt; if(!open||c.wait>0||!shopUnits()) continue; const hs=HOUSES.filter(h=>h.side===-1), h=hs[(c.k*3+1)%hs.length];
+      c.path=c.k%2?[h.door,h.gate,h.walk,[SRX-3.6,h.walk[1]],[SRX-3.6,-118.5],[133,-118.5],[133,-123],[118,-123],[SHOP.x,SHOP.z+4.9]]:[[PX+12,-131.2],[PX+18,-118.5],[133,-118.5],[133,-123],[118,-123],[SHOP.x,SHOP.z+4.9]];
+      p.root.position.set(c.path[0][0],.16,c.path[0][1]); p.root.visible=true; c.i=1; c.state='arrive'; continue;}
+    if(c.state==='arrive'){if(walk(c,p)){c.state='inside'; shopperIn(p,()=>shopSale('Walk-in customer'),()=>{c.path=[[SHOP.x,SHOP.z+4.9],[118,-123],[133,-123],[133,-118.5],[PX+18,-118.5]]; c.i=1; c.state='leave';});} continue;}
+    if(c.state==='leave'){if(walk(c,p)){c.state='idle'; c.wait=8+Math.random()*14; p.root.visible=false;}}
   }
   if(t-shopSaveAt>15){shopSaveAt=t;save();}
   if(bldIdx===-4&&bldOpen()&&t-shopUiAt>1&&!document.activeElement?.hasAttribute('data-shop-qty')){shopUiAt=t;renderFarmShop();}
@@ -9272,6 +9343,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:43,date:'Nov 11, 2026',title:'Your mini-mart grows into a supermart',items:['🏪 The mini-mart now upgrades in three steps from its menu: Mini-Mart, Mini-Mart Plus (level 8, ₱15,000) and Sunfield Supermart (level 12, ₱35,000). Each step adds shelf space (180, 300, 450 units, up to 60, 90, 120 of each product), more shoppers and another parking spot.','🛒 Inside: a tiled floor, a long wall shelf, up to four gondolas, up to three lit drinks fridges, an ice-cream freezer, a fresh produce stand and rice sacks, all stocked with packs and bottles that fill up as you restock. Ate Lorna works the counter and, at the top level, a stock clerk tends the aisles.','🚶 Shoppers really go inside now: they come through the glass door, walk the aisles or check the fridges, pay at the counter and leave. Cars park in front (up to four spots) and their drivers come in too.','🎁 Farms from before this update get their mini-mart opened and fully upgraded to the Sunfield Supermart.']},
   {v:42,date:'Nov 11, 2026',title:'A cleaner mini-mart and cooperative',items:['🏪 The mini-mart menu is redone: status tiles (open, shelf space, sales, items sold), a card for Ate Lorna\'s salary, and a tile for each product with its shelf and farm stock and proper − and + buttons (they used to show question marks).','🐄 The Livestock Cooperative menu now shows its price per head next to the palengke price, a clear button to truck bodega animals over, and tiles for the young stock.']},
   {v:41,date:'Nov 11, 2026',title:'Hand-drawn icons and tidier menus',items:['✏️ Every icon in the menus, the top bar, the messages and the news is now drawn in ink and wash like the rest of Sunfield, instead of phone emojis.','🧾 The animal pickup choices are now clear cards side by side (an unavailable one is dashed and greyed), and they fit a sideways phone without scrolling.','⚙️ The settings menu now opens above the top bar and the toolbar, so nothing covers it, and it is wider on phones.','🪑 People on the plaza benches by the town hall now sit facing out from the backrest, and the café customers face their tables.']},
   {v:40,date:'Nov 11, 2026',title:'Trade with the Livestock Cooperative',items:['🐄 The Livestock Cooperative now trades with you. When you sell grown cattle, goats or pigs from a pen, a new choice sends your truck to the cooperative, which pays 10% more than the palengke (₱6,050 a cow, ₱1,540 a goat, ₱1,320 a pig).','🚛 Tap the cooperative to see its prices, to truck the live animals waiting in your bodega there, or to buy young stock (guya ₱990, batang kambing ₱270, biik ₱270, cheaper than the Agrivet). Their truck brings the young ones to your bodega, ready to restock a pen.','🛣️ Your truck drives in by the district entry, down the west road and into the cooperative\'s loading aisle, unloads at the platform, and comes home the other way.']},

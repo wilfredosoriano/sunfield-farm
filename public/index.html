@@ -246,15 +246,10 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 #rotate.can-lock button{display:block}
 @keyframes turn{0%,20%{transform:rotate(0)}50%,80%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
 @media (prefers-reduced-motion: reduce){#rotate .phone{animation:none;transform:rotate(-90deg)}}
-/* sideways mode: the whole page turned a quarter on an upright phone */
-html.rot,html.rot body{overflow:hidden}
-html.rot body{position:fixed;top:0;left:0;transform-origin:0 0}
-html.r90 body{transform:rotate(90deg) translateY(-100%)}
-html.rm90 body{transform:rotate(-90deg) translateX(-100%)}
-/* touch devices held upright without sideways mode: block the game */
+/* touch devices held upright: block the game */
 @media (orientation: portrait) and (pointer: coarse){
-  html:not(.rot) #rotate{display:flex}
-  html:not(.rot) #hud,html:not(.rot) #status,html:not(.rot) #bottom,html:not(.rot) #cats,html:not(.rot) #toast,html:not(.rot) #menu,html:not(.rot) #market,html:not(.rot) #hwSheet,html:not(.rot) #upSheet,html:not(.rot) #bldSheet,html:not(.rot) #drvSheet,html:not(.rot) #helpSheet,html:not(.rot) #bizSheet,html:not(.rot) #newsSheet,html:not(.rot) #achSheet,html:not(.rot) #misSheet,html:not(.rot) #billSheet,html:not(.rot) #c{visibility:hidden}
+  #rotate{display:flex}
+  #hud,#status,#bottom,#cats,#toast,#menu,#market,#hwSheet,#upSheet,#bldSheet,#drvSheet,#helpSheet,#bizSheet,#newsSheet,#achSheet,#misSheet,#billSheet,#c{visibility:hidden}
 }
 /* short landscape screens (phones): tools on the left, picker on the right, map in the middle */
 @media (orientation: landscape) and (max-height: 520px){
@@ -629,34 +624,6 @@ button:focus-visible{outline:3px solid #4c8078!important;outline-offset:3px}#toa
   </div>
 </div>
 
-<script>
-/* ---------- Sideways mode: on a phone held upright the game keeps playing in landscape, drawn turned a quarter, so a slip into
-   portrait (or a phone that will not rotate) never stops the game. The page is rotated with CSS; the screen size and touch
-   positions the game reads are reported in landscape terms, so nothing else needs to know. */
-window.ROT=(()=>{const R={on:false,dir:1,last:90};
-  const de=d=>d&&d.get, wd=Object.getOwnPropertyDescriptor(window,'innerWidth')||Object.getOwnPropertyDescriptor(Window.prototype,'innerWidth'), hd=Object.getOwnPropertyDescriptor(window,'innerHeight')||Object.getOwnPropertyDescriptor(Window.prototype,'innerHeight');
-  if(!de(wd)||!de(hd)) return R;
-  const W=()=>wd.get.call(window), H=()=>hd.get.call(window);
-  const coarse=matchMedia('(pointer: coarse)');
-  const angle=()=>{const o=screen.orientation&&screen.orientation.angle; return o!=null?o:(window.orientation||0);};
-  Object.defineProperty(window,'innerWidth',{configurable:true,get:()=>R.on?H():W()});
-  Object.defineProperty(window,'innerHeight',{configurable:true,get:()=>R.on?W():H()});
-  const patch=(proto)=>{if(!proto) return; const dx=Object.getOwnPropertyDescriptor(proto,'clientX'), dy=Object.getOwnPropertyDescriptor(proto,'clientY'); if(!dx||!dy||!dx.get) return;
-    Object.defineProperty(proto,'clientX',{configurable:true,get(){const x=dx.get.call(this), y=dy.get.call(this); return !R.on?x:R.dir>0?y:H()-y;}});
-    Object.defineProperty(proto,'clientY',{configurable:true,get(){const x=dx.get.call(this), y=dy.get.call(this); return !R.on?y:R.dir>0?W()-x:x;}});};
-  patch(window.MouseEvent&&MouseEvent.prototype); patch(window.Touch&&Touch.prototype);
-  const apply=()=>{const portrait=H()>W(), a=angle(); if(!portrait&&(a===90||a===-90||a===270)) R.last=a;
-    const want=coarse.matches&&portrait; R.dir=R.last===90?1:-1; R.on=want;
-    const h=document.documentElement; h.classList.toggle('rot',want); h.classList.toggle('r90',want&&R.dir>0); h.classList.toggle('rm90',want&&R.dir<0);
-    if(document.body){const b=document.body.style; if(want){b.width=H()+'px'; b.height=W()+'px';} else {b.width=''; b.height='';}}};
-  addEventListener('resize',apply); addEventListener('orientationchange',()=>setTimeout(apply,50)); document.addEventListener('DOMContentLoaded',()=>{apply(); clone();});
-  // the phone-sized layout rules are written for a short landscape screen: copy them so they also hold for an upright phone turned sideways
-  function clone(){let n=0; for(const sh of document.styleSheets){let rules; try{rules=sh.cssRules;}catch(e){continue;} for(let i=rules.length-1;i>=0;i--){const r=rules[i]; if(!(r instanceof CSSMediaRule)) continue; const t=r.conditionText||r.media.mediaText;
-      if(!/max-height/.test(t)||/portrait/.test(t)) continue; const nt=t.replace(/orientation:\s*landscape/g,'orientation: portrait').replace(/max-height/g,'max-width')+(/orientation/.test(t)?'':' and (orientation: portrait)')+' and (pointer: coarse)';
-      try{sh.insertRule('@media '+nt+'{'+[...r.cssRules].map(x=>x.cssText).join('\n')+'}',i+1); n++;}catch(e){}}}   // right after the original, so the cascade order is kept
-    R.cloned=n;}
-  apply(); return R;})();
-</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (()=>{
@@ -4999,7 +4966,7 @@ $('helpSheet').addEventListener('click',e=>{
 let toastTimer=0;
 function toast(msg,ms=2000){const el=$('toast'); el.textContent=msg;
   // sit just under the top row and whatever status pills are showing, so nothing covers the message
-  const hb=$('hud').offsetTop+$('hud').offsetHeight, sE=$('status'), sb=sE.offsetHeight?sE.offsetTop+sE.offsetHeight:0; el.style.top=Math.round(Math.max(hb,sb)+8)+'px';   // layout boxes, so it also holds when the page is turned sideways
+  const hud=$('hud').getBoundingClientRect(), st=$('status').getBoundingClientRect(); el.style.top=Math.round(Math.max(hud.bottom,st.height?st.bottom:0)+8)+'px';
   el.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('show'),ms);}
 const fv=new THREE.Vector3();
 function floatAt(i,text,kind=''){
@@ -9405,7 +9372,6 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
-  {v:46,date:'Nov 12, 2026',title:'No more stopping when the phone turns upright',items:['📱 If your phone turns upright while you play (or it will not rotate at all), the game no longer stops with “Turn your phone sideways”: it keeps going, drawn sideways, with the same phone layout and touch controls. Turn the phone back and it carries on as normal.','🍎 iPhone home-screen apps cannot be locked to landscape (Apple ignores that setting), so this is the way round it.']},
   {v:45,date:'Nov 12, 2026',title:'Cooler and smoother on phones',items:['🔥 The game now draws much less each frame: fields of crops, garbage and animals off screen are skipped, people far from the camera are not drawn (they keep walking), small parts no longer cast shadows, and only nearby people do. A normal view now takes about half the drawing work it did before.','🔋 With Battery saver on (the default on phones), shadows refresh every other frame as well. Turn it on from the ⋯ menu if your phone still gets warm.']},
   {v:44,date:'Nov 12, 2026',title:'People walk the proper way',items:['🚶 Everyone now walks round buildings, fences and water instead of through them: townspeople going to the palengke, workers on their rounds, shoppers, commuters, school children, church families and your own farmer. A walking map of the whole town (made from the real walls, fences and canals) finds the way, keeps to the roadside and crosses the road only where it has to.','🌉 Every house on the barangay road now has a concrete crossing over the kanal at its front path, and a wider one at the carport, so families can walk out to the street. Garden gates now stand open.','⏱️ The walking map is built a few seconds after the game loads, and rebuilt when you put up or move a farm building.']},
   {v:43,date:'Nov 11, 2026',title:'Your mini-mart grows into a supermart',items:['🏪 The mini-mart now upgrades in three steps from its menu: Mini-Mart, Mini-Mart Plus (level 8, ₱15,000) and Sunfield Supermart (level 12, ₱35,000). Each step adds shelf space (180, 300, 450 units, up to 60, 90, 120 of each product), more shoppers and another parking spot.','🛒 Inside: a tiled floor, a long wall shelf, up to four gondolas, up to three lit drinks fridges, an ice-cream freezer, a fresh produce stand and rice sacks, all stocked with packs and bottles that fill up as you restock. Ate Lorna works the counter and, at the top level, a stock clerk tends the aisles.','🚶 Shoppers really go inside now: they come through the glass door, walk the aisles or check the fridges, pay at the counter and leave. Cars park in front (up to four spots) and their drivers come in too.','🎁 Farms from before this update get their mini-mart opened and fully upgraded to the Sunfield Supermart.']},
@@ -9568,7 +9534,7 @@ const portraitMQ=matchMedia('(orientation: portrait) and (pointer: coarse)');
 function frame(now){
   requestAnimationFrame(frame);
   if(gameHealth.graphicsLost){lastFrame=now;return;}
-  if(portraitMQ.matches&&!ROT.on){lastFrame=now; return;} // game is blocked while the phone is upright (unless it is drawn sideways)
+  if(portraitMQ.matches){lastFrame=now; return;} // game is blocked while the phone is upright
   if(ECO&&now-lastFrame<31) return;               // battery saver: about 30 frames a second
   const rawDt=(now-lastFrame)/1000, dt=Math.min(.05,rawDt); lastFrame=now; const t=now/1000;
   try{
@@ -9666,7 +9632,7 @@ $('lockBtn').addEventListener('click',lockLandscape);
 canvas.addEventListener('pointerdown',lockLandscape);
 document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement) locked=false; resize();});
 if(canLock&&screen.orientation) screen.orientation.lock('landscape').then(()=>{locked=true;}).catch(()=>{}); // works when installed to the home screen
-portraitMQ.addEventListener('change',()=>{resize(); ptrs.clear(); pinch=null;});
+portraitMQ.addEventListener('change',()=>{resize(); if(!portraitMQ.matches){ptrs.clear(); pinch=null;}});
 
 /* ---------- Sketch icons: every emoji in the interface is drawn instead, in ink and wash like the toolbar and the world ----------
    One hidden sprite of <symbol>s (32x32, ink outline, flat warm fills, a slight hand-drawn wobble), and a watcher that swaps any emoji

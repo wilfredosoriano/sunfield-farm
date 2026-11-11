@@ -2051,17 +2051,13 @@ function ribbon(S,w,cols,y,seed,PR){const r=rng(seed), pos=[], col=[], idx=[], C
   const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
   g.setAttribute('normal',new THREE.Float32BufferAttribute(new Array(pos.length).fill(0).map((_,i)=>i%3===1?1:0),3)); g.setIndex(idx); return g;}
 const ROAD_MAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,metalness:0,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+const ROAD_TOP=ROAD_MAT.clone(), ROAD_LOW=ROAD_MAT.clone(); ROAD_TOP.polygonOffsetFactor=ROAD_TOP.polygonOffsetUnits=-2.6; ROAD_LOW.polygonOffsetFactor=ROAD_LOW.polygonOffsetUnits=-1.2;
 (()=>{const rr=rng(808), parts=[], st=[], gr=[];
   for(const id of LIVE_ROADS){const R=ROADS[id], foot=R.kind.startsWith('footpath');
-    // farm roads: worn grassy shoulders, a band of gravel, two darker wheel tracks and a crown with a hint of grass; footpaths: packed earth
-    const FARM_PR=[[-1,0],[-.84,1],[-.62,2],[-.5,3],[-.3,3],[-.18,2],[0,4],[.18,2],[.3,3],[.5,3],[.62,2],[.84,1],[1,0]];
-    const m=new THREE.Mesh(foot?ribbon(R.s,R.w,[0x928f66,0xa09273,0xa89776],.03,id.length*31):ribbon(R.s,R.w,[0x858a58,0x938874,0x8b7759,0x75624a,0x878056],.035,id.length*31,FARM_PR),ROAD_MAT); m.receiveShadow=true; scene.add(m);}
-  // entrances: a worn dirt apron under each turning yard (garage, bodega, feed drop) and where each vehicle track meets its animal area,
-  // drawn beneath the roads and pads so the joins fade into the grass instead of ending in a hard edge
-  {const AP=[], ap=(x,z,r,sd)=>{AP.push([blobGeo(r*1.08,sd,1,0x86865a,.029)[0],Mx(x,0,z,1,1,1,0,sd,0),0x86865a]); AP.push([blobGeo(r*.86,sd+1.3,1,0x8d7a5b,.031)[0],Mx(x,0,z,1,1,1,0,sd*.7,0),0x8d7a5b]); AP.push([blobGeo(r*.45,sd+2.1,.8,0x7f6c51,.032)[0],Mx(x,0,z,1,1,1,0,sd*1.3,0),0x7f6c51]);};
-   FARM.turning.forEach((t,k)=>ap(t.x,t.z,t.r*.82,1.7+k*2.3));
-   for(const id of LIVE_ROADS){const R=ROADS[id]; if(!id.startsWith('t-')) continue; const e=R.s[R.s.length-1]; ap(e[0],e[1],2.4,id.length*.9);}
-   const am=new THREE.Mesh(mergeGeo(AP),new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1})); am.receiveShadow=true; scene.add(am);}
+    // where two strips overlap (each animal track and footpath meeting the service road, the access road joining it) they would flicker
+    // against each other at the same height: the service road draws on top, then the access road, then the tracks and footpaths
+    const lay=id==='service'?ROAD_TOP:id==='access'?ROAD_MAT:ROAD_LOW, y=id==='service'?.036:id==='access'?.035:foot?.03:.033;
+    const m=new THREE.Mesh(ribbon(R.s,R.w,foot?[0x9d9a6e,0xb9a682,0xc2b08c]:[0x8f8c5e,0x8c7657,0xa89272],y,id.length*31),lay); m.receiveShadow=true; scene.add(m);}
   const along=(S,k,off)=>{const a=S[Math.max(0,k-1)], b=S[Math.min(S.length-1,k+1)], L=Math.hypot(b[0]-a[0],b[1]-a[1])||1; return [S[k][0]-(b[1]-a[1])/L*off,S[k][1]+(b[0]-a[0])/L*off];};
   const n=ACCESS.length; [[.22,.85,.2,1.3],[.5,.95,.22,4.1],[.78,.8,.18,2.6]].forEach(([u,r,d,s],k)=>{const [x,z]=along(ACCESS,Math.floor(n*u),k%2?.7:-.65); POTHOLES.push({x,z,r,d,s});});
   const put=(geo,x,z,rot)=>{const [g,c]=geo; return [g,Mx(x,0,z,1,1,1,0,rot,0),c];};
@@ -2069,7 +2065,7 @@ const ROAD_MAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,met
     parts.push(put(blobGeo(p.r*1.05,p.s+1.7,.8,0x4e3c27,.056),p.x,p.z,p.s));                           // darker mud
     parts.push(put(blobGeo(p.r*.8,p.s,.75,0x6c7d82,.059),p.x,p.z,p.s));});                              // muddy water
   for(const S of [ACCESS,SERVICE]) for(let k=0;k<S.length;k+=2){
-    if(rr()<.22){const [x,z]=along(S,k,(rr()-.5)*3); parts.push(put(blobGeo(.3+rr()*.45,rr()*9,.5+rr()*.5,[0x87745a,0x8a7759,0x84715a][(rr()*3)|0],.051),x,z,rr()*6));}   // small worn patches in close, muted tones
+    if(rr()<.55){const [x,z]=along(S,k,(rr()-.5)*3); parts.push(put(blobGeo(.4+rr()*.8,rr()*9,.5+rr()*.5,[0x93805f,0xa89474,0x9b8666,0xb19d7d][(rr()*4)|0],.051),x,z,rr()*6));}   // small worn patches in close, muted tones
     for(let q=0;q<2;q++){const [x,z]=along(S,k,(rr()-.5)*3.6); st.push([x,.07,z,.06+rr()*.1,.04+rr()*.05,.06+rr()*.1,[0x8d8d8d,0xa39e93,0x7a7468][(rr()*3)|0],rr()*3]);}
     for(const sd of [-1,1]) if(rr()<.8){const [x,z]=along(S,k,sd*(2.3+rr()*.6)); if(!POTHOLES.some(p=>Math.hypot(x-p.x,z-p.z)<p.r*1.5)&&!inField(x,z,.5)) gr.push([x,.05,z,.7+rr()*.6,.6+rr()*.7,.7+rr()*.6,[0x6aa84a,0x7cb342,0x8fbf4a][(rr()*3)|0],rr()*6]);}
     if(rr()<.5){const [x,z]=along(S,k,(rr()-.5)*.5); gr.push([x,.05,z,.6+rr()*.4,.5+rr()*.4,.6+rr()*.4,0x7cb342,rr()*6]);}}   // grass down the middle
@@ -4133,14 +4129,25 @@ function emptySlotSign(s){   // a dashed outline on the ground and a little boar
     // ground inside the fence
     const sh=new THREE.Shape(); pts.forEach(([x,z],k)=>k?sh.lineTo(x,-z):sh.moveTo(x,-z)); const geo=new THREE.ShapeGeometry(sh); geo.rotateX(-Math.PI/2);
     const gm=new THREE.Mesh(geo,worldGrass(AREA_GROUND[a.type])); gm.position.y=.024; gm.receiveShadow=true; scene.add(gm);
-    // posts and two rails, with a gap at the gate
-    for(let k=0;k<pts.length-1;k++){const [x0,z0]=pts[k], [x1,z1]=pts[k+1]; if((!a.loading&&Math.hypot((x0+x1)/2-gx,(z0+z1)/2-gz)<2.2)||roadDist((x0+x1)/2,(z0+z1)/2)<.3) continue;
-      const len=Math.hypot(x1-x0,z1-z0), ry=Math.atan2(x1-x0,z1-z0); posts.push([x0,.6,z0,.14,1.2,.14,0x6d4c41,ry]);
-      for(const y of [.4,.9]) posts.push([(x0+x1)/2,y,(z0+z1)/2,.06,.07,len+.04,0x8d6e4b,ry]);}
-    // gate posts and a name board beside the gate
-    const k=nearestOn(pts,gx,gz),[ax,az]=pts[Math.max(0,k-1)],[bx,bz]=pts[Math.min(pts.length-1,k+1)],al=Math.atan2(bx-ax,bz-az);
-    for(const side of [-1,1])posts.push([gx+Math.sin(al)*side*1.7,.8,gz+Math.cos(al)*side*1.7,.22,1.6,.22,0x5d4037,al]);
-    boardSign([a.name.toUpperCase()],'#5d4037','#ffe082',gx+Math.sin(al)*3,gz+Math.cos(al)*3,0,2.8,.8,1.3);
+    // the gate: measured along the fence itself, so the opening is exactly 3.4 m and the rails stop flush at the two gate posts
+    const S0=[0]; for(let k=1;k<pts.length;k++) S0.push(S0[k-1]+Math.hypot(pts[k][0]-pts[k-1][0],pts[k][1]-pts[k-1][1]));
+    let sg=0, gd=1e9; for(let k=0;k<pts.length-1;k++){const [x0,z0]=pts[k],[x1,z1]=pts[k+1], dx=x1-x0, dz=z1-z0, L2=dx*dx+dz*dz||1, u=Math.max(0,Math.min(1,((gx-x0)*dx+(gz-z0)*dz)/L2)), d=Math.hypot(x0+dx*u-gx,z0+dz*u-gz); if(d<gd){gd=d; sg=S0[k]+u*Math.sqrt(L2);}}
+    const HALF=a.loading?0:1.7, at=sv=>{let k=0; while(k<pts.length-2&&S0[k+1]<sv) k++; const L=S0[k+1]-S0[k]||1, u=(sv-S0[k])/L, [x0,z0]=pts[k],[x1,z1]=pts[k+1]; return [x0+(x1-x0)*u,z0+(z1-z0)*u,Math.atan2(x1-x0,z1-z0)];};
+    for(let k=0;k<pts.length-1;k++){let s0=S0[k], s1=S0[k+1]; const pieces=[];
+      if(HALF&&s1>sg-HALF&&s0<sg+HALF){if(s0<sg-HALF) pieces.push([s0,sg-HALF]); if(s1>sg+HALF) pieces.push([sg+HALF,s1]);} else pieces.push([s0,s1]);
+      for(const [q0,q1] of pieces){const [x0,z0]=at(q0), [x1,z1]=at(q1); if(q1-q0<.05||roadDist((x0+x1)/2,(z0+z1)/2)<.3) continue;
+        const len=Math.hypot(x1-x0,z1-z0), ry=Math.atan2(x1-x0,z1-z0); if(q0===s0) posts.push([x0,.6,z0,.14,1.2,.14,0x6d4c41,ry]);
+        for(const y of [.4,.9]) posts.push([(x0+x1)/2,y,(z0+z1)/2,.06,.07,len+.04,0x8d6e4b,ry]);}}
+    // gate posts square to the fence, two open gate leaves folded flat against its inside, and the name board outside, facing out
+    const cx=(a.fence[0]+a.fence[2])/2, cz=(a.fence[1]+a.fence[3])/2, [,,al]=at(sg); let nx=Math.cos(al), nz=-Math.sin(al); if(nx*(gx-cx)+nz*(gz-cz)<0){nx=-nx; nz=-nz;}
+    for(const side of [-1,1]){const [px,pz,ra]=at(sg+side*HALF); posts.push([px,.8,pz,.22,1.6,.22,0x5d4037,ra]); posts.push([px,1.62,pz,.28,.06,.28,0x4e342e,ra]);
+      const [lx,lz,rl]=at(sg+side*(HALF+.82)), ix=lx-nx*.2, iz=lz-nz*.2;   // a leaf: frame, three rails and a brace, hinged at the post and swung back
+      for(const y of [.25,.6,.95]) posts.push([ix,y,iz,.05,.06,1.55,0xa1887f,rl]);
+      for(const e of [-.76,.76]) posts.push([ix+Math.sin(rl)*e,.6,iz+Math.cos(rl)*e,.07,.85,.07,0x8d6e63,rl]);
+      posts.push([ix,.6,iz,.04,.05,1.7,0x8d6e63,rl,side*.42]);}
+    {let best=null; for(const d of [3.4,4.4,5.6,7]) for(const sd of [-1,1]){const [px,pz]=at(sg+sd*(HALF+d)), x=px+nx*.9, z=pz+nz*.9, c=Math.min(roadDist(x+Math.sin(al)*1.5,z+Math.cos(al)*1.5),roadDist(x,z),roadDist(x-Math.sin(al)*1.5,z-Math.cos(al)*1.5));
+      if(!best||(c>=1.3&&best.c<1.3)||(c<1.3&&best.c<1.3&&c>best.c)) best={x,z,c}; }   // beside the gate, on whichever side keeps the board clear of the road
+     boardSign([a.name.toUpperCase()],'#5d4037','#ffe082',best.x,best.z,Math.atan2(nx,nz),2.8,.8,1.3);}
     // concrete pads under poultry and pig houses
     if(a.type==='coop'||a.type==='broiler'||a.type==='pig') a.slots.forEach(([x,z,w,d])=>pads.push(P('box',0xa39c8c,x,.05,z,w+.6,.1,d+.6)));});
   const pm=instR(PG.box,posts); pm.castShadow=true; scene.add(pm);
@@ -9608,7 +9615,8 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
-  {v:49,date:'Nov 12, 2026',title:'A tidier home farm',items:['🌱 The field\'s ploughed rows now run unbroken from plot to plot, the soil varies a little from plot to plot, and low edging boards on stakes frame the beds.','💧 The irrigation canal in front of the field is lined with stone lips and grassy banks, with a slatted footbridge and two flush plank crossings. A hose reel, a bucket, a watering can and a hoe and rake sit on the grass edge beside the beds.','🌳 Young orchard trees now start as staked saplings (bananas as small suckers) before growing into full trees. Every plot has a marker stake, ripe trees get a picking basket and a windfall or two, and trodden paths run between the rows and past the kubol.','🛤️ Farm roads have wheel tracks, gravel shoulders and grassy edges instead of pale patches; the garage, bodega, feed drop and animal-area entrances fade into worn dirt aprons, the footpaths are packed earth, and the farm canal\'s road crossing is a culvert slab with pipe mouths in its headwalls.']},
+  {v:50,date:'Nov 12, 2026',title:'Old dirt roads and tidy gates',items:['🛤️ The farm roads are back to their old dirt look. Where each animal track and footpath meets the service road, the surfaces no longer flicker.','🚪 Every animal area\'s gate is rebuilt: the fence stops flush at two square posts, two gate leaves fold back flat inside, and the name board stands beside the gate facing the road, clear of the road and of the gate.']},
+  {v:49,date:'Nov 12, 2026',title:'A tidier home farm',items:['🌱 The field\'s ploughed rows now run unbroken from plot to plot, the soil varies a little from plot to plot, and low edging boards on stakes frame the beds.','💧 The irrigation canal in front of the field is lined with stone lips and grassy banks, with a slatted footbridge and two flush plank crossings. A hose reel, a bucket, a watering can and a hoe and rake sit on the grass edge beside the beds.','🌳 Young orchard trees now start as staked saplings (bananas as small suckers) before growing into full trees. Every plot has a marker stake, ripe trees get a picking basket and a windfall or two, and trodden paths run between the rows and past the kubol.','🛤️ The footpaths are packed earth, and the farm canal\'s road crossing is a culvert slab with pipe mouths in its headwalls.']},
   {v:48,date:'Nov 12, 2026',title:'A fuller orchard',items:['🌳 The halamanan now has 54 plots instead of 18, planted closer together like a real orchard: four rows across, 3 m apart, and fourteen along it. Your trees moved to the nearest new plot and keep their growth.','🗺️ The orchard menu shows all plots as a small map laid out like the orchard; tap one to switch.']},
   {v:47,date:'Nov 12, 2026',title:'Your orchard looks like the real thing',items:['🥭 Mango trees now grow a short, thick trunk with heavy limbs under a broad, dark crown, with bronze new leaves on top. Ripe mangoes hang on long stalks round the edge, some with a red blush.','🍋 Kalamansi is a small bushy tree that branches low, with a dense crown of dark glossy leaves and lots of tiny fruit that turn orange as they ripen.','🍐 Bayabas grows two or three crooked stems with copper bark, an open crown of lighter leaves, and round pale fruit.','🍌 Saging is now a clump: the main plant with long, torn leaves (old ones dry and hanging), two suckers, and a bunch of hands with the purple puso hanging at the end. Young fruit shows green before it ripens.','🌳 The orchard menu is redesigned: every plot in a row at the top (tap one to switch), a growth bar to the next harvest, what each tree gives, and one-tap picking and planting.']},
   {v:45,date:'Nov 12, 2026',title:'Cooler and smoother on phones',items:['🔥 The game now draws much less each frame: fields of crops, garbage and animals off screen are skipped, people far from the camera are not drawn (they keep walking), small parts no longer cast shadows, and only nearby people do. A normal view now takes about half the drawing work it did before.','🔋 With Battery saver on (the default on phones), shadows refresh every other frame as well. Turn it on from the ⋯ menu if your phone still gets warm.']},

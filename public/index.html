@@ -8048,15 +8048,13 @@ const CIVIC=(()=>{
     B(73,.16,163,3.2,.12,6.5,0x6f7774); for(const z of [160,166]) B(73,.24,z,3.2,.05,.2,0xf1c40f);
     B(79,1.2,161,3,2.4,2.6,0xeee3c6); B(79,2.5,161,3.5,.2,3.1,0x8c3b2e); B(77.48,1.4,161,.06,.9,1.6,0x86b6c9);
     // the cell: a stepped mound, part capped with soil and grass, an active tipping face of mixed garbage
-    for(let k=0;k<5;k++){const w=40-k*6, d=22-k*3.6; B(84,.5+k*1.0,203-k*.5,w,1.0,d,[0x8a7556,0x7d6a4c,0x8a7556,0x6f8a4a,0x6f8a4a][k]);}
-    for(let i=0;i<70;i++){const x=72+r()*24, z=185+r()*7; parts.push(P('sph',[0xe8e3d8,0x2f4f8f,0xc0392b,0x2b2b2b,0xf1c40f,0x6aa84f,0xd9cbb0][i%7],x,.25+r()*.5,z,.3+r()*.7,.25+r()*.45,.3+r()*.7));}
     // MRF sorting shed: open sides, a long table, bins for plastic, paper, metal and glass
     for(const x of [61,71]) for(const z of [163,175]) B(x,2.2,z,.25,4.4,.25,steel); B(66,4.5,169,11.5,.25,13.5,0x6f8f84);
     B(66,.85,169,2.2,.1,9,0x8d6e4b); for(const z of [165.5,172.5]) B(66,.4,z,2,.8,.12,0x6d4c41);
     [[0x1e88e5,'PLASTIK'],[0x8d6e4b,'PAPEL'],[0x7f8c8d,'METAL'],[0x2e7d32,'BOTE']].forEach(([c],k)=>{B(62,.7,164+k*3,1.6,1.4,2.2,c);});
     for(let i=0;i<14;i++) parts.push(P('box',[0xf5f5f5,0x2e7d32,0x1565c0][i%3],69+r()*2,.35+r()*.3,163+r()*12,.5,.5,.5));   // sacks waiting to be sorted
     // leachate pond and the compost windrows
-    B(100,.05,204,9,.1,8,conc); const lp=mesh(new THREE.PlaneGeometry(8,7),new THREE.MeshStandardMaterial({color:0x4a5a3c,roughness:.3}),100,.12,204); lp.rotation.x=-Math.PI/2; scene.add(lp);
+    B(100.5,.05,175.5,9,.1,8,conc); const lp=mesh(new THREE.PlaneGeometry(8,7),new THREE.MeshStandardMaterial({color:0x4a5a3c,roughness:.3}),100.5,.12,175.5); lp.rotation.x=-Math.PI/2; scene.add(lp);
     for(let k=0;k<3;k++) B(100,.5,160+k*4,8,1,2,0x5a4a32);
   }
 
@@ -8191,7 +8189,7 @@ const CIVIC=(()=>{
       {path:[[67.3,170]],act:'crouch',dur:6,face:[66,170]}],{y:.06}),
     makeWorker(look(0xef6c00,0x8bc34a),[{to:[64.7,172],act:'crouch',dur:7,face:[66,172]},{path:[[64.7,174]],act:'crouch',dur:5,face:[66,174]},{path:[[63.5,173]],act:'stand',dur:2,face:[62,173],carry:'sack'},
       {path:[[64.7,170]],act:'crouch',dur:6,face:[66,170]}],{y:.06}),
-    makeWorker(look(0xf1c40f,0xff7043),[{to:[84,186.5],act:'wave',dur:7,face:[83,181]},{path:[[90,187]],act:'inspect',dur:6,face:[86,183]},{path:[[78,187.5]],act:'sweep',dur:7,face:[80,184]},{path:[[84,186.5]],act:'stand',dur:4,face:[83,181]}],{y:.06}),
+    makeWorker(look(0xf1c40f,0xff7043),[{to:[84,183.6],act:'wave',dur:7,face:[83,181]},{path:[[89.5,183.6]],act:'inspect',dur:6,face:[90,186]},{path:[[79,183.6]],act:'sweep',dur:7,face:[80,186]},{path:[[84,183.6]],act:'stand',dur:4,face:[83,181]}],{y:.06}),
     makeWorker(look(0x37474f,0x263238),[{to:[76.6,161],act:'write',dur:8,face:[73,161]},{path:[[75.6,164.5]],act:'inspect',dur:5,face:[73,163]},{path:[[76.6,161]],act:'stand',dur:6,face:[73,161]}],{y:.06}),
     // water works: the operator samples the ponds, checks the pump house and the inlet
     makeWorker(look(0x1e6fb8,0xffffff),[{to:[173,70.5],act:'write',dur:6,face:[174,70]},{path:[[166,70.5],[158,64.8]],act:'crouch',dur:7,face:[157.8,61.6]},{path:[[165.3,64.8]],act:'crouch',dur:6,face:[165.3,61.6]},
@@ -8750,6 +8748,167 @@ const VILLAGE=(()=>{
   return {sh,riders,homes,update(dt,t){if(document.hidden||!lnNet()) return; shuttleTick(dt,t); riderTick(dt); for(const w of people) workerTick(w,dt,t);}};
 })();
 
+/* ---------- The landfill at work: the garbage mound, the heaps, the excavator and the wheel loader ----------
+   The cell is a big mound of mixed garbage, part of it already capped with soil. Trucks tip at the foot of the working face; an
+   excavator (tracks, a house that swings, boom, stick and bucket on hydraulic cylinders) digs the tipped garbage and swings it up
+   onto the slope, and an articulated wheel loader runs a Y-cycle: into its heap, scoop, back out turning, forward to the slope,
+   arms up, dump, back again. Every pose comes from the machine's geometry: the bucket pin is placed by two-link inverse kinematics
+   and never goes into the ground; the loader's two frames follow its path, so it steers by bending in the middle. */
+const LANDFILL_WORKS=(()=>{
+  const r=rng(9090), YEL=0xf2b705, DK=0x2b2b2b, MID=0x4a4a4a, STEEL=0x6b6f72;
+  // ===== ground: the mound and the heaps =====
+  const M={cx:79.5,cz:203,rx:19,rz:10.3,H:8.6};
+  const nz=(x,z)=>Math.sin(x*.71+z*.33)*.5+Math.sin(x*.23-z*.57+1.7)*.35+Math.sin(x*1.37+z*1.11)*.15;
+  const moundH=(x,z)=>{const u=(x-M.cx)/M.rx, v=(z-M.cz)/M.rz, d=Math.cbrt(Math.abs(u)**3+Math.abs(v)**3); if(d>=1) return 0;
+    const k=Math.min(1,(1-d)/.45), s=k*k*(3-2*k); return Math.max(0,M.H*s+nz(x,z)*.55*Math.min(1,(1-d)*4));};
+  const HEAPS=[{x:92,z:185.5,R:2.3,h:1.3},{x:60.7,z:189,R:2.1,h:1.25},{x:84,z:187,R:2.7,h:.9}];   // the excavator's, the loader's, and the tipping floor
+  const heapH=(x,z)=>{let h=0; for(const P of HEAPS){const d=Math.hypot(x-P.x,z-P.z)/P.R; if(d<1) h=Math.max(h,P.h*(1-d*d)*(1+.12*nz(x*2,z*2)));} return h;};
+  const groundH=(x,z)=>Math.max(moundH(x,z),heapH(x,z));
+  {const W=44, D=26, g=new THREE.PlaneGeometry(W,D,88,52); g.rotateX(-Math.PI/2); const pos=g.attributes.position, col=new Float32Array(pos.count*3), c=new THREE.Color();
+    const pal=[0x8a857a,0x6f6a62,0x9d978a,0x7b766c,0xb3ada0,0x5e5a54,0x8c7f6a], soil=[0x7a6247,0x6d573f,0x84694c];
+    for(let i=0;i<pos.count;i++){const x=pos.getX(i)+M.cx, z=pos.getZ(i)+M.cz, h=moundH(x,z); pos.setY(i,h>0?h:-.05);
+      const capped=(z-M.cz)/M.rz>.25+.15*Math.sin(x*.3), q=Math.abs(Math.sin(x*12.9898+z*78.233)*43758.5453)%1;
+      c.setHex(capped?soil[(q*3)|0]:pal[(q*pal.length)|0]); col.set([c.r,c.g,c.b],i*3);}
+    g.setAttribute('color',new THREE.BufferAttribute(col,3)); g.computeVertexNormals();
+    const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,flatShading:true})); m.position.set(M.cx,0,M.cz); m.receiveShadow=true; m.castShadow=true; m.name='Landfill mound'; scene.add(m);}
+  // the garbage itself: bags, boxes, sacks and plastics strewn over the open face and the heaps (one instanced mesh)
+  const GCOL=[0xf2f2ee,0xe8e3d8,0x2b2b2b,0x1f3f8f,0x2e7d32,0xc0392b,0xd9cbb0,0x8d6e4b,0xf1c40f,0x6fa8dc,0x3b3b3b,0xffffff];
+  {const N=1500, im=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshStandardMaterial({roughness:.85}),N), o=new THREE.Object3D(), c=new THREE.Color(); let n=0, guard=0;
+    while(n<N&&guard++<20000){let x,z; const pick=r(); if(pick<.62){x=M.cx+(r()*2-1)*M.rx; z=M.cz+(r()*2-1)*M.rz;} else {const P=HEAPS[(r()*3)|0], a=r()*Math.PI*2, d=Math.sqrt(r())*P.R; x=P.x+Math.cos(a)*d; z=P.z+Math.sin(a)*d;}
+      const hm=moundH(x,z), hh=heapH(x,z), h=Math.max(hm,hh); if(h<.08) continue; if(hm>hh&&(z-M.cz)/M.rz>.25+.15*Math.sin(x*.3)&&r()<.85) continue;   // the capped part shows only a little
+      const s=.25+r()*.55; o.position.set(x,h+s*.25,z); o.rotation.set(r()*.6,r()*Math.PI,r()*.6); o.scale.set(s*(.8+r()*.8),s*(.5+r()*.5),s*(.8+r()*.8)); o.updateMatrix(); im.setMatrixAt(n,o.matrix); im.setColorAt(n,c.setHex(GCOL[(r()*GCOL.length)|0])); n++;}
+    im.count=n; im.castShadow=im.receiveShadow=true; scene.add(im);}
+  // a load of garbage (in a bucket, or falling) and where it lands
+  const chunk=(w)=>{const g=new THREE.Group(); for(let k=0;k<7;k++){const s=.25+r()*.3; g.add(part(s*1.3,s,s*1.1,GCOL[(r()*GCOL.length)|0],(r()-.5)*w,(r()-.2)*.35,(r()-.5)*w*.6));} return g;};
+  const drops=[];   // pieces falling under gravity, then lying where they land
+  const drop=(src,vx,vz)=>{const g=chunk(1.2), p=new THREE.Vector3(); src.getWorldPosition(p); g.position.copy(p); scene.add(g); drops.push({g,vx,vy:0,vz,rest:false,t:0}); if(drops.length>8){const old=drops.shift(); scene.remove(old.g);}};
+  const dropTick=dt=>{for(const D of drops){if(D.rest) continue; D.vy-=9.8*dt; D.g.position.x+=D.vx*dt; D.g.position.z+=D.vz*dt; D.g.position.y+=D.vy*dt; D.g.rotation.x+=dt*2;
+    const gy=groundH(D.g.position.x,D.g.position.z)+.15; if(D.g.position.y<=gy){D.g.position.y=gy; D.vx*=.3; D.vz*=.3; if(Math.abs(D.vy)<1.5){D.rest=true;} D.vy*=-.2;}}};
+  // ===== a hydraulic cylinder between two points of a vertical plane (in the parent's coordinates) =====
+  const cyl=(parent,x,rb,rr)=>{const barrel=new THREE.Mesh(new THREE.CylinderGeometry(rb,rb,1,10),new THREE.MeshStandardMaterial({color:YEL,roughness:.6})), rod=new THREE.Mesh(new THREE.CylinderGeometry(rr,rr,1,8),new THREE.MeshStandardMaterial({color:0xd8dde0,metalness:.6,roughness:.3}));
+    parent.add(barrel,rod); barrel.castShadow=rod.castShadow=true;
+    return (a,b)=>{const dy=b[0]-a[0], dz=b[1]-a[1], L=Math.hypot(dy,dz), ang=Math.atan2(dz,dy), lb=L*.58;   // a, b: [y,z]
+      barrel.position.set(x,a[0]+dy/L*lb/2,a[1]+dz/L*lb/2); barrel.scale.set(1,lb,1); barrel.rotation.set(ang,0,0);
+      const lr=L*.5; rod.position.set(x,b[0]-dy/L*lr/2,b[1]-dz/L*lr/2); rod.scale.set(1,lr,1); rod.rotation.set(ang,0,0);};};
+  // a point [y,z] given in a frame (origin [y,z], pointing at elevation a) in its parent's [y,z]
+  const T2=(o,a,p)=>[o[0]+p[1]*Math.sin(a)+p[0]*Math.cos(a), o[1]+p[1]*Math.cos(a)-p[0]*Math.sin(a)];
+  const seg=(g,c,w,h,p0,p1,x=0)=>{const dy=p1[0]-p0[0], dz=p1[1]-p0[1], L=Math.hypot(dy,dz), m=part(w,h,L,c,x,(p0[0]+p1[0])/2,(p0[1]+p1[1])/2); m.rotation.x=-Math.atan2(dy,dz); g.add(m); return m;};
+  const seat=(g,x,y,z)=>{const L=randLook(r); L.bag=null; L.top=0xff7043; L.style='cap'; L.capC=0xf1c40f; const d=bakePerson(L,poseSit,true); d.position.set(x,y,z); g.add(d); d.visible=false; return d;};
+  const sm=(a,b,k)=>a+(b-a)*(k*k*(3-2*k));
+
+  // ===== the excavator =====
+  const EX=(()=>{const P0=[96.5,189.5], base=-Math.PI/2, g=new THREE.Group(); g.position.set(P0[0],0,P0[1]); g.rotation.y=base; scene.add(g);
+    // undercarriage: two crawler tracks with their pads, rollers, idler and sprocket; the car body and the swing ring
+    for(const sd of [-1,1]){const x=sd*1.25; g.add(part(.62,.62,3.6,MID,x,.5,0)); for(const z of [-2.05,2.05]){const w=new THREE.Mesh(new THREE.CylinderGeometry(.43,.43,.64,14),new THREE.MeshStandardMaterial({color:DK,roughness:.9})); w.rotation.z=Math.PI/2; w.position.set(x,.48,z); g.add(w);}
+      g.add(part(.7,.1,4.2,DK,x,.03,0)); g.add(part(.7,.1,3.7,DK,x,.94,0)); for(let k=0;k<18;k++) g.add(part(.72,.05,.08,0x1b1b1b,x,.99,-1.8+k*.21)); for(let k=0;k<5;k++) g.add(part(.3,.24,.24,0x3a3a3a,x,.2,-1.4+k*.7));}
+    g.add(part(1.7,.55,2.2,MID,0,.72,0)); const ring=new THREE.Mesh(new THREE.CylinderGeometry(1,1,.22,20),new THREE.MeshStandardMaterial({color:DK})); ring.position.y=1.06; g.add(ring);
+    const house=new THREE.Group(); house.position.y=1.17; g.add(house);
+    house.add(part(2.9,.3,3.7,DK,0,.15,-.35));   // revolving frame
+    house.add(part(1.85,1.0,1.9,YEL,-.48,.8,-1.0)); house.add(part(1.8,.08,1.8,0x3a3a3a,-.48,1.33,-1.0)); for(let k=0;k<4;k++) house.add(part(.04,.5,1.2,0x333333,-1.42,.85,-1.3+k*.0)); house.add(part(.05,.55,1.3,0x262626,-1.415,.85,-1.05));   // engine hood, grille
+    house.add(part(2.9,1.05,.85,YEL,0,.75,-2.2)); house.add(part(2.92,.18,.87,DK,0,.25,-2.2));   // counterweight
+    house.add(part(1.0,.65,1.35,YEL,-.85,.55,.75));   // tool box, right front
+    const ex=new THREE.Mesh(new THREE.CylinderGeometry(.07,.07,.7,8),new THREE.MeshStandardMaterial({color:0x222222})); ex.position.set(-.9,1.6,-.9); house.add(ex);
+    // the cab, front left: frame, glass all round, a roof
+    house.add(part(1.0,1.75,1.55,YEL,.88,1.17,.55)); house.add(part(1.02,1.35,1.45,VK.glass,.88,1.3,.6)); house.add(part(.86,1.32,.05,VK.glassHi,.88,1.3,1.34)); house.add(part(1.06,.1,1.62,DK,.88,2.08,.55));
+    for(const z of [-.18,1.31]) for(const x of [.38,1.38]) house.add(part(.07,1.5,.07,DK,x,1.25,z));
+    const op=seat(house,.88,.55,.55);
+    // boom, stick and bucket: pins in the plane x=BX of the house
+    const BX=-.1, BP=[1.0,1.25], LB=5.7, LS=2.95, LK=1.45;
+    const boom=new THREE.Group(); boom.position.set(BX,BP[0],BP[1]); house.add(boom);
+    seg(boom,YEL,.58,.66,[0,0],[.75,3.0]); seg(boom,YEL,.5,.6,[.75,3.0],[0,LB]); boom.add(part(.62,.3,.5,DK,0,0,0));   // the bent (banana) boom
+    const stick=new THREE.Group(); stick.position.set(0,0,LB); boom.add(stick);
+    seg(stick,YEL,.42,.52,[.45,-.55],[0,LS]); stick.add(part(.5,.5,.5,DK,0,0,0));
+    const bucket=new THREE.Group(); bucket.position.set(0,0,LS); stick.add(bucket);
+    {const sh=[[.18,-.05],[.58,.35],[.66,.85],[.42,1.25],[0,LK]]; for(let i=0;i<sh.length-1;i++) seg(bucket,0x5a5f63,1.25,.08,sh[i],sh[i+1]);
+      for(const x of [-.62,.62]){seg(bucket,0x4d5256,.05,.62,[.32,.25],[.36,1.0],x); seg(bucket,0x4d5256,.05,.3,[.12,1.12],[.05,1.32],x);}
+      for(let k=0;k<5;k++) seg(bucket,0x9a9ea2,.11,.1,[0,LK-.05],[-.04,LK+.18],-.5+k*.25); bucket.add(part(.5,.3,.3,DK,0,.2,0));}
+    const load=chunk(.7); load.position.set(0,.28,.75); load.scale.setScalar(.85); bucket.add(load); load.visible=false;
+    const cB=cyl(house,BX-.05,.12,.07), cS=cyl(boom,0,.11,.065), cK=cyl(stick,0,.1,.06);
+    // the work cycle, in the house's own terms: yaw, bucket pin at (r from the swing centre, height above ground), bucket angle
+    const yawTo=(x,z)=>{let a=Math.atan2(x-P0[0],z-P0[1])-base; while(a>Math.PI) a-=2*Math.PI; while(a<-Math.PI) a+=2*Math.PI; return a;};
+    const A=HEAPS[0], yA=yawTo(A.x,A.z), DP=[91.6,196.2], yB=yawTo(DP[0],DP[1]);
+    const gAt=(yaw,rr)=>{const a=yaw+base; return groundH(P0[0]+Math.sin(a)*rr,P0[1]+Math.cos(a)*rr);};
+    const hB=Math.max(gAt(yB,7.0),gAt(yB,7.6),gAt(yB,8.2));
+    const D2R=Math.PI/180, KEYS=[   // [duration to reach, yaw, r, y, bucket angle, carrying]
+      [0,yA,7.3,3.0,-60,0],[1.3,yA,7.0,gAt(yA,7.6)+1.4,-72,0],[2.3,yA,5.2,gAt(yA,5.2)+.95,-128,0],[1.0,yA,5.0,gAt(yA,5.0)+1.7,-195,1],
+      [1.2,yA,5.6,Math.max(4.4,gAt(yA,5.6)+2.6),-195,1],[2.6,yB,7.0,Math.max(5.0,hB+3.0),-195,1],[1.0,yB,7.3,hB+2.3,-42,0],[.9,yB,6.7,hB+3.1,-62,0],[2.4,yA,7.3,3.0,-60,0]];
+    const total=KEYS.reduce((a,k)=>a+k[0],0), PARK=[yA*.5,5.2,0,-100];
+    const st={t:0,yaw:PARK[0],r:PARK[1],y:Math.max(1.3,gAt(PARK[0],5.2)+1.4),k:-100,on:false,loaded:false,dropped:false};
+    const pose=()=>{house.rotation.y=st.yaw; const pr=st.r-BP[1], py=st.y-house.position.y-BP[0];
+      let d=Math.hypot(pr,py); d=Math.max(Math.abs(LB-LS)+.2,Math.min(LB+LS-.05,d));
+      const th=Math.atan2(py,pr)+Math.acos((LB*LB+d*d-LS*LS)/(2*LB*d)), bt=[LB*Math.sin(th),LB*Math.cos(th)], fs=Math.atan2(py-bt[0],pr-bt[1]), fk=st.k*D2R;
+      boom.rotation.x=-th; stick.rotation.x=-(fs-th); bucket.rotation.x=-(fk-fs);
+      // cylinders: boom (house to under the boom), stick (boom top to the stick's tail), bucket (stick to the bucket's link)
+      cB([.55,.85],T2(BP,th,[-.38,2.3]));
+      cS([.95,2.4],T2([0,LB],fs-th,[.5,-.62]));
+      cK([.38,.3],T2([0,LS],fk-fs,[.42,.05]));};
+    pose();
+    return {g,op,load,st,update(dt,on){st.on=on; op.visible=on;
+      if(on){st.t=(st.t+dt)%total; let acc=0, i=1; for(;i<KEYS.length;i++){if(st.t<acc+KEYS[i][0]) break; acc+=KEYS[i][0];} i=Math.min(i,KEYS.length-1);
+        const a=KEYS[i-1], b=KEYS[i], k=Math.min(1,(st.t-acc)/b[0]); st.yaw=sm(a[1],b[1],k); st.r=sm(a[2],b[2],k); st.y=sm(a[3],b[3],k); st.k=sm(a[4],b[4],k);
+        const carry=i===4||i===5||(i===3&&k>.6)||(i===6&&k<.35); if(carry&&!st.loaded){st.loaded=true; st.dropped=false;}
+        if(st.loaded&&i===6&&k>=.35&&!st.dropped){st.dropped=true; st.loaded=false; const a2=house.rotation.y+base; drop(load,Math.sin(a2)*.6,Math.cos(a2)*.6);}
+        load.visible=st.loaded;}
+      else{st.yaw+=(PARK[0]-st.yaw)*Math.min(1,dt*.6); st.r+=(PARK[1]-st.r)*Math.min(1,dt*.6); st.y+=(Math.max(1.3,gAt(st.yaw,st.r)+1.35)-st.y)*Math.min(1,dt*.6); st.k+=(PARK[3]-st.k)*Math.min(1,dt*.6); load.visible=false; st.loaded=false;}
+      pose();}};})();
+
+  // ===== the articulated wheel loader =====
+  const WL=(()=>{const F=new THREE.Group(), R=new THREE.Group(); scene.add(F,R); const WB=1.65, WR=.82;
+    const wheel=(g,x,z)=>{const w=new THREE.Group(); const t=new THREE.Mesh(new THREE.CylinderGeometry(WR,WR,.62,18),new THREE.MeshStandardMaterial({color:0x1b1b1b,roughness:.95})); t.rotation.z=Math.PI/2; w.add(t);
+      const rim=new THREE.Mesh(new THREE.CylinderGeometry(.45,.45,.64,12),new THREE.MeshStandardMaterial({color:YEL})); rim.rotation.z=Math.PI/2; w.add(rim); for(let k=0;k<8;k++){const lug=part(.64,.12,.22,0x111111,0,0,0); const a=k/8*Math.PI*2; lug.position.set(0,Math.cos(a)*WR,Math.sin(a)*WR); lug.rotation.x=a; w.add(lug);}
+      w.position.set(x,WR,z); g.add(w); return w;};
+    const wheels=[];
+    // rear frame: engine, grille, counterweight, the cab and its roof, steps, the exhaust
+    for(const sd of [-1,1]){wheels.push(wheel(R,sd*1.05,-WB)); R.add(part(.75,.12,1.9,YEL,sd*1.05,1.72,-WB));}
+    R.add(part(1.3,.6,3.2,DK,0,.95,-1.2)); R.add(part(2.0,1.25,2.2,YEL,0,1.6,-2.15)); R.add(part(1.9,1.0,.08,0x222222,0,1.6,-3.27)); R.add(part(2.3,.7,.5,YEL,0,.95,-3.35)); R.add(part(1.96,.08,2.1,0x3a3a3a,0,2.25,-2.15));
+    R.add(part(1.45,1.55,1.45,YEL,0,2.35,-.6)); R.add(part(1.47,1.15,1.37,VK.glass,0,2.48,-.58)); R.add(part(1.32,1.12,.05,VK.glassHi,0,2.48,.14)); R.add(part(1.65,.1,1.65,DK,0,3.18,-.6)); for(const x of [-.7,.7]) for(const z of [-1.3,.1]) R.add(part(.07,1.35,.07,DK,x,2.48,z));
+    const exh=new THREE.Mesh(new THREE.CylinderGeometry(.08,.08,.9,8),new THREE.MeshStandardMaterial({color:0x222222})); exh.position.set(-.55,2.65,-1.6); R.add(exh); for(let k=0;k<3;k++) R.add(part(.4,.05,.25,0x333333,.95,.7+k*.4,-.4));
+    const op=seat(R,0,1.75,-.6);
+    // front frame: axle, chassis, fenders, the lift arms, the bucket on its tilt link
+    for(const sd of [-1,1]){wheels.push(wheel(F,sd*1.05,WB)); F.add(part(.75,.12,1.9,YEL,sd*1.05,1.72,WB));}
+    F.add(part(1.2,.75,2.6,YEL,0,1.05,1.0)); const pin=new THREE.Mesh(new THREE.CylinderGeometry(.25,.25,1.0,12),new THREE.MeshStandardMaterial({color:DK})); pin.position.set(0,1.0,0); F.add(pin); F.add(part(1.0,1.1,.5,YEL,0,1.6,.7));
+    const AP=[2.05,.85], LA=2.9; const arms=new THREE.Group(); arms.position.set(0,AP[0],AP[1]); F.add(arms);
+    for(const x of [-.75,.75]){seg(arms,YEL,.24,.42,[0,0],[.2,1.4],x); seg(arms,YEL,.24,.36,[.2,1.4],[0,LA],x);} arms.add(part(1.7,.3,.3,YEL,0,.18,1.3));
+    const bk=new THREE.Group(); bk.position.set(0,0,LA); arms.add(bk);
+    bk.add(part(2.7,.08,1.25,0x5a5f63,0,-.62,.55)); seg(bk,0x5a5f63,2.7,.08,[-.62,-.05],[.0,-.22]); seg(bk,0x5a5f63,2.7,.08,[0,-.22],[.45,-.1]); bk.add(part(2.7,.08,.4,0x5a5f63,0,.46,.08));   // floor, curved back, top
+    for(const x of [-1.33,1.33]) seg(bk,0x4d5256,.06,1.0,[-.12,.02],[-.25,.95],x); bk.add(part(2.75,.06,.16,0xb0b4b8,0,-.63,1.22));   // sides, cutting edge
+    const load=chunk(1.8); load.position.set(0,-.3,.5); bk.add(load); load.visible=false;
+    const cL=[-.55,.55].map(x=>cyl(F,x,.13,.075)), cT=cyl(arms,0,.12,.07);
+    // its two paths: a curve from the V-point into the heap, and straight from the V-point to the slope
+    const V=[68,179.5], C1=lnCurve(V,[0,1],[63.6,186.4],[-.866,.5]), C2=[V,[68,195]];
+    const mk=pts=>{const c=[0]; for(let i=1;i<pts.length;i++) c.push(c[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1])); return {pts,c,L:c[c.length-1]};};
+    const P1=mk(C1), P2=mk(C2);
+    const at=(P,s)=>{if(s<=0){const d=[P.pts[1][0]-P.pts[0][0],P.pts[1][1]-P.pts[0][1]], l=Math.hypot(...d); return [P.pts[0][0]+d[0]/l*s,P.pts[0][1]+d[1]/l*s];}
+      if(s>=P.L){const n=P.pts.length, d=[P.pts[n-1][0]-P.pts[n-2][0],P.pts[n-1][1]-P.pts[n-2][1]], l=Math.hypot(...d); return [P.pts[n-1][0]+d[0]/l*(s-P.L),P.pts[n-1][1]+d[1]/l*(s-P.L)];}
+      let i=1; while(P.c[i]<s) i++; const k=(s-P.c[i-1])/(P.c[i]-P.c[i-1]); return [P.pts[i-1][0]+(P.pts[i][0]-P.pts[i-1][0])*k,P.pts[i-1][1]+(P.pts[i][1]-P.pts[i-1][1])*k];};
+    const ALOW=-27*Math.PI/180, ACAR=-12*Math.PI/180, AHIGH=42*Math.PI/180;
+    const lip=(J,h,a,tb)=>{const hz=AP[1]+LA*Math.cos(a), hy=AP[0]+LA*Math.sin(a), q=T2([hy,hz],tb,[-.62,1.22]); return [J[0]+Math.sin(h)*q[1],J[1]+Math.cos(h)*q[1],q[0]];};
+    // where to stop on the way to the slope: as far as the front wheels stay on the flat and the raised bucket clears the garbage
+    let sD=0; for(let s=0;s<P2.L;s+=.05){const J=at(P2,s), h=0, fa=[J[0],J[1]+WB+WR], L2=lip(J,h,AHIGH,.6); if(groundH(fa[0],fa[1])>.05||groundH(L2[0],L2[1])>L2[2]-.9) break; sD=s;}
+    const st={ph:'park',s:0,v:0,a:ALOW,tb:0,t:0,P:P1,roll:0,loaded:false};
+    const place=()=>{const P=st.P, J=at(P,st.s), f=at(P,st.s+WB), b=at(P,st.s-WB); const hf=Math.atan2(f[0]-J[0],f[1]-J[1]), hr=Math.atan2(J[0]-b[0],J[1]-b[1]);
+      F.position.set(J[0],0,J[1]); R.position.set(J[0],0,J[1]); F.rotation.y=hf; R.rotation.y=hr; for(const w of wheels) w.rotation.x=st.roll/WR;
+      arms.rotation.x=-st.a; bk.rotation.x=-st.tb+st.a;
+      const hp=[AP[0]+LA*Math.sin(st.a),AP[1]+LA*Math.cos(st.a)]; cL.forEach(f=>f([.95,1.75],T2(AP,st.a,[-.22,1.25]))); cT([.42,1.3],T2([0,LA],st.tb-st.a,[.45,-.02]));};
+    const drive=(dt,target,vmax)=>{const rem=target-st.s, dir=Math.sign(rem); if(Math.abs(rem)<.02){st.v=0; st.s=target; return true;}
+      const want=Math.min(vmax,Math.sqrt(2*1.0*Math.abs(rem))+.05); st.v=Math.max(0,st.v+Math.max(-1.6*dt,Math.min(1.2*dt,want-st.v))); const ds=Math.min(Math.abs(rem),st.v*dt); st.s+=dir*ds; st.roll+=dir*ds; return false;};
+    const ease=(cur,to,rate,dt)=>cur+Math.max(-rate*dt,Math.min(rate*dt,to-cur));
+    place();
+    return {F,R,op,st,sD,update(dt,on){op.visible=on;
+      if(!on){st.a=ease(st.a,ALOW,.4,dt); st.tb=ease(st.tb,0,.5,dt); st.ph='park'; if(st.s>.02) drive(dt,0,1.2); load.visible=st.loaded; place(); return;}   // the shift is over: back to the V-point, bucket down
+      switch(st.ph){
+        case 'park': if(st.s>.02){drive(dt,0,1.2); break;} st.P=P1; st.s=0; st.ph='toPile'; break;
+        case 'toPile': st.a=ease(st.a,ALOW,.35,dt); st.tb=ease(st.tb,0,.6,dt); if(drive(dt,P1.L,st.s>P1.L-1.4?.7:2.2)){st.ph='scoop'; st.t=0;} break;
+        case 'scoop': st.t+=dt; st.tb=ease(st.tb,.62,.55,dt); st.a=ease(st.a,-.2,.12,dt); if(st.t>.8) st.loaded=true; if(st.t>2.2) st.ph='back1'; break;
+        case 'back1': st.a=ease(st.a,ACAR,.25,dt); if(drive(dt,0,1.8)){st.P=P2; st.s=0; st.ph='toDump';} break;
+        case 'toDump': {const k=st.s/Math.max(.1,sD); st.a=ease(st.a,k>.35?AHIGH:ACAR,.45,dt); if(drive(dt,sD,2.0)&&Math.abs(st.a-AHIGH)<.02){st.ph='dump'; st.t=0;} break;}
+        case 'dump': st.t+=dt; st.tb=ease(st.tb,-.85,.9,dt); if(st.loaded&&st.tb<-.25){st.loaded=false; const h=F.rotation.y; drop(load,Math.sin(h)*.8,Math.cos(h)*.8);} if(st.t>2.4) st.ph='back2'; break;
+        case 'back2': st.tb=ease(st.tb,0,.6,dt); st.a=ease(st.a,st.s<sD*.5?ALOW:ACAR,.4,dt); if(drive(dt,0,1.8)){st.P=P1; st.s=0; st.ph='toPile';} break;}
+      load.visible=st.loaded; place();}};})();
+
+  return {groundH,moundH,EX,WL,drops,update(dt,t,onEx,onWl){if(!(dt>0)) return; dt=Math.min(dt,.1); EX.update(dt,onEx); WL.update(dt,onWl); dropTick(dt);}};
+})();
+
 /* ---------- The utilities bus and the landfill machines ----------
    A district bus loops from the highway round the district roads past the landfill, the power plant and the water works, stopping
    at a waiting shed at each. In the morning the staff get off and walk in to work; after four they walk back to the shed and ride
@@ -8789,46 +8948,10 @@ const UTIL_BUS=(()=>{
   const seatAt=(S,i)=>{const a=S.ry, off=-1.1+(i>>1)*1.1; return [S.shed[0]+Math.cos(a)*off+Math.sin(a)*.42, S.shed[1]-Math.sin(a)*off+Math.cos(a)*.42];};
   const waitAt=(S,i)=>{const a=S.ry, off=-1.2+i*.8; return [S.shed[0]+Math.cos(a)*off, S.shed[1]-Math.sin(a)*off-Math.cos(a)*.1];};
 
-  // ===== the landfill machines =====
-  const seat=g=>{const d=bakePerson(look(0xff7043,0xf1c40f),poseSit,true); g.add(d); d.visible=false; return d;};
-  const backhoe=(()=>{const g=new THREE.Group();
-    for(const sx of [-1.15,1.15]){g.add(part(.75,.8,4.2,D,sx,.42,0)); for(const z of [-1.7,0,1.7]) g.add(part(.8,.5,.5,0x555555,sx,.42,z));}
-    const house=new THREE.Group(); house.position.y=.95; g.add(house);
-    house.add(part(2.7,.5,3.6,0x3a3a3a,0,.1,0)); house.add(part(2.6,1.1,2.8,Y,.15,.85,-.6)); house.add(part(2.6,.9,.9,0x4a4a4a,.15,.75,-1.95));   // deck, engine house, counterweight
-    house.add(part(1.1,1.5,1.3,Y,-.75,1.1,.95)); house.add(part(1.0,1.0,1.2,0x2b3a48,-.75,1.25,.96)); house.add(part(1.2,.08,1.4,Y,-.75,1.88,.95));   // cab
-    const op=seat(house); op.position.set(-.75,.55,1.0);
-    const boom=new THREE.Group(); boom.position.set(.35,.9,1.2); house.add(boom); boom.add(part(.45,.55,4.4,Y,0,0,2.1));
-    const arm=new THREE.Group(); arm.position.set(0,0,4.3); boom.add(arm); arm.add(part(.35,.4,3,Y,0,0,1.4));
-    const bucket=new THREE.Group(); bucket.position.set(0,0,2.9); arm.add(bucket); bucket.add(part(1.1,.7,.8,0x555555,0,-.3,.2)); bucket.add(part(1.1,.08,.5,0x777777,0,-.7,.45));
-    const load=part(.9,.4,.6,0x6d5a3a,0,-.15,.2); bucket.add(load);
-    g.position.set(97.5,0,189.4); g.rotation.y=-Math.PI/2; scene.add(g); g.traverse(o=>{if(o.isMesh) o.castShadow=true;});
-    return {g,house,boom,arm,bucket,load,op,ph:0};})();
-  const loader=(()=>{const g=new THREE.Group();
-    g.add(part(2.1,.9,2.6,Y,0,1.1,-1.1)); g.add(part(2.2,.6,1.0,0x4a4a4a,0,1.2,-2.5)); g.add(part(1.6,1.0,2.2,Y,0,1.0,1.4));   // rear engine body, grille, front frame
-    g.add(part(1.5,1.4,1.5,Y,0,2.25,-.2)); g.add(part(1.4,1.0,1.42,0x2b3a48,0,2.35,-.2)); g.add(part(1.6,.08,1.6,Y,0,3.0,-.2));   // cab
-    for(const sx of [-1,1]) for(const z of [-1.5,1.6]){const w=new THREE.Mesh(new THREE.CylinderGeometry(.75,.75,.6,14),new THREE.MeshStandardMaterial({color:0x1b1b1b,roughness:.9})); w.rotation.z=Math.PI/2; w.position.set(sx*1.1,.75,z); g.add(w);}
-    const op=seat(g); op.position.set(0,1.55,-.2);
-    const lift=new THREE.Group(); lift.position.set(0,1.4,1.9); g.add(lift); for(const sx of [-.7,.7]) lift.add(part(.22,.3,2.2,Y,sx,0,1.0));
-    const bk=new THREE.Group(); bk.position.set(0,0,2.1); lift.add(bk); bk.add(part(2.5,1.0,.18,0x555555,0,-.2,.55)); bk.add(part(2.5,.12,1.0,0x555555,0,-.7,.1)); for(const sx of [-1.2,1.2]) bk.add(part(.1,.9,.9,0x555555,sx,-.25,.15));
-    const load=part(2.2,.5,.8,0x6d5a3a,0,-.4,.2); bk.add(load);
-    g.position.set(69,0,184); scene.add(g); g.traverse(o=>{if(o.isMesh) o.castShadow=true;});
-    return {g,lift,bk,load,op,ph:0};})();
-  const machineTick=(dt,t,onB,onL)=>{
-    {const M=backhoe; M.op.visible=onB; if(onB){M.ph+=dt; const c=(M.ph/14)%1;   // dig, lift, swing to the mound, dump, swing back
-        const swing=c<.2?0:c<.4?(c-.2)/.2:c<.6?1:c<.8?1-(c-.6)/.2:0, e=s=>s*s*(3-2*s);
-        M.house.rotation.y=e(swing)*1.2; M.boom.rotation.x=c<.15?.35-c/.15*.25:c<.6?-.25:c<.7?-.25+(c-.6)/.1*.5:.25; M.arm.rotation.x=c<.15?.9-c/.15*.5:c<.6?.4:c<.7?.4+(c-.6)/.1*.6:1.0;
-        M.bucket.rotation.x=c<.15?1.2-c/.15*1.6:c<.6?-.4:c<.7?-.4+(c-.6)/.1*1.8:1.2; M.load.visible=c>.1&&c<.66;}
-      else{M.house.rotation.y*=.95; M.boom.rotation.x=.5; M.arm.rotation.x=1.3; M.bucket.rotation.x=1.6; M.load.visible=false;}}
-    {const M=loader; M.op.visible=onL; if(onL){M.ph+=dt; const c=(M.ph/16)%1, e=s=>s*s*(3-2*s);   // push a heap forward onto the cell, back up, turn a little, again
-        const fwd=c<.45?e(c/.45):c<.55?1:1-e((c-.55)/.45), lane=Math.floor(M.ph/16)%3;
-        M.g.position.set(69+lane*2.2,0,184+fwd*7); M.g.rotation.y=0; M.lift.rotation.x=c<.45?.15:c<.55?.15-(c-.45)/.1*.65:-.5+((c-.55)/.45)*.65; M.bk.rotation.x=c<.45?-.2:c<.55?.6:.2;
-        M.load.visible=c<.48;}
-      else{M.lift.rotation.x=.2; M.bk.rotation.x=0; M.load.visible=false;}}};
-
   // ===== the staff who ride the bus =====
   const staff=[
     {site:'landfill',job:'backhoe',at:[99.8,186.6],top:0xff7043,hat:0xf1c40f,off:16.4},
-    {site:'landfill',job:'loader',at:[66.8,183.4],top:0xef6c00,hat:0xf1c40f,off:16.5},
+    {site:'landfill',job:'loader',at:[70.6,177.4],top:0xef6c00,hat:0xf1c40f,off:16.5},
     {site:'landfill',at:[66,163.4],top:0x6d4c41,hat:0x8bc34a,off:17.4},   // to the MRF shed
     {site:'landfill',at:[77.4,161],top:0x37474f,hat:0x263238,off:19.6},   // the weighbridge clerk, the last truck in
     {site:'power',at:[126,111.5],top:0x2a5e93,hat:0xf1c40f,off:21.2},   // the evening shift ends at nine
@@ -8874,8 +8997,8 @@ const UTIL_BUS=(()=>{
     else if(w.state==='wait'){const S=SITES[w.site]; if(w.seat){poseSit(w.p); R.position.y=.24;} else poseStand(w.p,performance.now()/1000+w.ph); R.rotation.y=lerpAng(R.rotation.y,S.ry+Math.PI,.15); if(h>=1.5&&h<4){R.visible=false; w.state='home';}}   // very late: a ride home with a friend   // the last bus has gone: a ride home with a friend
     else if(w.state==='board'){w.delay-=dt; if(w.delay<=0&&walk(w,dt,1.4)){R.visible=false; w.state='home';}}
   }};
-  return {buses,staff,SITES,backhoe,loader,update(dt,t){if(document.hidden||!lnNet()) return; for(const B of buses) busTick(B,dt); staffTick(dt); gates.update(dt);
-    const work=s=>staff.some(w=>w.job===s&&w.state==='work'), h=gameHour(); machineTick(dt,t,work('backhoe')&&h<16.3,work('loader')&&h<16.3);}};
+  return {buses,staff,SITES,update(dt,t){if(document.hidden||!lnNet()) return; for(const B of buses) busTick(B,dt); staffTick(dt); gates.update(dt);
+    const work=s=>staff.some(w=>w.job===s&&w.state==='work'), h=gameHour(); LANDFILL_WORKS.update(dt,t,work('backhoe')&&h<16.3,work('loader')&&h<16.3);}};
 })();
 
 /* ---------- Stage H: the sea, the port (pantalan) and the bay trading business ---------- */
@@ -8942,6 +9065,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:36,date:'Nov 11, 2026',title:'A real landfill: the garbage mound, an excavator and a wheel loader',items:['⛰️ The landfill cell is now a big mound of mixed garbage (bags, boxes, sacks and plastics), with the far side already capped with soil, and loose heaps where the trucks tip.','🦾 A new excavator works the tipping floor: crawler tracks, a house that swings, a bent boom, a stick and a toothed bucket, all on hydraulic cylinders. It reaches out, digs into the heap, curls the bucket, lifts, swings round and dumps up on the slope, then swings back. The bucket never goes into the ground.','🚜 A new articulated wheel loader runs a proper Y-cycle: into its heap with the bucket flat, scoop and roll back, reverse out bending in the middle, forward to the slope, arms up, tip, and back again. The garbage it dumps falls and lands on the mound.']},
   {v:35,date:'Nov 11, 2026',title:'Landfill gates and the night bus',items:['🚧 The landfill has real gates now: an arch over each truck gate (Sanitary Landfill · Gate 1 in, Gate 2 out) with swing gates that open into the yard, and a boom barrier at the weighbridge. They open before dawn and close after the last bus. Fences everywhere now leave their gateways clear instead of running the wire across them.','🚏 The landfill bus shed now stands outside the fence in its own bay by the road, with a small gate behind it for the staff to walk in.','🌙 Utility staff finish at different times (the weighbridge clerk after the last truck, the plant\'s evening shift at nine), so in the evening you\'ll see them waiting at the lit sheds, some sitting on the bench, until the bus comes. The buses keep running until everyone waiting has been picked up.']},
   {v:34,date:'Nov 11, 2026',title:'A district bus for the utility workers, and machines at the landfill',items:['🚌 Two district buses (DISTRICT · LANDFILL · POWER · WATER) come off the highway at dawn and circle the district roads all day, stopping at new waiting sheds at the landfill, the power plant and the water works. They go back to the depot at night.','👷 Utility staff ride the bus to work: they step off at their shed in the morning and walk in, and after four they walk back to the shed and wait for the bus home.','🚜 The landfill now has a backhoe digging and swinging garbage onto the cell and a payloader pushing the heaps forward. They only start once their operators have come in on the bus, and they park when the shift ends.']},
   {v:33,date:'Nov 11, 2026',title:'The workers\' village and its daycare',items:['🏘️ Sunfield Workers\' Village, south of the power plant on a new street loop: eight blocks of colourful row houses with GI roofs, little front yards, water drums and sampayan full of washing.','🚐 The service shuttle parks overnight at the waiting shed. Before dawn the workers walk out to it and ride off to work; in the late afternoon it brings them home and they walk back to their doors.','🧸 The Daycare Center has a fenced playground with a slide, swings, a seesaw and a sandbox; the children play there all day while the teacher keeps watch.','🪣 In the daytime mothers sweep their yards, hang the washing and pump water at the poso; there is a sari-sari store, a half court, shade trees, and a lolo on the shed bench.']},

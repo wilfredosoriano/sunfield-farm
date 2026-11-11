@@ -959,6 +959,7 @@ let TIME_SHIFT=0;
 /* ---------- calendar: 2 game days per month (a game year is about 5 real hours); bird flu alerts in Dec–Feb, heat waves in Mar–May ---------- */
 const MONTHS=['Ene','Peb','Mar','Abr','May','Hun','Hul','Ago','Set','Okt','Nob','Dis'];
 const gameDayN=(now=Date.now())=>Math.floor((now+TIME_SHIFT)/DAY_MS), monthN=(now=Date.now())=>Math.floor(gameDayN(now)/2);
+const DAYS=['Lun','Mar','Miy','Huw','Biy','Sab','Lin'], weekDay=(now=Date.now())=>gameDayN(now)%7, isSunday=(now=Date.now())=>weekDay(now)===6;   // every seventh day is Linggo (Sunday)
 if(!S.ev) S.ev={};
 const heatOn=(now=Date.now())=>(S.ev.heatEnd||0)>now, fluOn=(now=Date.now())=>S.ev.flu!=null&&S.ev.flu===monthN(now);
 const hotNow=(t,now=Date.now())=>heatOn(now)&&t.n>0&&now-(t.wet||0)>DAY_MS*BALANCE.waterDays;   // in a heat wave animals need water once per game day
@@ -1048,7 +1049,7 @@ function updateDayNight(){
   sun.intensity=.95-.68*NK; sun.color.copy(S_DAY).lerp(S_NIGHT,NK).lerp(S_DUSK,.5*dusk*(1-NK*.6));
   for(const m of GLOW_MATS){m.opacity=NK*m.userData.k; m.visible=NK>.02;}
   LAMP_MAT.color.copy(L_OFF).lerp(L_ON,NK); MTN_MAT.color.setRGB(1,1,1).lerp(MTN_NIGHT,NK*.85);
-  const hh=Math.floor(h), mm=Math.floor((h-hh)*60/10)*10, txt=`${NK>.5?'🌙':(h>=5&&h<7.5)||(h>=16.5&&h<19)?'🌅':'☀️'} ${((hh+11)%12)+1}:${String(mm).padStart(2,'0')} ${hh<12?'AM':'PM'} · ${MONTHS[monthN()%12]}${heatOn()?' 🥵':''}${rainOn()?' 🌧️':''}`;
+  const hh=Math.floor(h), mm=Math.floor((h-hh)*60/10)*10, txt=`${NK>.5?'🌙':(h>=5&&h<7.5)||(h>=16.5&&h<19)?'🌅':'☀️'} ${((hh+11)%12)+1}:${String(mm).padStart(2,'0')} ${hh<12?'AM':'PM'} · ${DAYS[weekDay()]} ${MONTHS[monthN()%12]}${heatOn()?' 🥵':''}${rainOn()?' 🌧️':''}`;
   if(txt!==clockTxt){clockTxt=txt; const el=document.getElementById('clockTxt'); if(el) el.textContent=txt;}
   const w=h>=6&&h<18; if(wasWork!==null&&w!==wasWork&&S.helpers&&S.helpers.length) toast(w?'🌅 Magandang umaga! Your trabahador are taking the bus back to work.':'🌇 Alas-sais na! Your trabahador are going home to rest.',3200); wasWork=w;
 }
@@ -2801,6 +2802,19 @@ function buildSouthLanes(E,Es,W,Ws){
   for(const b of ends.utility.outs)lnTurn(out,b.L,{pri:3,vmax:3,d0:[0,1]});
 }
 
+// the church car park: in from the west end road at z -150, along the in-aisle with a row of stalls, round the end, back along the
+// out-aisle past the second row, and out onto the road towards the highway. Cars drive in nose first and back out into the aisle.
+const CHURCH_STALLS=[];
+function churchLot(wN,wS){const REV=2, xs=[29.5,26,22.5,19,15.5,12], cutsA=[], cutsB=[];
+  for(const x of xs){cutsA.push(x+4.5,x-5.5); cutsB.push(x-4.5,x+5.5);}
+  const A=lnRoad('lot:in',[35,-158],[5,-158],{cuts:cutsA,vmax:3,w:2.6,pri:3,solo:true}), Bo=lnRoad('lot:out',[5,-174],[36,-174],{cuts:cutsB,vmax:3,w:2.6,pri:3,solo:true});
+  lnTurn(wN.endAt(-150),A.first,{pri:2,vmax:4}); lnTurn(A.last,Bo.first,{vmax:3,solo:true}); lnTurn(Bo.last,wS.startAt(-164),{pri:3,vmax:4});
+  for(const x of xs){
+    {const sp=lnLane('lot:a'+x,[[x,-160.6],[x,-163.2]],{vmax:REV,solo:true}); lnTurn(A.endAt(x+4.5),sp,{vmax:2.5,solo:true});   // row A, nose towards the out-aisle
+      const rv=lnLane(null,lnCurve([x,-163.2],[0,1],[x-4.6,-158],[-1,0]),{turn:true,rev:true,vmax:REV,solo:true}); lnLink(sp,rv); lnTurn(rv,A.startAt(x-5.5),{vmax:2.5,solo:true,d0:[-1,0]}); CHURCH_STALLS.push({name:'lot:a'+x,x,z:-162.6,side:-1});}
+    {const sp=lnLane('lot:b'+x,[[x,-171.4],[x,-168.8]],{vmax:REV,solo:true}); lnTurn(Bo.endAt(x-4.5),sp,{vmax:2.5,solo:true});   // row B, nose towards the in-aisle
+      const rv=lnLane(null,lnCurve([x,-168.8],[0,-1],[x+4.6,-174],[1,0]),{turn:true,rev:true,vmax:REV,solo:true}); lnLink(sp,rv); lnTurn(rv,Bo.startAt(x+5.5),{vmax:2.5,solo:true,d0:[1,0]}); CHURCH_STALLS.push({name:'lot:b'+x,x,z:-169.4,side:1});}}
+}
 function lnBuild(){
   const H=16, SIDE=8, POCK=3.5, REV=2;
   // ---- highway: every store car park, side road and driveway joins it inside a box
@@ -2818,7 +2832,8 @@ function lnBuild(){
     const rw=lnLane(null,lnCurve([sx,sz],[0,1],[sx+5,-114.8],[1,0]),{turn:true,rev:true,vmax:REV}), re=lnLane(null,lnCurve([sx,sz],[0,1],[sx-5,-114.8],[-1,0]),{turn:true,rev:true,vmax:REV});
     lnLink(sp,rw); lnLink(sp,re); lnTurn(rw,Ws(sx-4),{pri:3,d0:[-1,0]}); lnTurn(re,Es(sx+8),{pri:3,d0:[1,0]});});
   // the west end road up to the barangay, and the sakayan bay where the bus and jeepney load off the lane
-  const wN=lnRoad('wN',[41.75,-115],[41.75,-177],{vmax:SIDE,w:2.6,boxes:[[-173,-177]]}), wS=lnRoad('wS',[38.25,-181],[38.25,-115],{vmax:SIDE,w:2.6,boxes:[[-181,-177]]});   // the corner at the back road is a box
+  const wN=lnRoad('wN',[41.75,-115],[41.75,-177],{vmax:SIDE,w:2.6,boxes:[[-150,-160],[-173,-177]]}), wS=lnRoad('wS',[38.25,-181],[38.25,-115],{vmax:SIDE,w:2.6,boxes:[[-181,-164],[-160,-150]],cuts:[-177]});   // the corner at the back road is a box; the church car park opens at -150..-174
+  churchLot(wN,wS);   // the corner at the back road is a box
   lnTurn(W(45),wN.first,{pri:1}); lnTurn(E(35),wN.first,{pri:2}); lnTurn(wS.last,Ws(35),{pri:3}); lnTurn(wS.last,Es(45),{pri:3});
   const bay=lnLane('bay',[[45,-105.3],[59,-105.3]],{vmax:POCK,w:2.4}); lnTurn(E(38),bay,{pri:1,vmax:5}); lnTurn(bay,Es(66),{pri:3});
   // bagsakan: a shoulder lane along the docks; vans pull past and back in, traders back into the unloading bay
@@ -3523,7 +3538,7 @@ function irrigationSite(x,z,m=0){m=Math.max(0,m);return (x>118-m&&x<190+m&&z>100
     ||nearSea(x,z,m+2)||(x>366-m&&x<444+m&&z>-102-m&&z<-76+m)   // the beach, the sea and the port yard
     ||(x>PX-25-m&&x<PX+25+m&&z>PZ-19-m&&z<HZ-4)||(x>HWX-14-m&&x<HWX+14+m&&z>HZ-25-m&&z<HZ-4)||(x>PSX-14-m&&x<PSX+14+m&&z>HZ-25-m&&z<HZ-4)||(x>SSX-12-m&&x<SSX+12+m&&z>HZ-25-m&&z<HZ-4)||(x>DX+1-m&&x<DX+32+m&&z>HZ+3-m&&z<HZ+12+m)||(x>34-m&&x<336+m&&z>-218-m&&z<-164+m)||(x>34-m&&x<46+m&&z>-190&&z<HZ-4)||(x>324-m&&x<336+m&&z>-190&&z<HZ-4)||(x>PX+38-m&&x<PX+46+m&&z>-190-m&&z<HZ-4)||(x>WHX-14-m&&x<WHX+30+m&&z>HZ-32-m&&z<HZ-4)||(x>FX-30-m&&x<FX+30+m&&z>HZ-64-m&&z<HZ-4)   // sakayan, warehouse, factory
     ||inRect(ORCH,x,z,m)||inRect(UTIL,x,z,m)||inRect(SARI,x,z,m)||wwNear(x,z,Math.max(.6,m))
-    ||(x>42-m&&x<122+m&&z>-185-m&&z<-143+m);   // the civic center: munisipyo, plaza and church
+    ||(x>42-m&&x<122+m&&z>-185-m&&z<-143+m)||(x>1-m&&x<37+m&&z>-179-m&&z<-153+m);   // the civic center (munisipyo, plaza and church) and the church car park
   const trunks=[],blobs=[],segs=[],fronds=[],nuts=[],bleaves=[],culms=[],bananaL=[];
   const GREENS=[0x4a7f3c,0x568a42,0x62944a,0x3a6630,0x46733a,0x6c9a4e];
   const acacia=(x,z,s)=>{ // wide umbrella canopy (rain tree), common along Philippine roads
@@ -8305,6 +8320,44 @@ const CIVIC_CENTER=(()=>{
   for(const [x,z,ry] of benches.concat(umbrellas.map(([x,z])=>[x+.95,z,-Math.PI/2]))) if(r()<.75){const q=bakePerson(look(),poseSit); q.position.set(x,.15,z); q.rotation.y=ry+Math.PI; scene.add(q);}
   return {update(dt,t){if(document.hidden) return; flag.rotation.y=Math.sin(t*1.5)*.12; roofFlag.rotation.y=Math.sin(t*1.7+1)*.12; for(const w of W) workerTick(w,dt,t);}};
 })();
+/* ---------- Sunday mass: families drive to church from morning until afternoon, park in the church car park, walk over for mass and drive home after ---------- */
+const SUNDAY_MASS=(()=>{
+  const r=rng(777), b=[], B=(x,y,z,w,h,d,c,rx=0,ry=0,rz=0)=>b.push(P('box',c,x,y,z,w,h,d,rx,ry,rz));
+  // the car park: asphalt, white stall lines, a kerb with planting, lamps, a sign, and a crosswalk and footpath to the church
+  B(19.5,.05,-166,34,.08,25,0x4a4c50); B(19.5,.07,-166,33,.02,.12,0xf1eee4);
+  for(const x of [29.5,26,22.5,19,15.5,12]){for(const [z0,z1] of [[-160,-164.9],[-167.1,-172]]) for(const dx of [-1.75,1.75]) B(x+dx,.1,(z0+z1)/2,.1,.02,Math.abs(z1-z0),0xf1eee4);}
+  for(const [x,z,w,d] of [[19.5,-153.4,34,.4],[19.5,-178.6,34,.4],[2.4,-166,.4,25]]){B(x,.16,z,w,.24,d,0xd8d4cc); B(x+(d>1?-1.2:0),.12,z+(d>1?0:(z>-166?1.3:-1.3)),d>1?2:w,.1,d>1?d:2,0x7cae54);}
+  for(const [x,z] of [[4,-155],[19,-155],[34,-155],[4,-177],[19,-177],[34,-177]]){b.push(P('cyl',0x2b2b2b,x,2.1,z,.16,4.2,.16)); B(x,4.3,z,.4,.45,.4,0xf5e6a8);}
+  for(let k=0;k<6;k++) B(40,.115,-163+k*.8-2,3.8,.02,.45,0xf1eee4);   // crosswalk over the west end road
+  B(45.5,.08,-163,3,.1,2,0xd3c8b0); B(47,.08,-147.5,2.4,.1,31,0xd3c8b0); B(55,.08,-146.2,14,.1,2.4,0xd3c8b0); B(63.6,.08,-154,2.4,.1,16,0xd3c8b0);   // footpath round the church to its door
+  const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.receiveShadow=true; m.name='Church car park'; scene.add(m);
+  for(const [x,z] of [[4,-155],[19,-155],[34,-155],[4,-177],[19,-177],[34,-177]]) glow(scene,x,4.3,z,3,GM.warm);
+  boardSign(['PARKING','Simbahan · Linggo'],'#1f4e9a','#fff',36.2,-155.2,Math.PI/2,2.6,.8,1.6,0x3b4a3f,false);
+
+  // the cars and their families
+  const types=['vios','innova','fortuner','hilux','l300','innova','vios','fortuner','l300','vios','innova','hilux'];
+  const route=[[40,-163],[45.5,-163],[47,-150],[47,-146.2],[63.6,-146.2],[63.6,-162]];   // from the crosswalk round the church to the door
+  const fleet=types.map((t,k)=>{const g=makeCar(t,CAR_COLS[(k*3+1)%CAR_COLS.length]); g.visible=false;
+    const fam=[]; for(let q=0;q<1+((r()*3)|0);q++){const L=randLook(r); L.bag=null; const p=makePerson(L); p.root.visible=false; scene.add(p.root); fam.push({p,ph:r()*6,i:0,path:null,done:false});}
+    return {g,type:t,fam,lv:null,state:'home',timer:5+k*22+r()*15,sunday:-1,stall:null};});
+  const taken=new Set();
+  const famWalk=(f,dt,sp=1.1)=>{const R=f.p.root, q=f.path[f.i], dx=q[0]-R.position.x, dz=q[1]-R.position.z, d=Math.hypot(dx,dz);
+    if(d<.08){f.i++; if(f.i>=f.path.length){f.done=true;} return;} const st=Math.min(d,dt*sp); R.position.x+=dx/d*st; R.position.z+=dz/d*st; R.position.y=.1;
+    R.rotation.y=lerpAng(R.rotation.y,Math.atan2(dx,dz),Math.min(1,dt*8)); f.ph+=st*5.6; poseWalk(f.p,f.ph);};
+  return {fleet,update(dt,t){if(document.hidden||!lnNet()) return; const now=Date.now(), h=gameHour(), day=gameDayN(now), sun=isSunday(now);
+    for(const c of fleet){if(!c.lv) c.lv=lnVeh(c.g,{len:c.type==='l300'||c.type==='hilux'?5:4.7,width:2.1,vmax:10,acc:1.6}); const v=c.lv;
+      if(c.state==='home'){if(!sun||h<6.5||h>15||c.sunday===day) continue; c.timer-=dt; if(c.timer>0) continue; c.timer=3;
+        const st=CHURCH_STALLS.find(s=>!taken.has(s.name)); if(!st) continue; const from=r()<.5?'LE':'LW', P=lnPath(from,st.name);
+        if(P&&lnFreeAt(P[0],v.len/2,v.len,v,25)){lnGo(v,P,null,{v:9}); taken.add(st.name); c.stall=st; c.from=from; c.state='coming'; c.sunday=day;}}
+      else if(c.state==='coming'&&(v.atStop||v.done)){c.state='walk'; const g=c.g, a=g.rotation.y, side=[Math.cos(a),-Math.sin(a)];
+        c.fam.forEach((f,i)=>{const R=f.p.root; R.position.set(g.position.x+side[0]*(1.4+i*.5),.1,g.position.z+side[1]*(1.4+i*.5)); R.visible=true; f.path=[[c.stall.x,c.stall.side<0?-159:-173+0],[38,c.stall.side<0?-159:-163],...route].map(q=>[q[0]+i*.35,q[1]]); f.i=0; f.done=false;});}
+      else if(c.state==='walk'){c.fam.forEach(f=>{if(!f.done) famWalk(f,dt); else {f.p.root.visible=false;}}); if(c.fam.every(f=>f.done)){c.state='mass'; c.timer=55+r()*35;}}   // inside for mass
+      else if(c.state==='mass'){c.timer-=dt; if(c.timer<=0){c.state='back'; c.fam.forEach((f,i)=>{const R=f.p.root; R.position.set(63.6+i*.4,.1,-162); R.visible=true; f.path=route.slice().reverse().concat([[38,c.stall.side<0?-159:-163],[c.stall.x+1.6,c.stall.side<0?-159:-173]]).map(q=>[q[0]+i*.35,q[1]]); f.i=0; f.done=false;});}}
+      else if(c.state==='back'){c.fam.forEach(f=>{if(!f.done) famWalk(f,dt,1.0); else f.p.root.visible=false;});
+        if(c.fam.every(f=>f.done)){const P=lnPath(c.stall.name,c.from==='LE'?'LW$':'LE$'); if(P&&lnNext(v,P)){c.state='leaving'; taken.delete(c.stall.name);}}}
+      else if(c.state==='leaving'&&v.done){lnHide(v); c.state='home'; c.timer=10+r()*30;}}
+  }};
+})();
 /* ---------- Stage H: the sea, the port (pantalan) and the bay trading business ---------- */
 if(!S.bay) S.bay={owned:false,stock:{},ship:null};
 const BAY_LV=12, BAY_PRICE=50000, BAY_RATE=1.6, SHIP_T={out:30,away:45,back:30};
@@ -8369,6 +8422,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:29,date:'Nov 11, 2026',title:'Sunday mass at the parokya',items:['📅 The clock now shows the day of the week. Every seventh day is Linggo (Sunday).','⛪ On Sundays, families drive to church from about 7 in the morning until mid-afternoon: up to a dozen cars, vans and pickups.','🅿️ A new church car park across the west road: two rows of marked stalls, lamp posts, a sign, and a crosswalk and footpath round to the church door. Cars drive in nose first, the family walks over for mass, comes back, and the car backs out and drives home.']},
   {v:28,date:'Nov 11, 2026',title:'The poblacion gets its civic center',items:['🏛️ The Munisipyo (town hall) now stands between the palengke and the barangay: two storeys, an arcade of columns, a balcony over the door, the town seal and a flag on the roof.','🇵🇭 In front of it, the plaza: the flagpole with the Philippine flag, a fountain, benches, lamp posts, trees in grass plots, a small stage and café tables under red umbrellas.','⛪ The Parokya ni San Isidro, with its white facade, rose window and bell tower, faces the plaza from the west.','🚶 A guard on the town hall steps, a clerk going out for merienda, a lola on her way to mass, strollers round the fountain, a street sweeper, a magtataho on his round, and people resting on the benches.']},
   {v:27,date:'Nov 11, 2026',title:'Water, power, garbage and monthly bills',items:['💧 Your farm is on the Sunfield Water main from the irrigation reservoir: blue markers show the buried pipe, there is a water meter at your fence and the pipe comes up to your tangke. Every barangay house has its own meter too.','⚡ Sunfield Power is open south of the district: a diesel plant with fuel tanks, a solar field and a substation. Its line runs past your farm to the highway, with a kWh meter by your garage and a drop to every house in the barangay.','🧾 Bills come every month: water, power and garbage, worked out from your animal houses, planted plots and buildings. They are paid from your coins; anything unpaid gets a 10% late fee. See ⋯ → Bills.','🗑️ The sanitary landfill and MRF: the garbage truck collects your sacks by the farm fence, two collectors ride the back and load them, then it tips them at the landfill.','🚰 A water tanker fills up at the reservoir and drives up to the mountain barangay, where people come out with their pails.','⛽ More cars fill up at the farm fuel station, and the attendant walks out to pump; the co-op gets an extra van. Workers everywhere now go round real jobs: sorting, checking gauges, writing readings, sweeping, sampling the ponds. A meter reader walks the barangay.','🌳 Big acacia, mango, balete and niyog trees along the district roads and round the new buildings, and the district roads now have dirt shoulders instead of city sidewalks.','🚚 Fixed: your chicken truck, jeep and Elf could lock each other up on the highway near the farm for minutes, with traffic piling up behind them. They now ease through after waiting 12 seconds.']},
   {v:26,date:'Nov 10, 2026',title:'Real loads on your Elf and jeep',items:['🚚 The Elf now looks like the blue Isuzu Elf dropside you see on Philippine roads: flat cab with a black face panel, big mirrors on arms, a low blue dropside bed with ribs and hinges, mud flaps and a spare tyre.','🐖 What you load is what you see. Hauling 4 pigs puts exactly 4 pigs in the bed, the same pigs from your pen. Goats, cows, piglets and kids work the same way.','📦 Deliveries and purchases show their real cargo: vegetable crates, rice sacks, egg trays, milk cans, feed sacks, chick boxes, lumber, hollow blocks, cement and more, in the amounts you bought or are selling.','🛒 Your farmer fetches each pig with a wheeled cage cart, one at a time from the pen to the truck, and the bed fills up as they load.']},
@@ -8522,6 +8576,7 @@ function frame(now){
   DISTRICT_LIFE.update(dt,t);
   CIVIC.update(dt,t);
   CIVIC_CENTER.update(dt,t);
+  SUNDAY_MASS.update(dt,t);
   updateFarmDispatch(Date.now(),dt);
   if(now-lastTick>300){lastTick=now; const d=Date.now(); updateVehicles(d); updateTravelHUD(d); for(let i=0;i<NT;i++){const s=S.tiles[i].s; if(s==='crop'||s==='bld') updateTile(i,d);}}
   popping.forEach(g=>{const k=Math.min(1,(now-g.userData.born)/380), e=easeBack(k);

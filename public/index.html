@@ -2058,37 +2058,6 @@ const ROAD_TOP=ROAD_MAT.clone(), ROAD_LOW=ROAD_MAT.clone(); ROAD_TOP.polygonOffs
     // against each other at the same height: the service road draws on top, then the access road, then the tracks and footpaths
     const lay=id==='service'?ROAD_TOP:id==='access'?ROAD_MAT:ROAD_LOW, y=id==='service'?.036:id==='access'?.035:foot?.03:.033;
     const m=new THREE.Mesh(ribbon(R.s,R.w,foot?[0x9d9a6e,0xb9a682,0xc2b08c]:[0x8f8c5e,0x8c7657,0xa89272],y,id.length*31),lay); m.receiveShadow=true; scene.add(m);}
-  // junctions: where each animal track leaves the main dirt road, the two are joined like a real turn-off. A flared mouth with curved
-  // corners is laid over both, its colours running from the main road's (ruts, crown) into the track's, so the main road's grassy edge
-  // no longer cuts across the entrance; and worn wheel marks curve from the main road's ruts into the track's for both turning directions.
-  {const MAIN=ROADS.service, hwM=MAIN.w/2, EDGE=new THREE.Color(0x8f8c5e), RUT=new THREE.Color(0x8c7657), CROWN=new THREE.Color(0xa89272), WEAR=new THREE.Color(0x86714f);
-   const pos=[], col=[], idx=[], wp=[], wc=[], wi=[], c=new THREE.Color(), sm=u=>{u=Math.max(0,Math.min(1,u)); return u*u*(3-2*u);};
-   const prof=a=>a>=1?EDGE:a>=.42?c.copy(RUT).lerp(EDGE,(a-.42)/.58).clone():c.copy(CROWN).lerp(RUT,a/.42).clone();   // the track ribbon's own colours at a fraction of its half-width
-   const mainAt=s=>s<.42*hwM?c.copy(CROWN).lerp(RUT,s/(.42*hwM)).clone():RUT;   // across the main road from its middle outwards
-   const strip=(P,w,col0)=>{const b=wp.length/3; for(let i=0;i<P.length;i++){const a=P[Math.max(0,i-1)], d=P[Math.min(P.length-1,i+1)], L=Math.hypot(d[0]-a[0],d[1]-a[1])||1, nx=-(d[1]-a[1])/L, nz=(d[0]-a[0])/L, f=Math.sin(Math.PI*i/(P.length-1));
-       for(const sd of [-1,1]){wp.push(P[i][0]+nx*sd*w/2,.0395,P[i][1]+nz*sd*w/2); c.copy(RUT).lerp(col0,.15+.55*f); wc.push(c.r,c.g,c.b);}}
-     for(let i=0;i<P.length-1;i++){const a=b+i*2; wi.push(a,a+1,a+2,a+1,a+3,a+2);}};
-   const bez=(A,B,C,n=14)=>Array.from({length:n+1},(_,k)=>{const t=k/n, u=1-t; return [u*u*A[0]+2*u*t*B[0]+t*t*C[0],u*u*A[1]+2*u*t*B[1]+t*t*C[1]];});
-   for(const id of LIVE_ROADS){if(!id.startsWith('t-')) continue; const T=ROADS[id], S=T.s, hwT=T.w/2, J=S[0];
-     let k=0, bd=1e9; MAIN.s.forEach(([x,z],q)=>{const d=Math.hypot(x-J[0],z-J[1]); if(d<bd){bd=d; k=q;}}); if(bd>hwM) continue;
-     const m0=MAIN.s[Math.max(0,k-2)], m1=MAIN.s[Math.min(MAIN.s.length-1,k+2)], mL=Math.hypot(m1[0]-m0[0],m1[1]-m0[1])||1, mx=(m1[0]-m0[0])/mL, mz=(m1[1]-m0[1])/mL;
-     const O=MAIN.s[k];   // the junction on the main road's centre line; the track leaves along d
-     let far=S[S.length-1]; for(const p of S) if(Math.hypot(p[0]-O[0],p[1]-O[1])>=4.5){far=p; break;}
-     const dL=Math.hypot(far[0]-O[0],far[1]-O[1])||1, dx=(far[0]-O[0])/dL, dz=(far[1]-O[1])/dL, sn=Math.max(.55,Math.abs(dx*mz-dz*mx)), mE=hwM/sn;   // distance along the track to the main road's edge
-     const R=2.6, s0=mE*.5, s1=Math.min(dL,mE+R+1.2), N=Math.ceil((s1-s0)/.3), F=[-1,-.8,-.42,-.15,0,.15,.42,.8,1], base=pos.length/3;
-     for(let i=0;i<=N;i++){const s=s0+(s1-s0)*i/N, u=Math.max(0,Math.min(1,(s-mE)/R)), hw=hwT*(1-.1*sm((s-s1+.8)/.8))+R*(1-u)*(1-u), wm=1-sm((s-.6*mE)/(.6*mE));
-       for(const f of F){const x=O[0]+dx*s-dz*f*hw, z=O[1]+dz*s+dx*f*hw; pos.push(x,.037,z); const tc=prof(Math.abs(f)*hw/hwT), mc=Math.abs(f)*hw>hwT+.2&&s>mE?EDGE:mainAt(s); c.copy(tc).lerp(mc,wm); col.push(c.r,c.g,c.b);}}
-     for(let i=0;i<N;i++) for(let j=0;j<F.length-1;j++){const a=base+i*F.length+j, b2=a+F.length; idx.push(a,a+1,b2,a+1,b2+1,b2);}
-     // wheel marks: from each lane of the main road, curving through the mouth into the track's two ruts
-     const sideT=[-dz,dx]; for(const dir of [-1,1]) for(const w of [-.78,.78]){
-       const L0=hwT+R+.6, lat=[dir*mz,-dir*mx];   // a wheel's sideways offset while still driving along the main road
-       const A=[O[0]+mx*dir*L0+dx*.95+lat[0]*w, O[1]+mz*dir*L0+dz*.95+lat[1]*w];
-       const end=[O[0]+dx*(mE+R+.9)+sideT[0]*w, O[1]+dz*(mE+R+.9)+sideT[1]*w], ctl=[O[0]+dx*.95+sideT[0]*w+lat[0]*w, O[1]+dz*.95+sideT[1]*w+lat[1]*w];
-       strip(bez(A,ctl,end),.17,WEAR);}}
-   const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(col,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(pos.map((_,i)=>i%3===1?1:0),3)); g.setIndex(idx);
-   const JM=ROAD_MAT.clone(); JM.polygonOffsetFactor=JM.polygonOffsetUnits=-3.2; const jm=new THREE.Mesh(g,JM); jm.receiveShadow=true; scene.add(jm);
-   const h=new THREE.BufferGeometry(); h.setAttribute('position',new THREE.Float32BufferAttribute(wp,3)); h.setAttribute('color',new THREE.Float32BufferAttribute(wc,3)); h.setAttribute('normal',new THREE.Float32BufferAttribute(wp.map((_,i)=>i%3===1?1:0),3)); h.setIndex(wi);
-   const WM=ROAD_MAT.clone(); WM.polygonOffsetFactor=WM.polygonOffsetUnits=-3.6; const wm=new THREE.Mesh(h,WM); wm.receiveShadow=true; scene.add(wm);}
   const along=(S,k,off)=>{const a=S[Math.max(0,k-1)], b=S[Math.min(S.length-1,k+1)], L=Math.hypot(b[0]-a[0],b[1]-a[1])||1; return [S[k][0]-(b[1]-a[1])/L*off,S[k][1]+(b[0]-a[0])/L*off];};
   const n=ACCESS.length; [[.22,.85,.2,1.3],[.5,.95,.22,4.1],[.78,.8,.18,2.6]].forEach(([u,r,d,s],k)=>{const [x,z]=along(ACCESS,Math.floor(n*u),k%2?.7:-.65); POTHOLES.push({x,z,r,d,s});});
   const put=(geo,x,z,rot)=>{const [g,c]=geo; return [g,Mx(x,0,z,1,1,1,0,rot,0),c];};
@@ -9646,7 +9615,6 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
-  {v:51,date:'Nov 12, 2026',title:'Tracks that really join the road',items:['🛤️ Each track to an animal area now joins the main dirt road like a real turn-off: the mouth flares out with curved corners, the dirt runs from the main road into the track without the road\'s grassy edge cutting across, and worn wheel marks curve in from both directions.']},
   {v:50,date:'Nov 12, 2026',title:'Old dirt roads and tidy gates',items:['🛤️ The farm roads are back to their old dirt look. Where each animal track and footpath meets the service road, the surfaces no longer flicker.','🚪 Every animal area\'s gate is rebuilt: the fence stops flush at two square posts, two gate leaves fold back flat inside, and the name board stands beside the gate facing the road, clear of the road and of the gate.']},
   {v:49,date:'Nov 12, 2026',title:'A tidier home farm',items:['🌱 The field\'s ploughed rows now run unbroken from plot to plot, the soil varies a little from plot to plot, and low edging boards on stakes frame the beds.','💧 The irrigation canal in front of the field is lined with stone lips and grassy banks, with a slatted footbridge and two flush plank crossings. A hose reel, a bucket, a watering can and a hoe and rake sit on the grass edge beside the beds.','🌳 Young orchard trees now start as staked saplings (bananas as small suckers) before growing into full trees. Every plot has a marker stake, ripe trees get a picking basket and a windfall or two, and trodden paths run between the rows and past the kubol.','🛤️ The footpaths are packed earth, and the farm canal\'s road crossing is a culvert slab with pipe mouths in its headwalls.']},
   {v:48,date:'Nov 12, 2026',title:'A fuller orchard',items:['🌳 The halamanan now has 54 plots instead of 18, planted closer together like a real orchard: four rows across, 3 m apart, and fourteen along it. Your trees moved to the nearest new plot and keep their growth.','🗺️ The orchard menu shows all plots as a small map laid out like the orchard; tap one to switch.']},

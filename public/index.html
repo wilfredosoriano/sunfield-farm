@@ -4122,7 +4122,7 @@ function pan(dx,dy){
   const s=cam.dist*.0022, sy=Math.sin(cam.yaw), cy=Math.cos(cam.yaw);
   cam.target.x+=-cy*dx*s - sy*dy*s;
   cam.target.z+= sy*dx*s - cy*dy*s;
-  cam.target.x=Math.max(-215,Math.min(520,cam.target.x)); cam.target.z=Math.max(-380,Math.min(cam.target.x>220?160:105,cam.target.z));   // the whole map: the far farm corners, the factory, the mountain barangay
+  cam.target.x=Math.max(-215,Math.min(520,cam.target.x)); cam.target.z=Math.max(-380,Math.min(cam.target.x>220?160:235,cam.target.z));   // the whole map: the far farm corners, the factory, the mountain barangay, the landfill and the workers' village
 }
 const zoom=f=>{cam.dist=Math.max(10,Math.min(130,cam.dist*f));};
 const ptrs=new Map(); let down=null, moved=false, btn=0, pinch=null, moveCand=-1, moving=null;

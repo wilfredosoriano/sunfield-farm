@@ -819,7 +819,8 @@ function graphPath(s,t){const n=WALK.N.length, dist=new Float64Array(n).fill(1e9
   for(;;){let u=-1,best=1e9; for(let i=0;i<n;i++) if(!done[i]&&dist[i]<best){best=dist[i]; u=i;} if(u<0||u===t) break; done[u]=1;
     for(const [v,w] of WALK.E[u]) if(dist[u]+w<dist[v]){dist[v]=dist[u]+w; prev[v]=u;}}
   const out=[]; for(let u=t;u>=0;u=prev[u]) out.unshift(WALK.N[u]); return out;}
-function planRoute(ax,az,bx,bz){const A=areaAt(ax,az), B=areaAt(bx,bz);
+function planRoute(ax,az,bx,bz){const R=planRoute0(ax,az,bx,bz); if(!NAV||!NAV.ready) return R; const full=NAV.route([ax,az],R.concat([[bx,bz]])); full.pop(); return full;}   // round the house, the bodega, fences and canals
+function planRoute0(ax,az,bx,bz){const A=areaAt(ax,az), B=areaAt(bx,bz);
   if(A>=0&&A===B) return [];
   if(!AREA_BOX.some((b,k)=>k!==A&&k!==B&&segHitsBox(ax,az,bx,bz,b))&&A<0&&B<0) return [];   // open ground all the way
   const via=(x,z)=>{const p=SLOT_SPOT.find(p=>Math.abs(p[0]-x)<.01&&Math.abs(p[1]-z)<.01); return p&&p.via?[p.via]:[];};   // a slot reached along a lane
@@ -1606,7 +1607,7 @@ function makePerson(L){
     g.add(k); return {g,k};
   };
   const aL=arm(1), aR=arm(-1), lL=leg(1), lR=leg(-1);
-  bod.add(aL,aR,lL.g,lR.g); root.scale.setScalar(L.h); root.traverse(o=>{if(o.isMesh) o.castShadow=true;});
+  bod.add(aL,aR,lL.g,lR.g); root.scale.setScalar(L.h); root.traverse(o=>{if(o.isMesh) o.castShadow=true;}); root.userData.person=true;
   return {root,bod,aL,aR,lL,lR,L,snap:true};
 }
 // things people carry sit in their hands: trays rest on the palms, crates and sacks are gripped at the sides, pails and baskets hang from one hand by the handle
@@ -1693,7 +1694,8 @@ function walkerPlan(){
 function residentPlan(){ // from a barangay house up the side street to the palengke, then home again
   const plan=walkerPlan(); if(!HOUSES.length||plan[0][0]<0) return plan;
   const h=HOUSES[(wr()*HOUSES.length)|0], L=q=>[q[0]-PX,q[1]-PZ];
-  const there=[h.door,h.gate,h.walk,[SRX-3.6,h.walk[1]],[SRX-3.6,HZ-4.6]].map(L), back=[[SRX+3.6,HZ-4.6],[SRX+3.6,h.walk[1]],h.walk,h.gate,h.door].map(L);
+  const nv=a=>NAV&&NAV.ready?[a[0]].concat(NAV.route(a[0],a.slice(1))):a;
+  const there=nv([h.door,h.gate,h.walk,[SRX-3.6,h.walk[1]],[SRX-3.6,HZ-4.6]]).map(L), back=nv([[SRX+3.6,HZ-4.6],[SRX+3.6,h.walk[1]],h.walk,h.gate,h.door]).map(L);
   plan.shift(); plan.pop(); return there.concat(plan,back);}
 function spawnWalker(w,start){
   if(w.p){market.remove(w.p.root); disposePerson(w.p);}
@@ -6355,7 +6357,7 @@ function updateFarmShop(dt,t){const own=S.shop.owned,open=shopOpen();farmShop.cl
   if(lvN>=3&&!farmShop.clerk){const L=randLook(rng(77)); Object.assign(L,{top:0xeab95a,bottom:0x315642,bag:null}); const x=SHOP.x, z=SHOP.z;
     farmShop.clerk=makeWorker(L,[{to:[x-2.4,z-2.2],act:'crouch',dur:6,face:[x-3.4,z-2.2]},{path:[[x-2.4,z+1.3],[x-.25,z+1.3],[x-.25,z-.6]],act:'inspect',dur:5,face:[x+.8,z-.6]},{path:[[x-.25,z+1.3],[x+4.2,z+1.3],[x+4.2,z-2.6]],act:'crouch',dur:6,face:[x+5.6,z-2.6]},{path:[[x+4.2,z+1.3],[x-2.4,z+1.3],[x-2.4,z-2.2]],act:'stand',dur:2}],{y:.2,sp:.9});}
   if(farmShop.clerk){farmShop.clerk.p.root.visible=lvN>=3&&open; if(lvN>=3&&open) workerTick(farmShop.clerk,dt,t);}
-  const walk=(c,p)=>{let left=dt*1.5; while(c.i<c.path.length){const[x,z]=c.path[c.i],dx=x-p.root.position.x,dz=z-p.root.position.z,d=Math.hypot(dx,dz); if(d<=left+.001){p.root.position.set(x,.16,z);left=Math.max(0,left-d);c.i++;} else {p.root.position.x+=dx/d*left;p.root.position.z+=dz/d*left;p.root.rotation.y=Math.atan2(dx,dz);break;}} c.ph=(c.ph||0)+dt*6; poseWalk(p,c.ph); return c.i>=c.path.length;};
+  const walk=(c,p)=>{navFix(c,p.root); let left=dt*1.5; while(c.i<c.path.length){const[x,z]=c.path[c.i],dx=x-p.root.position.x,dz=z-p.root.position.z,d=Math.hypot(dx,dz); if(d<=left+.001){p.root.position.set(x,.16,z);left=Math.max(0,left-d);c.i++;} else {p.root.position.x+=dx/d*left;p.root.position.z+=dz/d*left;p.root.rotation.y=Math.atan2(dx,dz);break;}} c.ph=(c.ph||0)+dt*6; poseWalk(p,c.ph); return c.i>=c.path.length;};
   for(const c of farmShop.customers){const p=c.p;
     if(c.k>=want){if(c.state==='idle') p.root.visible=false; if(c.state==='idle') continue;}
     if(c.state==='idle'){p.root.visible=false; c.wait-=dt; if(!open||c.wait>0||!shopUnits()) continue; const hs=HOUSES.filter(h=>h.side===-1), h=hs[(c.k*3+1)%hs.length];
@@ -6447,7 +6449,7 @@ const SRX=PX+42, STZ=-186;   // side street off the highway (between the palengk
     bung(b,c){const [wall,roof,carC]=c; b.push(P('box',wall,-.8,1.5,-.5,6.4,3,6)); b.push(P('box',0xeeeeee,-.8,.12,-.5,6.6,.24,6.2)); b.push(P('pyr',roof,-.8,3.85,-.5,7.6,1.7,7.2));
       win(b,-2.9,1.6,2.52,1.2,1.0); win(b,1.1,1.6,2.52,1.2,1.0); b.push(P('box',0x6d4c41,-.9,1.05,2.52,.9,2,.06)); b.push(P('box',0xbdbdbd,-.9,.1,2.9,1.4,.2,.6));
       for(const [x,z] of [[2.5,-1.6],[5.0,-1.6],[2.5,2.6],[5.0,2.6]]) b.push(P('box',0xeeeeee,x,1.3,z,.15,2.6,.15)); b.push(P('box',roof,3.75,2.65,.5,3.1,.1,4.8));
-      b.push(P('box',0xbdb6a6,3.75,.03,2.8,2.8,.04,4.6)); fence(b,[[-1.7,-.1],[2.3,5.2]]); for(let i=0;i<5;i++) b.push(P('box',0x1f1f1f,-1.55+i*.35,.6,5,.04,1.2,.04));
+      b.push(P('box',0xbdb6a6,3.75,.03,2.8,2.8,.04,4.6)); fence(b,[[-1.7,-.1],[2.3,5.2]]); for(let i=0;i<5;i++) b.push(P('box',0x1f1f1f,-1.62,.6,4.85-i*.3,.04,1.2,.04)); b.push(P('box',0x1f1f1f,-1.62,1.18,4.25,.04,.04,1.3));   // the gate stands open, swung back against the wall
       plants(b,[-4.6,-3.8]); if(carC!=null) car(b,3.75,.6,carC);},
     two(b,c){const [wall,roof,carC]=c; b.push(P('box',wall,-.8,1.5,-.5,6.4,3,6)); b.push(P('box',0xeeeeee,-.8,3.06,-.2,6.9,.14,6.8)); b.push(P('box',0x9a6b3d,-.8,4.4,-.8,6.2,2.6,5.4));
       for(let i=0;i<8;i++) b.push(P('box',0xffffff,-3.6+i*.8,3.55,3.0,.06,.9,.06)); b.push(P('box',0xffffff,-.8,4.0,3.0,6.6,.08,.08));
@@ -6473,7 +6475,7 @@ const SRX=PX+42, STZ=-186;   // side street off the highway (between the palengk
     const cz=side>0?STZ-9.5:STZ+9.5, rot=side>0?0:Math.PI; g.position.set(x,0,cz); g.rotation.y=rot; scene.add(g);
     const W=(lx,lz)=>[x+(side>0?lx:-lx),cz+(side>0?lz:-lz)];
     const door=W(type==='kubo'?-.8:-.9,type==='kubo'?3.3:2.9), gate=W(type==='kubo'?-.8:-.9,5.8), walk=[gate[0],STZ-side*3.9];
-    HOUSES.push({door,gate,walk,side});
+    HOUSES.push({door,gate,walk,side,type,car:!!(c&&c[2]!=null)});
     for(const [lx,ly,lz] of type==='kubo'?[[-.8,2.1,2.4],[1.2,2.2,2.4]]:[[-2.9,1.6,2.9],[1.1,1.6,2.9],[-.9,2.5,3.0]]){const q=W(lx,lz); glow(scene,q[0],ly,q[1],2.2);}
     if(type==='sari'){const cv=document.createElement('canvas'); cv.width=512; cv.height=96; const k=cv.getContext('2d'); k.fillStyle='#d32f2f'; k.fillRect(0,0,512,96); k.fillStyle='#fff'; k.font='900 54px Arial, sans-serif'; k.textAlign='center'; k.textBaseline='middle'; k.fillText('SARI-SARI STORE',256,50);
       const sg=new THREE.Mesh(new THREE.PlaneGeometry(3.4,.64),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)})); const q=W(1.1,2.62); sg.position.set(q[0],2.45,q[1]); sg.rotation.y=rot; scene.add(sg);}
@@ -7604,7 +7606,8 @@ const WWAYS=(()=>{
   barangayDrain.pts=straight([[45,-191.3],[joinX-river.w/2-4,-191.3],[joinX-river.w/2-1.2,joinZ],[joinX-river.w/2+.15,joinZ]],.45);
   const hr=(x,z,m)=>{for(const r of HROADS) for(const [a,c] of r.s) if(Math.hypot(x-a,z-c)<r.w/2+m) return true; return false;};
   const turn=(x,z,m)=>FARM.turning.some(t=>Math.hypot(x-t.x,z-t.z)<t.r+m);
-  const covered=(x,z,m)=>(Math.abs(x-140)<5+m&&Math.abs(z+103.8)<4)||stopDrainCovered(x,z,m)||(Math.abs(z-HZ)<5.2+m)||(Math.abs(z-STZ)<4.3+m&&x>35-m&&x<335+m)||(Math.abs(x-SRX)<4.3+m&&z>STZ&&z<HZ)||((Math.abs(x-40)<4.3+m||Math.abs(x-330)<4.3+m)&&z>STZ-4.3&&z<HZ)
+  const houseCrossing=(x,z,m)=>Math.abs(z+191.3)<1.6&&HOUSES.some(H=>H.side>0&&(Math.abs(x-H.door[0])<1.3+m||H.car&&Math.abs(x-H.door[0]-4.65)<1.6+m));   // a footbridge to every house door over the barangay kanal, and a culvert for the carport
+  const covered=(x,z,m)=>houseCrossing(x,z,m-(m>.5?.6:0))||(Math.abs(x-140)<5+m&&Math.abs(z+103.8)<4)||stopDrainCovered(x,z,m)||(Math.abs(z-HZ)<5.2+m)||(Math.abs(z-STZ)<4.3+m&&x>35-m&&x<335+m)||(Math.abs(x-SRX)<4.3+m&&z>STZ&&z<HZ)||((Math.abs(x-40)<4.3+m||Math.abs(x-330)<4.3+m)&&z>STZ-4.3&&z<HZ)
     ||(Math.abs(x-PX)<7+m&&Math.abs(z+116.4)<3+m) // palengke entrance culvert
     ||([273,300].some(a=>Math.abs(x-a)<3.5+m)&&Math.abs(z+116.4)<2.9+m)||(Math.abs(x-236)<5+m&&Math.abs(z+116.4)<2.9+m)   // terminal driveways, bus entrance
     ||(Math.abs(x-TWN.wx)<TWN.w/2+1.3+m&&z>TWN.bz&&z<HZ)||(Math.abs(z-TWN.bz)<TWN.w/2+1.3+m&&x>TWN.wx&&x<SRX)||hr(x,z,m)||roadDist(x,z)<m||turn(x,z,m-.5);
@@ -7667,8 +7670,8 @@ const WWAYS=(()=>{
     const calm=W.kind==='creek'?0x5b9fae:W.kind==='bare'?0x5d9da0:0x6aa2a0, mat=new THREE.MeshLambertMaterial({map:CALM.clone(),color:calm,transparent:true,opacity:.93,side:THREE.DoubleSide}); mat.map.needsUpdate=true;
     const wm=new THREE.Mesh(wg,mat); wm.receiveShadow=true; scene.add(wm);
     const lv=W.kind==='creek'?[.22,.72]:W.kind==='bare'?[.11,.17]:[.1,.27]; wm.position.y=lv[0];
-    all.push({W,wm,mat,calm:new THREE.Color(calm),lv,samp:pts.filter((p,i)=>i%4===0&&!cov[i])});}
-  return {all,CALM,ROUGH};
+    all.push({W,wm,mat,calm:new THREE.Color(calm),lv,samp:pts.filter((p,i)=>i%4===0&&!cov[i]),openPts:pts.filter((p,i)=>!cov[i])});}
+  return {all,CALM,ROUGH,open:()=>all.flatMap(a=>a.openPts.map(p=>[p[0],p[1],a.W.w/2+.15]))};   // open water, for the walking map
 })();
 let wwLast=performance.now(), wwRain=0, wwSnd=0;
 (function wwLoop(){requestAnimationFrame(wwLoop); const n=performance.now(), dt=Math.min(.1,(n-wwLast)/1000); wwLast=n; if(document.hidden) return;
@@ -8137,12 +8140,15 @@ function poseWave(p,t){const k=p.snap?1:.3; p.snap=false;
   PJ(p.aR,'x',-2.7,k); p.aR.rotation.z=-.35+Math.sin(t*5)*.35; PJ(p.aL,'x',-.1,k); if(p.bod){p.bod.position.y+=(0-p.bod.position.y)*k; PJ(p.bod,'x',0,k);}}
 const WORK_POSE={crouch:poseCrouch,write:poseWrite,inspect:poseInspect,pump:posePump,sweep:poseSweep,wave:poseWave,stand:poseStand};
 
+var NAV=null;   // the walking map (built after the town loads; see the end of the script)
+const NAVED=new WeakSet();
+function navFix(o,R,key='path',ik='i'){if(!NAV||!NAV.ready) return; const P=o[key]; if(!P||NAVED.has(P)||o[ik]>=P.length) return; const np=NAV.route([R.position.x,R.position.z],P.slice(o[ik])); NAVED.add(np); o[key]=np; o[ik]=0;}   // re-plan a walk round walls, fences and water
 // ---- a worker who goes round a list of jobs: walk (along waypoints) to a place, do something there for a while, then the next job
 function makeWorker(look,steps,o={}){const L={...look,bag:null}; if(o.hat) L.style='cap', L.capC=o.hat; const p=makePerson(L);
   const props=makeCarry(p,['sack','pail']), clip=new THREE.Group(); clip.add(part(.26,.34,.02,0x8d6e4b,0,0,0)); clip.add(part(.22,.26,.025,0xf5f5f0,0,.02,.005)); clip.position.set(-.08,1.12,.34); clip.rotation.x=-.7; clip.visible=false; p.root.add(clip);
   const s0=steps[0], at=s0.path?s0.path[s0.path.length-1]:s0.to; p.root.position.set(at[0],o.y||.1,at[1]); scene.add(p.root);
   return {p,props,clip,steps,i:0,leg:null,wp:0,timer:(s0.dur||3)*Math.random(),ph:Math.random()*6,y:o.y||.1,sp:o.sp||1.1,carry:null,hidden:false,day:o.day};}
-function workerGo(w,step){const pts=(step.path||[step.to]).map(q=>q.slice()); w.leg=pts; w.wp=0; w.carry=step.carry||null;}
+function workerGo(w,step){const raw=(step.path||[step.to]).map(q=>q.slice()), pts=NAV&&NAV.ready&&!w.indoor?NAV.route([w.p.root.position.x,w.p.root.position.z],raw):raw; w.leg=pts; w.wp=0; w.carry=step.carry||null;}
 function workerTick(w,dt,t){const p=w.p, r=p.root;
   if(w.day){const h=gameHour(), on=h>=6.5&&h<17.5; if(on===w.hidden){w.hidden=!on; r.visible=on;} if(!on) return;}
   if(w.leg){const q=w.leg[w.wp], dx=q[0]-r.position.x, dz=q[1]-r.position.z, d=Math.hypot(dx,dz);
@@ -8503,7 +8509,7 @@ const SUNDAY_MASS=(()=>{
     const fam=[]; for(let q=0;q<1+((r()*3)|0);q++){const L=randLook(r); L.bag=null; const p=makePerson(L); p.root.visible=false; scene.add(p.root); fam.push({p,ph:r()*6,i:0,path:null,done:false});}
     return {g,type:t,fam,lv:null,state:'home',timer:5+k*22+r()*15,sunday:-1,stall:null};});
   const taken=new Set();
-  const famWalk=(f,dt,sp=1.1)=>{const R=f.p.root, q=f.path[f.i], dx=q[0]-R.position.x, dz=q[1]-R.position.z, d=Math.hypot(dx,dz);
+  const famWalk=(f,dt,sp=1.1)=>{navFix(f,f.p.root); const R=f.p.root, q=f.path[f.i], dx=q[0]-R.position.x, dz=q[1]-R.position.z, d=Math.hypot(dx,dz);
     if(d<.08){f.i++; if(f.i>=f.path.length){f.done=true;} return;} const st=Math.min(d,dt*sp); R.position.x+=dx/d*st; R.position.z+=dz/d*st; R.position.y=.1;
     R.rotation.y=lerpAng(R.rotation.y,Math.atan2(dx,dz),Math.min(1,dt*8)); f.ph+=st*5.6; poseWalk(f.p,f.ph);};
   return {fleet,update(dt,t){if(document.hidden||!lnNet()) return; const now=Date.now(), h=gameHour(), day=gameDayN(now), sun=isSunday(now);
@@ -8592,7 +8598,7 @@ const SCHOOL_CLINIC=(()=>{
     kids.push({p,H,ph:r()*6,mode:'home',path:null,i:0,seat,late:r()*1.2,play:[20+r()*20,-226+r()*12]});
     p.root.visible=false;}
   const route=(H,to)=>[[H.door[0],H.door[1]],[H.walk[0],H.walk[1]],[H.walk[0]>50?50:H.walk[0],H.walk[1]],[46,-191.3],[30,-191.3],[30,-200],to];
-  const step=(k,dt,sp)=>{const R=k.p.root, q=k.path[k.i]; if(!q) return true; const dx=q[0]-R.position.x, dz=q[1]-R.position.z, d=Math.hypot(dx,dz);
+  const step=(k,dt,sp)=>{const R=k.p.root; navFix(k,R); const q=k.path[k.i]; if(!q) return true; const dx=q[0]-R.position.x, dz=q[1]-R.position.z, d=Math.hypot(dx,dz);
     if(d<.08){k.i++; return k.i>=k.path.length;} const st=Math.min(d,dt*sp); R.position.x+=dx/d*st; R.position.z+=dz/d*st; R.position.y=.1; R.rotation.y=lerpAng(R.rotation.y,Math.atan2(dx,dz),Math.min(1,dt*8)); k.ph+=st*7; poseWalk(k.p,k.ph); return false;};
   const staff=[
     makeWorker(look({top:0x37474f,style:'cap',capC:0x263238}),[{to:[27.6,-197.6],act:'stand',dur:10,face:[30,-192]},{path:[[32.4,-197.6]],act:'inspect',dur:6,face:[30,-192]}],{y:.1}),   // the guard at the gate
@@ -8857,7 +8863,7 @@ const VILLAGE=(()=>{
   const sh={state:'idle',run:'',day:-1,lv:null,timer:0};
   const picks=[0,5,9,12,17,22,26,30].map(i=>homes[i]);
   const riders=picks.map((h,k)=>{const p=makePerson(look({top:[0x1e6fb8,0x2e7d32,0x7f8c8d,0xc0392b][k%4]})); p.root.visible=false; scene.add(p.root); return {p,h,state:'home',path:null,i:0,ph:r()*6,wait:[SHED[0]+.6+(k%4)*.7,SHED[1]-2.4+(k>>2)*4.8]};});
-  const walkTo=(w,dt,sp=1.2)=>{const R=w.p.root; if(!w.path||w.i>=w.path.length) return true; const q=w.path[w.i], dx=q[0]-R.position.x, dz=q[1]-R.position.z, d=Math.hypot(dx,dz);
+  const walkTo=(w,dt,sp=1.2)=>{const R=w.p.root; navFix(w,R); if(!w.path||w.i>=w.path.length) return true; const q=w.path[w.i], dx=q[0]-R.position.x, dz=q[1]-R.position.z, d=Math.hypot(dx,dz);
     if(d<.08){w.i++; return w.i>=w.path.length;} const st=Math.min(d,dt*sp); R.position.x+=dx/d*st; R.position.z+=dz/d*st; R.position.y=.1; R.rotation.y=lerpAng(R.rotation.y,Math.atan2(dx,dz),Math.min(1,dt*8)); w.ph+=st*5.6; poseWalk(w.p,w.ph); return false;};
   const streetX=115.4, route=(h,w)=>[h.gate,[streetX,h.gate[1]],w.wait];   // out the gate, along the verge of the west road, to the shed
   const init=()=>{const hr=gameHour(); for(const w of riders) if(hr>=6.6&&hr<17.6) w.state='away';};
@@ -9117,7 +9123,7 @@ const UTIL_BUS=(()=>{
   ].map((s,k)=>{const p=makePerson(look(s.top,s.hat)); p.root.visible=false; scene.add(p.root); return {...s,p,state:'home',path:null,i:0,ph:r()*6,k};});
   // the walk between the shed and the job: through the gate for the landfill and the plant, across the road for the water works
   const routes={landfill:at=>[[88.7,157.4],[88.7,161],[86,164],at], power:at=>[[121.8,121.6],[123,121.6],at], water:at=>[[132,93.6],[132,86],[140,80],[146,74],at]};
-  const walk=(w,dt,sp=1.25)=>{const R=w.p.root; if(!w.path||w.i>=w.path.length) return true; const q=w.path[w.i], dx=q[0]-R.position.x, dz=q[1]-R.position.z, d=Math.hypot(dx,dz);
+  const walk=(w,dt,sp=1.25)=>{const R=w.p.root; navFix(w,R); if(!w.path||w.i>=w.path.length) return true; const q=w.path[w.i], dx=q[0]-R.position.x, dz=q[1]-R.position.z, d=Math.hypot(dx,dz);
     if(d<.08){w.i++; return w.i>=w.path.length;} const st=Math.min(d,dt*sp); R.position.x+=dx/d*st; R.position.z+=dz/d*st; R.position.y=.1; R.rotation.y=lerpAng(R.rotation.y,Math.atan2(dx,dz),Math.min(1,dt*8)); w.ph+=st*5.6; poseWalk(w.p,w.ph); return false;};
   {const h=gameHour(); if(h>=7.5&&h<22.6) for(const w of staff) w.state='work';}   // loaded in the evening: they are about to walk out to the shed
 
@@ -9246,7 +9252,7 @@ const EXPANSION=(()=>{
     makeWorker(look({top:0x7f8c8d}),pace(-178.2,-82,-178.2,-62,'crouch'),{y:.1,day:true,sp:.7}),
     makeWorker(look({top:0x34495e,f:true}),pace(-187,-84,-187,-60,'crouch'),{y:.1,day:true,sp:.7}),
     makeWorker(look({top:0xd35400}),[{to:[-153,-86.6],act:'crouch',dur:4,face:[-153,-88]},{path:[[-150,-86.4]],act:'write',dur:6,face:[-150,-88]},{path:[[-147,-86.6]],act:'crouch',dur:4,face:[-147,-88]}],{y:.1,day:true}),   // sorting
-    makeWorker(look({top:0x1abc9c}),[{to:[-154.5,-84.2],act:'crouch',dur:2,face:[-155,-85]},{path:[[-146,-84.2],[-141.6,-84.6]],act:'crouch',dur:2,carry:'sack',face:[-140,-85]},{path:[[-146,-84.2],[-154.5,-84.2]],act:'stand',dur:1}],{y:.1,day:true,sp:1.1}),   // loading the truck
+    makeWorker(look({top:0x1abc9c}),[{to:[-152.9,-84.2],act:'crouch',dur:2,face:[-154,-84.2]},{path:[[-146,-84.2],[-141.6,-84.6]],act:'crouch',dur:2,carry:'sack',face:[-140,-85]},{path:[[-146,-84.2],[-152.9,-84.2]],act:'stand',dur:1}],{y:.1,day:true,sp:1.1}),   // loading the truck
   ];
   for(const w of people) workerGo(w,w.steps[0]);
   const lunch=[[-128.8,-48],[-127.2,-48]].map(([x,z])=>{const q=bakePerson(look(),poseSit); q.position.set(x,.2,z); scene.add(q); return q;});   // resting in the hut
@@ -9343,6 +9349,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:44,date:'Nov 12, 2026',title:'People walk the proper way',items:['🚶 Everyone now walks round buildings, fences and water instead of through them: townspeople going to the palengke, workers on their rounds, shoppers, commuters, school children, church families and your own farmer. A walking map of the whole town (made from the real walls, fences and canals) finds the way, keeps to the roadside and crosses the road only where it has to.','🌉 Every house on the barangay road now has a concrete crossing over the kanal at its front path, and a wider one at the carport, so families can walk out to the street. Garden gates now stand open.','⏱️ The walking map is built a few seconds after the game loads, and rebuilt when you put up or move a farm building.']},
   {v:43,date:'Nov 11, 2026',title:'Your mini-mart grows into a supermart',items:['🏪 The mini-mart now upgrades in three steps from its menu: Mini-Mart, Mini-Mart Plus (level 8, ₱15,000) and Sunfield Supermart (level 12, ₱35,000). Each step adds shelf space (180, 300, 450 units, up to 60, 90, 120 of each product), more shoppers and another parking spot.','🛒 Inside: a tiled floor, a long wall shelf, up to four gondolas, up to three lit drinks fridges, an ice-cream freezer, a fresh produce stand and rice sacks, all stocked with packs and bottles that fill up as you restock. Ate Lorna works the counter and, at the top level, a stock clerk tends the aisles.','🚶 Shoppers really go inside now: they come through the glass door, walk the aisles or check the fridges, pay at the counter and leave. Cars park in front (up to four spots) and their drivers come in too.','🎁 Farms from before this update get their mini-mart opened and fully upgraded to the Sunfield Supermart.']},
   {v:42,date:'Nov 11, 2026',title:'A cleaner mini-mart and cooperative',items:['🏪 The mini-mart menu is redone: status tiles (open, shelf space, sales, items sold), a card for Ate Lorna\'s salary, and a tile for each product with its shelf and farm stock and proper − and + buttons (they used to show question marks).','🐄 The Livestock Cooperative menu now shows its price per head next to the palengke price, a clear button to truck bodega animals over, and tiles for the young stock.']},
   {v:41,date:'Nov 11, 2026',title:'Hand-drawn icons and tidier menus',items:['✏️ Every icon in the menus, the top bar, the messages and the news is now drawn in ink and wash like the rest of Sunfield, instead of phone emojis.','🧾 The animal pickup choices are now clear cards side by side (an unavailable one is dashed and greyed), and they fit a sideways phone without scrolling.','⚙️ The settings menu now opens above the top bar and the toolbar, so nothing covers it, and it is wider on phones.','🪑 People on the plaza benches by the town hall now sit facing out from the backrest, and the café customers face their tables.']},
@@ -9519,6 +9526,7 @@ function frame(now){
   UTIL_BUS.update(dt,t);
   EXPANSION.update(dt,t);
   COOP_LIFE.update(dt,t);
+  if(NAV){if(now>6000) NAV.start(); NAV.tick(); if(NAV.ready&&now-(NAV.chk||0)>10000){NAV.chk=now; const sig=S.tiles.filter(q=>q.s==='bld').length+':'+S.house+':'+S.garage+':'+JSON.stringify(S.housePos||0)+':'+shopLv(); if(NAV.sig&&NAV.sig!==sig) NAV.rebuild(); NAV.sig=sig;}}
   updateFarmDispatch(Date.now(),dt);
   if(now-lastTick>300){lastTick=now; const d=Date.now(); updateVehicles(d); updateTravelHUD(d); for(let i=0;i<NT;i++){const s=S.tiles[i].s; if(s==='crop'||s==='bld') updateTile(i,d);}}
   popping.forEach(g=>{const k=Math.min(1,(now-g.userData.born)/380), e=easeBack(k);
@@ -9792,7 +9800,7 @@ portraitMQ.addEventListener('change',()=>{resize(); if(!portraitMQ.matches){ptrs
   // regional flags: the PH flag
   I['🇵🇭']=P('M3 7h26v18H3Z',WH)+P('M3 7h26v9H3Z',DB)+P('M3 16h26v9H3Z',RD)+P('M3 7l12 9-12 9Z',WH)+C(8,16,2,YE);
   const keys=Object.keys(I), norm=k=>k.replace(/️/g,''), ID={}; keys.forEach((k,i)=>ID[norm(k)]='si'+i);
-  const sprite=document.createElement('div'); sprite.style.cssText='position:absolute;width:0;height:0;overflow:hidden';
+  const sprite=document.createElement('div'); sprite.style.cssText='position:absolute;width:0;height:0;overflow:hidden'; sprite.setAttribute('aria-hidden','true');
   sprite.innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"><defs><filter id="siWob" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.09" numOctaves="2" seed="7" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="1.6"/></filter></defs>`
     +keys.map((k,i)=>`<symbol id="si${i}" viewBox="0 0 32 32"><g filter="url(#siWob)">${I[k]}</g></symbol>`).join('')+'</svg>';
   document.body.prepend(sprite);
@@ -9817,6 +9825,87 @@ portraitMQ.addEventListener('change',()=>{resize(); if(!portraitMQ.matches){ptrs
   const obs=new MutationObserver(ms=>{for(const m of ms){if(m.type==='characterData') pending.add(m.target); else m.addedNodes.forEach(n=>pending.add(n));} if(!sched){sched=true; requestAnimationFrame(flush);}});
   walk(document.body); obs.observe(document.body,{childList:true,subtree:true,characterData:true});
   window.SKETCH_ICONS={count:keys.length,walk};
+})();
+
+/* ---------- Walking map: where people may walk, built from the world itself ----------
+   A 1 m grid over the whole map. Anything solid at body height (walls, fences, counters, shelves, posts, machines) blocks its cells;
+   water (the sea, the ilog and the kanals, except where they are covered or bridged) blocks too. Roads cost more than their edges, so
+   people keep to the roadside and cross where they must; open ground costs a little more than the verge. A* finds the way and a
+   line-of-sight pass straightens it. Built in slices after the town has loaded; until then people walk as before. */
+NAV=(()=>{
+  const RES=.5, X0=-215, Z0=-385, W=1480, H=1250, N=W*H, blk=new Uint8Array(N), cost=new Uint8Array(N).fill(2);
+  const ci=x=>Math.floor((x-X0)/RES), cj=z=>Math.floor((z-Z0)/RES), at=(i,j)=>(i<0||j<0||i>=W||j>=H)?-1:j*W+i;
+  let ready=false, started=false;
+  const mark=(x,z)=>{const k=at(ci(x),cj(z)); if(k>=0) blk[k]=1;};
+  const markSeg=(ax,az,bx,bz)=>{const L=Math.hypot(bx-ax,bz-az), n=Math.max(1,Math.ceil(L/.2)); for(let s=0;s<=n;s++){const f=s/n; mark(ax+(bx-ax)*f,az+(bz-az)*f);}};
+  const isMoving=o=>{for(let q=o;q&&q!==scene;q=q.parent){if(q.userData&&(q.userData.lane||q.userData.navSkip)) return true;} return false;};
+  const vehObjs=new Set(); try{for(const k in VEH) if(VEH[k].obj) vehObjs.add(VEH[k].obj);}catch(e){}
+  const inVeh=o=>{for(let q=o;q&&q!==scene;q=q.parent) if(vehObjs.has(q)) return true; return false;};
+  const box=new THREE.Box3(), v=new THREE.Vector3();
+  // one mesh: every triangle that reaches body height (0.4 to 1.8 m above the ground) blocks the cells under it
+  const rasterMesh=o=>{const g=o.geometry, P=g.attributes&&g.attributes.position; if(!P) return; const e=o.matrixWorld.elements, I=g.index, cnt=I?I.count:P.count;
+    const wx=k=>e[0]*P.getX(k)+e[4]*P.getY(k)+e[8]*P.getZ(k)+e[12], wy=k=>e[1]*P.getX(k)+e[5]*P.getY(k)+e[9]*P.getZ(k)+e[13], wz=k=>e[2]*P.getX(k)+e[6]*P.getY(k)+e[10]*P.getZ(k)+e[14];
+    for(let t=0;t<cnt;t+=3){const a=I?I.getX(t):t, b=I?I.getX(t+1):t+1, c=I?I.getX(t+2):t+2;
+      const ay=wy(a), by=wy(b), cy=wy(c), lo=Math.min(ay,by,cy), hi=Math.max(ay,by,cy); if(hi<.55||lo>2.6) continue;
+      const ax=wx(a), az=wz(a), bx=wx(b), bz=wz(b), cx=wx(c), cz=wz(c), g0=hy((ax+bx+cx)/3,(az+bz+cz)/3); if(hi-g0<.55||lo-g0>1.6) continue;
+      const area=Math.abs((bx-ax)*(cz-az)-(cx-ax)*(bz-az))/2; if(area>900) continue;
+      markSeg(ax,az,bx,bz); markSeg(bx,bz,cx,cz); markSeg(cx,cz,ax,az);
+      if(area>.8){const i0=ci(Math.min(ax,bx,cx)), i1=ci(Math.max(ax,bx,cx)), j0=cj(Math.min(az,bz,cz)), j1=cj(Math.max(az,bz,cz)), d=(bz-cz)*(ax-cx)+(cx-bx)*(az-cz);
+        for(let j=j0;j<=j1;j++) for(let i=i0;i<=i1;i++){const px=X0+(i+.5)*RES, pz=Z0+(j+.5)*RES, l1=((bz-cz)*(px-cx)+(cx-bx)*(pz-cz))/d, l2=((cz-az)*(px-cx)+(ax-cx)*(pz-cz))/d; if(l1>=0&&l2>=0&&l1+l2<=1){const k=at(i,j); if(k>=0) blk[k]=1;}}}}};
+  function* builder(){
+    const list=[]; scene.updateMatrixWorld(true);
+    scene.traverse(o=>{if(!o.isMesh||o.isInstancedMesh||o.isSprite||!o.visible||o===ground) return; if(isMoving(o)||inVeh(o)) return;
+      if(!o.geometry.boundingBox) o.geometry.computeBoundingBox(); box.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld);
+      const sx=box.max.x-box.min.x, sz=box.max.z-box.min.z; if(sx<1.1&&sz<1.1) return; if(inField((box.min.x+box.max.x)/2,(box.min.z+box.max.z)/2,1)) return; if(sx*sz>250000) return; if(box.max.y<.55) return; list.push(o);});
+    for(let k=0;k<list.length;k++){rasterMesh(list[k]); if(k%6===5) yield;}
+    // water: the sea, and the canals wherever they are open
+    for(let j=0;j<H;j+=2){for(let i=0;i<W;i+=2){const x=X0+(i+1)*RES, z=Z0+(j+1)*RES; if(nearSea(x,z,0)){const k=j*W+i; blk[k]=blk[k+1]=blk[k+W]=blk[k+W+1]=1;}} if(j%120===118) yield;}
+    if(typeof WWAYS!=='undefined'&&WWAYS.open) for(const [x,z,r] of WWAYS.open()){for(let dz=-r;dz<=r;dz+=.25) for(let dx=-r;dx<=r;dx+=.25) if(dx*dx+dz*dz<=r*r) mark(x+dx,z+dz);}
+    yield;
+    // roads: dearer to walk on; their edges are the cheapest, so people keep to the verge
+    lnNet(); const road=new Uint8Array(N);
+    for(const L of LN.lanes){const hw=(L.w||2.4)/2+.3; for(let s=0;s<L.pts.length-1;s++){const [ax,az]=L.pts[s], [bx,bz]=L.pts[s+1], len=Math.hypot(bx-ax,bz-az), n=Math.max(1,Math.ceil(len/.25)), nx=-(bz-az)/(len||1), nz=(bx-ax)/(len||1);
+      for(let q=0;q<=n;q++){const f=q/n, x=ax+(bx-ax)*f, z=az+(bz-az)*f; for(let o=-hw;o<=hw;o+=.25){const k=at(ci(x+nx*o),cj(z+nz*o)); if(k>=0) road[k]=1;}}}}
+    yield;
+    for(let j=1;j<H-1;j++){for(let i=1;i<W-1;i++){const k=j*W+i; if(road[k]){cost[k]=7; continue;} let near=false; for(let d=1;d<=6&&!near;d++) if(road[k-d]||road[k+d]||road[k-d*W]||road[k+d*W]) near=true; cost[k]=near?1:2;}
+      if(j%120===119) yield;}
+    yield* label(); yield;
+    ready=true; NAV.ready=true;}
+  let gen=null;
+  const tick=()=>{if(ready) return; if(!gen){if(!started) return; gen=builder();} const t0=performance.now(); while(performance.now()-t0<8){if(gen.next().done){gen=null; break;}}};
+  // connected areas: two places in different areas have no walk between them, so the search is never tried
+  const comp=new Int32Array(N);
+  const label=function*(){comp.fill(0); let id=0, done=0; const q=new Int32Array(N); for(let k=0;k<N;k++){if(blk[k]||comp[k]) continue; id++; let h=0,t=0; q[t++]=k; comp[k]=id;
+      while(h<t){const c=q[h++], i=c%W; if(i>0&&!blk[c-1]&&!comp[c-1]){comp[c-1]=id; q[t++]=c-1;} if(i<W-1&&!blk[c+1]&&!comp[c+1]){comp[c+1]=id; q[t++]=c+1;} if(c>=W&&!blk[c-W]&&!comp[c-W]){comp[c-W]=id; q[t++]=c-W;} if(c<N-W&&!blk[c+W]&&!comp[c+W]){comp[c+W]=id; q[t++]=c+W;}}
+      done+=t; if(done>300000){done=0; yield;}}};
+  // A* between two points, inside a box round them (grown once if it fails)
+  const free=k=>k>=0&&!blk[k];
+  const snap=(x,z,want)=>{let i=ci(x), j=cj(z); const ok=k=>free(k)&&(!want||comp[k]===want); if(ok(at(i,j))) return [i,j]; for(let r=1;r<=(want?50:16);r++) for(let dj=-r;dj<=r;dj++) for(let di=-r;di<=r;di++){if(Math.max(Math.abs(di),Math.abs(dj))!==r) continue; if(ok(at(i+di,j+dj))) return [i+di,j+dj];} return null;};
+  const gScore=new Float32Array(N), came=new Int32Array(N), stamp=new Uint32Array(N), shut=new Uint32Array(N); let gen2=1;
+  const HK=new Int32Array(1<<21), HF=new Float32Array(1<<21); let hn=0;
+  const push=(k,f)=>{if(hn>=HK.length) return; let c=hn++; while(c){const p=(c-1)>>1; if(HF[p]<=f) break; HK[c]=HK[p]; HF[c]=HF[p]; c=p;} HK[c]=k; HF[c]=f;};
+  const pop=()=>{const top=HK[0]; hn--; if(hn>0){const k=HK[hn], f=HF[hn]; let c=0; for(;;){const l=2*c+1, r=l+1; let m=-1, mf=f; if(l<hn&&HF[l]<mf){m=l; mf=HF[l];} if(r<hn&&HF[r]<mf){m=r;} if(m<0) break; HK[c]=HK[m]; HF[c]=HF[m]; c=m;} HK[c]=k; HF[c]=f;} return top;};
+  const DI=[1,-1,0,0,1,1,-1,-1], DJ=[0,0,1,-1,1,-1,1,-1], DD=[1,1,1,1,1.414,1.414,1.414,1.414];
+  function astar(s,e,pad){const [si,sj]=s, [ei,ej]=e, i0=Math.min(si,ei)-pad, i1=Math.max(si,ei)+pad, j0=Math.min(sj,ej)-pad, j1=Math.max(sj,ej)+pad;
+    gen2++; hn=0; const sk=sj*W+si, ek=ej*W+ei; stamp[sk]=gen2; gScore[sk]=0; came[sk]=-1; push(sk,0); let n=0;
+    while(hn&&n<900000){const k=pop(); if(shut[k]===gen2) continue; shut[k]=gen2; n++; if(k===ek) break; const i=k%W, j=(k/W)|0, g=gScore[k];
+      for(let d=0;d<8;d++){const di=DI[d], dj=DJ[d], ni=i+di, nj=j+dj; if(ni<i0||ni>i1||nj<j0||nj>j1) continue; const nk=nj*W+ni; if(blk[nk]) continue; if(d>3&&(blk[k+di]||blk[k+dj*W])) continue;   // no squeezing between two corners
+        if(shut[nk]===gen2) continue; const ng=g+DD[d]*cost[nk]; if(stamp[nk]!==gen2||ng<gScore[nk]){stamp[nk]=gen2; gScore[nk]=ng; came[nk]=k; const dx=Math.abs(ni-ei), dz=Math.abs(nj-ej); push(nk,ng+2.1*(Math.max(dx,dz)+.414*Math.min(dx,dz)));}}}
+    DBG.n=n; DBG.hn=hn; if(stamp[ek]!==gen2) return null; const out=[]; for(let k=ek;k>=0;k=came[k]) out.push(k); return out.reverse();}
+  const DBG={}; 
+  // straighten: from each point, jump to the farthest later point it can see without crossing a wall or (unless the path did) a road
+  const sees=(a,b,roadOK)=>{const ax=a%W, az=(a/W)|0, bx=b%W, bz=(b/W)|0, n=Math.max(Math.abs(bx-ax),Math.abs(bz-az))*2; for(let s=1;s<n;s++){const f=s/n, k=Math.round(az+(bz-az)*f)*W+Math.round(ax+(bx-ax)*f); if(blk[k]||(!roadOK&&cost[k]===7)) return false;} return true;};
+  function smooth(cells){const out=[cells[0]]; let i=0; while(i<cells.length-1){let j=Math.min(cells.length-1,i+80); for(;j>i+1;j--){let roadOK=false; for(let q=i;q<=j;q++) if(cost[cells[q]]===7){roadOK=true; break;} if(sees(cells[i],cells[j],roadOK)) break;} out.push(cells[j]); i=j;} return out;}
+  const cache=new Map();
+  function path(ax,az,bx,bz){if(!ready) return null; const key=Math.round(ax)+','+Math.round(az)+'>'+Math.round(bx)+','+Math.round(bz); if(cache.has(key)) return cache.get(key);
+    const s=snap(ax,az), e=s&&snap(bx,bz,comp[s[1]*W+s[0]]); let res=null; if(s&&e){let c=astar(s,e,80); if(!c) c=astar(s,e,320); if(c) res=smooth(c).map(k=>[X0+((k%W)+.5)*RES,Z0+(((k/W)|0)+.5)*RES]);}
+    if(res&&res.length&&free(at(ci(bx),cj(bz)))) res[res.length-1]=[bx,bz]; if(cache.size>4000) cache.clear(); cache.set(key,res); return res;}
+  // a list of waypoints made walkable: every leg goes round what is in the way
+  function route(from,pts){if(!ready||!pts||!pts.length) return pts; const out=[]; let p=from;
+    for(const q of pts){const leg=path(p[0],p[1],q[0],q[1]); if(leg&&leg.length) out.push(...leg.slice(leg.length>1?1:0)); else out.push([q[0],q[1]]); p=q;} return out.length?out:pts;}
+  const blocked=(x,z)=>{const k=at(ci(x),cj(z)); return k<0?false:!!blk[k];};
+  const rebuild=()=>{ready=false; blk.fill(0); cost.fill(2); cache.clear(); gen=null; started=true;};
+  return {DBG, astar, snap:(x,z,w)=>snap(x,z,w), get ready(){return ready;}, set ready(v){ready=v;}, start(){started=true;}, tick, path, route, blocked, rebuild, blk, cost, comp, X0, Z0, W, H};
 })();
 
 })();

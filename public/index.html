@@ -559,6 +559,18 @@ body:not(#z) #buildFilters button{min-height:30px!important;padding:3px 11px!imp
 @media(max-width:720px){body:not(#z) #hud .pill{padding:1px 6px!important}body:not(#z) #hud .bar{width:24px!important}}
 body:not(#z) :is(button,select,input,textarea){font-family:inherit}
 body:not(#z) #hud #coins{font-variant-numeric:tabular-nums;letter-spacing:.2px}
+/* phones: iPhone Safari enlarges text in landscape unless told not to, which made the menus' type too big and uneven */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+/* the open Tools / Build panel always sits just above the bottom bar, measured from the bar's real height (see --catsH) */
+body:not(#z):not(#y) #bottom{bottom:calc(env(safe-area-inset-bottom,0px) + 8px + var(--catsH,56px) + 6px)!important}
+/* the settings menu: every row the same height, icon and label lined up on the left */
+body:not(#z):not(#y) #menu .sheet>button{display:flex;align-items:center;gap:8px;text-align:left;min-height:36px!important;padding:6px 12px!important;font-size:13px!important;line-height:1.2}
+body:not(#z):not(#y) #menu .sheet>button svg.si{width:18px!important;height:18px!important;vertical-align:0!important;flex:none}
+body:not(#z):not(#y) #menu .sheet p{font-size:12px!important;line-height:1.45;margin:0 0 4px!important}
+body:not(#z):not(#y) #menu .sndrow{gap:6px}body:not(#z):not(#y) #menu .sndrow button{min-height:50px!important;padding:5px 2px!important;font-size:11.5px!important;gap:2px}
+body:not(#z):not(#y) #menu .sndrow button .ic{font-size:16px!important;line-height:1}body:not(#z):not(#y) #menu .sndrow button svg.si{width:18px!important;height:18px!important;vertical-align:0!important}
+body:not(#z):not(#y) #menu .sheet>.mhead h2{font-size:16px!important;line-height:1.2;margin:0!important}
+@media(orientation:landscape) and (max-height:520px){body:not(#z):not(#y) #menu .sheet>button{min-height:32px!important;font-size:12.5px!important}body:not(#z):not(#y) #menu .sndrow button{min-height:44px!important}}
 </style>
 </head>
 <body>
@@ -9905,6 +9917,9 @@ function frame(now){
   catch(error){reportGameError('render',error);}
 }
 if(/[?&]debug\b/.test(location.search)) window.SF={orchard:ORCHARD,fruitTrees:FRUIT_TREES,districtLife:DISTRICT_LIFE,livestock:{stockFor,choose:chooseAnimalPickup,continue:continueAnimalHaul,process:processKatQueue,path:farmHaulPath},bodega:{world:farmBodega,open:openBodega,tick:updateBodega},farmDispatch:{loading:LOADING_DISPATCH,state:FARM_DISPATCH,tick:updateFarmDispatch,setSlots,simulate:(now,dt)=>{roadSnapshot();updateFarmDispatch(now,dt);updateVehicles(now);placeVehicles(now,dt);}},shop:{config:SHOP,world:farmShop,open:openFarmShop,unlock:shopUnlock,sale:shopSale,deliver:shopDeliver,dispatch:shopDispatch,refund:shopRefund,incoming:shopIncoming,setDraft:q=>{shopDraft=q;},tick:updateFarmShop},resCars,junctions:TRAFFIC_JUNCTIONS,health:gameHealth,trafficUpdate:updateTraffic,setTrafficUpdate:fn=>{updateTraffic=fn;},pointerCount:()=>ptrs.size,canvas,cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,holdPose,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,vans,traffic,models:{vkCar,CAR_SPECS,tripLoad,buildLoad,cageCart,animalGeo,makePerson,bakePerson,poseWalk,poseStand,poseSit,randLook,makeCar,makePUJ,makeBus,makeTrike,makeVan,makeTraderTruck,makeLiner,VEH:()=>VEH},lanes:LN,laneStep:lnStep,laneMs:()=>LN_MS,trikes,puvs,traders,JEEPS:()=>JEEPS,townStep:updateTownVehicles,transitStep:updateTransit,bizStep:updateBiz,trikeStep:updateTrikes,shiftDays:n=>{TIME_SHIFT+=n*DAY_MS;},LINERS:()=>LINERS,PATROL:()=>PATROL,FIESTA:()=>FIESTA,loadWalkers,STOP,homeAct:(a,r)=>homeAct(a,{dataset:{r}}),openHome,FISH,startRain,dayAt:f=>{const g=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((f-g+1)%1)*DAY_MS;},step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
+// keep the open Tools / Build panel clear of the bottom bar: measure the bar and hand its height to the CSS
+(()=>{const cats=$('cats'), set=()=>document.documentElement.style.setProperty('--catsH',Math.ceil(cats.getBoundingClientRect().height)+'px');
+  set(); try{new ResizeObserver(set).observe(cats);}catch(e){addEventListener('resize',set);} })();
 renderHUD();
 requestAnimationFrame(frame);
 if(!S.seenHelp){S.seenHelp=true; save(); setTimeout(()=>toast('Open 🧰 Tools, pick a tool, and drag across the field. Sell your harvest at the 🏪 Palengke!',4800),600);}

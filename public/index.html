@@ -1056,8 +1056,8 @@ if(!S.stats) S.stats={harvest:0,plant:0,egg:0,orders:0,pasabay:0,bulk:0,crops:{}
 if(S.mats.feed_fish==null) S.mats.feed_fish=8;
 if(S.mats.feed_pig==null) S.mats.feed_pig=8; if(S.mats.feed_cow==null) S.mats.feed_cow=8;   // each animal now eats its own feed
 if(!Array.isArray(S.wild)) S.wild=[];
-// animal houses stand wherever the player puts them: S.animalPos[k] = {x,z,size} for slot k (S, M or L yard); unmoved houses keep their old spot
-const SLOT_BASE=SLOTS.map(s=>({w:s.w,d:s.d})), HOUSE_SC={S:.8,M:1,L:1.25};
+// animal houses stand wherever the player puts them: S.animalPos[k] = {x,z} for slot k (one fixed lot size); unmoved houses keep their old spot
+const SLOT_BASE=SLOTS.map(s=>({w:s.w,d:s.d})), HOUSE_SC={S:1,M:1,L:1};   // every animal house has the same full-size lot; the house on it grows as you upgrade (older saves' S and L lots become the standard one)
 if(S.animalPos) for(const k in S.animalPos){const s=SLOTS[k], o=S.animalPos[k]; if(!s||!o||!Number.isFinite(o.x)||!Number.isFinite(o.z)) continue; const c=HOUSE_SC[o.size]||1; s.x=o.x; s.z=o.z; s.w=SLOT_BASE[k].w*c; s.d=SLOT_BASE[k].d*c;}
 if(!S.seedMig){S.seedMig=1; S.mats.seed_wheat=(S.mats.seed_wheat||0)+12; S.mats.seed_carrot=(S.mats.seed_carrot||0)+4;}   // a few starter seeds; buy more at the Binhi store
 if(S.wildMig!==3){S.wildMig=3; S.wild=[];}   // back to the old look: no wild trees on the farm plots
@@ -3613,7 +3613,7 @@ const henMtx=(x,y,z,ry,s)=>Mx(x,y,z,s,s,s,0,ry,0);
    trays, broilers wander to the feeders, the herds graze, the pond aerators turn. Roofs are rusty corrugated GI, see-through up close. */
 const ROOF_MATS=[];
 function rustRoof(w){poultryMats(); const m=SEE_ROOF1.clone(); m.map=SEE_ROOF1.map.clone(); m.map.needsUpdate=true; m.map.repeat.set(Math.max(4,w/.55),1); m.color.setHex(0xb8735c); ROOF_MATS.push(m); return m;}
-const slotSize=(i,w,d)=>{const s=slotOf(i); return s?{w:s.w,d:s.d}:{w,d};};
+const slotSize=(i,w,d,f=[1,1])=>{const s=slotOf(i); return s?{w:s.w*f[0],d:s.d*f[1]}:{w:w*f[0],d:d*f[1]};};   // f: how much of its lot the house fills at this level
 // a long open-sided shed: posts round the edge, a gable roof (ridge along x) with ridge cap, fascia and an optional ridge vent
 function shed(g,b,L,W,ht,vent){const A=.3, hd=W/2+.45, ry=ht+hd*Math.tan(A), len=hd/Math.cos(A), m=rustRoof(L);
   for(const z of [-W/2,W/2]) for(let x=-L/2;x<=L/2+.01;x+=L/Math.max(2,Math.round(L/2.6))) b.push(P('box',0x8a8f94,x,ht/2,z,.14,ht,.14));
@@ -3689,7 +3689,7 @@ function buildBroilerHouse(t,i){poultryMats();
 }
 // ---- cow barn on the north edge of the pasture; the cows graze out in the open pasture south of it
 function buildCowBarn(t,i){poultryMats();
-  const L0=(t&&t.lvl)||1, {w,d}=slotSize(i,10,7), g=new THREE.Group(), b=[], Wd=d-.6, Lb=w-.4, W=0x8d6e4b;
+  const L0=(t&&t.lvl)||1, {w,d}=slotSize(i,10,7,[[.62,.82,1][Math.min(3,L0)-1],1]), g=new THREE.Group(), b=[], Wd=d-.6, Lb=w-.4, W=0x8d6e4b;   // the barn gets longer with each upgrade
   b.push(P('box',0x9a9a6a,0,.05,0,Lb,.1,Wd)); for(let k=0;k<12;k++) b.push(P('box',0xd9c48a,-Lb/2+.8+((k*37)%Math.round(Lb*10-16))/10,.11,-Wd/2+.8+((k*53)%Math.round(Wd*10-16))/10,.5,.02,.3,0,k,0));   // straw
   b.push(P('box',W,0,.4,-Wd/2+.45,Lb-.4,.45,.5)); b.push(P('box',0xd9c48a,0,.66,-Wd/2+.45,Lb-.6,.1,.4));                                 // feed bunk along the back
   if(L0>=3){b.push(P('box',0xb5432f,0,1.3,-Wd/2-.02,Lb,2.6,.08)); for(let k=0;k<6;k++) b.push(P('box',0x8f3424,0,.2+k*.42,-Wd/2+.02,Lb+.02,.03,.04));   // red board back wall
@@ -3718,7 +3718,7 @@ function buildGoatHouse(t,i){
   return farmReturn(g,herd(g,gs,goatGeo(),PIVG));}
 // ---- pig house: a roofed shelter with pens across it, each opening onto its own concrete run with a trough
 function buildPiggery(t,i){poultryMats();
-  const L0=(t&&t.lvl)||1, {w,d}=slotSize(i,11,9), g=new THREE.Group(), b=[], pens=L0+1, pigsN=visN(t,[0,4,8,12][L0]), WALL=0x9e9e9e, pigs=[];
+  const L0=(t&&t.lvl)||1, {w,d}=slotSize(i,11,9,[[.6,.8,1][Math.min(3,L0)-1],1]), g=new THREE.Group(), b=[], pens=L0+1, pigsN=visN(t,[0,4,8,12][L0]), WALL=0x9e9e9e, pigs=[];
   const pw=(w-.4)/pens, zs=-d/2+.2, zm=-d/2+d*.55, ze=d/2-.2;   // shelter from zs to zm, run from zm to ze
   b.push(P('box',0xbdb6a6,0,.06,0,w-.2,.12,d-.2));
   b.push(P('box',WALL,0,.45,zs,w-.4,.9,.15)); for(const s of [-1,1]) b.push(P('box',WALL,s*(w/2-.2),.38,(zs+ze)/2,.15,.75,ze-zs));
@@ -3740,7 +3740,7 @@ function buildPiggery(t,i){poultryMats();
 // ---- duck enclosure: a shelter with nest boxes, a muddy run and a small round pond with reeds, bamboo fence round it
 const POND_MAT=new THREE.MeshStandardMaterial({color:0x4f7a74,roughness:.15,metalness:.1});
 function buildDuckPen(t,i){
-  const L0=(t&&t.lvl)||1, {w,d}=slotSize(i,10,7), g=new THREE.Group(), b=[], n=visN(t,[0,8,14,20][L0]), pr=Math.min(d,w*.45)/2-.4+L0*.2;
+  const L0=(t&&t.lvl)||1, {w,d}=slotSize(i,10,7,[[.7,.85,1][Math.min(3,L0)-1],[.75,.88,1][Math.min(3,L0)-1]]), g=new THREE.Group(), b=[], n=visN(t,[0,8,14,20][L0]), pr=Math.min(d,w*.45)/2-.4+L0*.2;
   b.push(P('box',0x9a8a68,0,.06,0,w,.12,d)); const px=w/2-pr-.6;
   b.push(P('cyl',0x6e5e44,px,.1,0,pr*2+.6,.06,pr*2+.4));
   const pond=new THREE.Mesh(new THREE.CylinderGeometry(pr,pr,.04,24),POND_MAT); pond.position.set(px,.14,0); pond.receiveShadow=true; g.add(pond);
@@ -3756,7 +3756,7 @@ function buildDuckPen(t,i){
   return farmReturn(g,herd(g,ds,duckGeo(),PIVD));}
 // ---- tilapia pond: an earthen pond with grassy dikes, paddle-wheel aerators throwing spray, a bamboo dock and a feeding hut
 function buildFishpond(t,i){
-  const L0=(t&&t.lvl)||1, {w,d}=slotSize(i,13,9), g=new THREE.Group(), b=[], lined=L0>=3, iw=w-1.6, id=d-1.6;
+  const L0=(t&&t.lvl)||1, {w,d}=slotSize(i,13,9,[[.68,.84,1][Math.min(3,L0)-1],[.72,.86,1][Math.min(3,L0)-1]]), g=new THREE.Group(), b=[], lined=L0>=3, iw=w-1.6, id=d-1.6;   // the pond is dug bigger with each upgrade
   for(const [x,z,ww,dd] of [[0,-d/2+.4,w,.8],[0,d/2-.4,w,.8],[-w/2+.4,0,.8,d],[w/2-.4,0,.8,d]]){b.push(P('box',lined?0xbdbdbd:0x8a7456,x,.2,z,ww,.4,dd)); if(!lined) b.push(P('box',0x7f9752,x,.41,z,ww,.03,dd));}   // dikes
   b.push(P('box',0x3e5f5a,0,.06,0,iw,.04,id));
   const water=new THREE.Mesh(new THREE.BoxGeometry(iw,.04,id),POND_MAT); water.position.y=.24; water.receiveShadow=true; g.add(water);
@@ -9903,6 +9903,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:68,date:'Nov 13, 2026',title:'Animal houses grow as you upgrade',items:['🏠 Every animal house now has the same full-size lot from the day you build it. The house starts small on it and grows with each upgrade until it fills the lot at the top level, along with more animals and extras like the water tank.','🐄 The cattle barn, pig house, fish pond and duck house now grow too, like the chicken and broiler houses.','📏 The S, M and L choice when moving a house is gone: the lot is always the standard size.']},
   {v:67,date:'Nov 13, 2026',title:'Smoother start',items:['📱 One "turn your phone sideways" screen only, shown first. It also comes back if you turn your phone upright while playing.','⏳ The loading screen now stays until your farm is fully built, including the paths your farmer and helpers walk, so nothing pops in after it closes.','🖼️ The turn-sideways screen fills the whole screen. Nothing loads until your phone is sideways, so you see the loading from the start and the farm never opens squashed. Turning your phone while playing re-fits the view.']},
   {v:66,date:'Nov 13, 2026',title:'Tidier dirt roads',items:['🛣️ Roads you draw keep straight stretches straight and turn at real corners, with only the small rounding a truck needs. They only curve where you draw a curve.','⬛ A road that ends in the open now stops square. Where it runs into another road it still blends in.']},
   {v:65,date:'Nov 13, 2026',title:'Round pens and any corner',items:['⭕ Fences follow the shape you draw: draw a circle and you get a round pen, draw a curve and the fence curves with it.','↩️ Changed your mind while drawing? Drag back over the line to rub it out, the same way you came. Go all the way back and nothing is built. Works for dirt roads too.','📐 Sharp turns become corners at any angle, not only square ones. Straight stretches stay straight and line up with the farm only when you are already close to it.']},
@@ -10154,7 +10155,7 @@ var ANIMALH=(()=>{
   const yardOf=(type,x,z,w,d)=>{let x0=x-w/2,x1=x+w/2,z0=z-d/2,z1=z+d/2; if(type==='cows') z1+=14; else if(type==='goat') z1+=4; else if(type==='pig'){x0-=1.4; x1+=1.4;} else if(type==='coop'||type==='broiler'){x0-=1.6; x1+=1.6;} return [x0,z0,x1,z1];};
   const sizeOf=k=>(S.animalPos&&S.animalPos[k]&&S.animalPos[k].size)||'M';
   function ok(k,x,z,size){const s=SLOTS[k], c=HOUSE_SC[size]||1, w=SLOT_BASE[k].w*c, d=SLOT_BASE[k].d*c, Y=yardOf(s.type,x,z,w,d);
-    if(S.tiles[s.i]&&S.tiles[s.i].s==='bld'&&x===s.x&&z===s.z&&size===sizeOf(k)) return '';   // back where it already stands
+    if(S.tiles[s.i]&&S.tiles[s.i].s==='bld'&&x===s.x&&z===s.z) return '';   // back where it already stands
     if(FARMNET.vehiclesOut()) return 'Wait until your vehicles are back in the garage.';
     for(let xx=Y[0];xx<=Y[2]+.01;xx+=1.5) for(const zz of [Y[1],Y[3]]) if(!inLot(xx,zz)) return 'Keep the house and its yard inside your farm fence.';
     for(let zz=Y[1];zz<=Y[3]+.01;zz+=1.5) for(const xx of [Y[0],Y[2]]) if(!inLot(xx,zz)) return 'Keep the house and its yard inside your farm fence.';
@@ -10355,7 +10356,7 @@ var DECO=(()=>{
   // ---- moving an animal house: press and hold it, drag the outline, pick its yard size, ✓ puts it there, ✕ leaves it
   let house=null, houseArm=false;
   const hctl=document.createElement('div'); hctl.id='house-ctl'; hctl.hidden=true;
-  hctl.innerHTML='<button data-h="ok" aria-label="Put the house here">✓</button><button data-h="S">S</button><button data-h="M">M</button><button data-h="L">L</button><button data-h="no" aria-label="Cancel">✕</button>'; document.body.append(hctl);
+  hctl.innerHTML='<button data-h="ok" aria-label="Put the house here">✓</button><button data-h="no" aria-label="Cancel">✕</button>'; document.body.append(hctl);
   const houseAtPt=(x,z)=>SLOTS.findIndex(s=>S.tiles[s.i]&&S.tiles[s.i].s==='bld'&&Math.abs(x-s.x)<s.w/2&&Math.abs(z-s.z)<s.d/2);
   function hGhost(){if(house.v) scene.remove(house.v.g); const s=SLOTS[house.k], c=HOUSE_SC[house.size], w=SLOT_BASE[house.k].w*c, d=SLOT_BASE[house.k].d*c, Y=ANIMALH.yardOf(s.type,0,0,w,d), g=new THREE.Group();
     const rect=(x0,z0,x1,z1,y,col)=>new THREE.Line(new THREE.BufferGeometry().setFromPoints([[x0,z0],[x1,z0],[x1,z1],[x0,z1],[x0,z0]].map(([a,b])=>new THREE.Vector3(a,y,b))),new THREE.LineBasicMaterial({color:col}));
@@ -10363,16 +10364,16 @@ var DECO=(()=>{
     const yard=new THREE.Mesh(new THREE.PlaneGeometry(Y[2]-Y[0],Y[3]-Y[1]),new THREE.MeshBasicMaterial({color:0x6fbf4a,transparent:true,opacity:.12,depthWrite:false})); yard.rotation.x=-Math.PI/2; yard.position.set((Y[0]+Y[2])/2,.28,(Y[1]+Y[3])/2);
     const line=rect(-w/2,-d/2,w/2,d/2,.32,0x2e7d32), yl=rect(Y[0],Y[1],Y[2],Y[3],.3,0x5d8f3a); g.add(fill,yard,line,yl); g.position.set(house.x,0,house.z); scene.add(g); house.v={g,fill,yard,line}; hCheck();}
   function hCheck(){house.err=ANIMALH.ok(house.k,house.x,house.z,house.size); const bad=!!house.err; house.v.fill.material.color.setHex(bad?0xe0735a:0x6fbf4a); house.v.yard.material.color.setHex(bad?0xe0735a:0x6fbf4a); house.v.line.material.color.setHex(bad?0xa6402c:0x2e7d32);
-    hctl.classList.toggle('bad',bad); hctl.querySelector('[data-h=ok]').title=house.err||'Put the house here'; for(const z of ['S','M','L']) hctl.querySelector(`[data-h=${z}]`).classList.toggle('on',house.size===z);}
+    hctl.classList.toggle('bad',bad); hctl.querySelector('[data-h=ok]').title=house.err||'Put the house here';}
   function pickHouse(k){if(FARMNET.vehiclesOut()) return toast('Wait until your vehicles are back in the garage before moving an animal house.',2800); if(active) cancelActive(); sel=null; const s=SLOTS[k];
-    house={k,x:s.x,z:s.z,size:ANIMALH.sizeOf(k)}; justActivated=true; buzz(); hGhost(); renderHUD();}
+    house={k,x:s.x,z:s.z,size:'M'}; justActivated=true; buzz(); hGhost(); renderHUD();}
   function grabHouse(k,g){pickHouse(k); if(house){house.off=[house.x-g[0],house.z-g[1]]; houseArm=true;}}   // keep the finger down and drag it straight away
   function holdHouseAt(x,z){const k=houseAtPt(x,z); if(k<0) return false; sel=null; if(active) cancelActive(); if(openCat!=='decor'){openCat='decor'; renderHUD();} grabHouse(k,[x,z]); return !!house;}
   function dropHouse(){if(!house) return; if(house.v) scene.remove(house.v.g); house=null; hctl.hidden=true; renderHUD();}
   function okHouse(){if(!house) return; if(house.err) return toast('Can\'t put it there. '+house.err,2800); const {k,x,z,size}=house; dropHouse(); ANIMALH.place(k,x,z,size); sfx('hammer',x,z);
     toast(`${BLDS[S.tiles[SLOTS[k].i].b].name} moved. Make sure a road comes close so trucks can load there.`,3200); connCheck();}
   hctl.addEventListener('pointerdown',e=>e.stopPropagation()); hctl.addEventListener('click',e=>{const b=e.target.closest('[data-h]'); if(!b||!house) return; e.stopPropagation(); const a=b.dataset.h;
-    if(a==='ok') okHouse(); else if(a==='no') dropHouse(); else {house.size=a; hGhost(); buzz();}});
+    if(a==='ok') okHouse(); else if(a==='no') dropHouse();});
   canvas.addEventListener('pointerdown',e=>{if(openCat!=='decor'||e.button||!house) return; const g=ground(e.clientX,e.clientY); if(!g) return; const s=SLOTS[house.k], c=HOUSE_SC[house.size], w=SLOT_BASE[house.k].w*c, d=SLOT_BASE[house.k].d*c;
     if(Math.abs(g[0]-house.x)<w/2+1&&Math.abs(g[1]-house.z)<d/2+1){houseArm=true; house.off=[house.x-g[0],house.z-g[1]];}},true);
   for(const t of ['pointerup','pointercancel']) canvas.addEventListener(t,()=>{setTimeout(()=>{houseArm=false;},0);},true);
@@ -10483,7 +10484,7 @@ var DECO=(()=>{
   // ---- the bar under the Decorate button
   function bar(){if(active||area||house) return ''; return `<button class="tool" data-deco-undo="1" ${hist.length?'':'disabled'} aria-label="Undo the last change"><span class="ti">↶</span><span class="tl">Undo</span><span class="tc">${hist.length?hist.length+(hist.length>1?' steps':' step'):'nothing yet'}</span></button>`+ORDER.map(k=>{const c=CAT[k], on=sel===k; return `<button class="tool ${on?'on':''}" data-deco="${k}" aria-pressed="${on}"><span class="ti svg" aria-hidden="true">${c.svgFull}</span><span class="tl">${c.name}</span><span class="tc">${c.roadTool?(c.cost?'₱'+c.cost+' / m':'free'):'₱'+c.cost}</span></button>`;}).join('')
     +`<button class="tool" data-deco-rot="1" aria-label="Turn the next piece"><span class="ti">↻</span><span class="tl">Turn</span><span class="tc">${Math.round(rot*180/Math.PI)%360}°</span></button>`;}
-  function hint(){if(house) return 'Drag the house to a new spot. S, M and L set the size of the house and its yard (the light area is where its animals go). ✓ puts it there, ✕ leaves it where it was.'; if(area) return 'Drag the area to a new spot inside your farm. ✓ moves it (the farm rebuilds; animals, houses and upgrades come along), ✕ leaves it where it is. Its gate stays on the same side: build a road to it.'; if(sel==='road') return 'Drag across your land to draw a dirt road (₱2 per metre). Its ends join any road they touch. Labels show what your roads reach: trucks only go where they connect.'; if(sel==='eraser') return 'Drag across a road to remove that part of it. Trucks only use roads that still connect.'; if(!sel&&!active&&!moving&&!area) return 'Pick a decoration, then tap your farm to place it. Press and hold something you placed to move it, or press and hold an animal house to move it or change its yard size.'; if(active) return 'Drag it to a new spot. ✓ puts it down, ↻ turns it, ✕ removes it (half back). Tap elsewhere to put it back.'; if(moving) return 'Tap where you want to move it.'; if(!sel) return 'Pick a decoration, then tap your farm to place it. Tap something you placed to turn, move, edit or remove it.';
+  function hint(){if(house) return 'Drag the house to a new spot (the light area is the yard its animals use). ✓ puts it there, ✕ leaves it where it was.'; if(area) return 'Drag the area to a new spot inside your farm. ✓ moves it (the farm rebuilds; animals, houses and upgrades come along), ✕ leaves it where it is. Its gate stays on the same side: build a road to it.'; if(sel==='road') return 'Drag across your land to draw a dirt road (₱2 per metre). Its ends join any road they touch. Labels show what your roads reach: trucks only go where they connect.'; if(sel==='eraser') return 'Drag across a road to remove that part of it. Trucks only use roads that still connect.'; if(!sel&&!active&&!moving&&!area) return 'Pick a decoration, then tap your farm to place it. Press and hold something you placed to move it, or press and hold an animal house to move it.'; if(active) return 'Drag it to a new spot. ✓ puts it down, ↻ turns it, ✕ removes it (half back). Tap elsewhere to put it back.'; if(moving) return 'Tap where you want to move it.'; if(!sel) return 'Pick a decoration, then tap your farm to place it. Tap something you placed to turn, move, edit or remove it.';
     return CAT[sel].line?`Drag across your land to build ${CAT[sel].name.toLowerCase()} (₱${CAT[sel].cost} per 2 m). Tap to place one piece.`:`Tap your farm to place a ${CAT[sel].name.toLowerCase()} (₱${CAT[sel].cost}). Tap "Turn" to face it another way.`;}
   $('tools').addEventListener('click',e=>{const b=e.target.closest('[data-deco],[data-deco-rot],[data-deco-undo]'); if(!b||b.disabled) return;
     if(b.dataset.decoUndo){undo(); return;}

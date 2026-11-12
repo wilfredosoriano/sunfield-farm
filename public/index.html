@@ -2223,47 +2223,30 @@ var FARMNET=(()=>{
     const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; return t;}
   function setup(){cv=document.createElement('canvas'); cv.width=CW; cv.height=CH; ctx=cv.getContext('2d'); tex=new THREE.CanvasTexture(cv); tex.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
     bcv=document.createElement('canvas'); bcv.width=BW; bcv.height=BH; bctx=bcv.getContext('2d'); btex=new THREE.CanvasTexture(bcv); noisePat=ctx.createPattern(makeNoise(),'repeat');
-    const grain=makeGrain(), mat=new THREE.MeshStandardMaterial({map:tex,bumpMap:btex,bumpScale:.45,transparent:true,depthWrite:false,roughness:1,metalness:0,polygonOffset:true,polygonOffsetFactor:-2.4,polygonOffsetUnits:-2.4});
-    mat.onBeforeCompile=sh=>{sh.uniforms.grainMap={value:grain}; sh.fragmentShader='uniform sampler2D grainMap;\n'+sh.fragmentShader.replace('#include <map_fragment>',
-      `#include <map_fragment>\n diffuseColor.rgb*=mix(vec3(1.0),texture2D(grainMap,vUv*vec2(${((BX1-BX0)/3.2).toFixed(1)},${((BZ1-BZ0)/3.2).toFixed(1)})).rgb*2.0,.55);`);};
+    const grain=makeGrain(), mat=new THREE.MeshStandardMaterial({map:tex,transparent:false,alphaTest:.5,depthWrite:true,roughness:1,metalness:0,polygonOffset:true,polygonOffsetFactor:-2.4,polygonOffsetUnits:-2.4});
+    // (plain finish: no grain, like the arko road)
     mesh=new THREE.Mesh(new THREE.PlaneGeometry(BX1-BX0,BZ1-BZ0),mat); mesh.rotation.x=-Math.PI/2; mesh.position.set((BX0+BX1)/2,.036,(BZ0+BZ1)/2); mesh.receiveShadow=true; mesh.renderOrder=1; scene.add(mesh);}
   function draw(preview){if(!cv) setup();
     const X=x=>(x-BX0)*ppm, Z=z=>(z-BZ0)*ppm, bs=BW/CW, r=rng(4242);
-    const lines=SAMP.map((L,ri)=>({L,w:S.farmRoads[ri].w,ri})); if(preview&&preview.pts.length>1) lines.push({L:spline(preview.pts,false,1),w:4.2,ri:-2,pv:preview.bad?'bad':'ok'});
+    const lines=SAMP.map((L,ri)=>({L,w:S.farmRoads[ri].w,ri})); lines.push({L:ACCESS.slice(Math.max(0,ACCESS.length-12)),w:ROADS.access.w,ri:-3});   // the last stretch of the arko road too, so the two run into each other with no seam
+    if(preview&&preview.pts.length>1) lines.push({L:spline(preview.pts,false,1),w:4.2,ri:-2,pv:preview.bad?'bad':'ok'});
     const nrm=(L,k)=>{const q=L[Math.min(L.length-1,k+1)], o=L[Math.max(0,k-1)], dx=q[0]-o[0], dz=q[1]-o[1], dl=Math.hypot(dx,dz)||1; return [-dz/dl,dx/dl];};
     const path=(c,L,off,sc,wob=0)=>{c.beginPath(); for(let k=0;k<L.length;k++){const [nx,nz]=nrm(L,k), o=off+(wob?Math.sin(k*.9+off*7)*wob+Math.sin(k*.37+off*3)*wob*.6:0); const x=X(L[k][0]+nx*o)*sc, z=Z(L[k][1]+nz*o)*sc; k?c.lineTo(x,z):c.moveTo(x,z);}};
     const stroke=(c,L,w,col,off=0,a=1,sc=1,wob=0)=>{if(L.length<2) return; path(c,L,off,sc,wob); c.globalAlpha=a; c.strokeStyle=col; c.lineWidth=w*ppm*sc; c.stroke(); c.globalAlpha=1;};
     // other roads' nodes nearby: no ragged bites where roads meet
     const other=(x,z,ri,R)=>NODES.some(p=>p[3]!==ri&&p[3]>=0&&Math.abs(p[0]-x)<R&&Math.abs(p[1]-z)<R&&Math.hypot(p[0]-x,p[1]-z)<R);
-    // ---- colour
+    // ---- colour: the same banding as the road through the arko (grassy edges, wheel-track bands, a lighter crown), blended smoothly
     ctx.clearRect(0,0,CW,CH); ctx.lineCap='round'; ctx.lineJoin='round'; ctx.globalCompositeOperation='source-over';
-    const bad=o=>o.pv==='bad';
-    for(const o of lines) stroke(ctx,o.L,o.w+1.5,bad(o)?'#c9705a':'#7c7c4d',0,.35);                 // trodden grass at the verge
-    for(const o of lines) stroke(ctx,o.L,o.w+.5,bad(o)?'#b8644f':'#8d7f5c',0,.9,1,.0);               // the crumbling edge
-    for(const o of lines){if(o.pv) continue; for(let k=0;k<o.L.length;k++){if(r()<.45) continue; const [nx,nz]=nrm(o.L,k); for(const sd of [-1,1]){const off=sd*(o.w/2+(r()-.3)*.55), x=o.L[k][0]+nx*off, z=o.L[k][1]+nz*off;
-        if(other(x,z,o.ri,o.w*.9)) continue; ctx.globalAlpha=.85; ctx.fillStyle=r()<.5?'#8b7d5b':'#968661'; ctx.beginPath(); ctx.ellipse(X(x),Z(z),(.25+r()*.45)*ppm,(.18+r()*.3)*ppm,r()*3,0,6.28); ctx.fill();}}}
-    ctx.globalAlpha=1;
-    for(const o of lines) stroke(ctx,o.L,o.w-.3,bad(o)?'#c47a63':'#957e5b');                         // the dirt
-    // damp and dusty patches, and grit, only where there is road
-    ctx.globalCompositeOperation='source-atop'; ctx.fillStyle=noisePat; ctx.fillRect(0,0,CW,CH); ctx.globalCompositeOperation='source-over';
-    for(const o of lines){if(o.pv) continue; const tracks=o.w>=3.4;
-      for(const sd of [-1,1]){stroke(ctx,o.L,.85,'#7a6449',sd*o.w*.26,.55,1,.06); stroke(ctx,o.L,.3,'#665340',sd*o.w*.26,.3,1,.05);}   // packed wheel ruts
-      stroke(ctx,o.L,o.w*.2,'#7d7d4f',0,tracks?.42:.25,1,.08);                                            // the grassy hump between them
-      for(let k=0;k<o.L.length;k+=2){if(r()<.75) continue; const [nx,nz]=nrm(o.L,k), sd=r()<.5?-1:1, x=o.L[k][0]+nx*sd*o.w*.26, z=o.L[k][1]+nz*sd*o.w*.26;   // dried puddle stains in the ruts
-        ctx.globalAlpha=.2; ctx.fillStyle='#5b4a38'; ctx.beginPath(); ctx.ellipse(X(x),Z(z),(.5+r()*.9)*ppm,(.25+r()*.25)*ppm,Math.atan2(nz,nx)+Math.PI/2,0,6.28); ctx.fill();}
-      ctx.globalAlpha=1;}
-    // ragged bites of grass into the edge (the ground shows through), never where another road joins
-    ctx.globalCompositeOperation='destination-out';
-    for(const o of lines){if(o.pv) continue; for(let k=0;k<o.L.length;k++){if(r()<.62) continue; const [nx,nz]=nrm(o.L,k), sd=r()<.5?-1:1, off=sd*(o.w/2+.55+r()*.2), x=o.L[k][0]+nx*off, z=o.L[k][1]+nz*off;
-        if(other(x,z,o.ri,o.w+1)) continue; ctx.beginPath(); ctx.ellipse(X(x),Z(z),(.3+r()*.5)*ppm,(.2+r()*.3)*ppm,r()*3,0,6.28); ctx.fill();}}
-    ctx.globalCompositeOperation='source-over'; tex.needsUpdate=true;
-    // ---- relief (bump map): mid-grey ground, a slightly lower road bed, deep ruts, a raised hump and lumps
-    bctx.globalCompositeOperation='source-over'; bctx.fillStyle='#808080'; bctx.fillRect(0,0,BW,BH); bctx.lineCap='round'; bctx.lineJoin='round';
-    for(const o of lines) stroke(bctx,o.L,o.w+.3,'#787878',0,1,bs);
-    for(const o of lines){for(const sd of [-1,1]){stroke(bctx,o.L,1.1,'#666666',sd*o.w*.26,1,bs,.06); stroke(bctx,o.L,.6,'#585858',sd*o.w*.26,1,bs,.06);} stroke(bctx,o.L,o.w*.24,'#8e8e8e',0,1,bs,.08);}
-    const r2=rng(77); for(const o of lines) for(let k=0;k<o.L.length;k++){if(r2()<.5) continue; const [nx,nz]=nrm(o.L,k), off=(r2()-.5)*o.w*.9, x=o.L[k][0]+nx*off, z=o.L[k][1]+nz*off, v=r2()<.5?100:150;
-      bctx.fillStyle=`rgb(${v},${v},${v})`; bctx.beginPath(); bctx.arc(X(x)*bs,Z(z)*bs,(.12+r2()*.25)*ppm*bs,0,6.28); bctx.fill();}
-    btex.needsUpdate=true;
+    const EDGE=[0x8f,0x8c,0x5e], RUT=[0x8c,0x76,0x57], CROWN=[0xa8,0x92,0x72], BADC=[0xc9,0x70,0x5a];
+    const mix=(A,B,t)=>`rgb(${A.map((v,i)=>Math.round(v+(B[i]-v)*t)).join(',')})`, prof=t=>t>=.42?mix(RUT,EDGE,(t-.42)/.58):mix(CROWN,RUT,t/.42);
+    for(const t of [1,.92,.84,.76,.68,.6,.52,.44,.36,.28,.2,.12]) for(const o of lines) stroke(ctx,o.L,o.w*t,o.pv==='bad'?mix(BADC,CROWN,1-t):prof(t),0,1,1,t===1?.12:0);
+    for(const o of lines){if(o.pv) continue; for(let k=0;k<o.L.length;k++){if(r()<.5) continue; const [nx,nz]=nrm(o.L,k); for(const sd of [-1,1]){const off=sd*(o.w/2+(r()-.5)*.35), x=o.L[k][0]+nx*off, z=o.L[k][1]+nz*off;   // a slightly ragged edge
+        if(other(x,z,o.ri,o.w*.9)) continue; ctx.fillStyle=mix(EDGE,RUT,.15); ctx.beginPath(); ctx.ellipse(X(x),Z(z),(.15+r()*.25)*ppm,(.12+r()*.18)*ppm,r()*3,0,6.28); ctx.fill();}}}
+    const PATCH=['#93805f','#a89474','#9b8666','#b19d7d'];
+    for(const o of lines){if(o.pv) continue; for(let k=0;k<o.L.length;k+=2){if(r()<.45) continue; const [nx,nz]=nrm(o.L,k), off=(r()-.5)*o.w*.66, x=o.L[k][0]+nx*off, z=o.L[k][1]+nz*off, rr=.4+r()*.8;   // worn patches, like the arko road's
+        ctx.globalAlpha=.8; ctx.fillStyle=PATCH[(r()*4)|0]; ctx.beginPath(); for(let q=0;q<=14;q++){const a=q/14*6.28, rad=rr*(1+.3*Math.sin(3*a+k)+.15*Math.sin(5*a+k*2.1)); const px=X(x+Math.cos(a)*rad), pz=Z(z+Math.sin(a)*rad*(.5+((k*7)%5)/10)); q?ctx.lineTo(px,pz):ctx.moveTo(px,pz);} ctx.fill();}}
+    ctx.globalAlpha=1; tex.needsUpdate=true;
+    bctx.fillStyle='#808080'; bctx.fillRect(0,0,BW,BH); btex.needsUpdate=true;   // flat, like the arko road
     if(!preview) scatterOn();}
   // real stones, and grass tufts on the hump and the verges
   const STONE=new THREE.DodecahedronGeometry(1,0), TUFT=mergeGeo([0,1,2].map(k=>[new THREE.ConeGeometry(.04,.32,3,1,true),Mx(Math.cos(k*2.1)*.05,.15,Math.sin(k*2.1)*.05,1,1,1,Math.sin(k*2.1)*.3,0,Math.cos(k*2.1)*.3),0xffffff]));
@@ -2326,7 +2309,9 @@ const ROAD_TOP=ROAD_MAT.clone(), ROAD_LOW=ROAD_MAT.clone(); ROAD_TOP.polygonOffs
     // where two strips overlap (each animal track and footpath meeting the service road, the access road joining it) they would flicker
     // against each other at the same height: the service road draws on top, then the access road, then the tracks and footpaths
     const lay=id==='service'?ROAD_TOP:id==='access'?ROAD_MAT:ROAD_LOW, y=id==='service'?.036:id==='access'?.035:foot?.03:.033;
-    const m=new THREE.Mesh(ribbon(R.s,R.w,foot?[0x9d9a6e,0xb9a682,0xc2b08c]:[0x8f8c5e,0x8c7657,0xa89272],y,id.length*31),lay); m.receiveShadow=true; scene.add(m);}
+    const geo=ribbon(R.s,R.w,foot?[0x9d9a6e,0xb9a682,0xc2b08c]:[0x8f8c5e,0x8c7657,0xa89272],y,id.length*31);
+    if(id==='access'){const q=geo.attributes.position, K=5, n=q.count/K; for(let i=Math.max(0,n-10);i<n;i++){const f=Math.min(1,(n-1-i)/9); for(let k=0;k<K;k++) q.setY(i*K+k,.002+(y-.002)*f);} q.needsUpdate=true;}   // its last stretch sinks to the ground under your painted roads: no seam
+    const m=new THREE.Mesh(geo,lay); m.receiveShadow=true; scene.add(m);}
   const along=(S,k,off)=>{const a=S[Math.max(0,k-1)], b=S[Math.min(S.length-1,k+1)], L=Math.hypot(b[0]-a[0],b[1]-a[1])||1; return [S[k][0]-(b[1]-a[1])/L*off,S[k][1]+(b[0]-a[0])/L*off];};
   const n=ACCESS.length; [[.22,.85,.2,1.3],[.5,.95,.22,4.1],[.78,.8,.18,2.6]].forEach(([u,r,d,s],k)=>{const [x,z]=along(ACCESS,Math.floor(n*u),k%2?.7:-.65); POTHOLES.push({x,z,r,d,s});});
   const put=(geo,x,z,rot)=>{const [g,c]=geo; return [g,Mx(x,0,z,1,1,1,0,rot,0),c];};
@@ -9895,7 +9880,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
-  {v:58,date:'Nov 12, 2026',title:'Real dirt roads',items:['🟫 Your farm roads now look like worn dirt roads: edges that crumble into the grass, damp and dusty patches, two packed wheel ruts with a grassy hump between them, fine grit, and real stones and grass tufts. The ruts and lumps catch the light as the sun moves.']},
+  {v:58,date:'Nov 12, 2026',title:'Farm roads match the arko road',items:['🟫 The roads inside your farm, including the ones you build, now look just like the road through the arko: the same grassy edges, wheel-track bands and lighter crown, worn patches, stones and grass tufts, and the arko road runs into them with no seam.']},
   {v:57,date:'Nov 12, 2026',title:'Build your own farm roads',items:['🛣️ The roads inside your farm are now yours: in Decorate, drag Dirt road to build one (₱2 a metre) and drag Remove road to take part of one away. The road from the highway to the arko and the farm fence stay as they are.','🔗 Roads join wherever they touch, curves and junctions blend into one dirt road, and grass clears off them.','🚚 Your trucks drive only on roads that connect to the arko. While a road tool is chosen, labels show which animal gates, the garage, the bodega and the katayan your roads reach; a pickup to a place with no road tells you so.','↶ Road changes can be undone. To keep trucks from getting lost, roads can\'t be changed while a vehicle is out.']},
   {v:56,date:'Nov 12, 2026',title:'Undo, and pick things up',items:['↶ Decorate has an Undo button (Ctrl/Cmd+Z on a computer). It takes back placing, a whole dragged fence line, moving, turning, removing and sign edits, one step at a time, and returns the coins.','✋ Press and hold anything you placed to pick it up: drag it to a new spot, then ✓ to put it down, ↻ to turn it or ✕ to remove it. The ring under it turns red where it can\'t go.']},
   {v:55,date:'Nov 12, 2026',title:'Sign in with Google, done right',items:['☁️ A new sketched welcome screen: continue with Google to keep your farm safe online, or play as a guest. On a phone it asks you to turn sideways first.','🌱 A sketched loading screen with a little tractor while your farm is built.','⚙️ Your account now lives in Settings: who is signed in, the auto-sync status, Sync now and Sign out.','🛟 Safer saves: the game picks the newest copy of your farm on its own and only asks when two devices both have new progress, keeps a backup of the copy it replaces, renews your sign-in while you keep playing, and if your sign-in ever runs out you can still open your own farm on this device.']},

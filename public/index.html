@@ -9929,6 +9929,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:73,date:'Nov 13, 2026',title:'Clean canal corners',items:['📐 Canals joined end to end are now drawn as one channel: the floor, water and walls turn every corner cleanly, with no gaps or walls across the water.','🔗 Continuing a canal from its end is easier: start your next stroke near the end and it snaps on from up to 2 m away. Draw an L in one stroke, or in two.']},
   {v:72,date:'Nov 13, 2026',title:'Take out the old paths and canals',items:['🚶 In Decorate, press and hold a footpath (round the old field, to the poultry, on the pond dike, to the house) and tap 🗑 to take it out. Draw your own dirt roads instead.','💧 The field drain and the farm canal can be taken out the same way. The irrigation canal along the farm fence stays: it is where the water comes from, and where your own canals can drain to.','🌳 The round shrub planters and the PASTURE, POULTRY and ORCHARD signs can now be moved or removed too.','🏗️ Anything you take out can be put back from the Decorate bar.','⚡ Taking out or putting back a path or canal happens right away, without reloading the farm.']},
   {v:71,date:'Nov 13, 2026',title:'Plots anywhere, and a smaller start',items:['⛏️ Hoe anywhere: pick 🧰 Tools → Hoe and drag across open ground to make new crop plots (₱20 each while your farm is small), snapped neatly beside each other.','✋ In Decorate, press and hold a plot to move it (its crop comes along) or 🗑 remove it.','🌱 A new game starts small: 4 hoed plots, your house, garage, bodega, water tower and 4 fruit trees. Everything else you build yourself. Farms you already have keep everything they have.','🧱 Each open end of a canal you draw now finishes in a low concrete headwall with a pipe mouth, like the farm\'s own kanal.']},
   {v:70,date:'Nov 13, 2026',title:'Move or remove the farm buildings and trees',items:['✋ In Decorate, press and hold the bodega, the water tower yard, the seedling greenhouse, the packing shelter, the tool rack or the kubol to pick it up. Drag it and tap ✓: the farm is rebuilt around it in a moment.','🗑 The greenhouse, packing shelter, tool rack and kubol can be taken down too. The bodega and the water tower stay, since your harvest and your hose water need them. Anything you take down can be put back from the Decorate bar.','🌳 Press and hold a fruit tree to move it anywhere on open ground, or 🗑 to remove its plot. Put new tree plots back from Decorate → Tree plot, then tap the plot to plant.','🛣️ Moved the bodega? Build a dirt road to its new door so trucks can still bring the egg trays.']},
@@ -10243,6 +10244,15 @@ var DECO=(()=>{
   const signW=t=>Math.max(1.3,Math.min(4.4,.7+t.length*.17));
   let sel=null, rot=0, moving=null, editId=null;
   // the farm's own buildings the player can move (and, except the bodega and the water tower, take down): base centre and footprint
+  // a prism along a path, between two side offsets and two heights; corners get mitred joins so a run turns cleanly
+  const CANAL_MAT=VCMAT.clone(); CANAL_MAT.side=THREE.DoubleSide;
+  function stripGeo(P,closed,oA,oB,y0,y1){const n=P.length, Nm=[], sn=(a,b)=>{const dx=b[0]-a[0], dz=b[1]-a[1], L=Math.hypot(dx,dz)||1; return [-dz/L,dx/L];};
+    for(let i=0;i<n;i++){let n1=i>0?sn(P[i-1],P[i]):closed?sn(P[n-2],P[0]):null, n2=i<n-1?sn(P[i],P[i+1]):closed?sn(P[n-1],P[1]):null; if(!n1) n1=n2; if(!n2) n2=n1;
+      let mx=n1[0]+n2[0], mz=n1[1]+n2[1]; const L=Math.hypot(mx,mz)||1; mx/=L; mz/=L; const c=Math.max(.35,mx*n1[0]+mz*n1[1]); Nm.push([mx/c,mz/c]);}
+    const pos=[], V=(i,o,y)=>[P[i][0]+Nm[i][0]*o,y,P[i][1]+Nm[i][1]*o], quad=(a,b,c,d)=>pos.push(...a,...b,...c,...a,...c,...d);
+    for(let i=0;i<n-1;i++){quad(V(i,oA,y1),V(i,oB,y1),V(i+1,oB,y1),V(i+1,oA,y1)); quad(V(i,oA,y0),V(i,oA,y1),V(i+1,oA,y1),V(i+1,oA,y0)); quad(V(i,oB,y1),V(i,oB,y0),V(i+1,oB,y0),V(i+1,oB,y1));}
+    if(!closed){quad(V(0,oB,y0),V(0,oB,y1),V(0,oA,y1),V(0,oA,y0)); const j=n-1; quad(V(j,oA,y0),V(j,oA,y1),V(j,oB,y1),V(j,oB,y0));}
+    const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.computeVertexNormals(); return g;}
   const FIXED=[{k:'bodega',name:'bodega',cx:-24,cz:-2,w:14,d:9,keep:1},{k:'util',name:'water tower yard',cx:-38,cz:-1,w:14,d:12,keep:1},{k:'greenhouse',name:'seedling greenhouse',cx:-36,cz:12.1,w:12.6,d:9},
     {k:'packing',name:'packing shelter',cx:-24,cz:12.6,w:7.6,d:8},{k:'rack',name:'tool rack',cx:-25.5,cz:6.7,w:7.2,d:2},{k:'kubo',name:'kubol',cx:25.6,cz:19.2,w:3.8,d:3.8},
     {k:'shrubA',name:'shrub planter',cx:-46,cz:18.5,w:1.6,d:1.6},{k:'shrubB',name:'shrub planter',cx:-20,cz:18.5,w:1.6,d:1.6},
@@ -10323,10 +10333,19 @@ var DECO=(()=>{
   function rebuild(){clearGroup(root); const all=[], W=new THREE.Matrix4(); gates=[];
     for(const d of S.deco){const c=CAT[d.k]; if(!c) continue; if(active&&active.id===d.id) continue; W.makeRotationY(d.r); W.setPosition(d.x,lift(d),d.z); if(d.s&&d.s!==1) W.multiply(SCX.makeScale(d.s,1,1));
       if(c.sign){const g=signGroup(d); g.position.set(d.x,0,d.z); g.rotation.y=d.r; root.add(g); continue;}
-      for(const [g,m,col] of parts(d)) all.push([g,W.clone().multiply(m),col]);
+      if(!(d.k==='canal'&&!d.cv)) for(const [g,m,col] of parts(d)) all.push([g,W.clone().multiply(m),col]);   // canals are drawn below as whole runs
       if(d.k==='lamp'){const L=lampLight(); L.position.set(.38,2.6,0).applyMatrix4(W); root.add(L);}
       if(d.k==='gate'){const g=new THREE.Group(); g.position.set(d.x,0,d.z); g.rotation.y=d.r; const mk=sd=>{const h=new THREE.Group(); h.position.set(sd*1.68,0,0); const m=new THREE.Mesh(LEAF,VCMAT); m.castShadow=true; m.scale.x=-sd; h.add(m); g.add(h); return h;};
         const L=mk(-1), R=mk(1); root.add(g); gates.push({d,L,R,a:0});}}
+    {// canals: pieces joined end to end become one run, drawn as one channel whose floor, water and walls turn each corner with a mitred join
+      const CN=S.deco.filter(d=>d.k==='canal'&&!d.cv&&!(active&&active.id===d.id)), nodes=[], nodeOf=p=>{for(let k=0;k<nodes.length;k++) if(Math.hypot(nodes[k].x-p[0],nodes[k].z-p[1])<.6) return k; nodes.push({x:p[0],z:p[1],e:[]}); return nodes.length-1;};
+      const edges=CN.map(d=>{const E=ends(d), e={d,a:nodeOf(E[0]),b:nodeOf(E[2]),used:false}; nodes[e.a].e.push(e); nodes[e.b].e.push(e); return e;});
+      const strips=[], I4=new THREE.Matrix4();
+      for(const e0 of edges){if(e0.used) continue; e0.used=true; const ids=[e0.a,e0.b];
+        for(const dir of [1,-1]){let cur=dir>0?e0.b:e0.a, prev=e0; while(nodes[cur].e.length===2){const nx=nodes[cur].e.find(q=>q!==prev); if(nx.used) break; nx.used=true; const o=nx.a===cur?nx.b:nx.a; if(dir>0) ids.push(o); else ids.unshift(o); prev=nx; cur=o;}}
+        const closed=ids.length>3&&ids[0]===ids[ids.length-1], P=ids.map(k=>[nodes[k].x,nodes[k].z]);
+        for(const [oA,oB,y0,y1,c] of [[-.45,.45,0,.04,0x5b4a36],[-.43,.43,.12,.14,0x6fa9c2],[-.6,-.44,0,.24,0x9e978a],[.44,.6,0,.24,0x9e978a],[-.62,-.42,.235,.255,0xb3ac9e],[.42,.62,.235,.255,0xb3ac9e],[-.08,.04,.141,.144,0x8cc0d4]]) strips.push([stripGeo(P,closed,oA,oB,y0,y1),I4,c]);}
+      if(strips.length){const m=new THREE.Mesh(mergeGeo(strips),CANAL_MAT); m.receiveShadow=true; m.castShadow=true; root.add(m);}}
     {const C=S.deco.filter(d=>d.k==='canal'&&!(active&&active.id===d.id));   // every open end of a canal: a low concrete headwall with a cap and the dark mouth of a pipe, like the farm's own kanal
       for(const d of C){if(d.cv) continue; const E=ends(d);
         for(const q of [0,2]){const p=E[q]; if(C.some(o=>o!==d&&(ends(o).some((e,qi)=>qi!==1&&Math.hypot(e[0]-p[0],e[1]-p[1])<.6)||segD(p[0],p[1],o)<.4))) continue;   // joined to another canal: the water runs on
@@ -10568,7 +10587,7 @@ var DECO=(()=>{
       if(c.gate&&k!=='canal'){const cs=Math.cos(o.r)*GATE_H, sn=-Math.sin(o.r)*GATE_H; P.push([o.x-cs,o.z-sn],[o.x+cs,o.z+sn]);}
       else if(c.line&&(k==='canal')===(o.k==='canal')){const E=ends(o); P.push(E[0],E[2]);}}
     return P;}
-  function snapEndPt(p,k,P){let best=null, bd=1.4; for(const q of P){const d=Math.hypot(q[0]-p[0],q[1]-p[1]); if(d<bd){bd=d; best=q;}} if(best) return {p:best.slice(),snapped:true};
+  function snapEndPt(p,k,P){let best=null, bd=k==='canal'?2.2:1.4; for(const q of P){const d=Math.hypot(q[0]-p[0],q[1]-p[1]); if(d<bd){bd=d; best=q;}} if(best) return {p:best.slice(),snapped:true};
     let bo=null, bo_d=.8; for(const o of S.deco){if(!(k==='canal'?o.k==='canal':FENCY(o.k))) continue; const d=segD(p[0],p[1],o); if(d<bo_d){bo_d=d; bo=o;}}   // a T-joint onto the side of a fence
     if(bo){const [[ax,az],,[bx,bz]]=ends(bo), dx=bx-ax, dz=bz-az, u=Math.max(0,Math.min(1,((p[0]-ax)*dx+(p[1]-az)*dz)/(dx*dx+dz*dz||1))); return {p:[ax+dx*u,az+dz*u],snapped:true};}
     return {p:[snap(p[0]),snap(p[1])],snapped:false};}

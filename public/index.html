@@ -3826,28 +3826,26 @@ PG.pigBody=lathe([[0,-1],[.3,-.96],[.45,-.84],[.51,-.6],[.52,-.25],[.52,.2],[.5,
 PG.neck=lathe([[0,-.5],[.5,-.46],[.47,-.1],[.42,.3],[.36,.48],[0,.5]],16);
 PG.taper=new THREE.CylinderGeometry(.5,.32,1,12); PG.curl=new THREE.TorusGeometry(.5,.2,6,14,Math.PI*1.7);
 let COW=null, PIG=null;
-function cowGeo(){ // dairy Holstein, tan native (Brahman-type) and brown cattle: one smooth barrel with a topline (withers, hip bones, tailhead), a neck and dewlap
+function cowGeo(){ // Philippine cattle are zebu (Brahman type): creamy white, fawn with a grey shoulder, or grey-white; a big hump over the shoulders,
+  // long drooping ears, a deep dewlap of loose skin under the neck, short upturned horns, a black nose, a lean body on long legs, and a dark tail switch
   if(COW) return COW; COW=[];
-  for(const [C,S2,kind] of [[0xf5f3ee,0x1c1c1c,'hol'],[0xc9a676,0x7a5a3a,'tan'],[0x6b4a32,0x3e2a1c,'brn']]){
-    const low=kind==='hol'?0xf5f3ee:C;
-    const b=[P('cowBody',C,0,1.02,-.04,.84,.9,1.02),P('sphHi',C,0,1.3,.6,.66,.4,.66),P('sphHi',C,0,1.28,-.7,.7,.36,.56),
-      P('sphHi',C,.28,1.31,-.78,.13,.11,.14),P('sphHi',C,-.28,1.31,-.78,.13,.11,.14),P('sphHi',C,0,1.33,-.98,.13,.11,.18),
-      P('neck',C,0,1.16,1.02,.5,.62,.74,.18,0,0),P('sphHi',C,0,.86,.98,.14,kind==='tan'?.46:.32,.52)];
-    if(kind==='hol'){b.push(P('sphHi',0xf2b8b0,0,.66,-.44,.38,.26,.42)); for(const x of [-.09,.09]) for(const z of [-.52,-.36]) b.push(P('cylHi',0xf2b8b0,x,.52,z,.045,.14,.045));
-      [[.42,1.05,.25,.1,.44,.6],[-.43,1.1,-.3,.1,.48,.56],[.42,.98,-.62,.1,.34,.42],[-.42,1.0,.52,.1,.38,.46],[0,1.46,-.2,.56,.08,.5],[.4,1.22,-.02,.1,.32,.34],[-.4,.92,.02,.1,.3,.38],[0,1.32,1.05,.4,.1,.4]]
-        .forEach(([x,y,z,sx,sy,sz])=>b.push(P('sphHi',S2,x,y,z,sx,sy,sz)));}
-    if(kind==='tan') b.push(P('sphHi',C,0,1.56,.55,.42,.36,.46));   // the Brahman hump
-    const h=[P('sphHi',C,0,-.04,.08,.46,.5,.56),P('taper',C,0,-.14,.42,.34,.46,.34,Math.PI/2+.25,0,0),P('sphHi',C,0,-.22,.62,.32,.3,.36),
-      P('sphHi',kind==='hol'?0xf0c0b4:0x3a2a20,0,-.3,.78,.32,.24,.2),
-      P('sphHi',0x2a1a14,.07,-.3,.88,.05,.05,.03),P('sphHi',0x2a1a14,-.07,-.3,.88,.05,.05,.03),
-      P('sphHi',0x111111,.19,.02,.4,.07,.08,.06),P('sphHi',0x111111,-.19,.02,.4,.07,.08,.06),
-      P('sphHi',C,.32,.06,.2,.3,.08,.15,0,0,-.3),P('sphHi',C,-.32,.06,.2,.3,.08,.15,0,0,.3),
-      P('cone',0xe8dcc0,.15,.21,.18,.07,.2,.07,0,0,-1.0),P('cone',0xe8dcc0,-.15,.21,.18,.07,.2,.07,0,0,1.0)];
-    if(kind==='hol') h.push(P('sphHi',S2,0,.1,.3,.34,.2,.32));
-    const leg=mergeGeo([P('sphHi',C,0,-.06,0,.36,.46,.44),P('taper',C,0,-.2,0,.3,.5,.34),P('sphHi',C,0,-.46,0,.15,.13,.15),P('cylHi',low,0,-.66,0,.11,.4,.11),
-      P('sphHi',low,0,-.86,0,.12,.07,.12),P('cylHi',0x2b2b2b,0,-.92,.02,.15,.07,.17)]);
-    const tail=mergeGeo([P('cylHi',C,0,-.38,0,.05,.76,.05),P('sphHi',S2,0,-.8,0,.11,.22,.11)]);
-    COW.push({body:mergeGeo(b),head:mergeGeo(h),leg,tail,hips:[[.27,.92,.62],[-.27,.92,.62],[.27,.92,-.64],[-.27,.92,-.64]],tailAt:[0,1.3,-1.06],swing:.42,tailSwing:.45,stride:1.15});
+  for(const [C,SH,LOW,kind] of [[0xefebe2,0xe2ddd2,0xefebe2,'white'],[0xd4ae84,0xbfa58a,0xf1ece2,'fawn'],[0xc2bcb0,0xa49e93,0xd9d4ca,'grey']]){
+    const NOSE=0x1d1a18, HOOF=0x2b2723, HORN=0x6e604f, INNER=kind==='fawn'?0x8a6a50:0xc89a8e;
+    const b=[P('cowBody',C,0,1.04,-.04,.78,.86,1.02),                                                           // a leaner barrel
+      P('sphHi',C,0,1.28,-.7,.66,.34,.54),P('sphHi',C,.26,1.31,-.8,.12,.1,.13),P('sphHi',C,-.26,1.31,-.8,.12,.1,.13),P('sphHi',C,0,1.32,-1.0,.12,.1,.16),   // rump, hip bones, tailhead
+      P('sphHi',SH,0,1.43,.5,.34,.3,.4),P('sphHi',SH,0,1.36,.66,.4,.22,.36),                                          // the hump over the withers, blending into the neck
+      P('neck',SH,0,1.16,1.02,.46,.6,.72,.2,0,0),
+      P('sphHi',C,0,.84,.96,.12,.56,.66),P('sphHi',C,0,.66,.72,.1,.3,.42),P('sphHi',C,0,.98,1.2,.1,.3,.3)];          // the deep dewlap, hanging in folds to the chest
+    const h=[P('sphHi',C,0,.0,.06,.42,.52,.54),P('taper',C,0,-.13,.42,.32,.5,.32,Math.PI/2+.28,0,0),P('sphHi',C,0,-.24,.64,.3,.3,.34),   // a long face
+      P('sphHi',NOSE,0,-.32,.8,.31,.24,.2),P('sphHi',0x0b0a09,.07,-.32,.9,.05,.05,.03),P('sphHi',0x0b0a09,-.07,-.32,.9,.05,.05,.03),   // the black muzzle
+      P('sphHi',0x111111,.19,.05,.38,.07,.08,.06),P('sphHi',0x111111,-.19,.05,.38,.07,.08,.06),
+      P('sphHi',C,.31,-.17,.16,.07,.36,.17,0,0,.62),P('sphHi',C,-.31,-.17,.16,.07,.36,.17,0,0,-.62),                     // long drooping ears
+      P('sphHi',INNER,.29,-.18,.19,.03,.28,.12,0,0,.62),P('sphHi',INNER,-.29,-.18,.19,.03,.28,.12,0,0,-.62),
+      P('cone',HORN,.13,.3,.08,.06,.18,.06,-.25,0,-.4),P('cone',HORN,-.13,.3,.08,.06,.18,.06,-.25,0,.4)];          // short horns curving up
+    const leg=mergeGeo([P('sphHi',C,0,-.06,0,.25,.4,.33),P('taper',C,0,-.22,0,.21,.5,.25),P('sphHi',LOW,0,-.46,0,.13,.12,.13),P('cylHi',LOW,0,-.66,0,.115,.42,.115),   // long, lean legs
+      P('sphHi',LOW,0,-.86,0,.1,.06,.1),P('cylHi',HOOF,0,-.92,.02,.13,.07,.15)]);
+    const tail=mergeGeo([P('cylHi',C,0,-.42,0,.04,.84,.04),P('sphHi',0x2a2420,0,-.9,0,.1,.26,.1)]);              // thin tail, dark switch
+    COW.push({body:mergeGeo(b),head:mergeGeo(h),leg,tail,hips:[[.25,.92,.62],[-.25,.92,.62],[.25,.92,-.64],[-.25,.92,-.64]],tailAt:[0,1.3,-1.06],swing:.42,tailSwing:.45,stride:1.15});
   }
   return COW;
 }
@@ -9890,6 +9888,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:60,date:'Nov 12, 2026',title:'Cattle like ours',items:['🐄 The cows are now zebu cattle like the ones raised here: creamy white, fawn with a greyer neck and white socks, or grey-white, with the big hump over the shoulders, long drooping ears, loose skin hanging under the neck, short upturned horns, a black nose, a lean body on long legs and a dark tail tuft. The cow icons match.']},
   {v:59,date:'Nov 12, 2026',title:'Move your animal areas',items:['🐖 In Decorate, press and hold the ground of any animal area to pick the whole area up: fence, gate, ground and its houses. Drag it to a new spot inside your farm; it turns red where it can\'t go (outside the fence, on roads or footpaths, the field, the orchard, buildings, canals, decorations or too close to another area). ✓ moves it and the farm rebuilds with your animals, houses, upgrades and stored goods; ✕ leaves it where it was.','🛣️ The gate stays on the same side, so build a dirt road to it: a road drawn to a gate now runs right up to it, and trucks only go to gates a road really reaches.']},
   {v:58,date:'Nov 12, 2026',title:'Farm roads match the arko road',items:['🟫 The roads inside your farm, including the ones you build, now look just like the road through the arko: the same grassy edges, wheel-track bands and lighter crown, worn patches, stones and grass tufts, and the arko road runs into them with no seam.']},
   {v:57,date:'Nov 12, 2026',title:'Build your own farm roads',items:['🛣️ The roads inside your farm are now yours: in Decorate, drag Dirt road to build one (₱2 a metre) and drag Remove road to take part of one away. The road from the highway to the arko and the farm fence stay as they are.','🔗 Roads join wherever they touch, curves and junctions blend into one dirt road, and grass clears off them.','🚚 Your trucks drive only on roads that connect to the arko. While a road tool is chosen, labels show which animal gates, the garage, the bodega and the katayan your roads reach; a pickup to a place with no road tells you so.','↶ Road changes can be undone. To keep trucks from getting lost, roads can\'t be changed while a vehicle is out.']},
@@ -10639,18 +10638,19 @@ portraitMQ.addEventListener('change',()=>{resize(); if(!portraitMQ.matches){ptrs
   const NEW_ANIMALS=(H)=>{const {K,WH,PK,DK,OR,YE,RD,GR,DG,BL,DB,BR,TN,GY,P,C,E,R,N}=H;
  const leg=(x,y,h,f,w=2.2)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx=".6" fill="${f}" stroke-width="1.1"/>`+N(`M${x-.3} ${y+h-1.5}h${w+.6}v1.9h-${w+.6}Z`,K);   // a leg (thin outline) with a dark hoof
  return {
- // cow: boxy body with black patches, horned head with a pink muzzle, udder, tufted tail
- '🐄': P('M4 13q-2 4-1 9',)+C(3,22.5,1.1,K)
-   +leg(6.5,19,8.5,WH)+leg(10,19,8.5,WH)+leg(18.5,19,8.5,WH)+leg(22,19,8.5,WH)
-   +P('M4 12.5q0-3 3.5-3h13q3.5 0 4 3.5l.3 6q0 2.6-2.8 2.6H7q-3 0-3-3Z',WH)
-   +P('M8 10q4 .5 3.5 4.5T7 18q-2-2-1.5-5T8 10Z',K)+P('M15.5 13q3.5-1 4.5 2t-2.5 4q-3-.2-2-6Z',K)
-   +E(17,21.6,2.3,1.4,PK)
-   +P('M23.5 8.5q4-1.5 6 1.5l1.2 5.6q.3 2.4-2.2 2.4h-2.6q-2.2 0-3-2.6Z',WH)+E(28.6,16,2.6,2,PK)+C(29.2,15.6,.45,K)
-   +P('M24.5 9q-1.2-3.4 1.2-4.6M28 9.3q.8-3.2 3.3-3.4',)+P('M23.6 10.2l-3.3.6 2.6 1.6Z',WH)+C(26.4,11.4,.75,K),
- // cow face for the dairy: broad white face, black patch, big pink muzzle, horns and side ears
- '🐮': P('M10 7q6-2 12 0l1.5 9q1 3-1 5H9.5q-2-2-1-5Z',WH)+P('M17 7.3q4 0 5 1.5l.8 5q-3 1-5-2T17 7.3Z',K)
-   +P('M9 9.5l-6-1q0 4 5 4ZM23 9.5l6-1q0 4-5 4Z',WH)+P('M10 7q-2-4 0-5.5M22 7q2-4 0-5.5',)
-   +E(16,22.5,8,5.5,PK)+E(13,22.5,1.1,1.6,K)+E(19,22.5,1.1,1.6,K)+C(12.5,13,1.2,K)+C(19.5,13,1.2,K),
+ // cow (zebu, as raised here): cream body, a big hump over the shoulders, a drooping ear, a dewlap, short horns, a black nose, long legs
+ '🐄': P('M5 13.5q-2 4-1 9',)+P('M3 22.5l1.6 2.6 1-2.6Z','#5a4a3c')
+   +leg(6.8,19,8.5,'#efe9dc')+leg(10,19,8.5,'#efe9dc')+leg(17.5,19,8.5,'#efe9dc')+leg(20.6,19,8.5,'#efe9dc')
+   +P('M4.5 14q0-3.5 3.5-3.5h11.5q3.5 0 4 3.5l.3 4.8q0 2.4-2.6 2.4H7.4q-2.9 0-2.9-2.8Z','#e9dcc2')
+   +P('M15.5 10.8q.3-4.6 3.6-4.6t3.3 4.4Z','#cfc3ad')+N('M14 12q4-1 8 .5v5q-4 1.5-8 0Z','#d8cbb2')
+   +P('M21.8 9.6q3.5-2.3 6.4.3l1.6 5.3q.4 2.5-2.1 2.7h-2.6q-2.1 0-2.9-2.4Z','#efe7d6')+E(28.3,16,2.5,1.9,'#2a2420')
+   +P('M22.6 17.6q-1 4.4 1.6 6.4 1.2-3.4.7-6.6',  '#e9dcc2')+P('M23.4 10.6q-3.2.8-3.6 5 2.6-.6 3.6-3.4Z','#d9b9a6')
+   +P('M24.2 9.2q-.4-2.4 1.3-3.6M27.6 9.4q.9-2.3 2.6-2.6',)+C(25.9,11.8,.75,K),
+ // cow face: cream head, long drooping ears, small upturned horns, black nose
+ '🐮': P('M9.5 7.5q6.5-3 13 0l.8 9.5q.6 3.5-1.6 5.5H10.3q-2.2-2-1.6-5.5Z','#efe7d6')
+   +P('M9.6 10q-5.2.2-6.6 7 4.8-.4 6.8-4.2ZM22.4 10q5.2.2 6.6 7-4.8-.4-6.8-4.2Z','#e2d4bc')+N('M8.6 11.3q-3.4.9-4.3 4.4 2.8-.6 4.4-2.9ZM23.4 11.3q3.4.9 4.3 4.4-2.8-.6-4.4-2.9Z','#cf9d8f')
+   +P('M11.5 7.4q-1.4-2.8.6-4.4M20.5 7.4q1.4-2.8-.6-4.4',)
+   +E(16,23,6.6,4.6,'#2a2420')+E(13.6,23,1,1.4,'#0b0a09')+E(18.4,23,1,1.4,'#0b0a09')+C(12.6,13.4,1.15,K)+C(19.4,13.4,1.15,K),
  // pig: round pink body, snout disc, floppy ear, curly tail, short legs
  '🐖': P('M4.5 15q-3-1-2-3.5t2.5 0',)
    +leg(7.5,20.5,6.5,PK,2.4)+leg(11,20.5,6.5,PK,2.4)+leg(18.5,20.5,6.5,PK,2.4)+leg(22,20.5,6.5,PK,2.4)

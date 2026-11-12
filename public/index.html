@@ -1582,7 +1582,7 @@ function buildBodegaFridge(){const B=farmBodega, g=B.g, W=3.4, H=2.9, D=1.05, z0
   for(const d of B.displays) if(d.kind==='eggs'){const tray=[]; for(let h=0;h<3;h++){tray.push(P('box',0xd9c7a3,0,h*.09+.03,0,.75,.03,.8)); for(let i=0;i<3;i++) for(let j=0;j<3;j++) tray.push(P('sph',0xf6eedc,-.22+i*.22,h*.09+.08,-.24+j*.24,.15,.13,.15));}
     d.g.clear(); const m=new THREE.Mesh(mergeGeo(tray),VCMAT); m.castShadow=true; d.g.add(m);}
   B.fridge=true;}
-function updateBodega(t){if(!farmBodega.fridge) buildBodegaFridge(); const close=Math.hypot(cam.target.x-farmBodega.g.position.x,cam.target.z-farmBodega.g.position.z)<21&&cam.dist<43;for(const m of farmBodega.roofMats){m.opacity+=((close?.1:1)-m.opacity)*.15;m.depthWrite=m.opacity>.9;}
+function updateBodega(t){if(!farmBodega.fridge) buildBodegaFridge(); const close=Math.hypot(cam.target.x-farmBodega.g.position.x,cam.target.z-farmBodega.g.position.z)<21&&cam.dist<22;for(const m of farmBodega.roofMats){m.opacity+=((close?.1:1)-m.opacity)*.15;m.depthWrite=m.opacity>.9;}
   if(t-farmBodega.uiAt<1)return;farmBodega.uiAt=t;
   const counts={grain:(S.inv.wheat||0)+(S.inv.corn||0)+Object.entries(S.mats).filter(([k])=>k.startsWith('feed')).reduce((n,[,v])=>n+v,0),eggs:(S.inv.egg||0)+(S.inv.duckegg||0),cold:['chicken','pork','beef','chevon','tilapia','milk'].reduce((n,k)=>n+(stockFor(k)[k]||0),0),produce:Object.entries(S.inv).filter(([k])=>!['wheat','corn','egg','duckegg','chicken','pork','beef','chevon','tilapia','milk'].includes(k)&&!ITEMS[k]?.live).reduce((n,[,v])=>n+v,0)};
   const signature=JSON.stringify([S.inv,S.mats]);if(signature!==farmBodega.signature){farmBodega.signature=signature;for(const d of farmBodega.displays)d.g.visible=d.index<Math.min(d.kind==='eggs'?12:6,Math.ceil(counts[d.kind]/(d.kind==='eggs'?3:5)));if(bldIdx===-5&&bldOpen())renderBodega();}
@@ -3594,7 +3594,7 @@ function updateTraffic(dt,t){
 PG.cone=new THREE.ConeGeometry(.5,1,8);
 const PIV=new THREE.Matrix4().makeTranslation(0,.38,.16), _pm=new THREE.Matrix4(), _pr=new THREE.Matrix4();
 let HEN=null, CAGE_MAT=null, SEE_ROOF=null, SEE_ROOF1=null, EGG_GEO=null;
-function updateRoofs(){if(!SEE_ROOF) return; const k=Math.max(0,Math.min(1,(cam.dist-18)/8)), o=.28+.72*k;   // 26 m out: solid; 18 m in: see-through
+function updateRoofs(){if(!SEE_ROOF) return; const k=Math.max(0,Math.min(1,(cam.dist-9)/5)), o=.28+.72*k;   // 14 m out: solid; 9 m in: see-through (only when you are really close)
   for(const m of [SEE_ROOF,SEE_ROOF1,...ROOF_MATS]){m.opacity=o; m.depthWrite=o>.95;}}
 function henGeo(){
   if(HEN) return HEN; HEN={};
@@ -4376,8 +4376,8 @@ setInterval(()=>{const pn=performance.now(), dt=Math.min(5,(pn-lifeLast)/1000); 
 function farmLabel(o){ // a little sketched board above the house: what it needs, what is stored, how long to go
   if(o.label) return o.label;
   const cv=document.createElement('canvas'); cv.width=560; cv.height=150;
-  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),transparent:true,depthWrite:false}));
-  sp.scale.set(5.2,1.39,1); sp.position.y=6.6; sp.renderOrder=5; o.content.add(sp); o.label=sp; sp.userData={cv,key:''}; return sp;
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),transparent:true,depthWrite:false,depthTest:false,fog:false}));   // always crisp: not hidden by a see-through roof, not faded by the haze
+  sp.scale.set(5.2,1.39,1); sp.position.y=6.6; sp.renderOrder=999; o.content.add(sp); o.label=sp; sp.userData={cv,key:''}; return sp;
 }
 // the badge on the left of a board: a small pencil drawing for each state (no emoji), on a coloured disc
 function badge(cx,kind,x,y,R){const INK='#3b2e24'; cx.lineWidth=5; cx.lineCap=cx.lineJoin='round'; cx.strokeStyle=INK; cx.fillStyle='#fbf7ec';
@@ -6938,7 +6938,7 @@ $('bldSheet').addEventListener('click',e=>{const b=e.target.closest('[data-shop]
 $('farmShopBtn').addEventListener('click',openFarmShop);
 $('bizSheet').addEventListener('click',e=>{if(e.target.closest('[data-shop-open]'))openFarmShop();});
 function updateFarmShop(dt,t){const own=S.shop.owned,open=shopOpen();farmShop.closed.visible=!own;farmShop.openSign.visible=own&&open;farmShop.shutSign.visible=own&&!open;farmShop.worker.root.visible=own&&open;farmShop.stockDisplay.visible=own&&shopUnits()>0;{const st=farmShop.stock, f=Math.min(1,shopUnits()/shopCap()); st.count=Math.min(st.userData.max||0,Math.ceil((st.userData.max||0)*f));}
-  const close=Math.hypot(cam.target.x-SHOP.x,cam.target.z-SHOP.z)<28&&cam.dist<45;farmShop.roofMat.opacity+=((close?.12:1)-farmShop.roofMat.opacity)*.15;farmShop.roofMat.depthWrite=farmShop.roofMat.opacity>.9;
+  const close=Math.hypot(cam.target.x-SHOP.x,cam.target.z-SHOP.z)<28&&cam.dist<24;farmShop.roofMat.opacity+=((close?.12:1)-farmShop.roofMat.opacity)*.15;farmShop.roofMat.depthWrite=farmShop.roofMat.opacity>.9;
   if(!own||document.hidden)return;shopPayWage(dt);
   poseStand(farmShop.worker,t*.25);if(!open)farmShop.worker.aR.rotation.x=-.1;
   shopPeopleTick(dt,t);
@@ -9974,7 +9974,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
-  {v:77,date:'Nov 13, 2026',title:'Sketched status boards',items:['🪧 The boards over your animal houses (Gutom, Puno na, Handa na, the timers) are now drawn like the rest of the game: paper, pencil lines and little drawn badges instead of emoji, with a striped bar for time left.','🔨 Building and upgrading show a sketched board too: Ginagawa or Ina-upgrade, the time left and a progress bar.','💧 Drawing a canal no longer joins another canal by accident: only the start of a stroke reaches for a nearby canal end; the end joins only when you finish right on one. A canal right alongside another shows red.']},
+  {v:77,date:'Nov 13, 2026',title:'Sketched status boards',items:['🪧 The boards over your animal houses (Gutom, Puno na, Handa na, the timers) are now drawn like the rest of the game: paper, pencil lines and little drawn badges instead of emoji, with a striped bar for time left.','🔨 Building and upgrading show a sketched board too: Ginagawa or Ina-upgrade, the time left and a progress bar.','💧 Drawing a canal no longer joins another canal by accident: only the start of a stroke reaches for a nearby canal end; the end joins only when you finish right on one. A canal right alongside another shows red.','🔍 The boards stay solid and clear at every zoom, and roofs only turn see-through when you zoom right in.']},
   {v:76,date:'Nov 13, 2026',title:'No more reloads for small changes',items:['⚡ Moving or taking down the greenhouse, packing shelter, tool rack, kubol, shrub planters and signs now happens right away, without the loading screen. Only moving the bodega or the water tower still rebuilds the farm.']},
   {v:75,date:'Nov 13, 2026',title:'Easier decorating',items:['👀 Gates, signs, benches, lamps and every other single item now show a preview first: green where it can go, red (with the reason) where it can\'t. Drag it or tap elsewhere to move it, ↻ to turn it, ✓ to place it (you pay only then), ✕ to cancel.','▾ The row of buttons above the menu can be hidden while you edit, so you see more of your farm. Tap ▴ Show buttons to bring it back.','🧹 The Put back and Turn buttons are gone from the Decorate row (turn a piece with ↻ beside ✓ and ✕).']},
   {v:74,date:'Nov 13, 2026',title:'The irrigation canal stops at your fence',items:['✂️ The irrigation canal along the south of the farm no longer runs into your farm: it now stops at the fence.','🔗 Your canals can join it anywhere along the fence: end your canal close to the fence where the irrigation canal runs just outside, and it drains through a pipe under the fence.']},
@@ -10198,8 +10198,8 @@ function frame(now){FRAMES++;
   clouds.forEach(c=>{c.g.position.x+=c.v*dt; if(c.g.position.x>90) c.g.position.x=-90;});
   marketMark.position.y=13.5+Math.sin(t*3)*.3; marketMark.rotation.y=t*2;
   {const d=Date.now(), fdt=Math.min(.3,rawDt); placeVehicles(d,fdt); updateTrikes(fdt,t); updateTraffic(fdt,t); updateBoys(t); updatePalBoys(t); updatePsBoys(t); updateBuild(d,t);}
-  {const near=Math.hypot(cam.target.x-PX,cam.target.z-PZ)<30&&cam.dist<48;
-   const terminalClose=Math.hypot(cam.target.x-267,cam.target.z+132)<55&&cam.dist<65;
+  {const near=Math.hypot(cam.target.x-PX,cam.target.z-PZ)<30&&cam.dist<26;
+   const terminalClose=Math.hypot(cam.target.x-267,cam.target.z+132)<55&&cam.dist<34;
    if(TOWN.canopyMat){const m=TOWN.canopyMat;m.opacity+=((terminalClose?.12:1)-m.opacity)*.12;
      if(!terminalClose&&m.opacity>.995)m.opacity=1;m.depthWrite=m.opacity>.9;}
    roofMat.opacity+=((near?.12:1)-roofMat.opacity)*.12; roofMat.depthWrite=roofMat.opacity>.9; signG.visible=roofMat.opacity>.5;

@@ -4237,7 +4237,6 @@ function refreshTile(i,pop){
   o.ground.scale.y=(locked||isYard(i))?.5:1; o.ground.position.y=(locked||isYard(i))?.05:.1; groundLook(i);
   if(o.site){o.g.remove(o.site); o.site=null; constructing.delete(i);}
   o.ridge=null; if(t.s==='soil'||t.s==='crop'){const m=new THREE.Mesh(RIDGE_GEO[((i*40503)>>>0)%3],VCMAT); m.receiveShadow=true; m.scale.x=m.scale.z=gridShown?.92:1; o.content.add(m); o.ridge=m;}
-  if(slotOf(i)&&t.s==='grass') o.content.add(emptySlotSign(slotOf(i)));   // an empty animal slot
   let target=null;
   if(t.s==='crop'){o.crop=CROPS[t.c].build(); o.crop.ripe=false; o.content.add(o.crop.g); target=o.crop.g;}
   if(t.s==='bld'){o.bld=BLDS[t.b].build(t,i); o.bld.ready=false; o.content.add(o.bld.g); if(LIFE[t.b]) houseLights(o.bld.g,t,i); target=o.bld.g; target.userData.sx=1; target.userData.sy=1;
@@ -4389,35 +4388,21 @@ function emptySlotSign(s){   // a dashed outline on the ground and a little boar
     c.fillStyle='#6d4c41'; c.textAlign='center'; c.textBaseline='middle'; c.font='900 34px Arial, sans-serif'; c.fillText('BAKANTE',128,40); c.font='800 26px Arial, sans-serif'; c.fillText(`${B.icon} ${B.name}`,128,88,236);
     EMPTY_TEX[s.type]=new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv),side:THREE.DoubleSide});}
   const q=new THREE.Mesh(new THREE.PlaneGeometry(1.5,.75),EMPTY_TEX[s.type]); q.position.set(0,1.55,s.d/2-.3); g.add(q); return g;}
-(()=>{const posts=[], pads=[];
-  FARM.areas.forEach((a,ai)=>{const pts=a.outline?spline(a.outline,true,1):organic(a.fence,ai*7+3), [gx,gz]=a.gate;
-    // ground inside the fence
-    const sh=new THREE.Shape(); pts.forEach(([x,z],k)=>k?sh.lineTo(x,-z):sh.moveTo(x,-z)); const geo=new THREE.ShapeGeometry(sh); geo.rotateX(-Math.PI/2);
-    const gm=new THREE.Mesh(geo,worldGrass(AREA_GROUND[a.type])); gm.position.y=.024; gm.receiveShadow=true; scene.add(gm);
-    // the gate: measured along the fence itself, so the opening is exactly 3.4 m and the rails stop flush at the two gate posts
-    const S0=[0]; for(let k=1;k<pts.length;k++) S0.push(S0[k-1]+Math.hypot(pts[k][0]-pts[k-1][0],pts[k][1]-pts[k-1][1]));
-    let sg=0, gd=1e9; for(let k=0;k<pts.length-1;k++){const [x0,z0]=pts[k],[x1,z1]=pts[k+1], dx=x1-x0, dz=z1-z0, L2=dx*dx+dz*dz||1, u=Math.max(0,Math.min(1,((gx-x0)*dx+(gz-z0)*dz)/L2)), d=Math.hypot(x0+dx*u-gx,z0+dz*u-gz); if(d<gd){gd=d; sg=S0[k]+u*Math.sqrt(L2);}}
-    const HALF=a.loading?0:1.7, at=sv=>{let k=0; while(k<pts.length-2&&S0[k+1]<sv) k++; const L=S0[k+1]-S0[k]||1, u=(sv-S0[k])/L, [x0,z0]=pts[k],[x1,z1]=pts[k+1]; return [x0+(x1-x0)*u,z0+(z1-z0)*u,Math.atan2(x1-x0,z1-z0)];};
-    for(let k=0;k<pts.length-1;k++){let s0=S0[k], s1=S0[k+1]; const pieces=[];
-      if(HALF&&s1>sg-HALF&&s0<sg+HALF){if(s0<sg-HALF) pieces.push([s0,sg-HALF]); if(s1>sg+HALF) pieces.push([sg+HALF,s1]);} else pieces.push([s0,s1]);
-      for(const [q0,q1] of pieces){const [x0,z0]=at(q0), [x1,z1]=at(q1); if(q1-q0<.05||roadDist((x0+x1)/2,(z0+z1)/2)<.3) continue;
-        const len=Math.hypot(x1-x0,z1-z0), ry=Math.atan2(x1-x0,z1-z0); if(q0===s0) posts.push([x0,.6,z0,.14,1.2,.14,0x6d4c41,ry]);
-        for(const y of [.4,.9]) posts.push([(x0+x1)/2,y,(z0+z1)/2,.06,.07,len+.04,0x8d6e4b,ry]);}}
-    // gate posts square to the fence, two open gate leaves folded flat against its inside, and the name board outside, facing out
-    const cx=(a.fence[0]+a.fence[2])/2, cz=(a.fence[1]+a.fence[3])/2, [,,al]=at(sg); let nx=Math.cos(al), nz=-Math.sin(al); if(nx*(gx-cx)+nz*(gz-cz)<0){nx=-nx; nz=-nz;}
-    for(const side of [-1,1]){const [px,pz,ra]=at(sg+side*HALF); posts.push([px,.8,pz,.22,1.6,.22,0x5d4037,ra]); posts.push([px,1.62,pz,.28,.06,.28,0x4e342e,ra]);
-      const [lx,lz,rl]=at(sg+side*(HALF+.82)), ix=lx-nx*.2, iz=lz-nz*.2;   // a leaf: frame, three rails and a brace, hinged at the post and swung back
-      for(const y of [.25,.6,.95]) posts.push([ix,y,iz,.05,.06,1.55,0xa1887f,rl]);
-      for(const e of [-.76,.76]) posts.push([ix+Math.sin(rl)*e,.6,iz+Math.cos(rl)*e,.07,.85,.07,0x8d6e63,rl]);
-      posts.push([ix,.6,iz,.04,.05,1.7,0x8d6e63,rl,side*.42]);}
-    {let best=null; for(const d of [3.4,4.4,5.6,7]) for(const sd of [-1,1]){const [px,pz]=at(sg+sd*(HALF+d)), x=px+nx*.9, z=pz+nz*.9, c=Math.min(roadDist(x+Math.sin(al)*1.5,z+Math.cos(al)*1.5),roadDist(x,z),roadDist(x-Math.sin(al)*1.5,z-Math.cos(al)*1.5));
-      if(!best||(c>=1.3&&best.c<1.3)||(c<1.3&&best.c<1.3&&c>best.c)) best={x,z,c}; }   // beside the gate, on whichever side keeps the board clear of the road
-     boardSign([a.name.toUpperCase()],'#5d4037','#ffe082',best.x,best.z,Math.atan2(nx,nz),2.8,.8,1.3);}
-    // concrete pads under poultry and pig houses
-    if(a.type==='coop'||a.type==='broiler'||a.type==='pig') a.slots.forEach(([x,z,w,d])=>pads.push(P('box',0xa39c8c,x,.05,z,w+.6,.1,d+.6)));});
-  const pm=instR(PG.box,posts); pm.castShadow=true; scene.add(pm);
-  if(pads.length){const m=new THREE.Mesh(mergeGeo(pads),VCMAT); m.receiveShadow=true; scene.add(m);}
-})();
+// Each animal area's fence, gate and name board used to be drawn here as fixed scenery. They are now ordinary decorations the player
+// can remove, move and add to; this works out where they stood, and Decorate places them once (S.areaDecoMig) on every farm.
+function areaDecoPlan(){const out=[];
+  FARM.areas.forEach((a,ai)=>{const pts=organic(a.fence,ai*7+3), [gx,gz]=a.gate, S0=[0];
+    for(let k=1;k<pts.length;k++) S0.push(S0[k-1]+Math.hypot(pts[k][0]-pts[k-1][0],pts[k][1]-pts[k-1][1]));
+    const tot=S0[S0.length-1]; let sg=0, gd=1e9;
+    for(let k=0;k<pts.length-1;k++){const [x0,z0]=pts[k],[x1,z1]=pts[k+1], dx=x1-x0, dz=z1-z0, L2=dx*dx+dz*dz||1, u=Math.max(0,Math.min(1,((gx-x0)*dx+(gz-z0)*dz)/L2)), d=Math.hypot(x0+dx*u-gx,z0+dz*u-gz); if(d<gd){gd=d; sg=S0[k]+u*Math.sqrt(L2);}}
+    const at=sv=>{sv=((sv%tot)+tot)%tot; let k=0; while(k<pts.length-2&&S0[k+1]<sv) k++; const L=S0[k+1]-S0[k]||1, u=(sv-S0[k])/L, [x0,z0]=pts[k],[x1,z1]=pts[k+1]; return [x0+(x1-x0)*u,z0+(z1-z0)*u];};
+    const HALF=1.7, fences=[], start=sg+HALF, span=tot-2*HALF, n=Math.max(1,Math.ceil(span/2));
+    for(let q=0;q<n;q++){const s0=Math.min(start+q*2,start+span-2), [x0,z0]=at(s0), [x1,z1]=at(s0+2), cx=(x0+x1)/2, cz=(z0+z1)/2; if(roadDist(cx,cz)<.3) continue; fences.push([cx,cz,Math.atan2(-(z1-z0),x1-x0)]);}
+    const [ax,az]=at(sg-.5), [bx,bz]=at(sg+.5), gr=Math.atan2(-(bz-az),bx-ax);
+    const cx=(a.fence[0]+a.fence[2])/2, cz=(a.fence[1]+a.fence[3])/2, tl=Math.hypot(bx-ax,bz-az)||1; let nx=(bz-az)/tl, nz=-(bx-ax)/tl; if(nx*(gx-cx)+nz*(gz-cz)<0){nx=-nx; nz=-nz;}
+    let best=null; for(const d of [3.4,4.4,5.6,7]) for(const sd of [-1,1]){const [px,pz]=at(sg+sd*(HALF+d)), x=px+nx*.9, z=pz+nz*.9, c=roadDist(x,z); if(!best||(c>=1.3&&best.c<1.3)||(c<1.3&&best.c<1.3&&c>best.c)) best={x,z,c};}
+    out.push({type:a.type,fences,gate:[gx,gz,gr],sign:[best.x,best.z,Math.atan2(nx,nz),a.name.toUpperCase()]});});
+  return out;}
 // one fence around the whole lot, following its irregular boundary, with the SUNFIELD FARM gate where the farm road comes in
 (()=>{const L=[], c=0x8d6e4b, G=FARM.gate;
   // the gate stands exactly where the farm road crosses the fence line, square to the road; no post or rail ever sits on a road
@@ -9888,6 +9873,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:61,date:'Nov 12, 2026',title:'Fences, gates and signs are yours',items:['🪵 The fences, gates and name boards round your animal areas are now ordinary decorations in the same places: press and hold any piece to move or remove it, or add more from Decorate.','🚪 A new Gate (Tarangkahan) in Decorate: put it on a fence line and the fence under it makes way. Its two leaves swing open when your farmer or a helper walks up, and close behind them. Fences now really keep people out, so they go round to the gate.','🧹 The concrete pads and the BAKANTE boards on empty animal spots are gone.']},
   {v:60,date:'Nov 12, 2026',title:'Cattle like ours',items:['🐄 The cows are now zebu cattle like the ones raised here: creamy white, fawn with a greyer neck and white socks, or grey-white, with the big hump over the shoulders, long drooping ears, loose skin hanging under the neck, short upturned horns, a black nose, a lean body on long legs and a dark tail tuft. The cow icons match.']},
   {v:59,date:'Nov 12, 2026',title:'Move your animal areas',items:['🐖 In Decorate, press and hold the ground of any animal area to pick the whole area up: fence, gate, ground and its houses. Drag it to a new spot inside your farm; it turns red where it can\'t go (outside the fence, on roads or footpaths, the field, the orchard, buildings, canals, decorations or too close to another area). ✓ moves it and the farm rebuilds with your animals, houses, upgrades and stored goods; ✕ leaves it where it was.','🛣️ The gate stays on the same side, so build a dirt road to it: a road drawn to a gate now runs right up to it, and trucks only go to gates a road really reaches.']},
   {v:58,date:'Nov 12, 2026',title:'Farm roads match the arko road',items:['🟫 The roads inside your farm, including the ones you build, now look just like the road through the arko: the same grassy edges, wheel-track bands and lighter crown, worn patches, stones and grass tufts, and the arko road runs into them with no seam.']},
@@ -10127,6 +10113,7 @@ var DECO=(()=>{
   const CAT={
     road:{name:'Dirt road',sub:'drag to draw',cost:2,per:'m',roadTool:true,line:true,svg:'<path d="M6 36q4-14 14-18t14-16" stroke="#8c7657" stroke-width="9"/><path d="M6 36q4-14 14-18t14-16" stroke="#a89272" stroke-width="3"/>'},
     eraser:{name:'Remove road',sub:'drag over a road',cost:0,roadTool:true,line:true,svg:'<path d="M6 36q4-14 14-18t14-16" stroke="#8c7657" stroke-width="9" opacity=".55"/><path d="M12 14l16 16M28 14L12 30" stroke="#c4553f" stroke-width="3.2"/>'},
+    gate:{name:'Tarangkahan',sub:'a gate: opens for your farmer and helpers',cost:40,r:.6,gate:true,svg:'<path d="M5 34V9M35 34V9" stroke-width="3"/><path d="M7 14h12M7 22h12M7 30h12M21 14h12M21 22h12M21 30h12" stroke="#8d6038"/><path d="M7 30L19 14M33 30L21 14" stroke="#8d6038"/>'},
     sign:{name:'Karatula',sub:'your own words',cost:40,r:.5,block:true,sign:true,svg:'<path d="M9 30V20M31 30V20" /><rect x="5" y="9" width="30" height="12" rx="2" fill="#d9b382"/><path d="M10 15h20"/>'},
     fence:{name:'Bakod na kahoy',sub:'drag a line',cost:12,line:true,block:true,svg:'<path d="M7 33V10l2-3 2 3v23M19 33V10l2-3 2 3v23M31 33V10l2-3 2 3v23" fill="#c49a6c"/><path d="M5 16h32M5 26h32"/>'},
     bamboo:{name:'Bakod na kawayan',sub:'drag a line',cost:10,line:true,block:true,svg:'<path d="M8 34V8M14 34V10M20 34V8M26 34V10M32 34V8" stroke-width="3.2" stroke="#9fb35a"/><path d="M5 17h30M5 26h30"/>'},
@@ -10170,6 +10157,7 @@ var DECO=(()=>{
         for(let k=0;k<14;k++){const a=k*2.4+.3, d=.5+r()*.6; b.push(P('sph',[0xfbf3e4,0xf7e7b2][k%2],Math.cos(a)*d,2.25+r()*.45,Math.sin(a)*d,.12,.08,.12));} break;
       case 'bench': B(0x9a7650,0,.45,0,1.5,.07,.42); B(0x8d6b48,0,.82,-.19,1.5,.32,.05,-.12); for(const x of [-.62,.62]){B(0x6d4c33,x,.22,.12,.07,.45,.07); B(0x6d4c33,x,.42,-.17,.07,.84,.07);} break;
       case 'lamp': b.push(P('cyl',0x4a5459,0,1.4,0,.08,2.8,.08)); b.push(P('cyl',0x3c4448,0,.08,0,.26,.16,.26)); B(0x4a5459,.18,2.75,0,.42,.05,.05); b.push(P('cone',0x55636a,.38,2.68,0,.3,.16,.3)); break;
+      case 'gate': for(const x of [-1.78,1.78]){B(0x5d4037,x,.8,0,.2,1.6,.2); B(0x4e342e,x,1.62,0,.26,.06,.26);} break;
       case 'kubo': for(const x of [-1.2,1.2]) for(const z of [-1.2,1.2]) b.push(P('cyl',0xc9a96a,x,1.15,z,.13,2.3,.13)); B(0xa98a52,0,.55,0,2.6,.08,2.6); for(const x of [-1.25,1.25]) B(0xc9b27a,x,.85,0,.05,.55,2.5); B(0xc9b27a,0,.85,-1.25,2.5,.55,.05);
         b.push(P('pyr',0xb8945a,0,2.85,0,3.8,1.3,3.8)); B(0x8d6e4b,0,.28,1.45,1.0,.06,.3); break;
     }
@@ -10193,12 +10181,12 @@ var DECO=(()=>{
     if(inField(x,z,m+.15)) return 'Not on the crop field.';
     if(x>ORCH[0]-.2&&x<ORCH[1]+.2&&z>ORCH[2]-.2&&z<ORCH[3]+.2&&(ORCHARD.spots.some(([sx,sz])=>Math.hypot(x-sx,z-sz)<1.3+m)||Math.hypot(x-25.6,z-19)<2.4+m)) return 'Not on an orchard plot or the kubol.';
     if(SLOTS.some(s=>Math.abs(x-s.x)<s.w/2+m+.3&&Math.abs(z-s.z)<s.d/2+m+.3)) return 'Not inside an animal pen.';
-    if(FARM.areas.some(a=>Math.hypot(x-a.gate[0],z-a.gate[1])<3.2+m)) return 'Keep the animal gates clear.';
+    if(!CAT[k].line&&!CAT[k].gate&&!CAT[k].sign&&FARM.areas.some(a=>Math.hypot(x-a.gate[0],z-a.gate[1])<3.2+m)) return 'Keep the animal gates clear.';
     if(FARM.turning.some(t=>Math.hypot(x-t.x,z-t.z)<t.r+m)) return 'Keep the turning yard clear for vehicles.';
     if(BLOCK_RECTS().some(([bx,bz,hw,hd])=>Math.abs(x-bx)<hw+m&&Math.abs(z-bz)<hd+m)||nearObj(houseG,x,z,m+.3)||nearObj(garageG,x,z,m+.3)) return 'Too close to a building.';
     if(k!=='canal'&&!CAT[k].over&&typeof wwNear==='function'&&wwNear(x,z,m)) return 'Not in the canal water.';
     for(const o of S.deco){if(o.id===self) continue; const c=CAT[o.k]; if(!c) continue; const sameLine=c.line&&CAT[k].line;
-      if(CAT[k].over&&o.k==='canal') continue; if(c.over&&k==='canal') continue;
+      if(CAT[k].over&&o.k==='canal') continue; if(c.over&&k==='canal') continue; if(CAT[k].gate&&c.line) continue;
       const d=Math.hypot(x-o.x,z-o.z), need=sameLine?.9:(c.line?.6:c.r)+m*.85; if(d<need) return 'Something is already there.';}
     return '';}
   const ends=d=>{const c=Math.cos(d.r), s=-Math.sin(d.r); return [[d.x-c,d.z-s],[d.x,d.z],[d.x+c,d.z+s]];};
@@ -10213,11 +10201,14 @@ var DECO=(()=>{
       else {const R=c.r*.75; for(let dx=-R;dx<=R;dx+=.25) for(let dz=-R;dz<=R;dz+=.25) if(dx*dx+dz*dz<=R*R) mark(d.x+dx,d.z+dz);}}
     NAV.clearCache&&NAV.clearCache();}
   // ---- drawing: every non-sign piece merged into one mesh (cheap on phones), signs and lamp bulbs on their own
-  function rebuild(){clearGroup(root); const all=[], W=new THREE.Matrix4();
+  let gates=[]; const LEAF=mergeGeo([...[.25,.6,.95].map(y=>P('box',0xa1887f,.8,y,0,1.58,.06,.05)),...[.05,1.55].map(x=>P('box',0x8d6e63,x,.6,0,.07,.85,.07)),P('box',0x8d6e63,.8,.6,0,1.7,.05,.04,0,0,.42)]);
+  function rebuild(){clearGroup(root); const all=[], W=new THREE.Matrix4(); gates=[];
     for(const d of S.deco){const c=CAT[d.k]; if(!c) continue; if(active&&active.id===d.id) continue; W.makeRotationY(d.r); W.setPosition(d.x,0,d.z);
       if(c.sign){const g=signGroup(d); g.position.set(d.x,0,d.z); g.rotation.y=d.r; root.add(g); continue;}
       for(const [g,m,col] of parts(d)) all.push([g,W.clone().multiply(m),col]);
-      if(d.k==='lamp'){const L=lampLight(); L.position.set(.38,2.6,0).applyMatrix4(W); root.add(L);}}
+      if(d.k==='lamp'){const L=lampLight(); L.position.set(.38,2.6,0).applyMatrix4(W); root.add(L);}
+      if(d.k==='gate'){const g=new THREE.Group(); g.position.set(d.x,0,d.z); g.rotation.y=d.r; const mk=sd=>{const h=new THREE.Group(); h.position.set(sd*1.68,0,0); const m=new THREE.Mesh(LEAF,VCMAT); m.castShadow=true; m.scale.x=-sd; h.add(m); g.add(h); return h;};
+        const L=mk(-1), R=mk(1); root.add(g); gates.push({d,L,R,a:0});}}
     if(all.length){const v=vcGroup(all); v.traverse(o=>{if(o.isMesh) o.userData.navSkip=true;}); root.add(v);}
     if(active) drawActive(); root.traverse(o=>{o.userData.navSkip=true;}); navApply();}
   // ---- press and hold a piece to pick it up: drag it about, then ✓ to put it down, ↻ to turn it, ✕ to remove it
@@ -10263,7 +10254,7 @@ var DECO=(()=>{
       if(roadDist(x,z)<.2&&Math.hypot(x-gx,z-gz)>3) return 'A road or footpath is in the way. Remove the road first, then build one to the new gate.';
       if(typeof wwNear==='function'&&wwNear(x,z,.4)) return 'Not over the canals.';
       const inOwn=x>own.x0&&x<own.x1&&z>own.z0&&z<own.z1; if(!inOwn&&NAV&&NAV.ready&&NAV.blocked(x,z)) return 'Something is in the way (a building, fence or tree).';}
-    if(S.deco.some(d=>d.x>f[0]-2&&d.x<f[2]+2&&d.z>f[1]-2&&d.z<f[3]+2)) return 'A decoration is in the way. Move it first.';
+    if(S.deco.some(d=>d.area!==a.type&&d.x>f[0]-2&&d.x<f[2]+2&&d.z>f[1]-2&&d.z<f[3]+2)) return 'A decoration is in the way. Move it first.';
     return '';}
   function ghost(ai){const a=FARM.areas[ai], g=new THREE.Group(), pts=organic(a.fence,ai*7+3);
     const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map(([x,z])=>new THREE.Vector3(x,.35,z))),new THREE.LineBasicMaterial({color:0x2e7d32}));
@@ -10277,6 +10268,7 @@ var DECO=(()=>{
   function dropArea(){if(!area) return; scene.remove(area.v.g); area=null; actl.hidden=true; renderHUD();}
   function okArea(){if(!area) return; if(!area.dx&&!area.dz) return dropArea(); if(area.err) return toast('Can\'t move it there. '+area.err,2800);
     const a=FARM.areas[area.ai], o=(S.areaPos||(S.areaPos={}))[a.type]||{dx:0,dz:0}; S.areaPos[a.type]={dx:o.dx+area.dx,dz:o.dz+area.dz};
+    for(const d of S.deco) if(d.area===a.type){d.x+=area.dx; d.z+=area.dz;}
     save(); toast(`Moving the ${a.name.toLowerCase()}… the farm is rebuilding. Build a road to its gate so trucks can reach it.`,4000); actl.hidden=true;
     setTimeout(()=>{window.SunfieldCloud?.flush?.(); location.reload();},700);}
   actl.addEventListener('pointerdown',e=>e.stopPropagation()); actl.addEventListener('click',e=>{const b=e.target.closest('[data-a]'); if(!b||!area) return; e.stopPropagation(); b.dataset.a==='ok'?okArea():dropArea();});
@@ -10313,6 +10305,7 @@ var DECO=(()=>{
     if(!sel){if(hit) openEdit(hit.id); else toast('Pick a decoration from the bar first, or tap one you placed to change it.',2600); return true;}
     if(CAT[sel].roadTool){toast(sel==='road'?'Drag across your land to draw a dirt road.':'Drag across a road to remove that part of it.',2200); return true;}
     const res=add(sel,snap(gx),snap(gz),rot); if(res==='coins') return true; if(typeof res==='string'){toast('Can\'t put it there. '+res,2600); return true;}
+    if(CAT[sel].gate){const c=Math.cos(res.r), sn=-Math.sin(res.r); S.deco=S.deco.filter(o=>{if(o===res||!CAT[o.k]||!CAT[o.k].line||o.k==='canal') return true; const dx=o.x-res.x, dz=o.z-res.z, along=dx*c+dz*sn, across=-dx*sn+dz*c; return !(Math.abs(along)<2.4&&Math.abs(across)<.9);});}   // the fence under a new gate makes way for it
     rebuild(); changed(); sfx('hammer',res.x,res.z); if(CAT[sel].sign) openEdit(res.id); return true;}
   // a line: start where the finger went down, lay a 2 m piece each time the drag has gone 2 m, turned to the nearest 45°
   let line=null;
@@ -10378,6 +10371,8 @@ var DECO=(()=>{
     connList=L; conn.replaceChildren(...L.map(o=>{const e=document.createElement('span'); e.className='cn '+(o.ok?'ok':'no'); e.textContent=(o.ok?'✓ ':'✕ ')+o.label; o.el=e; return e;}));}
   const pv=new THREE.Vector3();
   function update(){const r=!!(NAV&&NAV.ready); if(r&&!navWas) navApply(); navWas=r;
+    if(gates.length){const who=[farmer.p.root,...helpers.map(h=>h.p&&h.p.root)].filter(o=>o&&o.visible);
+      for(const G of gates){const near=who.some(o=>Math.hypot(o.position.x-G.d.x,o.position.z-G.d.z)<3.2), t=near?1.45:0; G.a+=(t-G.a)*.12; G.L.rotation.y=G.a; G.R.rotation.y=-G.a;}}
     if(active&&openCat!=='decor') cancelActive();
     if(area&&openCat!=='decor') dropArea();
     if(area){const a=FARM.areas[area.ai]; pv.set((a.fence[0]+a.fence[2])/2+area.dx,2.5,(a.fence[1]+a.fence[3])/2+area.dz).project(camera); actl.hidden=pv.z>1; actl.style.transform=`translate(${Math.round((pv.x+1)/2*innerWidth)}px,${Math.round((1-pv.y)/2*innerHeight)}px) translate(-50%,-100%)`;}
@@ -10385,6 +10380,9 @@ var DECO=(()=>{
     if(active){const k=S.deco.find(o=>o.id===active.id)?.k, c=CAT[k]||{}; pv.set(active.x,(c.sign?2.2:k==='kubo'?3.6:k==='tree'||k==='lamp'?3.1:1.6),active.z).project(camera);
       const sx=(pv.x+1)/2*innerWidth, sy=(1-pv.y)/2*innerHeight; ctl.hidden=pv.z>1; ctl.style.transform=`translate(${Math.round(sx)}px,${Math.round(sy)}px) translate(-50%,-100%)`;}}
   if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>{if(S.deco.some(d=>CAT[d.k]&&CAT[d.k].sign)) rebuild();});
+  if(!S.areaDecoMig){for(const A of areaDecoPlan()){for(const [x,z,r] of A.fences) S.deco.push({id:S.decoN++,k:'fence',x,z,r,area:A.type});
+      S.deco.push({id:S.decoN++,k:'gate',x:A.gate[0],z:A.gate[1],r:A.gate[2],area:A.type}); S.deco.push({id:S.decoN++,k:'sign',x:A.sign[0],z:A.sign[1],r:A.sign[2],t:A.sign[3].slice(0,24),st:0,area:A.type});}
+    S.areaDecoMig=1; save();}
   rebuild();
   return {CAT,tap,lineOn,lineStart,lineTo,lineEnd,bar,hint,render,update,rebuild,get sel(){return sel;},set sel(v){sel=v;},get moving(){return moving;},clearSel(){sel=null; moving=null;},add,okFor,atPoint,undo,get undoSteps(){return hist.length;}};
 })();

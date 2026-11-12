@@ -4307,9 +4307,8 @@ function refreshTile(i,pop){
       const site=new THREE.Group(), c=0xc9a96a;
       [[-.85,-.85],[.85,-.85],[-.85,.85],[.85,.85]].forEach(([x,z])=>site.add(part(.07,2.3,.07,c,x,1.15,z)));
       [.8,1.6].forEach(y=>{site.add(part(1.8,.05,.05,c,0,y,-.85)); site.add(part(1.8,.05,.05,c,0,y,.85));});
-      site.add(part(1.7,.16,.22,0x22301d,0,2.75,0)); const fill=part(1.6,.18,.24,0x5bd36a,0,2.75,0); site.add(fill);
       {const sz=BLDS[t.b].size||1, sl=slotOf(i); if(sl) site.scale.set(sl.w/1.8,1.5,sl.d/1.8); else site.scale.set(sz,sz>1?1.5:1,sz);}
-      o.g.add(site); o.site=site; o.barFill=fill; constructing.add(i); pop=false; o.bld.g.scale.set(1,.08,1);
+      o.g.add(site); o.site=site; constructing.add(i); pop=false; o.bld.g.scale.set(1,.08,1);
     }}
   if(pop&&target){target.userData.born=performance.now(); popping.add(target);}
   updateTile(i,Date.now());
@@ -4374,30 +4373,55 @@ setInterval(()=>{const pn=performance.now(), dt=Math.min(5,(pn-lifeLast)/1000); 
         if(!t.n){t.gp=0; t.sick=false; t.hungry=false; t.ng=0;} floatAt(i,`💀 -${d}`); toast(`💀 ${d} ${LIFE[t.b].word} died at your ${BLDS[t.b].name} (${why}).`,3800); updateTile(i,now); save();}}}
     else {t.ng=Math.max(0,(t.ng||0)-dt*3); t.dl=0;}}
 },1000);
-function farmLabel(o){ // little floating board above the farm: what's stored and the countdown
+function farmLabel(o){ // a little sketched board above the house: what it needs, what is stored, how long to go
   if(o.label) return o.label;
-  const cv=document.createElement('canvas'); cv.width=512; cv.height=112;
+  const cv=document.createElement('canvas'); cv.width=560; cv.height=150;
   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),transparent:true,depthWrite:false}));
-  sp.scale.set(5.2,1.14,1); sp.position.y=6.6; sp.renderOrder=5; o.content.add(sp); o.label=sp; sp.userData={cv,text:''}; return sp;
+  sp.scale.set(5.2,1.39,1); sp.position.y=6.6; sp.renderOrder=5; o.content.add(sp); o.label=sp; sp.userData={cv,key:''}; return sp;
 }
-function drawLabel(o,text,bg){
-  const sp=farmLabel(o); if(sp.userData.text===text) return; sp.userData.text=text;
-  const cx=sp.userData.cv.getContext('2d'); cx.clearRect(0,0,512,112);
-  cx.fillStyle=bg; const r=40; cx.beginPath(); cx.moveTo(r,8); cx.arcTo(504,8,504,104,r); cx.arcTo(504,104,8,104,r); cx.arcTo(8,104,8,8,r); cx.arcTo(8,8,504,8,r); cx.fill();
-  cx.fillStyle='#fff'; cx.font='800 50px Nunito, Arial, sans-serif'; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText(text,256,60);
+// the badge on the left of a board: a small pencil drawing for each state (no emoji), on a coloured disc
+function badge(cx,kind,x,y,R){const INK='#3b2e24'; cx.lineWidth=5; cx.lineCap=cx.lineJoin='round'; cx.strokeStyle=INK; cx.fillStyle='#fbf7ec';
+  const L=(...p)=>{cx.beginPath(); cx.moveTo(x+p[0]*R,y+p[1]*R); for(let k=2;k<p.length;k+=2) cx.lineTo(x+p[k]*R,y+p[k+1]*R); cx.stroke();};
+  const C=(ox,oy,r,fill)=>{cx.beginPath(); cx.arc(x+ox*R,y+oy*R,r*R,0,6.283); if(fill){cx.fillStyle=fill; cx.fill();} cx.stroke();};
+  switch(kind){
+    case 'hungry': cx.beginPath(); cx.moveTo(x-.62*R,y-.08*R); cx.quadraticCurveTo(x,y+.85*R,x+.62*R,y-.08*R); cx.closePath(); cx.fill(); cx.stroke(); L(-.72,-.08,.72,-.08); L(-.2,-.45,-.1,-.62); L(.15,-.45,.25,-.62); break;   // an empty bowl
+    case 'full': cx.fillRect(x-.6*R,y-.35*R,1.2*R,.85*R); cx.strokeRect(x-.6*R,y-.35*R,1.2*R,.85*R); L(-.6,-.05,.6,-.05); C(-.25,-.5,.2,'#fbf7ec'); C(.15,-.55,.2,'#fbf7ec'); C(.45,-.45,.18,'#fbf7ec'); break;   // a crate heaped full
+    case 'build': L(-.55,.55,.25,-.25); cx.save(); cx.translate(x+.3*R,y-.3*R); cx.rotate(-.785); cx.fillRect(-.35*R,-.16*R,.7*R,.32*R); cx.strokeRect(-.35*R,-.16*R,.7*R,.32*R); cx.restore(); break;   // a hammer
+    case 'sick': C(0,0,.5,'#fbf7ec'); L(0,-.28,0,.28); L(-.28,0,.28,0); break;
+    case 'hot': C(0,0,.3,'#fbf7ec'); for(let k=0;k<8;k++){const a=k*.785; L(Math.cos(a)*.45,Math.sin(a)*.45,Math.cos(a)*.66,Math.sin(a)*.66);} break;   // the sun
+    case 'empty': cx.setLineDash([9,8]); C(0,0,.5); cx.setLineDash([]); break;
+    case 'ready': L(-.45,0,-.12,.35,.5,-.38); break;   // a tick
+    case 'grow': L(0,.55,0,-.05); cx.beginPath(); cx.moveTo(x,y-.05*R); cx.quadraticCurveTo(x-.55*R,y-.15*R,x-.5*R,y-.55*R); cx.quadraticCurveTo(x-.1*R,y-.5*R,x,y-.05*R); cx.fill(); cx.stroke(); cx.beginPath(); cx.moveTo(x,y+.1*R); cx.quadraticCurveTo(x+.55*R,y,x+.5*R,y-.38*R); cx.quadraticCurveTo(x+.1*R,y-.35*R,x,y+.1*R); cx.fill(); cx.stroke(); break;   // a sprout
+    default: C(0,0,.5,'#fbf7ec'); L(0,0,0,-.32); L(0,0,.24,.12);}}   // a clock
+// a board: paper with a slightly wobbly double pencil outline, a badge, the words in the game's hand lettering, and a progress bar when there is one
+function drawLabel(o,kind,text,accent,prog){
+  const sp=farmLabel(o), key=kind+'|'+text+'|'+(prog==null?'':Math.round(prog*24)); if(sp.userData.key===key) return; sp.userData.key=key;
+  const cx=sp.userData.cv.getContext('2d'), W=560, H=150, bar=prog!=null; cx.clearRect(0,0,W,H);
+  cx.font='700 46px Mali, Nunito, Arial, sans-serif'; const tw=Math.min(W-150,cx.measureText(text).width), bw=tw+132, x0=(W-bw)/2, y0=bar?14:26, bh=bar?120:96;
+  const box=(dx,dy)=>{cx.beginPath(); cx.moveTo(x0+18+dx,y0+dy); cx.lineTo(x0+bw-16+dx,y0+2+dy); cx.quadraticCurveTo(x0+bw+dx,y0+dy,x0+bw-1+dx,y0+18+dy); cx.lineTo(x0+bw+1+dx,y0+bh-16+dy);
+    cx.quadraticCurveTo(x0+bw+dx,y0+bh+dy,x0+bw-18+dx,y0+bh-1+dy); cx.lineTo(x0+16+dx,y0+bh+1+dy); cx.quadraticCurveTo(x0+dx,y0+bh+dy,x0+1+dx,y0+bh-18+dy); cx.lineTo(x0-1+dx,y0+16+dy); cx.quadraticCurveTo(x0+dx,y0+dy,x0+18+dx,y0+dy); cx.closePath();};
+  cx.fillStyle='rgba(74,63,52,.18)'; box(4,6); cx.fill();                                   // a soft offset shadow
+  cx.fillStyle='#fbf7ec'; box(0,0); cx.fill(); cx.lineWidth=5; cx.strokeStyle='#4a3f34'; cx.stroke();
+  cx.lineWidth=2; cx.strokeStyle='rgba(74,63,52,.45)'; box(2,-1.5); cx.stroke();              // the second, looser pencil line
+  const bx=x0+52, by=y0+(bar?44:48); cx.beginPath(); cx.arc(bx,by,34,0,6.283); cx.fillStyle=accent; cx.fill(); cx.lineWidth=4; cx.strokeStyle='#4a3f34'; cx.stroke(); badge(cx,kind,bx,by,30);
+  cx.fillStyle='#3b2e24'; cx.textAlign='left'; cx.textBaseline='middle'; cx.font='700 46px Mali, Nunito, Arial, sans-serif'; cx.fillText(text,x0+100,by+2,tw);
+  if(bar){const px=x0+100, pw=bw-124, py=y0+88, ph=18; cx.fillStyle='#fffaf0'; cx.beginPath(); cx.roundRect?cx.roundRect(px,py,pw,ph,9):cx.rect(px,py,pw,ph); cx.fill();
+    cx.save(); cx.clip(); cx.fillStyle=accent; cx.fillRect(px,py,pw*Math.max(.03,Math.min(1,prog)),ph); cx.strokeStyle='rgba(255,255,255,.45)'; cx.lineWidth=6; for(let k=-ph;k<pw;k+=16){cx.beginPath(); cx.moveTo(px+k,py+ph); cx.lineTo(px+k+ph,py); cx.stroke();} cx.restore();
+    cx.lineWidth=3.5; cx.strokeStyle='#4a3f34'; cx.beginPath(); cx.roundRect?cx.roundRect(px,py,pw,ph,9):cx.rect(px,py,pw,ph); cx.stroke();}
   sp.material.map.needsUpdate=true;
 }
-function farmText(t,now){
-  const k=Object.keys(BLDS[t.b].gives)[0], icon=ITEMS[k].icon, have=(t.stored||0)*perBatch(t,k), max=capOf(t)*perBatch(t,k);
-  if(underConstruction(t,now)) return ['🔨 Building…','#22301d'];
+const ACC={hungry:'#e8a593',full:'#f2c46b',build:'#d9c08f',sick:'#c7a6d9',hot:'#f0b27a',empty:'#d6d1c4',ready:'#b9dc9b',grow:'#cfe3b4',clock:'#cfe3b4'};
+function farmText(t,now){ // [kind, words, accent, progress or null]
+  const k=Object.keys(BLDS[t.b].gives)[0], unit=ITEMS[k].name.toLowerCase(), have=(t.stored||0)*perBatch(t,k), max=capOf(t)*perBatch(t,k);
   const L=LIFE[t.b];
-  if(L){if(t.sick) return ['🤒 May sakit!','#8e2b1f']; if(hotNow(t,now)) return ['🥵 Init! Painumin','#b5541c'];
-    if(!(t.n>0)) return t.stored?[`✅ ${icon} ${have} ready`,'#2e7d32']:['🚫 Walang laman · Restock','#555'];
-    if((t.gp||0)<1) return [`🌱 ${t.n} · ${Math.floor((t.gp||0)*100)}% · ⏱ ${fmtG(growLeft(t,now))}`,t.hungry?'#7a2a1f':'rgba(34,48,29,.85)'];
-    if(L.kind==='meat') return [`✅ Handa na! ${t.n} ${L.word}`,'#2e7d32'];}
-  if(isFull(t)) return [`✅ FULL ${icon} ${have}/${max}`,'#c0392b'];
-  if(t.hungry) return [`😟 Gutom · ${icon} ${have}/${max}`,'#7a2a1f'];
-  return [`${icon} ${have}/${max} · ⏱ ${fmt(Math.max(0,(BLDS[t.b].period*1000-(now-t.t))/1000))}`,'rgba(34,48,29,.85)'];
+  if(L){if(t.sick) return ['sick','May sakit!',ACC.sick,null]; if(hotNow(t,now)) return ['hot','Init! Painumin',ACC.hot,null];
+    if(!(t.n>0)) return t.stored?['ready',`${have} ${unit} handa`,ACC.ready,null]:['empty','Walang laman',ACC.empty,null];
+    if((t.gp||0)<1) return t.hungry?['hungry',`Gutom · ${t.n} ${L.word}`,ACC.hungry,null]:['grow',`${t.n} ${L.word} · ${fmtG(growLeft(t,now))}`,ACC.grow,Math.min(1,t.gp||0)];
+    if(L.kind==='meat') return ['ready',`Handa na · ${t.n} ${L.word}`,ACC.ready,null];}
+  if(isFull(t)) return ['full',`Puno na · ${have}/${max}`,ACC.full,null];
+  if(t.hungry) return ['hungry',`Gutom · ${have}/${max} ${unit}`,ACC.hungry,null];
+  const per=BLDS[t.b].period*1000, left=Math.max(0,(per-(now-t.t))/1000);
+  return ['clock',`${have}/${max} ${unit} · ${fmt(left)}`,ACC.clock,Math.min(1,(now-t.t)/per)];
 }
 function progress(i,now){
   const t=S.tiles[i];
@@ -4429,7 +4453,7 @@ function updateTile(i,now){
     const p=progress(i,now), ready=p>=1&&!underConstruction(t,now), kind=(t.hungry&&!(farm&&(t.stored||0)>0))?'hungry':farm&&isFull(t)?'full':ready?'ready':null;
     if(ready!==o.bld.ready){o.bld.ready=ready; o.bld.setReady&&o.bld.setReady(ready);}
     o.bld.setProgress&&o.bld.setProgress(farm?(t.stored||0)/capOf(t):p,!!t.hungry);
-    if(farm){const [txt,bg]=farmText(t,now); drawLabel(o,txt,bg);}
+    if(farm&&!underConstruction(t,now)){const [kd,txt,ac,pr]=farmText(t,now); drawLabel(o,kd,txt,ac,pr);}
     const L=LIFE[t.b], lk=L&&!underConstruction(t,now)?(t.sick?'sick':hotNow(t,now)?'hot':!(t.n>0)&&!t.stored?'empty':t.hungry&&t.n>0?'hungry':L.kind==='meat'&&t.n>0&&(t.gp||0)>=1?'grown':null):null, mk=lk||kind;
     if(o.markerKind!==mk){removeMarker(i); o.markerKind=mk; if(mk) setMarker(i,true,{hungry:0xe74c3c,full:0xff7f50,sick:0x8e44ad,hot:0xff9800,empty:0x9e9e9e}[mk]||BLDS[t.b].mark);}
   }
@@ -9950,6 +9974,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:77,date:'Nov 13, 2026',title:'Sketched status boards',items:['🪧 The boards over your animal houses (Gutom, Puno na, Handa na, the timers) are now drawn like the rest of the game: paper, pencil lines and little drawn badges instead of emoji, with a striped bar for time left.','🔨 Building and upgrading show a sketched board too: Ginagawa or Ina-upgrade, the time left and a progress bar.','💧 Drawing a canal no longer joins another canal by accident: only the start of a stroke reaches for a nearby canal end; the end joins only when you finish right on one. A canal right alongside another shows red.']},
   {v:76,date:'Nov 13, 2026',title:'No more reloads for small changes',items:['⚡ Moving or taking down the greenhouse, packing shelter, tool rack, kubol, shrub planters and signs now happens right away, without the loading screen. Only moving the bodega or the water tower still rebuilds the farm.']},
   {v:75,date:'Nov 13, 2026',title:'Easier decorating',items:['👀 Gates, signs, benches, lamps and every other single item now show a preview first: green where it can go, red (with the reason) where it can\'t. Drag it or tap elsewhere to move it, ↻ to turn it, ✓ to place it (you pay only then), ✕ to cancel.','▾ The row of buttons above the menu can be hidden while you edit, so you see more of your farm. Tap ▴ Show buttons to bring it back.','🧹 The Put back and Turn buttons are gone from the Decorate row (turn a piece with ↻ beside ✓ and ✕).']},
   {v:74,date:'Nov 13, 2026',title:'The irrigation canal stops at your fence',items:['✂️ The irrigation canal along the south of the farm no longer runs into your farm: it now stops at the fence.','🔗 Your canals can join it anywhere along the fence: end your canal close to the fence where the irrigation canal runs just outside, and it drains through a pipe under the fence.']},
@@ -10188,7 +10213,7 @@ function frame(now){FRAMES++;
     if(!o.site||t.s!=='bld'||!t.bd){constructing.delete(i); continue;}
     const p=Math.min(1,(d-t.bs)/(t.bd*1000));
     if(p>=1){constructing.delete(i); if(t.up){t.lvl=t.up; delete t.up;} if(BLDS[t.b].feed) startCycle(i,true); refreshTile(i,true); flash(i); const b=BLDS[t.b]; toast(`${b.icon} ${b.name}${lvlOf(t)>1?' level '+lvlOf(t):''} is finished!`); buzz(); changed(); if(bldOpen()&&bldIdx===i) renderBld(); continue;}
-    o.bld.g.scale.set(1,.08+.92*p,1); o.barFill.scale.x=Math.max(.02,p); o.barFill.position.x=-.8+.8*p;}}
+    o.bld.g.scale.set(1,.08+.92*p,1); drawLabel(o,'build',`${t.up?'Ina-upgrade':'Ginagawa'} · ${fmt(Math.max(0,(t.bs+t.bd*1000-d)/1000))}`,ACC.build,p);}}
   flashBox.material.opacity=Math.max(0,1-(now-flashT)/600);
   syncGrid();updateRoofs();
   }catch(error){reportGameError('simulation',error);}
@@ -10343,7 +10368,11 @@ var DECO=(()=>{
   const ends=d=>{const h=d.s||1, c=Math.cos(d.r)*h, s=-Math.sin(d.r)*h; return [[d.x-c,d.z-s],[d.x,d.z],[d.x+c,d.z+s]];};
   const segD=(x,z,o)=>{const [[ax,az],,[bx,bz]]=ends(o), dx=bx-ax, dz=bz-az, u=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/(dx*dx+dz*dz||1))); return Math.hypot(ax+dx*u-x,az+dz*u-z);};
   function canalUnderFence(d){if(ends(d).some(([x,z])=>fenceDist(x,z)<.8&&farmCanalOutfall(x,z)))return true;return S.deco.some(o=>o.id!==d.id&&o.k!=='canal'&&(CAT[o.k]?.line||CAT[o.k]?.gate)&&Array.from({length:9},(_,i)=>{const e=ends(d),f=i/8;return segD(e[0][0]+(e[2][0]-e[0][0])*f,e[0][1]+(e[2][1]-e[0][1])*f,o)<.35;}).some(Boolean));}
-  function okFor(d){const c=CAT[d.k]; if(c.line){const E=ends(d); for(let q=0;q<3;q++){const e=freeAt(E[q][0],E[q][1],.25,d.id,d.k,q===1); if(e) return e;} return '';} return freeAt(d.x,d.z,c.r,d.id,d.k);}
+  function okFor(d){const c=CAT[d.k];
+    if(d.k==='canal'){const E=ends(d); for(const o of S.deco){if(o.id===d.id||o.k!=='canal'||o.pending) continue; const OE=ends(o);
+      if([E[0],E[2]].some(p=>[OE[0],OE[2]].some(q=>Math.hypot(p[0]-q[0],p[1]-q[1])<.6))||[E[0],E[2]].some(p=>segD(p[0],p[1],o)<.6)||[OE[0],OE[2]].some(q=>segD(q[0],q[1],d)<.6)) continue;   // joined to it
+      if(segD(E[1][0],E[1][1],o)<.95) return 'Too close to another canal: join it at its end, or leave a gap.';}}
+    if(c.line){const E=ends(d); for(let q=0;q<3;q++){const e=freeAt(E[q][0],E[q][1],.25,d.id,d.k,q===1); if(e) return e;} return '';} return freeAt(d.x,d.z,c.r,d.id,d.k);}
   // ---- walkers go round fences, walls, hedges, canals, trees, benches, lamps, kubos and signs
   let navPrev=new Map(), navWas=false;
   function navApply(){if(!NAV||!NAV.ready) return; for(const [k,v] of navPrev) NAV.blk[k]=v; navPrev=new Map();
@@ -10661,8 +10690,8 @@ var DECO=(()=>{
       if(c.gate&&k!=='canal'){const cs=Math.cos(o.r)*GATE_H, sn=-Math.sin(o.r)*GATE_H; P.push([o.x-cs,o.z-sn],[o.x+cs,o.z+sn]);}
       else if(c.line&&(k==='canal')===(o.k==='canal')){const E=ends(o); P.push(E[0],E[2]);}}
     return P;}
-  function snapEndPt(p,k,P){if(k==='canal'){const main=farmCanalSnap(p);if(main)return {p:main.p,snapped:true};}let best=null, bd=k==='canal'?2.2:1.4; for(const q of P){const d=Math.hypot(q[0]-p[0],q[1]-p[1]); if(d<bd){bd=d; best=q;}} if(best) return {p:best.slice(),snapped:true};
-    let bo=null, bo_d=.8; for(const o of S.deco){if(!(k==='canal'?o.k==='canal':FENCY(o.k))) continue; const d=segD(p[0],p[1],o); if(d<bo_d){bo_d=d; bo=o;}}   // a T-joint onto the side of a fence
+  function snapEndPt(p,k,P,isEnd){if(k==='canal'){const main=farmCanalSnap(p,isEnd?1:2.2);if(main)return {p:main.p,snapped:true};}let best=null, bd=k==='canal'?(isEnd?1:2.2):1.4;   /* a canal's start reaches far for a join; its end joins only when you finish right on a canal, so passing beside one doesn't merge */ for(const q of P){const d=Math.hypot(q[0]-p[0],q[1]-p[1]); if(d<bd){bd=d; best=q;}} if(best) return {p:best.slice(),snapped:true};
+    let bo=null, bo_d=k==='canal'&&isEnd?.5:.8; for(const o of S.deco){if(!(k==='canal'?o.k==='canal':FENCY(o.k))) continue; const d=segD(p[0],p[1],o); if(d<bo_d){bo_d=d; bo=o;}}   // a T-joint onto the side of a fence
     if(bo){const [[ax,az],,[bx,bz]]=ends(bo), dx=bx-ax, dz=bz-az, u=Math.max(0,Math.min(1,((p[0]-ax)*dx+(p[1]-az)*dz)/(dx*dx+dz*dz||1))); return {p:[ax+dx*u,az+dz*u],snapped:true};}
     return {p:[snap(p[0]),snap(p[1])],snapped:false};}
   // the drawn path → its shape: sharp turns (any angle) become corner posts, straight stretches stay straight (lined up to straight or 45° only when within 8°), curved stretches follow the curve with shorter pieces
@@ -10673,7 +10702,7 @@ var DECO=(()=>{
     for(const sec of secs){const S=sec.S, s0=Q[Q.length-1], dx0=s0[0]-S[0][0], dz0=s0[1]-S[0][1];
       if(sec.straight){const e=S[S.length-1], ex=e[0]+dx0, ez=e[1]+dz0, L=Math.hypot(ex-s0[0],ez-s0[1]), q=snap45(Math.atan2(ez-s0[1],ex-s0[0])); Q.push([s0[0]+Math.cos(q)*L,s0[1]+Math.sin(q)*L]);}
       else {const T=S.map(([x,z])=>[x+dx0,z+dz0]), L=plen(T), m=Math.max(2,Math.round(L/1.7)); for(let j=1;j<=m;j++) Q.push(at(T,L*j/m));}}
-    let B; if(close){B={p:Q[0].slice(),snapped:true}; Q[Q.length-1]=Q[0].slice();} else {B=snapEndPt(Q[Q.length-1],k,P); if(B.snapped) Q[Q.length-1]=B.p;}
+    let B; if(close){B={p:Q[0].slice(),snapped:true}; Q[Q.length-1]=Q[0].slice();} else {B=snapEndPt(Q[Q.length-1],k,P,true); if(B.snapped) Q[Q.length-1]=B.p;}
     const out=[]; let bad='';
     for(let i=1;i<Q.length;i++){const [ax,az]=Q[i-1], [bx,bz]=Q[i], dx=bx-ax, dz=bz-az, L=Math.hypot(dx,dz); if(L<.3) continue; const n=Math.max(1,Math.ceil(L/2-.02)), r=Math.atan2(-dz,dx);
       for(let j=0;j<n;j++){const f=(j+.5)/n, d={id:-1,k,x:ax+dx*f,z:az+dz*f,r,s:L/n/2}; if(k==='canal'&&(ends(d).some(([qx,qz])=>roadDist(qx,qz)<.9)||canalUnderFence(d))) d.cv=1; const e=okFor(d); if(e&&!bad) bad=e; d.bad=!!e; out.push(d);}}

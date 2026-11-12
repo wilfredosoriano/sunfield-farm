@@ -583,6 +583,8 @@ body:not(#z):not(#y) #menu .sheet>.mhead h2{font-size:16px!important;line-height
 #fix-ctl[hidden],#fix-ctl [hidden]{display:none}#fix-ctl button{width:40px;height:40px;border-radius:50%;border:1.6px solid #4a3f34;font:700 17px Mali,Nunito,sans-serif;display:grid;place-items:center;color:#3b2e24;background:#f1eadb;cursor:pointer}
 #fix-ctl [data-f=ok]{background:#cfe8b6;font-size:20px}#fix-ctl [data-f=no]{background:#f5d9cf;color:#9a3324;font-size:20px}#fix-ctl.bad [data-f=ok]{opacity:.5;border-style:dashed}
 @media(orientation:landscape) and (max-height:520px){#fix-ctl button{width:36px;height:36px;font-size:16px}}
+#subToggle{pointer-events:auto;align-self:center;padding:3px 12px;min-height:26px;border:1.6px solid #4a3f34;border-radius:999px;background:#fbf7ec;color:#3b2e24;font:700 12px Mali,Nunito,sans-serif;box-shadow:1px 1.5px 0 #4a3f3526;cursor:pointer}
+#subToggle[hidden]{display:none}body.sub-hidden #hint,body.sub-hidden #picker,body.sub-hidden #buildFilters,body.sub-hidden #tools{display:none!important}
 </style>
 </head>
 <body>
@@ -607,6 +609,7 @@ body:not(#z):not(#y) #menu .sheet>.mhead h2{font-size:16px!important;line-height
 <nav id="cats" aria-label="Menu"></nav>
 
 <div id="bottom">
+  <button id="subToggle" type="button" aria-expanded="true" hidden>▾ Hide</button>
   <div id="hint"></div>
   <div id="picker"></div>
   <div id="buildFilters" role="group" aria-label="Building categories" hidden></div>
@@ -4012,6 +4015,14 @@ const fenceDist=(x,z)=>{let b=99; for(let i=0;i<FENCE.length;i++){const [ax,az]=
 function irrNear(x,z,m){const E=WW_CLEAR.find(W=>W.irr); if(!E) return false; const [w,...P]=E; for(let i=0;i<P.length-1;i++){const [ax,az]=P[i], [bx,bz]=P[i+1], dx=bx-ax, dz=bz-az, u=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/(dx*dx+dz*dz||1))); if(Math.hypot(ax+dx*u-x,az+dz*u-z)<w+m) return true;} return false;}
 const throughFence=(x,z)=>fenceDist(x,z)<2.4&&irrNear(x,z,7);   // the farm canal: skipped while taken out
 const MAIN_CANALS=WW_CLEAR.concat([Object.assign([1.4,[-16.4,20.95],[14.6,20.95]],{id:'tubigan'})]);   // what player canals drain into: every waterway, plus the field drain in front of the crop field
+// Exact visible centerline target for player-built canal joins (not broad vegetation clearance bounds).
+function farmCanalSnap(p,limit=2.2){let best=null,dist=limit;
+ for(const A of WWAYS.all){if(!['bukid','tubigan','patubig'].includes(A.W.id)||goneWay(A.W.id))continue;
+  const pts=A.W.pts;for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i],dx=b[0]-a[0],dz=b[1]-a[1],u=Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dz)/(dx*dx+dz*dz||1))),q=[a[0]+dx*u,a[1]+dz*u],d=Math.hypot(q[0]-p[0],q[1]-p[1]);
+   if(d<dist&&(A.W.id!=='patubig'||fenceDist(q[0],q[1])<6)){dist=d;best={p:q,id:A.W.id,w:A.W.w,end:i===1&&u<.01?-1:i===pts.length-1&&u>.99?1:0,tangent:[dx/Math.hypot(dx,dz),dz/Math.hypot(dx,dz)]};}}
+ }return best;}
+// Only a short outfall corridor beside the fixed farm fence may extend outside the lot.
+function farmCanalOutfall(x,z){return fenceDist(x,z)<6&&irrNear(x,z,3);}
 function mainNear(x,z,m){for(const E of MAIN_CANALS){if(E.id&&goneWay(E.id)) continue; const [w,...P]=E; for(let i=0;i<P.length-1;i++){const [ax,az]=P[i], [bx,bz]=P[i+1], dx=bx-ax, dz=bz-az, L=dx*dx+dz*dz||1, t=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/L)); if(Math.hypot(x-ax-dx*t,z-az-dz*t)<w+m) return true;}} return false;}
 function wwNear(x,z,m){for(const E of WW_CLEAR){if(E.id&&goneWay(E.id)) continue; const [w,...P]=E; for(let i=0;i<P.length-1;i++){const [ax,az]=P[i], [bx,bz]=P[i+1], dx=bx-ax, dz=bz-az, L=dx*dx+dz*dz||1, t=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/L)); if(Math.hypot(x-ax-dx*t,z-az-dz*t)<w+m) return true;}} return false;}
 // Visual-only irrigation site and maintenance approach; keep procedural foliage clear.
@@ -4454,6 +4465,7 @@ function areaDecoPlan(){const out=[];
     out.push({type:a.type,fences,gate:[gx,gz,gr],sign:[best.x,best.z,Math.atan2(nx,nz),a.name.toUpperCase()]});});
   return out;}
 // one fence around the whole lot, following its irregular boundary, with the SUNFIELD FARM gate where the farm road comes in
+let farmBoundaryVisual;
 (()=>{const L=[], c=0x8d6e4b, G=FARM.gate;
   // the gate stands exactly where the farm road crosses the fence line, square to the road; no post or rail ever sits on a road
   let ci=0, cd=1e9; ACCESS.forEach(([x,z],k)=>{const d=Math.hypot(x-FENCE[nearestOn(FENCE,x,z)][0],z-FENCE[nearestOn(FENCE,x,z)][1]); if(d<cd){cd=d; ci=k;}});
@@ -4462,7 +4474,7 @@ function areaDecoPlan(){const out=[];
   for(let k=0;k<FENCE.length-1;k++){const [x0,z0]=FENCE[k], [x1,z1]=FENCE[k+1]; if(onRoad(x0,z0)||onRoad(x1,z1)||onRoad((x0+x1)/2,(z0+z1)/2)) continue;
     const len=Math.hypot(x1-x0,z1-z0), ry=Math.atan2(x1-x0,z1-z0);
     L.push([x0,.7,z0,.16,1.4,.16,0x6d4c41,ry]); for(const y of [.45,1.0]) L.push([(x0+x1)/2,y,(z0+z1)/2,.07,.08,len+.05,c,ry]);}
-  const m=instR(PG.box,L); m.castShadow=true; scene.add(m);
+  const m=instR(PG.box,L); m.castShadow=true; scene.add(m);farmBoundaryVisual={mesh:m,parts:L};
   // gate: two tall posts either side of the road, a beam across it and the sign facing the traffic
   const along=roadA+Math.PI/2;
   const g=new THREE.Group(); g.position.set(gx,0,gz); g.rotation.y=along; scene.add(g);
@@ -5551,6 +5563,7 @@ function renderHUD(){
   $('buildFilters').hidden=openCat!=='build';
   $('buildFilters').innerHTML=BUILD_GROUPS.map(([id,label])=>`<button data-build-group="${id}" aria-pressed="${buildGroup===id}">${label}</button>`).join('');
   $('tools').innerHTML=bar;
+  {const t=$('subToggle'); t.hidden=!bar&&!document.body.classList.contains('sub-hidden'); const hid=document.body.classList.contains('sub-hidden'); t.textContent=hid?'▴ Show buttons':'▾ Hide'; t.setAttribute('aria-expanded',String(!hid));}   // the second row can be tucked away while you edit
   $('picker').innerHTML=S.tool==='plant'?Object.entries(CROPS).sort((a,b)=>a[1].lvl-b[1].lvl).map(([id,o])=>{const lock=S.level<o.lvl;
     return `<button class="chip ${id===S.crop?'on':''} ${lock?'locked':''}" data-pick="${id}"><span class="ci" aria-hidden="true">${o.icon}</span><span class="cn">${o.name}</span><span class="cc">${lock?'Level '+o.lvl:'🌱 '+seedsOf(id)+' binhi'}</span></button>`;}).join('')+`<button class="chip" data-buyseeds="1"><span class="ci" aria-hidden="true">🛒</span><span class="cn">Buy</span><span class="cc">Binhi store</span></button>`:'';
   const c=CROPS[S.crop], b=BLDS[S.bld];
@@ -5566,7 +5579,8 @@ function renderHUD(){
 }
 $('cats').addEventListener('click',e=>{const b=e.target.closest('[data-cat]'); if(!b) return;
   const id=b.dataset.cat; if(id==='market') return openMarket(); if(id==='hardware') return openHW('hardware'); if(id==='poultry') return openHW('poultry'); if(id==='seeds') return openHW('seeds'); if(id==='upgrade') return openUp();
-  openCat=openCat===id?null:id; renderHUD();});
+  openCat=openCat===id?null:id; if(!openCat) document.body.classList.remove('sub-hidden'); renderHUD();});
+$('subToggle').addEventListener('click',()=>{document.body.classList.toggle('sub-hidden'); renderHUD();});
 /* drag a ready-made building straight from the Build bar onto the farm */
 let barDrag=null, eatClick=false;
 function placeBuilding(id,i){
@@ -8184,7 +8198,7 @@ const WWAYS=(()=>{
   for(const W of list){const hw=W.w/2, pts=W.pts, n=pts.length, cov=[], nor=[], dist=[0]; W.g=new THREE.Group(); scene.add(W.g); if(W.id==='bukid'||W.id==='tubigan') wayMesh(W.id,W.g);
     for(let i=0;i<n;i++){const a=pts[Math.max(0,i-1)], b=pts[Math.min(n-1,i+1)], dx=b[0]-a[0], dz=b[1]-a[1], L=Math.hypot(dx,dz)||1; nor.push([-dz/L,dx/L]); if(i) dist.push(dist[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]));
       cov.push(W.kind!=='bare'&&covered(pts[i][0],pts[i][1],W.kind==='creek'?1.1:hw+.25));}
-    const bp=[], bc=[], wp=[], wu=[], parts=[];
+    const bp=[], bc=[], wp=[], wu=[], parts=[], banks=[];
     const at=(i,o,h)=>{const [x,z]=pts[i], [nx,nz]=nor[i]; return [x+nx*o,gy(x+nx*o,z+nz*o)+h,z+nz*o];};
     const prof=PROF[W.kind]?PROF[W.kind].map(([o,h,c])=>[o<=0?-hw+o:o>=1?hw+(o-1):0,h,c]):null;
     for(let i=0;i<n-1;i++){if(cov[i]||cov[i+1]){if(W.kind==='kanal'&&cov[i]&&cov[i+1]){const e=hw+.2, A=at(i,-e,.07), B=at(i,e,.07), C=at(i+1,-e,.07), D=at(i+1,e,.07); bp.push(...A,...C,...B,...B,...C,...D); col.setHex(W.id==='bukid'?(i%3?0x968a73:0x8b7f69):(i%3?0xa6a297:0x8f8b80)); for(let q=0;q<6;q++) bc.push(col.r,col.g,col.b);} continue;}   // concrete covers where a road runs over a kanal (on the farm, a culvert slab with dirt on it)
@@ -8195,6 +8209,7 @@ const WWAYS=(()=>{
         let [o1,h1]=prof[k], [o2,h2,c]=prof[k+1];
         const mouth=W.id==='ilog'&&Math.abs((pts[i][1]+pts[i+1][1])/2-joinZ)<barangayDrain.w/2+.3;
         if(mouth&&o1>=hw&&o2>=hw){h1=Math.max(.42,h1);h2=Math.max(.42,h2);}
+        if(['bukid','tubigan','patubig'].includes(W.id)&&k!==3) banks.push({start:bp.length,x:(pts[i][0]+pts[i+1][0])/2+nor[i][0]*(o1+o2)/2,z:(pts[i][1]+pts[i+1][1])/2+nor[i][1]*(o1+o2)/2});
         const A=at(i,o1,h1), B=at(i,o2,h2), C=at(i+1,o1,h1), D=at(i+1,o2,h2); bp.push(...A,...C,...B,...B,...C,...D); col.setHex(prof[k][1]>h2?prof[k][2]:c); for(let q=0;q<6;q++) bc.push(col.r,col.g,col.b);}
       const A=at(i,-hw+.03,0), B=at(i,hw-.03,0), C=at(i+1,-hw+.03,0), D=at(i+1,hw-.03,0), v1=dist[i]/4, v2=dist[i+1]/4; wp.push(...A,...C,...B,...B,...C,...D); wu.push(0,v1,0,v2,1,v1,1,v1,0,v2,1,v2);}
     // where the water goes under a road: concrete headwalls for a kanal, a bridge parapet with a railing for the ilog
@@ -8227,7 +8242,7 @@ const WWAYS=(()=>{
         if(!railOpen(i+1,side))post(bx,bz,by);
       }
     }
-    if(bp.length){const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(bp,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(bc,3)); g.computeVertexNormals(); const m=new THREE.Mesh(g,WWMAT); m.receiveShadow=true; W.g.add(m);}
+    if(bp.length){const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(bp,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(bc,3)); g.computeVertexNormals(); const m=new THREE.Mesh(g,WWMAT); m.receiveShadow=true; W.g.add(m); if(banks.length) W.bankMesh={mesh:m,banks,original:g.attributes.position.array.slice()};}
     if(parts.length){const m=new THREE.Mesh(mergeGeo(parts),VCMAT); m.castShadow=m.receiveShadow=true; W.g.add(m);}
     const wg=new THREE.BufferGeometry(); wg.setAttribute('position',new THREE.Float32BufferAttribute(wp,3)); wg.setAttribute('uv',new THREE.Float32BufferAttribute(wu,2)); wg.computeVertexNormals();
     const calm=W.kind==='creek'?0x5b9fae:W.kind==='bare'?0x5d9da0:0x6aa2a0, mat=new THREE.MeshLambertMaterial({map:CALM.clone(),color:calm,transparent:true,opacity:.93,side:THREE.DoubleSide}); mat.map.needsUpdate=true;
@@ -8240,8 +8255,9 @@ let wwLast=performance.now(), wwRain=0, wwSnd=0;
 (function wwLoop(){requestAnimationFrame(wwLoop); const n=performance.now(), dt=Math.min(.1,(n-wwLast)/1000); wwLast=n; if(document.hidden) return;
   wwRain+=((rainOn()?1:0)-wwRain)*Math.min(1,dt*.25);   // the water rises and quickens slowly after the rain starts, and settles slowly after
   const mud=new THREE.Color(0xae9a6e), rough=wwRain>.45;
-  for(const A of WWAYS.all){const m=A.mat; m.map.offset.y-=A.W.sp*(1+wwRain*3.2)*dt; if((m.map.image===WWAYS.ROUGH.image)!==rough){const o=m.map.offset.y; m.map=(rough?WWAYS.ROUGH:WWAYS.CALM).clone(); m.map.needsUpdate=true; m.map.offset.y=o; m.needsUpdate=true;}
+  for(const A of WWAYS.all){const m=A.mat; m.map.offset.y+=(A.W.id==='patubig'?1:-1)*A.W.sp*(1+wwRain*3.2)*dt; if((m.map.image===WWAYS.ROUGH.image)!==rough){const o=m.map.offset.y; m.map=(rough?WWAYS.ROUGH:WWAYS.CALM).clone(); m.map.needsUpdate=true; m.map.offset.y=o; m.needsUpdate=true;}
     m.color.copy(A.calm).lerp(mud,wwRain*.78); A.wm.position.y=A.lv[0]+(A.lv[1]-A.lv[0])*wwRain+Math.sin(n/700)*.008;}
+  if(typeof DECO!=='undefined'&&DECO)DECO.waterLevel(WWAYS.all.find(a=>a.W.id==='patubig').wm.position.y);
   if(AC&&SND.amb&&AC.state==='running'){wwSnd-=dt; if(wwSnd<=0){wwSnd=.7+Math.random()*.4; let best=0; for(const A of WWAYS.all) for(const [x,z] of A.samp){const k=near(x,z)*(A.W.kind==='creek'?1:.55); if(k>best) best=k;}
     if(best>.05) noise(BUS.amb,{d:1.4,a:.5,v:best*(.035+wwRain*.11),f:700+wwRain*500,f2:1300+wwRain*900,q:.6,type:'bandpass'});}}   // babbling water, a rush in the rain
 })();
@@ -9933,6 +9949,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:75,date:'Nov 13, 2026',title:'Easier decorating',items:['👀 Gates, signs, benches, lamps and every other single item now show a preview first: green where it can go, red (with the reason) where it can\'t. Drag it or tap elsewhere to move it, ↻ to turn it, ✓ to place it (you pay only then), ✕ to cancel.','▾ The row of buttons above the menu can be hidden while you edit, so you see more of your farm. Tap ▴ Show buttons to bring it back.','🧹 The Put back and Turn buttons are gone from the Decorate row (turn a piece with ↻ beside ✓ and ✕).']},
   {v:74,date:'Nov 13, 2026',title:'The irrigation canal stops at your fence',items:['✂️ The irrigation canal along the south of the farm no longer runs into your farm: it now stops at the fence.','🔗 Your canals can join it anywhere along the fence: end your canal close to the fence where the irrigation canal runs just outside, and it drains through a pipe under the fence.']},
   {v:73,date:'Nov 13, 2026',title:'Clean canal corners',items:['📐 Canals joined end to end are now drawn as one channel: the floor, water and walls turn every corner cleanly, with no gaps or walls across the water.','🔗 Continuing a canal from its end is easier: start your next stroke near the end and it snaps on from up to 2 m away. Draw an L in one stroke, or in two.']},
   {v:72,date:'Nov 13, 2026',title:'Take out the old paths and canals',items:['🚶 In Decorate, press and hold a footpath (round the old field, to the poultry, on the pond dike, to the house) and tap 🗑 to take it out. Draw your own dirt roads instead.','💧 The field drain and the farm canal can be taken out the same way. The irrigation canal along the farm fence stays: it is where the water comes from, and where your own canals can drain to.','🌳 The round shrub planters and the PASTURE, POULTRY and ORCHARD signs can now be moved or removed too.','🏗️ Anything you take out can be put back from the Decorate bar.','⚡ Taking out or putting back a path or canal happens right away, without reloading the farm.']},
@@ -10219,7 +10236,7 @@ var ANIMALH=(()=>{
   return {ok,place,yardOf,sizeOf};
 })();
 var DECO=(()=>{
-  if(!Array.isArray(S.deco)) S.deco=[]; if(!S.decoN) S.decoN=1;
+  if(!Array.isArray(S.deco)) S.deco=[]; if(!S.decoN) S.decoN=1; S.deco=S.deco.filter(d=>!d.pending);
   const WOOD=0x8d6e4b, DARK=0x5d4037, CON=0xb9b2a3;
   const CAT={
     road:{name:'Dirt road',sub:'drag to draw',cost:2,per:'m',roadTool:true,line:true,svg:'<path d="M6 36q4-14 14-18t14-16" stroke="#8c7657" stroke-width="9"/><path d="M6 36q4-14 14-18t14-16" stroke="#a89272" stroke-width="3"/>'},
@@ -10251,10 +10268,10 @@ var DECO=(()=>{
   // the farm's own buildings the player can move (and, except the bodega and the water tower, take down): base centre and footprint
   // a prism along a path, between two side offsets and two heights; corners get mitred joins so a run turns cleanly
   const CANAL_MAT=VCMAT.clone(); CANAL_MAT.side=THREE.DoubleSide;
-  function stripGeo(P,closed,oA,oB,y0,y1){const n=P.length, Nm=[], sn=(a,b)=>{const dx=b[0]-a[0], dz=b[1]-a[1], L=Math.hypot(dx,dz)||1; return [-dz/L,dx/L];};
+  function stripGeo(P,closed,oA,oB,y0,y1,widths=null){const n=P.length, Nm=[], sn=(a,b)=>{const dx=b[0]-a[0], dz=b[1]-a[1], L=Math.hypot(dx,dz)||1; return [-dz/L,dx/L];};
     for(let i=0;i<n;i++){let n1=i>0?sn(P[i-1],P[i]):closed?sn(P[n-2],P[0]):null, n2=i<n-1?sn(P[i],P[i+1]):closed?sn(P[n-1],P[1]):null; if(!n1) n1=n2; if(!n2) n2=n1;
       let mx=n1[0]+n2[0], mz=n1[1]+n2[1]; const L=Math.hypot(mx,mz)||1; mx/=L; mz/=L; const c=Math.max(.35,mx*n1[0]+mz*n1[1]); Nm.push([mx/c,mz/c]);}
-    const pos=[], V=(i,o,y)=>[P[i][0]+Nm[i][0]*o,y,P[i][1]+Nm[i][1]*o], quad=(a,b,c,d)=>pos.push(...a,...b,...c,...a,...c,...d);
+    const pos=[], V=(i,o,y)=>[P[i][0]+Nm[i][0]*o*(widths?.[i]||1),y,P[i][1]+Nm[i][1]*o*(widths?.[i]||1)], quad=(a,b,c,d)=>pos.push(...a,...b,...c,...a,...c,...d);
     for(let i=0;i<n-1;i++){quad(V(i,oA,y1),V(i,oB,y1),V(i+1,oB,y1),V(i+1,oA,y1)); quad(V(i,oA,y0),V(i,oA,y1),V(i+1,oA,y1),V(i+1,oA,y0)); quad(V(i,oB,y1),V(i,oB,y0),V(i+1,oB,y0),V(i+1,oB,y1));}
     if(!closed){quad(V(0,oB,y0),V(0,oB,y1),V(0,oA,y1),V(0,oA,y0)); const j=n-1; quad(V(j,oA,y0),V(j,oA,y1),V(j,oB,y1),V(j,oB,y0));}
     const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.computeVertexNormals(); return g;}
@@ -10276,7 +10293,7 @@ var DECO=(()=>{
       case 'wall': B(0xcfc8b8,0,.5,0,2.02,1.0,.2); B(0xb9b2a3,0,1.04,0,2.08,.08,.26); for(let k=0;k<5;k++) B(0xbdb5a5,0,.1+k*.2,.105,2.02,.012,.01); for(const x of [-1,1]) B(0xbdb5a5,x,.55,0,.24,1.1,.26); break;
       case 'hedge': for(let k=0;k<6;k++){const x=-.85+k*.34; b.push([PG.clump,Mx(x,.42+r()*.08,0,.62,.78,.62,r()*3,r()*3,0),[0x5f8f3e,0x6a9a45,0x557f37][k%3]]);} for(let k=0;k<7;k++) b.push(P('sph',[0xe2574a,0xf2a13b,0xe2574a][k%3],-.85+r()*1.7,.55+r()*.35,(r()-.5)*.5,.1,.1,.1)); break;
       case 'canal': if(d.cv){B(0xa7a297,0,.05,0,2.02,.1,1.5); for(const sd of [-1,1]) B(0x8e897d,0,.13,sd*.7,2.04,.14,.12); break;}   // a culvert: a concrete slab over the pipe, with low curbs
-        B(0x5b4a36,0,.02,0,2.02,.04,.9); B(0x6fa9c2,0,.13,0,2.02,.02,.86); B(0x8cc0d4,-.3,.142,.12,.5,.006,.06); B(0x8cc0d4,.45,.142,-.15,.4,.006,.05); for(const sd of [-1,1]){B(0x9e978a,0,.12,sd*.52,2.02,.24,.16); B(0xb3ac9e,0,.245,sd*.52,2.04,.02,.2);} break;
+        B(0x6f6a5e,0,.015,0,2.02,.03,1); B(0x6aa2a0,0,.1,0,2.02,.02,.94); B(0x8cc0d4,-.3,.142,.12,.5,.006,.06); B(0x8cc0d4,.45,.142,-.15,.4,.006,.05); for(const sd of [-1,1]){B(0xb3afa4,0,.16,sd*.59,2.02,.32,.18); B(0xc9c5ba,0,.33,sd*.59,2.04,.02,.18);} break;
       case 'bridge': for(const sd of [-1,1]) B(0x6d4c33,0,.27,sd*.48,2.3,.1,.1); for(let k=0;k<10;k++) B(k%2?0x9a7650:0x8d6b48,-.99+k*.22,.35,0,.2,.05,1.15); for(const sd of [-.58,.58]){for(const x of [-1.05,0,1.05]) B(0x6d4c33,x,.64,sd,.07,.6,.07); B(0x7d5a3c,0,.94,sd,2.2,.06,.06);} break;
       case 'flowers': B(0x7a5a3c,0,.1,0,1.4,.2,.9); B(0x5e4430,0,.21,0,1.3,.03,.8); for(let k=0;k<9;k++){const x=-.5+(k%3)*.5+(r()-.5)*.1, z=-.28+((k/3)|0)*.28; b.push([PG.clump,Mx(x,.38,z,.36,.3,.36,r()*3,r()*3,0),0x5c8a3c]); b.push(P('sph',[0xe2574a,0xf2c84b,0xe889b0,0xffffff][k%4],x,.55,z,.16,.13,.16));} break;
       case 'pots': for(const [x,z,s] of [[-.18,0,1],[.2,.1,.8]]){b.push(P('cyl',0xb5623d,x,.18*s,z,.34*s,.36*s,.34*s)); b.push(P('cyl',0x9c4f30,x,.37*s,z,.38*s,.05,.38*s)); b.push([PG.clump,Mx(x,.55*s,z,.42*s,.4*s,.42*s,r()*3,r()*3,0),0x5f8f3e]);} break;
@@ -10306,7 +10323,7 @@ var DECO=(()=>{
   const objBox=new THREE.Box3();
   function nearObj(o,x,z,m){if(!o) return false; objBox.setFromObject(o); return x>objBox.min.x-m&&x<objBox.max.x+m&&z>objBox.min.z-m&&z<objBox.max.z+m;}
   function freeAt(x,z,m,self,k,mid=true){
-    if(!inLot(x,z)) return 'Keep it inside your farm fence.';
+    if(!inLot(x,z)&&!(k==='canal'&&farmCanalOutfall(x,z))) return 'Keep it inside your farm fence.';
     if(k!=='canal'&&roadDist(x,z)<m+.25) return 'Not on a road or path: vehicles and people use it.';   // a canal crosses a road or path through a culvert
     if(inField(x,z,m+.15)) return k==='canal'?'Not across the crops: draw the canal along the side of the field.':'Not on the crop field.';
     if(ORCHARD.spots.some(([sx,sz],i)=>!S.orchardGone[i]&&Math.hypot(x-sx,z-sz)<1.3+m)) return 'Not on a fruit tree.';
@@ -10317,17 +10334,19 @@ var DECO=(()=>{
     if(k!=='canal'&&!CAT[k].over&&typeof wwNear==='function'&&wwNear(x,z,m)) return 'Not in the canal water.';
     for(const o of S.deco){if(o.id===self) continue; const c=CAT[o.k]; if(!c) continue; const sameLine=c.line&&CAT[k].line;
       if(CAT[k].over&&o.k==='canal') continue; if(c.over&&k==='canal') continue; if(CAT[k].gate&&c.line) continue;
+      if(k==='canal'&&(c.line||c.gate)&&o.k!=='canal') continue;   // water passes beneath fences in a covered culvert
       if(sameLine){if(mid&&segD(x,z,o)<.3) return 'A fence is already there.'; continue;}
       const d=c.line?segD(x,z,o):Math.hypot(x-o.x,z-o.z), need=c.line?.35+m*.5:c.r+m*.85; if(d<need) return 'Something is already there.';}
     return '';}
   const ends=d=>{const h=d.s||1, c=Math.cos(d.r)*h, s=-Math.sin(d.r)*h; return [[d.x-c,d.z-s],[d.x,d.z],[d.x+c,d.z+s]];};
   const segD=(x,z,o)=>{const [[ax,az],,[bx,bz]]=ends(o), dx=bx-ax, dz=bz-az, u=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/(dx*dx+dz*dz||1))); return Math.hypot(ax+dx*u-x,az+dz*u-z);};
+  function canalUnderFence(d){if(ends(d).some(([x,z])=>fenceDist(x,z)<.8&&farmCanalOutfall(x,z)))return true;return S.deco.some(o=>o.id!==d.id&&o.k!=='canal'&&(CAT[o.k]?.line||CAT[o.k]?.gate)&&Array.from({length:9},(_,i)=>{const e=ends(d),f=i/8;return segD(e[0][0]+(e[2][0]-e[0][0])*f,e[0][1]+(e[2][1]-e[0][1])*f,o)<.35;}).some(Boolean));}
   function okFor(d){const c=CAT[d.k]; if(c.line){const E=ends(d); for(let q=0;q<3;q++){const e=freeAt(E[q][0],E[q][1],.25,d.id,d.k,q===1); if(e) return e;} return '';} return freeAt(d.x,d.z,c.r,d.id,d.k);}
   // ---- walkers go round fences, walls, hedges, canals, trees, benches, lamps, kubos and signs
   let navPrev=new Map(), navWas=false;
   function navApply(){if(!NAV||!NAV.ready) return; for(const [k,v] of navPrev) NAV.blk[k]=v; navPrev=new Map();
     const mark=(x,z)=>{const i=Math.floor((x-NAV.X0)/.5), j=Math.floor((z-NAV.Z0)/.5); if(i<0||j<0||i>=NAV.W||j>=NAV.H) return; const k=j*NAV.W+i; if(!navPrev.has(k)) navPrev.set(k,NAV.blk[k]); NAV.blk[k]=1;};
-    for(const d of S.deco){const c=CAT[d.k]; if(!c||!c.block||d.cv) continue;
+    for(const d of S.deco){const c=CAT[d.k]; if(!c||!c.block||d.cv||d.pending) continue;
       if(c.line){const [[ax,az],,[bx,bz]]=ends(d); for(let s=0;s<=16;s++){const f=s/16; mark(ax+(bx-ax)*f,az+(bz-az)*f);}}
       else if(c.sign){const w=signW(d.t||''), cs=Math.cos(d.r), sn=-Math.sin(d.r); for(let s=-1;s<=1;s+=.125) mark(d.x+cs*s*w/2,d.z+sn*s*w/2);}
       else {const R=c.r*.75; for(let dx=-R;dx<=R;dx+=.25) for(let dz=-R;dz<=R;dz+=.25) if(dx*dx+dz*dz<=R*R) mark(d.x+dx,d.z+dz);}}
@@ -10335,25 +10354,68 @@ var DECO=(()=>{
   // ---- drawing: every non-sign piece merged into one mesh (cheap on phones), signs and lamp bulbs on their own
   const lift=d=>d.k==='canal'&&inField(d.x,d.z,-.3)?.24:0;   // a canal through the field sits on the ploughed beds, not under them
   const SCX=new THREE.Matrix4(); let gates=[]; const LEAF=mergeGeo([...[.25,.6,.95].map(y=>P('box',0xa1887f,.8,y,0,1.58,.06,.05)),...[.05,1.55].map(x=>P('box',0x8d6e63,x,.6,0,.07,.85,.07)),P('box',0x8d6e63,.8,.6,0,1.7,.05,.04,0,0,.42)]);
-  function rebuild(){clearGroup(root); const all=[], W=new THREE.Matrix4(); gates=[];
+  // Complete old fence-side outfalls visually as well as in the drainage graph.
+  function canalDisplayPieces(){const C=S.deco.filter(d=>d.k==='canal'&&!(active&&active.id===d.id)),out=C.slice();
+    for(const d of C)for(const p of [ends(d)[0],ends(d)[2]]){
+      if(C.some(o=>o!==d&&segD(p[0],p[1],o)<.65)||!throughFence(p[0],p[1]))continue;
+      const j=farmCanalSnap(p,6);if(!j||j.id!=='patubig')continue;const dx=j.p[0]-p[0],dz=j.p[1]-p[1],L=Math.hypot(dx,dz);if(L<.05)continue;
+      if(!Array.from({length:13},(_,i)=>{const f=i/12;return farmCanalOutfall(p[0]+dx*f,p[1]+dz*f);}).every(Boolean))continue;
+      out.push({id:-100000-out.length,k:'canal',x:(p[0]+j.p[0])/2,z:(p[1]+j.p[1])/2,r:Math.atan2(-dz,dx),s:L/2,visualOutlet:true});
+    }return out;}
+  function rebuild(){for(const d of S.deco)if(d.k==='canal'&&canalUnderFence(d))d.cv=1; clearGroup(root); const displayCanals=canalDisplayPieces(),all=[], W=new THREE.Matrix4(); gates=[];
     for(const d of S.deco){const c=CAT[d.k]; if(!c) continue; if(active&&active.id===d.id) continue; W.makeRotationY(d.r); W.setPosition(d.x,lift(d),d.z); if(d.s&&d.s!==1) W.multiply(SCX.makeScale(d.s,1,1));
       if(c.sign){const g=signGroup(d); g.position.set(d.x,0,d.z); g.rotation.y=d.r; root.add(g); continue;}
-      if(!(d.k==='canal'&&!d.cv)) for(const [g,m,col] of parts(d)) all.push([g,W.clone().multiply(m),col]);   // canals are drawn below as whole runs
+      if(d.k!=='canal'||(d.cv&&!canalUnderFence(d))) for(const [g,m,col] of parts(d)) all.push([g,W.clone().multiply(m),col]);   // canals are drawn below as whole runs
       if(d.k==='lamp'){const L=lampLight(); L.position.set(.38,2.6,0).applyMatrix4(W); root.add(L);}
       if(d.k==='gate'){const g=new THREE.Group(); g.position.set(d.x,0,d.z); g.rotation.y=d.r; const mk=sd=>{const h=new THREE.Group(); h.position.set(sd*1.68,0,0); const m=new THREE.Mesh(LEAF,VCMAT); m.castShadow=true; m.scale.x=-sd; h.add(m); g.add(h); return h;};
         const L=mk(-1), R=mk(1); root.add(g); gates.push({d,L,R,a:0});}}
     {// canals: pieces joined end to end become one run, drawn as one channel whose floor, water and walls turn each corner with a mitred join
-      const CN=S.deco.filter(d=>d.k==='canal'&&!d.cv&&!(active&&active.id===d.id)), nodes=[], nodeOf=p=>{for(let k=0;k<nodes.length;k++) if(Math.hypot(nodes[k].x-p[0],nodes[k].z-p[1])<.6) return k; nodes.push({x:p[0],z:p[1],e:[]}); return nodes.length-1;};
+      const CN=displayCanals, nodes=[], nodeOf=p=>{for(let k=0;k<nodes.length;k++) if(Math.hypot(nodes[k].x-p[0],nodes[k].z-p[1])<.6) return k; nodes.push({x:p[0],z:p[1],e:[]}); return nodes.length-1;};
       const edges=CN.map(d=>{const E=ends(d), e={d,a:nodeOf(E[0]),b:nodeOf(E[2]),used:false}; nodes[e.a].e.push(e); nodes[e.b].e.push(e); return e;});
-      const strips=[], I4=new THREE.Matrix4();
+      // Distance to a real outlet sets flow independently of which direction the player drew.
+      const drain=nodes.map(n=>farmCanalSnap([n.x,n.z],.65)?0:Infinity);
+      for(let pass=0;pass<nodes.length;pass++)for(const e of edges){const l=Math.hypot(nodes[e.a].x-nodes[e.b].x,nodes[e.a].z-nodes[e.b].z);drain[e.a]=Math.min(drain[e.a],drain[e.b]+l);drain[e.b]=Math.min(drain[e.b],drain[e.a]+l);}
+      const strips=[], water=[], I4=new THREE.Matrix4();
       for(const e0 of edges){if(e0.used) continue; e0.used=true; const ids=[e0.a,e0.b];
         for(const dir of [1,-1]){let cur=dir>0?e0.b:e0.a, prev=e0; while(nodes[cur].e.length===2){const nx=nodes[cur].e.find(q=>q!==prev); if(nx.used) break; nx.used=true; const o=nx.a===cur?nx.b:nx.a; if(dir>0) ids.push(o); else ids.unshift(o); prev=nx; cur=o;}}
+        if(drain[ids[0]]<drain[ids[ids.length-1]])ids.reverse();
         const closed=ids.length>3&&ids[0]===ids[ids.length-1], P=ids.map(k=>[nodes[k].x,nodes[k].z]);
-        for(const [oA,oB,y0,y1,c] of [[-.45,.45,0,.04,0x5b4a36],[-.43,.43,.12,.14,0x6fa9c2],[-.6,-.44,0,.24,0x9e978a],[.44,.6,0,.24,0x9e978a],[-.62,-.42,.235,.255,0xb3ac9e],[.42,.62,.235,.255,0xb3ac9e],[-.08,.04,.141,.144,0x8cc0d4]]) strips.push([stripGeo(P,closed,oA,oB,y0,y1),I4,c]);}
-      if(strips.length){const m=new THREE.Mesh(mergeGeo(strips),CANAL_MAT); m.receiveShadow=true; m.castShadow=true; root.add(m);}}
-    {const C=S.deco.filter(d=>d.k==='canal'&&!(active&&active.id===d.id));   // every open end of a canal: a low concrete headwall with a cap and the dark mouth of a pipe, like the farm's own kanal
+        // End-to-end outlets follow the main channel briefly so both concrete banks
+        // share its orientation; side entries still open only the receiving bank.
+        if(!closed)for(const atStart of [true,false]){const idx=atStart?0:P.length-1,j=farmCanalSnap(P[idx],.65);if(!j?.end)continue;
+         P[idx]=j.p.slice();const inner=[j.p[0]-j.tangent[0]*j.end*.45,j.p[1]-j.tangent[1]*j.end*.45];if(atStart)P.unshift(inner);else P.push(inner);}
+        const bankP=P.map(p=>p.slice()),bankWidths=P.map(()=>1);
+        if(!closed)for(const idx of [0,bankP.length-1]){const join=farmCanalSnap(P[idx],.65);if(!join)continue;
+         const next=idx===0?1:idx-1,dx=P[next][0]-P[idx][0],dz=P[next][1]-P[idx][1],len=Math.hypot(dx,dz)||1,cross=Math.abs(dx/len*join.tangent[1]-dz/len*join.tangent[0]);
+         if(cross<.35){bankP[idx]=[join.p[0]-dx/len*.06,join.p[1]-dz/len*.06];bankWidths[idx]=(join.w/2+.09)/.59;}
+         else {const cut=Math.min(len*.8,Math.max(.1,join.w/2-.06)/cross);bankP[idx]=[P[idx][0]+dx/len*cut,P[idx][1]+dz/len*cut];}}
+        for(const [oA,oB,y0,y1,c] of [[-.5,.5,0,.03,0x6f6a5e],[-.68,-.5,0,.32,0xb3afa4],[.5,.68,0,.32,0xb3afa4],[-.68,-.5,.32,.34,0xc9c5ba],[.5,.68,.32,.34,0xc9c5ba]]) strips.push([stripGeo(y1>.03?bankP:P,closed,oA,oB,y0,y1,y1>.03?bankWidths:null),I4,c]);
+        const wg=stripGeo(P,closed,-.47,.47,0,0),pos=wg.attributes.position,uv=[],dist=[0];for(let j=1;j<P.length;j++)dist.push(dist[j-1]+Math.hypot(P[j][0]-P[j-1][0],P[j][1]-P[j-1][1]));
+        for(let j=0;j<pos.count;j++){let best=Infinity,u=0,v=0;for(let k=1;k<P.length;k++){const a=P[k-1],b=P[k],dx=b[0]-a[0],dz=b[1]-a[1],L=Math.hypot(dx,dz)||1,t=Math.max(0,Math.min(1,((pos.getX(j)-a[0])*dx+(pos.getZ(j)-a[1])*dz)/(L*L))),ex=pos.getX(j)-a[0]-t*dx,ez=pos.getZ(j)-a[1]-t*dz,d=ex*ex+ez*ez;if(d<best){best=d;u=.5+(-dz*ex+dx*ez)/L;v=(dist[k-1]+t*L)/2;}}uv.push(u,-v);}wg.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));water.push(wg);}
+      if(strips.length){const m=new THREE.Mesh(mergeGeo(strips),CANAL_MAT); m.receiveShadow=true; m.castShadow=true; root.add(m);}
+      if(water.length){const source=WWAYS.all.find(a=>a.W.id==='patubig');for(const geo of water){const m=new THREE.Mesh(geo,source.mat);m.position.y=source.wm.position.y;m.userData.canalWater=true;m.receiveShadow=true;root.add(m);}}
+      // Bank-mounted fence posts replace any post in the channel. Existing level rails span the water.
+      if(farmBoundaryVisual){const crossings=[];
+       for(const d of CN){const [a,,b]=ends(d),dx=b[0]-a[0],dz=b[1]-a[1];
+        for(let k=1;k<FENCE.length;k++){const c=FENCE[k-1],e=FENCE[k],ex=e[0]-c[0],ez=e[1]-c[1],den=dx*ez-dz*ex;if(Math.abs(den)<1e-6)continue;
+         const t=((c[0]-a[0])*ez-(c[1]-a[1])*ex)/den,u=((c[0]-a[0])*dz-(c[1]-a[1])*dx)/den;if(t<0||t>1||u<0||u>1)continue;
+         const x=a[0]+t*dx,z=a[1]+t*dz,L=Math.hypot(ex,ez),sin=Math.abs(den)/(Math.hypot(dx,dz)*L),half=.82/Math.max(.3,sin);
+         if(!crossings.some(q=>Math.hypot(q.x-x,q.z-z)<1))crossings.push({x,z,tx:ex/L,tz:ez/L,half});}}
+       const {mesh}=farmBoundaryVisual,matrix=new THREE.Matrix4(),pos=new THREE.Vector3(),scale=new THREE.Vector3(),quat=new THREE.Quaternion();
+       for(const im of mesh.children){if(!im.userData.originalFence)im.userData.originalFence=im.instanceMatrix.array.slice();im.instanceMatrix.array.set(im.userData.originalFence);
+        for(let i=0;i<im.count;i++){im.getMatrixAt(i,matrix);matrix.decompose(pos,quat,scale);if(scale.y>1&&crossings.some(q=>Math.hypot(pos.x-q.x,pos.z-q.z)<q.half+.7)){scale.set(0,0,0);matrix.compose(pos,quat,scale);im.setMatrixAt(i,matrix);}}im.instanceMatrix.needsUpdate=true;}
+       const posts=[];for(const q of crossings)for(const side of [-1,1]){const x=q.x+q.tx*q.half*side,z=q.z+q.tz*q.half*side;
+        posts.push(P('box',0xa69e89,x,.12,z,.32,.24,.32),P('box',0x6d4c41,x,.72,z,.18,1.44,.18),P('pyr',0x806044,x,1.48,z,.24,.12,.24));}
+       if(posts.length)root.add(vcGroup(posts));}
+      // Cut only the bank faces touched by a connected branch; undo restores the original mesh.
+      for(const A of WWAYS.all){const bank=A.W.bankMesh;if(!bank)continue;const arr=bank.mesh.geometry.attributes.position;arr.array.set(bank.original);
+       const joining=CN.filter(d=>ends(d).some(p=>{const j=farmCanalSnap(p,.65);return j&&!j.end&&j.id===A.W.id&&Math.abs(Math.cos(d.r)*j.tangent[1]+Math.sin(d.r)*j.tangent[0])>=.35;}));
+       for(const face of bank.banks)if(joining.some(d=>segD(face.x,face.z,d)<.52))for(let j=face.start;j<face.start+18;j+=3){arr.array[j+1]=.025;}
+       arr.needsUpdate=true;bank.mesh.geometry.computeVertexNormals();}
+    }
+    {const C=displayCanals;   // every open end of a canal: a low concrete headwall with a cap and the dark mouth of a pipe, like the farm's own kanal
       for(const d of C){if(d.cv) continue; const E=ends(d);
-        for(const q of [0,2]){const p=E[q]; if(C.some(o=>o!==d&&(ends(o).some((e,qi)=>qi!==1&&Math.hypot(e[0]-p[0],e[1]-p[1])<.6)||segD(p[0],p[1],o)<.4))) continue;   // joined to another canal: the water runs on
+        for(const q of [0,2]){const p=E[q]; if(farmCanalSnap(p,.65))continue; if(C.some(o=>o!==d&&(ends(o).some((e,qi)=>qi!==1&&Math.hypot(e[0]-p[0],e[1]-p[1])<.6)||segD(p[0],p[1],o)<.4))) continue;   // joined to another canal: the water runs on
           const sgn=q?1:-1, along=sgn*((d.s||1)-.14), px=d.x+Math.cos(d.r)*along, pz=d.z-Math.sin(d.r)*along; W.makeRotationY(d.r); W.setPosition(px,lift(d),pz);
           for(const [g,m,col] of [P('box',0xb3afa4,0,.25,0,.28,.5,1.25),P('box',0x9e998c,0,.53,0,.36,.06,1.33),P('cyl',0x2c2823,0,.27,0,.26,.34,.26,0,0,Math.PI/2)]) all.push([g,W.clone().multiply(m),col]);}}}
     if(all.length){const v=vcGroup(all); v.traverse(o=>{if(o.isMesh) o.userData.navSkip=true;}); root.add(v);}
@@ -10368,13 +10430,16 @@ var DECO=(()=>{
     if(c.sign){g=signGroup(t);} else {g=vcGroup(parts(t)); if(t.k==='lamp'){const L=lampLight(); L.position.set(.38,2.6,0); g.add(L);}}
     g.position.set(t.x,.12,t.z); g.rotation.y=t.r; if(t.s&&!c.sign) g.scale.x=t.s; g.userData.active=true; root.add(g); active.g=g;
     const R=c.line?1.25:c.sign?Math.max(.9,signW(t.t||'')/2+.2):Math.max(.6,c.r+.25); ring.scale.setScalar(R); ring.position.set(t.x,.06,t.z); root.add(ring); check();}
-  function check(){const e=okFor(tmp()); active.err=e; ring.material.color.setHex(e?0xe0735a:0x6fbf4a); ctl.classList.toggle('bad',!!e); ctl.querySelector('[data-c=ok]').title=e||'Put it here';}
+  function check(){const e=okFor(tmp()); active.err=e; ring.material.color.setHex(e?0xe0735a:0x6fbf4a); if(active.pending&&active.g&&!CAT[tmp().k].sign) active.g.traverse(o=>{if(o.isMesh) o.material=e?ghostBad:ghostOK;});   /* the preview shows green where it can go, red where it can't */ ctl.classList.toggle('bad',!!e); ctl.querySelector('[data-c=ok]').title=e||'Put it here';}
   function place(){if(active.g){active.g.position.set(active.x,.12,active.z); active.g.rotation.y=active.r;} ring.position.set(active.x,.06,active.z); check();}
-  function activate(d){if(active) cancelActive(); sel=null; active={id:d.id,x:d.x,z:d.z,r:d.r,rec:shot()}; justActivated=true; buzz(); rebuild(); renderHUD();}
-  function cancelActive(){if(!active) return; active=null; dragArm=false; ctl.hidden=true; rebuild(); renderHUD();}
+  function activate(d,pend){if(active) cancelActive(); if(!pend) sel=null; active={id:d.id,x:d.x,z:d.z,r:d.r,rec:shot(),pending:!!pend}; if(pend) active.rec.deco=active.rec.deco.filter(o=>!o.pending); justActivated=true; buzz(); rebuild(); renderHUD();}
+  function cancelActive(){if(!active) return; if(active.pending){const id=active.id; S.deco=S.deco.filter(o=>o.id!==id);} active=null; dragArm=false; ctl.hidden=true; rebuild(); renderHUD();}
   function okActive(){if(!active) return; const t=tmp(); if(!t) return cancelActive(); if(active.err) return toast('Can\'t put it there. '+active.err,2400);
-    const d=S.deco.find(o=>o.id===active.id), rec=active.rec; d.x=t.x; d.z=t.z; d.r=t.r; active=null; ctl.hidden=true; rebuild(); changed(); sfx('hammer',d.x,d.z); finish(rec);}
-  function delActive(){if(!active) return; const d=S.deco.find(o=>o.id===active.id), rec=active.rec; if(!d) return cancelActive(); const c=CAT[d.k], back=Math.floor(c.cost/2);
+    const d=S.deco.find(o=>o.id===active.id), rec=active.rec, was=active.pending;
+    if(was&&!pay(CAT[d.k].cost)) return;   // the preview is paid for only now
+    d.x=t.x; d.z=t.z; d.r=t.r; delete d.pending; rot=d.r; active=null; ctl.hidden=true; if(was&&CAT[d.k].gate) cutForGate(d); rebuild(); changed(); sfx('hammer',d.x,d.z); finish(rec);
+    if(was&&CAT[d.k].sign) openEdit(d.id);}
+  function delActive(){if(!active) return; if(active.pending) return cancelActive(); const d=S.deco.find(o=>o.id===active.id), rec=active.rec; if(!d) return cancelActive(); const c=CAT[d.k], back=Math.floor(c.cost/2);
     S.deco=S.deco.filter(o=>o.id!==d.id); S.coins+=back; active=null; ctl.hidden=true; rebuild(); changed(); finish(rec); toast(`${c.name} removed. +₱${back}`);}
   ctl.addEventListener('pointerdown',e=>e.stopPropagation()); ctl.addEventListener('click',e=>{const b=e.target.closest('[data-c]'); if(!b||!active) return; e.stopPropagation();
     if(b.dataset.c==='ok') okActive(); else if(b.dataset.c==='del') delActive(); else {active.r=(active.r+Math.PI/4)%(Math.PI*2); place(); buzz();}});
@@ -10553,6 +10618,7 @@ var DECO=(()=>{
     if(putBack){placeBack(gx,gz); return true;}
     if(house){const s=SLOTS[house.k], c=HOUSE_SC[house.size], w=SLOT_BASE[house.k].w*c, d=SLOT_BASE[house.k].d*c; if(!(Math.abs(gx-house.x)<w/2+1&&Math.abs(gz-house.z)<d/2+1)){dropHouse(); toast('Left where it was.');} return true;}
     if(area){const a=FARM.areas[area.ai]; if(!(gx>a.fence[0]+area.dx-1&&gx<a.fence[2]+area.dx+1&&gz>a.fence[1]+area.dz-1&&gz<a.fence[3]+area.dz+1)){dropArea(); toast('Left where it was.');} return true;}
+    if(active&&active.pending&&!nearActive(gx,gz)){active.x=snap(gx); active.z=snap(gz); place(); return true;}   // a tap elsewhere moves the preview there
     if(active){if(!nearActive(gx,gz)){cancelActive(); toast('Put back where it was.');} return true;}
     if(moving){const d=S.deco.find(o=>o.id===moving); moving=null; if(!d) return true; const ox=d.x, oz=d.z; d.x=snap(gx); d.z=snap(gz); const e=okFor(d); if(e){d.x=ox; d.z=oz; toast('Can\'t move it there. '+e,2600); rebuild(); return true;} rebuild(); changed(); toast(`${CAT[d.k].name} moved.`); return true;}
     const hit=atPoint(gx,gz); if(hit&&!sel){openEdit(hit.id); return true;}
@@ -10562,13 +10628,11 @@ var DECO=(()=>{
     if(CAT[sel].gate){const f=nearFence(gx,gz,1.6); if(f){const [[ax,az],,[bx,bz]]=ends(f), dx=bx-ax, dz=bz-az, u=((gx-ax)*dx+(gz-az)*dz)/(dx*dx+dz*dz||1); px=ax+dx*u; pz=az+dz*u; pr=f.r;
         const c=Math.cos(pr), sn=-Math.sin(pr); let best=0, bd=.6; for(const q of postsFor('fence')) for(const sd of [-1,1]){const al=(q[0]-px)*c+(q[1]-pz)*sn, ac=-(q[0]-px)*sn+(q[1]-pz)*c; if(Math.abs(ac)>.2) continue; const sh=al-sd*GATE_H; if(Math.abs(sh)<bd){bd=Math.abs(sh); best=sh;}}
         px+=c*best; pz+=sn*best;}}   // and slides a little so a post lands on a fence post   // a gate sits in the fence you drop it on
-    const res=add(sel,px,pz,pr); if(res==='coins') return true; if(typeof res==='string'){toast('Can\'t put it there. '+res,2600); return true;}
-    if(CAT[sel].gate) cutForGate(res);
-    rebuild(); changed(); sfx('hammer',res.x,res.z); if(CAT[sel].sign) openEdit(res.id); return true;}
+    const d={id:S.decoN++,k:sel,x:px,z:pz,r:pr,pending:1}; if(CAT[sel].sign){d.t='Sunfield Farm'; d.st=0;} S.deco.push(d); activate(d,true); return true;}
   // ---- canals drain the field: a canal joined (through other canals) to the main canal drains the plots near it when it rains
   const fieldTileAt=(x,z)=>plotAt(x,z);
   let netSig=null, netIds=new Set();
-  function canalNet(){const C=S.deco.filter(d=>d.k==='canal'), sig=S.goneWays.join(',')+'#'+C.map(d=>d.id+':'+d.x.toFixed(2)+','+d.z.toFixed(2)+','+(d.s||1)).join('|'); if(sig===netSig) return netIds; netSig=sig;
+  function canalNet(){const C=S.deco.filter(d=>d.k==='canal'), sig=S.goneWays.join(',')+'#'+C.map(d=>d.id+':'+d.x.toFixed(2)+','+d.z.toFixed(2)+','+(d.s||1)+','+d.r).join('|'); if(sig===netSig) return netIds; netSig=sig;
     const E=C.map(d=>{const e=ends(d); return [e[0],e[2]];}), on=new Set(), q=[];
     C.forEach((d,k)=>{if(E[k].some(([x,z])=>mainNear(x,z,.6)||throughFence(x,z))){on.add(k); q.push(k);}});   // a canal that reaches the main canal
     while(q.length){const a=q.pop(); C.forEach((d,b)=>{if(on.has(b)) return; if(E[b].some(p=>segD(p[0],p[1],C[a])<.7)||E[a].some(p=>segD(p[0],p[1],d)<.7)){on.add(b); q.push(b);}});}   // and every canal joined to it
@@ -10592,7 +10656,7 @@ var DECO=(()=>{
       if(c.gate&&k!=='canal'){const cs=Math.cos(o.r)*GATE_H, sn=-Math.sin(o.r)*GATE_H; P.push([o.x-cs,o.z-sn],[o.x+cs,o.z+sn]);}
       else if(c.line&&(k==='canal')===(o.k==='canal')){const E=ends(o); P.push(E[0],E[2]);}}
     return P;}
-  function snapEndPt(p,k,P){let best=null, bd=k==='canal'?2.2:1.4; for(const q of P){const d=Math.hypot(q[0]-p[0],q[1]-p[1]); if(d<bd){bd=d; best=q;}} if(best) return {p:best.slice(),snapped:true};
+  function snapEndPt(p,k,P){if(k==='canal'){const main=farmCanalSnap(p);if(main)return {p:main.p,snapped:true};}let best=null, bd=k==='canal'?2.2:1.4; for(const q of P){const d=Math.hypot(q[0]-p[0],q[1]-p[1]); if(d<bd){bd=d; best=q;}} if(best) return {p:best.slice(),snapped:true};
     let bo=null, bo_d=.8; for(const o of S.deco){if(!(k==='canal'?o.k==='canal':FENCY(o.k))) continue; const d=segD(p[0],p[1],o); if(d<bo_d){bo_d=d; bo=o;}}   // a T-joint onto the side of a fence
     if(bo){const [[ax,az],,[bx,bz]]=ends(bo), dx=bx-ax, dz=bz-az, u=Math.max(0,Math.min(1,((p[0]-ax)*dx+(p[1]-az)*dz)/(dx*dx+dz*dz||1))); return {p:[ax+dx*u,az+dz*u],snapped:true};}
     return {p:[snap(p[0]),snap(p[1])],snapped:false};}
@@ -10607,7 +10671,7 @@ var DECO=(()=>{
     let B; if(close){B={p:Q[0].slice(),snapped:true}; Q[Q.length-1]=Q[0].slice();} else {B=snapEndPt(Q[Q.length-1],k,P); if(B.snapped) Q[Q.length-1]=B.p;}
     const out=[]; let bad='';
     for(let i=1;i<Q.length;i++){const [ax,az]=Q[i-1], [bx,bz]=Q[i], dx=bx-ax, dz=bz-az, L=Math.hypot(dx,dz); if(L<.3) continue; const n=Math.max(1,Math.ceil(L/2-.02)), r=Math.atan2(-dz,dx);
-      for(let j=0;j<n;j++){const f=(j+.5)/n, d={id:-1,k,x:ax+dx*f,z:az+dz*f,r,s:L/n/2}; if(k==='canal'&&ends(d).some(([qx,qz])=>roadDist(qx,qz)<.9)) d.cv=1; const e=okFor(d); if(e&&!bad) bad=e; d.bad=!!e; out.push(d);}}
+      for(let j=0;j<n;j++){const f=(j+.5)/n, d={id:-1,k,x:ax+dx*f,z:az+dz*f,r,s:L/n/2}; if(k==='canal'&&(ends(d).some(([qx,qz])=>roadDist(qx,qz)<.9)||canalUnderFence(d))) d.cv=1; const e=okFor(d); if(e&&!bad) bad=e; d.bad=!!e; out.push(d);}}
     return out.length?{pieces:out,bad,cost:out.length*CAT[k].cost,ends:[A.snapped,B.snapped],pts:Q,closed:close}:null;}
   const ghostOK=new THREE.MeshBasicMaterial({color:0x6fbf4a,transparent:true,opacity:.55,depthWrite:false}), ghostBad=new THREE.MeshBasicMaterial({color:0xe0735a,transparent:true,opacity:.6,depthWrite:false});
   let lineGhost=null;
@@ -10654,9 +10718,10 @@ var DECO=(()=>{
     S.coins-=plan.cost; for(const d of plan.pieces){delete d.bad; d.id=S.decoN++; S.deco.push(d);} rebuild(); finish(L.rec); changed(); sfx('hammer',plan.pieces[0].x,plan.pieces[0].z);
     const j=plan.ends.filter(Boolean).length; toast(`${CAT[sel].name}: ${plan.pieces.length} piece${plan.pieces.length>1?'s':''} (₱${plan.cost})${plan.closed?', pen closed':j?`, joined at ${j===2?'both ends':'one end'}`:''}.`,2400);}
   // ---- the bar under the Decorate button
-  function bar(){if(active||area||house||fixd) return ''; const back=WAYS.filter(W=>goneWay(W.id)).map(W=>`<button class="tool" data-wayback="${W.id}"><span class="ti">${W.canal?'💧':'🚶'}</span><span class="tl">Put back</span><span class="tc">${W.name}</span></button>`).join('')+FIXED.filter(f=>FIXGONE(f.k)).map(f=>`<button class="tool ${putBack===f.k?'on':''}" data-putback="${f.k}"><span class="ti">🏗️</span><span class="tl">Put back</span><span class="tc">${f.name}</span></button>`).join('')+(ORCHARD.spots.some((_,i)=>S.orchardGone[i])?`<button class="tool ${putBack==='tree'?'on':''}" data-putback="tree"><span class="ti">🌱</span><span class="tl">Tree plot</span><span class="tc">free</span></button>`:''); return back+`<button class="tool" data-deco-undo="1" ${hist.length?'':'disabled'} aria-label="Undo the last change"><span class="ti">↶</span><span class="tl">Undo</span><span class="tc">${hist.length?hist.length+(hist.length>1?' steps':' step'):'nothing yet'}</span></button>`+ORDER.map(k=>{const c=CAT[k], on=sel===k; return `<button class="tool ${on?'on':''}" data-deco="${k}" aria-pressed="${on}"><span class="ti svg" aria-hidden="true">${c.svgFull}</span><span class="tl">${c.name}</span><span class="tc">${c.roadTool?(c.cost?'₱'+c.cost+' / m':'free'):'₱'+c.cost}</span></button>`;}).join('')
-    +`<button class="tool" data-deco-rot="1" aria-label="Turn the next piece"><span class="ti">↻</span><span class="tl">Turn</span><span class="tc">${Math.round(rot*180/Math.PI)%360}°</span></button>`;}
-  function hint(){if(fixd&&fixd.kind==='way') return `The ${fixd.W.name}: 🗑 takes it out, ✕ keeps it.`;
+  function bar(){if(active||area||house||fixd) return ''; const back=(ORCHARD.spots.some((_,i)=>S.orchardGone[i])?`<button class="tool ${putBack==='tree'?'on':''}" data-putback="tree"><span class="ti">🌱</span><span class="tl">Tree plot</span><span class="tc">free</span></button>`:''); return back+`<button class="tool" data-deco-undo="1" ${hist.length?'':'disabled'} aria-label="Undo the last change"><span class="ti">↶</span><span class="tl">Undo</span><span class="tc">${hist.length?hist.length+(hist.length>1?' steps':' step'):'nothing yet'}</span></button>`+ORDER.map(k=>{const c=CAT[k], on=sel===k; return `<button class="tool ${on?'on':''}" data-deco="${k}" aria-pressed="${on}"><span class="ti svg" aria-hidden="true">${c.svgFull}</span><span class="tl">${c.name}</span><span class="tc">${c.roadTool?(c.cost?'₱'+c.cost+' / m':'free'):'₱'+c.cost}</span></button>`;}).join('')
+    ;}
+  function hint(){if(active&&active.pending){const c=CAT[S.deco.find(o=>o.id===active.id)?.k]||{}; return `Drag it into place (green: OK, red: not there). ✓ places it for ₱${c.cost}, ↻ turns it, ✕ cancels. Tap elsewhere to move it.`;}
+    if(fixd&&fixd.kind==='way') return `The ${fixd.W.name}: 🗑 takes it out, ✕ keeps it.`;
     if(fixd) return fixd.kind==='plot'?'Drag the plot to a new spot (its crop comes along). ✓ moves it, 🗑 removes it, ✕ leaves it.':fixd.kind==='tree'?'Drag the tree to a new spot. ✓ moves it, 🗑 removes the tree plot, ✕ leaves it.':`Drag the ${fixd.f.name} to a new spot. ✓ moves it (the farm is rebuilt around it)${fixd.f.keep?'':', 🗑 takes it down'}, ✕ leaves it where it was.`;
     if(putBack) return putBack==='tree'?'Tap your farm where the new tree plot should go.':`Tap your farm where the ${FIXED.find(f=>f.k===putBack).name} should go.`;
     if(house) return 'Drag the house to a new spot (the light area is the yard its animals use). ✓ puts it there, ✕ leaves it where it was.'; if(area) return 'Drag the area to a new spot inside your farm. ✓ moves it (the farm rebuilds; animals, houses and upgrades come along), ✕ leaves it where it is. Its gate stays on the same side: build a road to it.'; if(sel==='road') return 'Drag across your land to draw a dirt road (₱2 per metre). Its ends join any road they touch. Labels show what your roads reach: trucks only go where they connect.'; if(sel==='eraser') return 'Drag across a road to remove that part of it. Trucks only use roads that still connect.'; if(!sel&&!active&&!moving&&!area) return 'Pick a decoration, then tap your farm to place it. Press and hold something you placed to move it, or press and hold an animal house to move it.'; if(active) return 'Drag it to a new spot. ✓ puts it down, ↻ turns it, ✕ removes it (half back). Tap elsewhere to put it back.'; if(moving) return 'Tap where you want to move it.'; if(!sel) return 'Pick a decoration, then tap your farm to place it. Tap something you placed to turn, move, edit or remove it.';
@@ -10715,7 +10780,7 @@ var DECO=(()=>{
       S.deco.push({id:S.decoN++,k:'gate',x:A.gate[0],z:A.gate[1],r:A.gate[2],area:A.type}); S.deco.push({id:S.decoN++,k:'sign',x:A.sign[0],z:A.sign[1],r:A.sign[2],t:A.sign[3].slice(0,24),st:0,area:A.type});}
     S.areaDecoMig=1; save();}
   rebuild();
-  return {CAT,FIXED,blockedForPlot,okFix:(k,dx,dz)=>okFix(FIXED.find(f=>f.k===k),dx,dz),okTree:(i,x,z)=>okTree(i,x,z),planFence,canalNet,drained,drainedByCanal,canalOnTile,get drawing(){return !!line;},holdHouseAt,tap,lineOn,lineStart,lineTo,lineEnd,bar,hint,render,update,rebuild,get sel(){return sel;},set sel(v){sel=v;},get moving(){return moving;},clearSel(){sel=null; moving=null;},add,okFor,atPoint,undo,get undoSteps(){return hist.length;}};
+  return {waterLevel(y){for(const m of root.children)if(m.userData.canalWater)m.position.y=y;},CAT,FIXED,blockedForPlot,okFix:(k,dx,dz)=>okFix(FIXED.find(f=>f.k===k),dx,dz),okTree:(i,x,z)=>okTree(i,x,z),planFence,canalNet,drained,drainedByCanal,canalOnTile,get drawing(){return !!line;},holdHouseAt,tap,lineOn,lineStart,lineTo,lineEnd,bar,hint,render,update,rebuild,get sel(){return sel;},set sel(v){sel=v;},get moving(){return moving;},clearSel(){sel=null; moving=null;},add,okFor,atPoint,undo,get undoSteps(){return hist.length;}};
 })();
 /* ---------- rain and drainage: in the rain, crops on plots no canal drains are flooded; any still flooded when the rain stops are lost ---------- */
 var FLOOD=(()=>{let last=0, warned=0;

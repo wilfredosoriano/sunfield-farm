@@ -903,6 +903,40 @@ function spline(pts,closed,step=1){const P=closed?[pts[pts.length-1],...pts,pts[
     for(let k=0;k<n;k++){const t=k/n, t2=t*t, t3=t2*t, f=(p0,p1,p2,p3)=>.5*(2*p1+(-p0+p2)*t+(2*p0-5*p1+4*p2-p3)*t2+(-p0+3*p1-3*p2+p3)*t3); out.push([f(a[0],b[0],c[0],d[0]),f(a[1],b[1],c[1],d[1])]);}}
   out.push(closed?out[0]:pts[pts.length-1]); return out;}
 function straight(pts,step=1){const out=[]; for(let i=0;i<pts.length-1;i++){const [a,b]=[pts[i],pts[i+1]], n=Math.max(1,Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/step)); for(let k=0;k<n;k++) out.push([a[0]+(b[0]-a[0])*k/n,a[1]+(b[1]-a[1])*k/n]);} out.push(pts[pts.length-1]); return out;}
+/* ---------- reading a drawn line: corners (any angle), straight stretches and curves; used by fences and farm roads ---------- */
+const SHAPE=(()=>{
+  const plen=P=>{let L=0; for(let i=1;i<P.length;i++) L+=Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1]); return L;};
+  function resample(P,step){const out=[P[0].slice()]; let carry=0; for(let i=1;i<P.length;i++){const [ax,az]=P[i-1], [bx,bz]=P[i], L=Math.hypot(bx-ax,bz-az); let t=step-carry; while(t<=L){out.push([ax+(bx-ax)*t/L,az+(bz-az)*t/L]); t+=step;} carry=L-(t-step);}
+    const l=P[P.length-1]; if(Math.hypot(l[0]-out[out.length-1][0],l[1]-out[out.length-1][1])>.15) out.push(l.slice()); return out;}
+  const smooth=P=>P.map((q,i)=>i===0||i===P.length-1?q:[(P[i-1][0]+2*q[0]+P[i+1][0])/4,(P[i-1][1]+2*q[1]+P[i+1][1])/4]);
+  const at=(P,d)=>{for(let i=1;i<P.length;i++){const L=Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1]); if(d<=L||i===P.length-1){const f=L?Math.min(1,d/L):0; return [P[i-1][0]+(P[i][0]-P[i-1][0])*f,P[i-1][1]+(P[i][1]-P[i-1][1])*f];} d-=L;} return P[P.length-1].slice();};
+  function shapeOf(raw){let R=resample(raw,.5); if(R.length<2) return null; R=smooth(R); const n=R.length, W=2;
+    const turn=i=>{const a=Math.atan2(R[i][1]-R[i-W][1],R[i][0]-R[i-W][0]), b=Math.atan2(R[i+W][1]-R[i][1],R[i+W][0]-R[i][0]); let d=Math.abs(b-a); if(d>Math.PI) d=2*Math.PI-d; return d;};
+    const T=R.map((_,i)=>i>=W&&i<n-W?turn(i):0), cut=[0];
+    for(let i=W;i<n-W;i++){if(T[i]<.7) continue; let peak=true; for(let j=Math.max(W,i-3);j<=Math.min(n-W-1,i+3);j++) if(T[j]>T[i]||(T[j]===T[i]&&j<i)) peak=false; if(peak&&i-cut[cut.length-1]>=3) cut.push(i);}
+    if(n-1-cut[cut.length-1]<3&&cut.length>1) cut.pop(); cut.push(n-1);
+    const devOf=S=>{const [ax,az]=S[0], [bx,bz]=S[S.length-1], ch=Math.hypot(bx-ax,bz-az)||1; let dev=0; for(const [x,z] of S) dev=Math.max(dev,Math.abs((x-ax)*(bz-az)-(z-az)*(bx-ax))/ch); if(plen(S)>ch*1.08+.3) dev=Math.max(dev,9); return [dev,ch];};   // a loop or a U is never straight
+    const secs=[]; for(let c=1;c<cut.length;c++){const S=R.slice(cut[c-1],cut[c]+1), [dev,ch]=devOf(S);
+      if(dev<Math.max(.45,.08*ch)){secs.push({S,straight:true}); continue;}
+      let mi=-1, mt=0; for(let i=W;i<S.length-W;i++){const g=cut[c-1]+i; if(T[g]>mt){mt=T[g]; mi=i;}}   // a corner the shaky hand hid: the curve is really two straight sides
+      if(mi>=3&&S.length-1-mi>=3&&mt>.45){const L=S.slice(0,mi+1), Rr=S.slice(mi), [d1,c1]=devOf(L), [d2,c2]=devOf(Rr); if(d1<Math.max(.25,.04*c1)&&d2<Math.max(.25,.04*c2)){secs.push({S:L,straight:true},{S:Rr,straight:true}); continue;}}
+      secs.push({S,straight:false});}
+    return secs;}
+  const snap45=a=>{const q=Math.round(a/(Math.PI/4))*(Math.PI/4); return Math.abs(a-q)<.14?q:a;};
+  // a drawn road: straight stretches dead straight, sharp turns as real corners with only the small rounding a truck needs, curves only where you drew a curve
+  function roadLine(raw,w){const secs=shapeOf(raw); if(!secs) return null; const Q=[secs[0].S[0].slice()], joint=new Set();
+    secs.forEach((sec,si)=>{const S=sec.S, s0=Q[Q.length-1], dx0=s0[0]-S[0][0], dz0=s0[1]-S[0][1];
+      if(sec.straight){const e=S[S.length-1], ex=e[0]+dx0, ez=e[1]+dz0, L=Math.hypot(ex-s0[0],ez-s0[1]), q=snap45(Math.atan2(ez-s0[1],ex-s0[0])); Q.push([s0[0]+Math.cos(q)*L,s0[1]+Math.sin(q)*L]);}
+      else {const T=S.map(([x,z])=>[x+dx0,z+dz0]), L=plen(T), m=Math.max(2,Math.round(L/1.5)); for(let j=1;j<=m;j++) Q.push(at(T,L*j/m));}
+      if(si<secs.length-1) joint.add(Q.length-1);});
+    const out=[Q[0]], rf=Math.max(2,w*.6);
+    for(let i=1;i<Q.length-1;i++){const P=Q[i], A=Q[i-1], B=Q[i+1]; if(!joint.has(i)){out.push(P); continue;}
+      const la=Math.hypot(P[0]-A[0],P[1]-A[1])||1, lb=Math.hypot(B[0]-P[0],B[1]-P[1])||1, u1=[(P[0]-A[0])/la,(P[1]-A[1])/la], u2=[(B[0]-P[0])/lb,(B[1]-P[1])/lb], th=Math.acos(Math.max(-1,Math.min(1,u1[0]*u2[0]+u1[1]*u2[1])));
+      if(th<.06){out.push(P); continue;} const d=Math.min(rf*Math.tan(th/2),.45*la,.45*lb), p1=[P[0]-u1[0]*d,P[1]-u1[1]*d], p2=[P[0]+u2[0]*d,P[1]+u2[1]*d];
+      for(let k=0;k<=6;k++){const t=k/6, a=(1-t)*(1-t), b=2*t*(1-t), c=t*t; out.push([a*p1[0]+b*P[0]+c*p2[0],a*p1[1]+b*P[1]+c*p2[1]]);}}
+    out.push(Q[Q.length-1]); return out;}
+  return {plen,resample,smooth,at,shapeOf,snap45,roadLine};
+})();
 // every road, track and footpath on the farm
 const LIVE_ROADS=['access','service','p-house','p-field','t-water','t-duck','t-goat','t-cow','t-broil','t-egg','t-pig','p-poultry','p-dike'];
 const ROADS={}; for(const r of FARM.roads) ROADS[r.id]={...r,s:r.kind.startsWith('footpath')?straight(r.pts):spline(r.pts,false)};
@@ -2161,7 +2195,8 @@ var FARMNET=(()=>{
   if(!Array.isArray(S.farmRoads)){S.farmRoads=OWNED.map((id,k)=>{const r=FARM.roads.find(q=>q.id===id); return {id:k+1,pts:r.pts.map(p=>[p[0],p[1]]),w:r.w};}); S.farmRoadN=OWNED.length+1;}
   let SAMP=[], NODES=[], EDGES=[], gateN=-1, reach=null;
   // ---- the graph: a node every metre along each road; roads that overlap are joined; the arko joins whatever reaches it
-  function build(){SAMP=S.farmRoads.map(r=>r.pts.length>1?spline(r.pts,false,1):[]);
+  const sampOf=r=>r.pts.length>1?(r.lin?straight(r.pts,1):spline(r.pts,false,1)):[];
+  function build(){SAMP=S.farmRoads.map(sampOf);
     NODES=[]; EDGES=[]; const add=(x,z,w,r)=>{NODES.push([x,z,w,r]); EDGES.push([]); return NODES.length-1;}, link=(a,b)=>{if(a===b||EDGES[a].some(e=>e[0]===b)) return; const d=Math.hypot(NODES[a][0]-NODES[b][0],NODES[a][1]-NODES[b][1]); EDGES[a].push([b,d]); EDGES[b].push([a,d]);};
     SAMP.forEach((P,ri)=>{let prev=-1; for(const [x,z] of P){const n=add(x,z,S.farmRoads[ri].w,ri); if(prev>=0) link(prev,n); prev=n;}});
     const H=new Map(), key=(x,z)=>Math.floor(x/3)+','+Math.floor(z/3); NODES.forEach((p,i)=>{const k=key(p[0],p[1]); if(!H.has(k)) H.set(k,[]); H.get(k).push(i);});
@@ -2246,17 +2281,20 @@ var FARMNET=(()=>{
   function draw(preview){if(!cv) setup();
     const X=x=>(x-BX0)*ppm, Z=z=>(z-BZ0)*ppm, bs=BW/CW, r=rng(4242);
     const lines=SAMP.map((L,ri)=>({L,w:S.farmRoads[ri].w,ri})); lines.push({L:ACCESS.slice(Math.max(0,ACCESS.length-12)),w:ROADS.access.w,ri:-3});   // the last stretch of the arko road too, so the two run into each other with no seam
-    if(preview&&preview.pts.length>1) lines.push({L:spline(preview.pts,false,1),w:4.2,ri:-2,pv:preview.bad?'bad':'ok'});
+    if(preview&&preview.pts.length>1) lines.push({L:preview.lin?straight(preview.pts,1):spline(preview.pts,false,1),w:4.2,ri:-2,pv:preview.bad?'bad':'ok'});
     const nrm=(L,k)=>{const q=L[Math.min(L.length-1,k+1)], o=L[Math.max(0,k-1)], dx=q[0]-o[0], dz=q[1]-o[1], dl=Math.hypot(dx,dz)||1; return [-dz/dl,dx/dl];};
     const path=(c,L,off,sc,wob=0)=>{c.beginPath(); for(let k=0;k<L.length;k++){const [nx,nz]=nrm(L,k), o=off+(wob?Math.sin(k*.9+off*7)*wob+Math.sin(k*.37+off*3)*wob*.6:0); const x=X(L[k][0]+nx*o)*sc, z=Z(L[k][1]+nz*o)*sc; k?c.lineTo(x,z):c.moveTo(x,z);}};
     const stroke=(c,L,w,col,off=0,a=1,sc=1,wob=0)=>{if(L.length<2) return; path(c,L,off,sc,wob); c.globalAlpha=a; c.strokeStyle=col; c.lineWidth=w*ppm*sc; c.stroke(); c.globalAlpha=1;};
     // other roads' nodes nearby: no ragged bites where roads meet
     const other=(x,z,ri,R)=>NODES.some(p=>p[3]!==ri&&p[3]>=0&&Math.abs(p[0]-x)<R&&Math.abs(p[1]-z)<R&&Math.hypot(p[0]-x,p[1]-z)<R);
     // ---- colour: the same banding as the road through the arko (grassy edges, wheel-track bands, a lighter crown), blended smoothly
-    ctx.clearRect(0,0,CW,CH); ctx.lineCap='round'; ctx.lineJoin='round'; ctx.globalCompositeOperation='source-over';
+    ctx.clearRect(0,0,CW,CH); ctx.lineCap='butt'; ctx.lineJoin='round'; ctx.globalCompositeOperation='source-over';   // a road you end in the open stops square; where it runs into another road it is rounded off into it
+    const ACC=lines.find(o=>o.ri===-3).L, joined=(p,o)=>o.ri===-3||NODES.some(q=>q[3]!==o.ri&&q[3]>=0&&Math.hypot(q[0]-p[0],q[1]-p[1])<o.w*.75)||(o.ri!==-3&&ACC.some(q=>Math.hypot(q[0]-p[0],q[1]-p[1])<o.w*.75))||Math.hypot(GATE[0]-p[0],GATE[1]-p[1])<o.w||FARM.turning.some(t=>Math.hypot(t.x-p[0],t.z-p[1])<t.r+1);
+    for(const o of lines) o.jn=o.L.length>1?[o.L[0],o.L[o.L.length-1]].filter(p=>joined(p,o)):[];
     const EDGE=[0x8f,0x8c,0x5e], RUT=[0x8c,0x76,0x57], CROWN=[0xa8,0x92,0x72], BADC=[0xc9,0x70,0x5a];
     const mix=(A,B,t)=>`rgb(${A.map((v,i)=>Math.round(v+(B[i]-v)*t)).join(',')})`, prof=t=>t>=.42?mix(RUT,EDGE,(t-.42)/.58):mix(CROWN,RUT,t/.42);
-    for(const t of [1,.92,.84,.76,.68,.6,.52,.44,.36,.28,.2,.12]) for(const o of lines) stroke(ctx,o.L,o.w*t,o.pv==='bad'?mix(BADC,CROWN,1-t):prof(t),0,1,1,t===1?.12:0);
+    for(const t of [1,.92,.84,.76,.68,.6,.52,.44,.36,.28,.2,.12]) for(const o of lines){const col=o.pv==='bad'?mix(BADC,CROWN,1-t):prof(t); stroke(ctx,o.L,o.w*t,col,0,1,1,t===1?.12:0);
+      for(const p of o.jn){ctx.fillStyle=col; ctx.beginPath(); ctx.arc(X(p[0]),Z(p[1]),o.w*t/2*ppm,0,6.2832); ctx.fill();}}
     for(const o of lines){if(o.pv) continue; for(let k=0;k<o.L.length;k++){if(r()<.5) continue; const [nx,nz]=nrm(o.L,k); for(const sd of [-1,1]){const off=sd*(o.w/2+(r()-.5)*.35), x=o.L[k][0]+nx*off, z=o.L[k][1]+nz*off;   // a slightly ragged edge
         if(other(x,z,o.ri,o.w*.9)) continue; ctx.fillStyle=mix(EDGE,RUT,.15); ctx.beginPath(); ctx.ellipse(X(x),Z(z),(.15+r()*.25)*ppm,(.12+r()*.18)*ppm,r()*3,0,6.28); ctx.fill();}}}
     const PATCH=['#93805f','#a89474','#9b8666','#b19d7d'];
@@ -2285,28 +2323,26 @@ var FARMNET=(()=>{
     if(Array.isArray(S.deco)&&S.deco.some(d=>Math.hypot(d.x-x,d.z-z)<w/2+.7)) return 'A decoration is in the way. Move it first (press and hold it).';
     if(NAV&&NAV.ready){for(const [ox,oz] of [[0,0],[w*.3,0],[-w*.3,0],[0,w*.3],[0,-w*.3]]){if(NAV.blocked(x+ox,z+oz)&&roadDist0(x+ox,z+oz)>.2) return 'Something is in the way (a building, fence, tree or decoration).';}}
     return '';}
-  function check(ptsIn,w){const L=spline(ptsIn,false,1); for(const [x,z] of L){const e=okAt(x,z,w); if(e) return e;} return '';}
+  function check(ptsIn,w,lin){const L=lin?straight(ptsIn,1):spline(ptsIn,false,1); for(const [x,z] of L){const e=okAt(x,z,w); if(e) return e;} return '';}
   const vehiclesOut=()=>Object.keys(S.veh||{}).some(v=>S.veh[v]&&S.veh[v].trip);
   // snap the ends of a new road onto a road it touches, so the two really join
   function snapEnd(p){for(const A of FARM.areas) if(Math.hypot(A.gate[0]-p[0],A.gate[1]-p[1])<3) return [A.gate[0],A.gate[1]];   // an end by an animal gate goes right up to the gate
     if(Math.hypot(GATE[0]-p[0],GATE[1]-p[1])<4) return [GATE[0],GATE[1]];
     let best=null, bd=2.4; SAMP.forEach(L=>{for(const q of L){const d=Math.hypot(q[0]-p[0],q[1]-p[1]); if(d<bd){bd=d; best=q;}}}); return best?[best[0],best[1]]:p;}
   function addRoad(raw,w=4){if(raw.length<2) return {err:'Drag a little further to draw a road.'};
-    const simp=[raw[0]]; for(const p of raw){const l=simp[simp.length-1]; if(Math.hypot(p[0]-l[0],p[1]-l[1])>=2.5) simp.push(p);} const last=raw[raw.length-1], l=simp[simp.length-1]; if(Math.hypot(last[0]-l[0],last[1]-l[1])>.6||simp.length<2) simp.push(last);
-    if(simp.length<2) return {err:'Drag a little further to draw a road.'};
-    simp[0]=snapEnd(simp[0]); simp[simp.length-1]=snapEnd(simp[simp.length-1]);
-    let len=0; for(let k=1;k<simp.length;k++) len+=Math.hypot(simp[k][0]-simp[k-1][0],simp[k][1]-simp[k-1][1]);
-    const e=check(simp,w); if(e) return {err:e}; const cost=Math.max(5,Math.round(len*2));
-    return {road:{id:S.farmRoadN++,pts:simp,w},cost,len};}
+    const simp=shape(raw,w); if(!simp||simp.length<2||SHAPE.plen(simp)<1.5) return {err:'Drag a little further to draw a road.'};
+    const len=SHAPE.plen(simp), e=check(simp,w,true); if(e) return {err:e}; const cost=Math.max(5,Math.round(len*2));
+    return {road:{id:S.farmRoadN++,pts:simp,w,lin:1},cost,len};}
+  function shape(raw,w=4){if(raw.length<2) return null; const P=SHAPE.roadLine(raw,w); if(!P||P.length<2) return null; P[0]=snapEnd(P[0]); P[P.length-1]=snapEnd(P[P.length-1]); return P;}   // what the road you are drawing will be
   // erase: cut away every part of a road within reach of the eraser's path; the pieces left over stay as separate roads
   function erase(path){const R=2.6; let removed=0; const keep=[];
     S.farmRoads.forEach((r,ri)=>{const L=SAMP[ri]; if(!L||!L.length){return;} const off=L.map(p=>path.some(q=>Math.hypot(p[0]-q[0],p[1]-q[1])<R+r.w*.3));
       if(!off.some(Boolean)){keep.push(r); return;} let run=[];
-      const flush=()=>{if(run.length>=4){const pts=[run[0]]; for(let k=3;k<run.length-1;k+=3) pts.push(run[k]); pts.push(run[run.length-1]); keep.push({id:S.farmRoadN++,pts,w:r.w});} run=[];};
+      const flush=()=>{if(run.length>=4){const pts=[run[0]]; for(let k=3;k<run.length-1;k+=3) pts.push(run[k]); pts.push(run[run.length-1]); keep.push({id:S.farmRoadN++,pts,w:r.w,lin:1});} run=[];};
       L.forEach((p,k)=>{if(off[k]){removed++; flush();} else run.push([p[0],p[1]]);}); flush();});
     if(removed) S.farmRoads=keep; return removed;}
   build();
-  return {get ready(){return true;}, owns:id=>OWNED.includes(id), build, draw, toHwy, fromHwy, frontZ, pickup, haulOut, katBack, blocked, addRoad, erase, check, vehiclesOut,
+  return {get ready(){return true;}, owns:id=>OWNED.includes(id), build, draw, toHwy, fromHwy, frontZ, pickup, haulOut, katBack, blocked, addRoad, shape, erase, check, vehiclesOut,
     gateOf, loadOf, linked, garageNode, bodegaNode, katNode, nodes:()=>NODES, roads:()=>SAMP};
 })();
 // the farm's dirt roads and footpaths: one continuous strip along each curve (grassy edges, darker wheel ruts, a lighter crown,
@@ -9885,6 +9921,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:66,date:'Nov 13, 2026',title:'Tidier dirt roads',items:['🛣️ Roads you draw keep straight stretches straight and turn at real corners, with only the small rounding a truck needs. They only curve where you draw a curve.','⬛ A road that ends in the open now stops square. Where it runs into another road it still blends in.']},
   {v:65,date:'Nov 13, 2026',title:'Round pens and any corner',items:['⭕ Fences follow the shape you draw: draw a circle and you get a round pen, draw a curve and the fence curves with it.','↩️ Changed your mind while drawing? Drag back over the line to rub it out, the same way you came. Go all the way back and nothing is built. Works for dirt roads too.','📐 Sharp turns become corners at any angle, not only square ones. Straight stretches stay straight and line up with the farm only when you are already close to it.']},
   {v:64,date:'Nov 12, 2026',title:'Moving animal houses is easier',items:['✋ Press and hold any animal house, anywhere: Decorate opens with the house picked up. Keep your finger down and drag it, then ✓.','🪵 Holding a house now picks up the house, even with a fence chosen or a fence right beside it.']},
   {v:63,date:'Nov 12, 2026',title:'Fences that join up',items:['✏️ Pick a fence (or hedge, wall or canal) and drag to draw it: a see-through fence follows your finger, green where it can go and red where it cannot. Nothing is built or paid for until you let go.','📐 Every piece touches the next, with a post at every corner. End where you started to close a pen.','🔗 A new line starts and ends on the post of a fence that is already there (a green ring shows where it joins), or meets the side of a fence in a T.','🚪 Gates are one size. Drop one on a fence: it lines up with the fence and opens its own gap, and the fence runs right up to its posts.','↶ Undo takes back a whole line in one step.']},
@@ -10402,24 +10439,7 @@ var DECO=(()=>{
     if(bo){const [[ax,az],,[bx,bz]]=ends(bo), dx=bx-ax, dz=bz-az, u=Math.max(0,Math.min(1,((p[0]-ax)*dx+(p[1]-az)*dz)/(dx*dx+dz*dz||1))); return {p:[ax+dx*u,az+dz*u],snapped:true};}
     return {p:[snap(p[0]),snap(p[1])],snapped:false};}
   // the drawn path → its shape: sharp turns (any angle) become corner posts, straight stretches stay straight (lined up to straight or 45° only when within 8°), curved stretches follow the curve with shorter pieces
-  const plen=P=>{let L=0; for(let i=1;i<P.length;i++) L+=Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1]); return L;};
-  function resample(P,step){const out=[P[0].slice()]; let carry=0; for(let i=1;i<P.length;i++){const [ax,az]=P[i-1], [bx,bz]=P[i], L=Math.hypot(bx-ax,bz-az); let t=step-carry; while(t<=L){out.push([ax+(bx-ax)*t/L,az+(bz-az)*t/L]); t+=step;} carry=L-(t-step);}
-    const l=P[P.length-1]; if(Math.hypot(l[0]-out[out.length-1][0],l[1]-out[out.length-1][1])>.15) out.push(l.slice()); return out;}
-  const smooth=P=>P.map((q,i)=>i===0||i===P.length-1?q:[(P[i-1][0]+2*q[0]+P[i+1][0])/4,(P[i-1][1]+2*q[1]+P[i+1][1])/4]);
-  const at=(P,d)=>{for(let i=1;i<P.length;i++){const L=Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1]); if(d<=L||i===P.length-1){const f=L?Math.min(1,d/L):0; return [P[i-1][0]+(P[i][0]-P[i-1][0])*f,P[i-1][1]+(P[i][1]-P[i-1][1])*f];} d-=L;} return P[P.length-1].slice();};
-  function shapeOf(raw){let R=resample(raw,.5); if(R.length<2) return null; R=smooth(R); const n=R.length, W=2;
-    const turn=i=>{const a=Math.atan2(R[i][1]-R[i-W][1],R[i][0]-R[i-W][0]), b=Math.atan2(R[i+W][1]-R[i][1],R[i+W][0]-R[i][0]); let d=Math.abs(b-a); if(d>Math.PI) d=2*Math.PI-d; return d;};
-    const T=R.map((_,i)=>i>=W&&i<n-W?turn(i):0), cut=[0];
-    for(let i=W;i<n-W;i++){if(T[i]<.7) continue; let peak=true; for(let j=Math.max(W,i-3);j<=Math.min(n-W-1,i+3);j++) if(T[j]>T[i]||(T[j]===T[i]&&j<i)) peak=false; if(peak&&i-cut[cut.length-1]>=3) cut.push(i);}
-    if(n-1-cut[cut.length-1]<3&&cut.length>1) cut.pop(); cut.push(n-1);
-    const devOf=S=>{const [ax,az]=S[0], [bx,bz]=S[S.length-1], ch=Math.hypot(bx-ax,bz-az)||1; let dev=0; for(const [x,z] of S) dev=Math.max(dev,Math.abs((x-ax)*(bz-az)-(z-az)*(bx-ax))/ch); if(plen(S)>ch*1.08+.3) dev=Math.max(dev,9); return [dev,ch];};   // a loop or a U is never straight
-    const secs=[]; for(let c=1;c<cut.length;c++){const S=R.slice(cut[c-1],cut[c]+1), [dev,ch]=devOf(S);
-      if(dev<Math.max(.45,.08*ch)){secs.push({S,straight:true}); continue;}
-      let mi=-1, mt=0; for(let i=W;i<S.length-W;i++){const g=cut[c-1]+i; if(T[g]>mt){mt=T[g]; mi=i;}}   // a corner the shaky hand hid: the curve is really two straight sides
-      if(mi>=3&&S.length-1-mi>=3&&mt>.45){const L=S.slice(0,mi+1), Rr=S.slice(mi), [d1,c1]=devOf(L), [d2,c2]=devOf(Rr); if(d1<Math.max(.25,.04*c1)&&d2<Math.max(.25,.04*c2)){secs.push({S:L,straight:true},{S:Rr,straight:true}); continue;}}
-      secs.push({S,straight:false});}
-    return secs;}
-  const snap45=a=>{const q=Math.round(a/(Math.PI/4))*(Math.PI/4); return Math.abs(a-q)<.14?q:a;};
+  const {plen,resample,smooth,at,shapeOf,snap45}=SHAPE;
   function planFence(raw,k){if(raw.length<2||plen(raw)<.6) return null; const P=postsFor(k), secs=shapeOf(raw); if(!secs) return null;
     const first=secs[0].S[0], lastS=secs[secs.length-1].S, last=lastS[lastS.length-1], close=plen(raw)>6&&Math.hypot(last[0]-first[0],last[1]-first[1])<1.4;   // ending back at the start closes the pen
     const A=snapEndPt(first,k,P); const Q=[A.p.slice()];
@@ -10455,7 +10475,7 @@ var DECO=(()=>{
   function lineTo(x,y){if(houseArm&&house){const g=ground(x,y); if(!g) return; const nx=Math.round((g[0]+house.off[0])*2)/2, nz=Math.round((g[1]+house.off[1])*2)/2; if(nx!==house.x||nz!==house.z){house.x=nx; house.z=nz; house.v.g.position.set(nx,0,nz); hCheck();} return;}
     if(areaArm&&area){const g=ground(x,y); if(!g) return; const nx=Math.round(g[0]+area.off[0]), nz=Math.round(g[1]+area.off[1]); if(nx!==area.dx||nz!==area.dz){area.dx=nx; area.dz=nz; area.v.g.position.set(nx,0,nz); areaCheck();} return;}
     if(line&&line.road){const g=ground(x,y); if(!g) return; const bk=line.road==='road'&&backUp(line.raw,g,1); if(bk) line.backed=true; const l=line.raw[line.raw.length-1]; if(!bk&&Math.hypot(g[0]-l[0],g[1]-l[1])>=.8) line.raw.push([g[0],g[1]]);
-      const now=performance.now(); if(now-roadT>110){roadT=now; const bad=line.road==='road'?FARMNET.check(line.raw,4):''; line.bad=bad; FARMNET.draw({pts:line.raw,bad:line.road==='eraser'||!!bad});} return;}
+      const now=performance.now(); if(now-roadT>110){roadT=now; const sp=line.road==='road'?FARMNET.shape(line.raw,4):null, bad=sp?FARMNET.check(sp,4,true):''; line.bad=bad; FARMNET.draw(sp?{pts:sp,lin:true,bad:!!bad}:{pts:line.raw,bad:true});} return;}
     if(dragArm&&active){const g=ground(x,y); if(!g) return; active.x=snap(g[0]+active.off[0]); active.z=snap(g[1]+active.off[1]); place(); return;} if(!line) return; const g=ground(x,y); if(!g) return;
     const bk=backUp(line.raw,g,.6); if(bk) line.backed=true; const l=line.raw[line.raw.length-1]; if(bk||Math.hypot(g[0]-l[0],g[1]-l[1])>=.35){if(!bk) line.raw.push([g[0],g[1]]);} else return;
     const now=performance.now(); if(bk||now-line.t>80){line.t=now; line.plan=planFence(line.raw,sel); drawGhost(line.plan); if(line.plan) hintCost(line.plan); else {const h=document.getElementById('deco-run'); if(h) h.textContent='';}}}

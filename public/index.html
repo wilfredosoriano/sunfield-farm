@@ -9906,7 +9906,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
-  {v:69,date:'Nov 13, 2026',title:'Canals drain your field',items:['🌊 When it rains, plots that no canal drains start to flood. Any crop still under water when the rain stops is lost. Watering is still done with your tank and hose.','⛏️ Draw a Kanal from Decorate like a fence, from your field to the main canal (the field drain or the farm canals). It can cut through the field as a ditch over empty plots, and crosses paths on a concrete culvert.','✅ Plots within 5 m of a canal joined to the main canal drain in the rain. The front row by the field drain is already safe.','👆 A sketch guide shows you where the Kanal is and how to draw it, and comes back when the rain floods your plots.']},
+  {v:69,date:'Nov 13, 2026',title:'Canals drain your field',items:['🌊 When it rains, plots that no canal drains start to flood. Any crop still under water when the rain stops is lost. Watering is still done with your tank and hose.','⛏️ Draw a Kanal from Decorate like a fence, along the side of your field to the main canal (the field drain or the farm canals). Canals stay off the crops, and cross paths on a concrete culvert.','✅ Rain water runs across the field into the nearest drain: a canal along one side drains up to 6 rows in from it. The field drain in front already drains the front half; the back half needs your canal.','👆 A sketch guide shows you where the Kanal is and how to draw it, and comes back when the rain floods your plots.']},
   {v:68,date:'Nov 13, 2026',title:'Animal houses grow as you upgrade',items:['🏠 Every animal house now has the same full-size lot from the day you build it. The house starts small on it and grows with each upgrade until it fills the lot at the top level, along with more animals and extras like the water tank.','🐄 The cattle barn, pig house, fish pond and duck house now grow too, like the chicken and broiler houses.','📏 The S, M and L choice when moving a house is gone: the lot is always the standard size.']},
   {v:67,date:'Nov 13, 2026',title:'Smoother start',items:['📱 One "turn your phone sideways" screen only, shown first. It also comes back if you turn your phone upright while playing.','⏳ The loading screen now stays until your farm is fully built, including the paths your farmer and helpers walk, so nothing pops in after it closes.','🖼️ The turn-sideways screen fills the whole screen. Nothing loads until your phone is sideways, so you see the loading from the start and the farm never opens squashed. Turning your phone while playing re-fits the view.']},
   {v:66,date:'Nov 13, 2026',title:'Tidier dirt roads',items:['🛣️ Roads you draw keep straight stretches straight and turn at real corners, with only the small rounding a truck needs. They only curve where you draw a curve.','⬛ A road that ends in the open now stops square. Where it runs into another road it still blends in.']},
@@ -10258,7 +10258,7 @@ var DECO=(()=>{
   function freeAt(x,z,m,self,k,mid=true){
     if(!inLot(x,z)) return 'Keep it inside your farm fence.';
     if(k!=='canal'&&roadDist(x,z)<m+.25) return 'Not on a road or path: vehicles and people use it.';   // a canal crosses a road or path through a culvert
-    if(inField(x,z,m+.15)){if(k!=='canal') return 'Not on the crop field.'; const ti=fieldTileAt(x,z); if(ti>=0&&(S.tiles[ti].s==='crop'||S.tiles[ti].s==='bld')) return 'Harvest that plot first: the canal would run through it.';}   // a canal may cut through the field as a ditch
+    if(inField(x,z,m+.15)) return k==='canal'?'Not across the crops: draw the canal along the side of the field.':'Not on the crop field.';
     if(x>ORCH[0]-.2&&x<ORCH[1]+.2&&z>ORCH[2]-.2&&z<ORCH[3]+.2&&(ORCHARD.spots.some(([sx,sz])=>Math.hypot(x-sx,z-sz)<1.3+m)||Math.hypot(x-25.6,z-19)<2.4+m)) return 'Not on an orchard plot or the kubol.';
     if(SLOTS.some(s=>S.tiles[s.i]&&S.tiles[s.i].s==='bld'&&Math.abs(x-s.x)<s.w/2+m+.3&&Math.abs(z-s.z)<s.d/2+m+.3)) return 'Not on an animal house.';
     if(FARM.turning.some(t=>Math.hypot(x-t.x,z-t.z)<t.r+m)) return 'Keep the turning yard clear for vehicles.';
@@ -10427,8 +10427,16 @@ var DECO=(()=>{
     C.forEach((d,k)=>{if(E[k].some(([x,z])=>mainNear(x,z,.6))){on.add(k); q.push(k);}});   // a canal that reaches the main canal
     while(q.length){const a=q.pop(); C.forEach((d,b)=>{if(on.has(b)) return; if(E[b].some(p=>segD(p[0],p[1],C[a])<.7)||E[a].some(p=>segD(p[0],p[1],d)<.7)){on.add(b); q.push(b);}});}   // and every canal joined to it
     netIds=new Set([...on].map(k=>C[k].id)); return netIds;}
-  const DRAIN_R=5;   // a plot drains if a joined canal (or the main canal) runs within 5 m of it
-  function drained(i){const p=tilePos(i); if(mainNear(p.x,p.z,DRAIN_R-1.4)) return true; const ids=canalNet(); for(const d of S.deco) if(d.k==='canal'&&ids.has(d.id)&&segD(p.x,p.z,d)<DRAIN_R) return true; return false;}
+  // rain water runs across the field to the nearest drain: plots beside a joined canal (or the field drain) drain, and so do plots up to 5 more in from them
+  const FLOW=5; let drSig=null, drAll=new Set(), drMain=new Set();
+  function flowFrom(seed){const out=new Set(seed); let ring=[...seed];
+    for(let k=0;k<FLOW&&ring.length;k++){const nx=[]; for(const i of ring){const c=i%N, r=(i/N)|0; for(const [dc,dr] of [[1,0],[-1,0],[0,1],[0,-1]]){const cc=c+dc, rr=r+dr; if(cc<0||rr<0||cc>=N||rr>=N) continue; const j=rr*N+cc; if(!out.has(j)){out.add(j); nx.push(j);}}} ring=nx;}
+    return out;}
+  function drainSets(){const ids=canalNet(); if(drSig===netSig) return; drSig=netSig; const mine=S.deco.filter(d=>d.k==='canal'&&ids.has(d.id)), sm=[], sa=[];
+    for(let i=0;i<NF;i++){const p=tilePos(i), byMain=mainNear(p.x,p.z,3.6), byMine=mine.some(d=>segD(p.x,p.z,d)<3.8); if(byMain) sm.push(i); if(byMain||byMine) sa.push(i);}
+    drMain=flowFrom(sm); drAll=flowFrom(sa);}
+  function drained(i){if(i<0||i>=NF) return true; drainSets(); return drAll.has(i);}
+  function drainedByCanal(i){drainSets(); return drAll.has(i)&&!drMain.has(i);}   // drained only thanks to the player's canals
   function canalOnTile(i){if(i<0||i>=NF) return false; const p=tilePos(i); return S.deco.some(d=>d.k==='canal'&&segD(p.x,p.z,d)<1.3);}
   // ---- fences join up: a run starts and ends on a post of a fence (or gate) that is already there
   const FENCY=k=>k!=='canal'&&CAT[k]&&CAT[k].line&&CAT[k].block;
@@ -10553,7 +10561,7 @@ var DECO=(()=>{
       S.deco.push({id:S.decoN++,k:'gate',x:A.gate[0],z:A.gate[1],r:A.gate[2],area:A.type}); S.deco.push({id:S.decoN++,k:'sign',x:A.sign[0],z:A.sign[1],r:A.sign[2],t:A.sign[3].slice(0,24),st:0,area:A.type});}
     S.areaDecoMig=1; save();}
   rebuild();
-  return {CAT,planFence,canalNet,drained,canalOnTile,get drawing(){return !!line;},holdHouseAt,tap,lineOn,lineStart,lineTo,lineEnd,bar,hint,render,update,rebuild,get sel(){return sel;},set sel(v){sel=v;},get moving(){return moving;},clearSel(){sel=null; moving=null;},add,okFor,atPoint,undo,get undoSteps(){return hist.length;}};
+  return {CAT,planFence,canalNet,drained,drainedByCanal,canalOnTile,get drawing(){return !!line;},holdHouseAt,tap,lineOn,lineStart,lineTo,lineEnd,bar,hint,render,update,rebuild,get sel(){return sel;},set sel(v){sel=v;},get moving(){return moving;},clearSel(){sel=null; moving=null;},add,okFor,atPoint,undo,get undoSteps(){return hist.length;}};
 })();
 /* ---------- rain and drainage: in the rain, crops on plots no canal drains are flooded; any still flooded when the rain stops are lost ---------- */
 var FLOOD=(()=>{let last=0, warned=0;
@@ -10564,7 +10572,7 @@ var FLOOD=(()=>{let last=0, warned=0;
       if(rain){if(DECO.drained(i)){if(t.flood) delete t.flood; show(i,false);} else {if(!t.flood) t.flood=now; show(i,true); fl.push(i);}}
       else if(t.flood) fl.push(i);}
     if(rain&&fl.length&&warned!==S.ev.rainEnd){warned=S.ev.rainEnd; sfx('nope');
-      toast(`🌊 ${fl.length} plot${fl.length>1?'s are':' is'} flooding! Crops still under water when the rain stops will be lost. Draw a Kanal from your field to the main canal to drain them.`,6000); GUIDE.show('rain');}
+      toast(`🌊 ${fl.length} plot${fl.length>1?'s are':' is'} flooding! Crops still under water when the rain stops will be lost. Draw a Kanal along the side of your field to the main canal to drain them.`,6000); GUIDE.show('rain');}
     if(!rain&&fl.length){for(const i of fl){S.tiles[i]={s:'soil'}; show(i,false); refreshTile(i,false);}
       toast(`😢 ${fl.length} crop${fl.length>1?'s':''} drowned in the flood. Dig canals joined to the main canal so the rain can drain away.`,5200); save();}}
   return {tick};
@@ -10596,22 +10604,24 @@ var GUIDE=(()=>{
   const proj=(x,z)=>{const v=new THREE.Vector3(x,0,z).project(camera); return v.z>1?null:[(v.x+1)/2*innerWidth,(1-v.y)/2*innerHeight];};
   function nearestMain(px,pz){let best=null, bd=1e9; for(const [w,...P] of MAIN_CANALS) for(let k=0;k<P.length-1;k++){const [ax,az]=P[k], [bx,bz]=P[k+1], dx=bx-ax, dz=bz-az, L=dx*dx+dz*dz||1, u=Math.max(0,Math.min(1,((px-ax)*dx+(pz-az)*dz)/L)), qx=ax+dx*u, qz=az+dz*u;
       if(!inLot(qx,qz)) continue; const d=Math.hypot(px-qx,pz-qz)-w; if(d<bd){bd=d; best=[qx-(qx-px)/(Math.hypot(qx-px,qz-pz)||1)*w,qz-(qz-pz)/(Math.hypot(qx-px,qz-pz)||1)*w];}} return best;}
-  function pickDemo(){let best=null, bd=1e9;   // from the undrained plot nearest the main canal, to the main canal
-    for(let i=0;i<NF;i++){const t=S.tiles[i]; if(t.s!=='crop'&&t.s!=='soil') continue; if(DECO.drained(i)) continue; const p=tilePos(i), m=nearestMain(p.x,p.z); if(!m) continue; const d=Math.hypot(m[0]-p.x,m[1]-p.z); if(d<bd){bd=d; best={a:[p.x,p.z],b:m};}}
+  function pickDemo(){let sx=0, sz=0, n=0;   // along the side of the field nearest the crops that would flood, to the main canal
+    for(let i=0;i<NF;i++){const t=S.tiles[i]; if((t.s!=='crop'&&t.s!=='soil')||DECO.drained(i)) continue; const p=tilePos(i); sx+=p.x; sz+=p.z; n++;}
+    if(!n) return null; sx/=n; sz/=n; const o=FHALF+1.6, sides=[[sx,FLD.z-o],[FLD.x-o,sz],[FLD.x+o,sz]].filter(([x,z])=>inLot(x,z));
+    let best=null, bd=1e9; for(const a of sides){const d=Math.hypot(a[0]-sx,a[1]-sz), m=nearestMain(a[0],a[1]); if(!m) continue; if(d<bd){bd=d; best={a,b:m};}}
     return best;}
   const need=()=>S.tiles.slice(0,NF).some((t,i)=>t.s==='crop'&&!DECO.drained(i));
   function update(){const now=Date.now();
     if(now-lastChk>2000){lastChk=now;
-      if(!S.canalTut&&DECO.canalNet().size&&S.tiles.slice(0,NF).some((t,i)=>(t.s==='crop'||t.s==='soil')&&DECO.drained(i)&&!(()=>{const p=tilePos(i); return mainNear(p.x,p.z,3.6);})())){   // their first canal drains a plot: lesson learned
+      if(!S.canalTut&&DECO.canalNet().size&&S.tiles.slice(0,NF).some((t,i)=>(t.s==='crop'||t.s==='soil')&&DECO.drainedByCanal(i))){   // their first canal drains a plot: lesson learned
         S.canalTut=1; if(on){hide(); toast('👏 Your canal is joined to the main canal. Plots near it drain when it rains, so their crops won’t drown.',4200);} save();}
       if(!on&&!S.canalTut&&now>snooze&&need()) show('first');
       if(on&&!need()&&why!=='first') hide();}
     if(!on) return;
     const decor=openCat==='decor', canalSel=decor&&DECO.sel==='canal';
     let target=null, msg='';
-    if(!decor){target=document.querySelector('#cats [data-cat=decor]'); msg=why==='rain'?'<b>It’s raining!</b> Open <b>Decorate</b> and draw a <b>Kanal</b> so the water can drain from your field.':'Rain can flood your crops. Open <b>Decorate</b> and draw a <b>Kanal</b> (canal) from your field to the main canal.';}
+    if(!decor){target=document.querySelector('#cats [data-cat=decor]'); msg=why==='rain'?'<b>It’s raining!</b> Open <b>Decorate</b> and draw a <b>Kanal</b> along your field so the water can drain.':'Rain can flood your crops. Open <b>Decorate</b> and draw a <b>Kanal</b> (canal) along the side of your field to the main canal.';}
     else if(!canalSel){target=document.querySelector('[data-deco=canal]'); if(target&&!target.dataset.gdSeen){target.dataset.gdSeen=1; try{target.scrollIntoView({inline:'center',block:'nearest'});}catch(e){}} msg='Pick <b>Kanal</b>.';}
-    else msg='Now <b>drag</b> from your field to the <b>main canal</b>, like drawing a fence. Plots within 5 m of a joined canal drain in the rain.';
+    else msg='Now <b>drag along the side of your field</b> to the <b>main canal</b>, like drawing a fence. Rain water runs across the field into it.';
     if(txt.innerHTML!==msg) txt.innerHTML=msg; bub.style.display='block';
     if(target){const r=target.getBoundingClientRect(); if(r.width){arrow.style.display='block'; arrow.style.transform=`translate(${Math.round(r.left+r.width/2-75)}px,${Math.round(r.top-64)}px)`;} else arrow.style.display='none';} else arrow.style.display='none';
     if(canalSel&&!DECO.drawing){if(!demo||now-demoT>4000){demo=pickDemo(); demoT=now;}

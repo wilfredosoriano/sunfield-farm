@@ -1000,7 +1000,7 @@ function freshState(){
   for(let i=NF;i<NT;i++) tiles.push({s:'grass'});
   const now=Date.now(), plotPos={0:[-1,3],1:[1,3],2:[-1,5],3:[1,5]};   // a new farm: four hoed plots, two of them already sown
   tiles[0]={s:'crop',c:'wheat',t:now-16000}; tiles[1]={s:'crop',c:'wheat',t:now-16000}; tiles[2]={s:'soil'}; tiles[3]={s:'soil'};
-  return {coins:150,xp:0,level:1,tiles,plotPos,newStart:1,homeFieldPrepared:true,deco:[],areaDecoMig:1,fix:{greenhouse:{gone:1},packing:{gone:1},rack:{gone:1},kubo:{gone:1}},tool:null,crop:'wheat',bld:'tree',seenHelp:false,inv:{},orders:[],queue:[],veh:{jeep:{owned:false,trip:null},truck:{owned:false,trip:null},sedan:{owned:false,trip:null},van:{owned:false,trip:null}},mats:{},house:1,garage:1,build:null,premade:true,premade2:true,shopGift:true,yardMig:true,coop3:true,cows3:true};
+  return {coins:150,xp:0,level:1,tiles,plotPos,newStart:1,homeFieldPrepared:true,deco:[],areaDecoMig:1,fix:{greenhouse:{gone:1},packing:{gone:1},rack:{gone:1},kubo:{gone:1},shrubA:{gone:1},shrubB:{gone:1},signPasture:{gone:1},signPoultry:{gone:1},signOrchard:{gone:1}},goneWays:['p-field','p-poultry','p-dike'],tool:null,crop:'wheat',bld:'tree',seenHelp:false,inv:{},orders:[],queue:[],veh:{jeep:{owned:false,trip:null},truck:{owned:false,trip:null},sedan:{owned:false,trip:null},van:{owned:false,trip:null}},mats:{},house:1,garage:1,build:null,premade:true,premade2:true,shopGift:true,yardMig:true,coop3:true,cows3:true};
 }
 let S=null;
 const OUTF=new WeakMap();   // share of a house's animals already carried out to a waiting vehicle (drawn fewer; not saved)
@@ -1067,6 +1067,7 @@ if(S.mats.feed_fish==null) S.mats.feed_fish=8;
 if(S.mats.feed_pig==null) S.mats.feed_pig=8; if(S.mats.feed_cow==null) S.mats.feed_cow=8;   // each animal now eats its own feed
 if(!Array.isArray(S.wild)) S.wild=[];
 // animal houses stand wherever the player puts them: S.animalPos[k] = {x,z} for slot k (one fixed lot size); unmoved houses keep their old spot
+if(!Array.isArray(S.goneWays)) S.goneWays=[]; const goneWay=id=>S.goneWays.includes(id);   // built-in footpaths and canals the player took out
 if(!S.fix||typeof S.fix!=='object') S.fix={};   // farm buildings the player moved ({dx,dz}) or took down ({gone:1}); applied as the farm is built
 const FIXOFF=k=>S.fix[k]&&!S.fix[k].gone?{dx:+S.fix[k].dx||0,dz:+S.fix[k].dz||0}:{dx:0,dz:0}, FIXGONE=k=>!!(S.fix[k]&&S.fix[k].gone);
 {const o=FIXOFF('bodega'), b=FARM.buildings.find(q=>q.id==='bodega'), t=FARM.turning.find(q=>q.name==='bodega yard'); b.x+=o.dx; b.z+=o.dz; t.x+=o.dx; t.z+=o.dz;}
@@ -2202,7 +2203,7 @@ var FARMNET=(()=>{
     gateN=add(GATE[0],GATE[1],4.5,-1); NODES.forEach((p,i)=>{if(i!==gateN&&Math.hypot(p[0]-GATE[0],p[1]-GATE[1])<3.2) link(gateN,i);});
     // what roadDist() and everything that avoids roads now sees: the fixed road and footpaths, plus the player's roads
     ROADGRID.clear(); const put=(x,z,h)=>{const k=rgKey(x,z); if(!ROADGRID.has(k)) ROADGRID.set(k,[]); ROADGRID.get(k).push([x,z,h]);};
-    for(const id of LIVE_ROADS) if(!OWNED.includes(id)) for(const [x,z] of ROADS[id].s) put(x,z,ROADS[id].w/2);
+    for(const id of LIVE_ROADS) if(!OWNED.includes(id)&&!goneWay(id)) for(const [x,z] of ROADS[id].s) put(x,z,ROADS[id].w/2);
     SAMP.forEach((P,ri)=>{for(const [x,z] of P) put(x,z,S.farmRoads[ri].w/2);});
     reach=dijkstra(gateN);
     try{for(const k in ROUTES) delete ROUTES[k];}catch(e){}   // (at start-up the trip cache does not exist yet)
@@ -2357,7 +2358,7 @@ const ROAD_MAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,met
 const ROAD_TOP=ROAD_MAT.clone(), ROAD_LOW=ROAD_MAT.clone(); ROAD_TOP.polygonOffsetFactor=ROAD_TOP.polygonOffsetUnits=-2.6; ROAD_LOW.polygonOffsetFactor=ROAD_LOW.polygonOffsetUnits=-1.2;
 (()=>{const rr=rng(808), parts=[], st=[], gr=[];
   FARMNET.draw();
-  for(const id of LIVE_ROADS){if(FARMNET.owns(id)) continue; const R=ROADS[id], foot=R.kind.startsWith('footpath');
+  for(const id of LIVE_ROADS){if(FARMNET.owns(id)||goneWay(id)) continue; const R=ROADS[id], foot=R.kind.startsWith('footpath');
     // where two strips overlap (each animal track and footpath meeting the service road, the access road joining it) they would flicker
     // against each other at the same height: the service road draws on top, then the access road, then the tracks and footpaths
     const lay=id==='service'?ROAD_TOP:id==='access'?ROAD_MAT:ROAD_LOW, y=id==='service'?.036:id==='access'?.035:foot?.03:.033;
@@ -4004,8 +4005,8 @@ const nearSea=(x,z,m=0)=>x>196-m&&z>shoreZ(x)-14-m;
 const inRect=(R,x,z,m)=>x>R[0]-m&&x<R[1]+m&&z>R[2]-m&&z<R[3]+m;
 // the waterways' centre lines and half widths (see WWAYS): trees and bushes keep clear of them
 const WW_CLEAR=[[3.8,[268,-252],[276,-236],[290,-218],[307,-202],[315,-191],[315,-181],[309,-169],[307.6,-152],[307.6,-110],[309,-97],[315,-82],[321,-66],[325,-56]],
-  [1.4,[45,-191.3],[312.5,-191.3]],[1.4,[147,-116.4],[305.2,-116.4]],[1.4,[217.3,-180.6],[217.3,-116.6]],[1.4,[305.4,-103.8],[29.6,-103.8],[29.8,-100],[27,-88],[31.8,-70],[37.8,-54],[37.8,-44],[36,-44.5],[14,-45.2],[-10,-48],[-36,-49.5],[-36,-40.4]],[1.2,[-46,-19.4],[-46,-15.6],[-16.4,-15.6],[-16.4,20.95]]];
-const MAIN_CANALS=WW_CLEAR.concat([[1.4,[-16.4,20.95],[14.6,20.95]]]);   // what player canals drain into: every waterway, plus the field drain in front of the crop field
+  [1.4,[45,-191.3],[312.5,-191.3]],[1.4,[147,-116.4],[305.2,-116.4]],[1.4,[217.3,-180.6],[217.3,-116.6]],[1.4,[305.4,-103.8],[29.6,-103.8],[29.8,-100],[27,-88],[31.8,-70],[37.8,-54],[37.8,-44],[36,-44.5],[14,-45.2],[-10,-48],[-36,-49.5],[-36,-40.4]],[1.2,[-46,-19.4],[-46,-15.6],[-16.4,-15.6],[-16.4,20.95]]].filter(W=>!(goneWay('bukid')&&W[1][0]===-46&&W[1][1]===-19.4));
+const MAIN_CANALS=WW_CLEAR.concat(goneWay('tubigan')?[]:[[1.4,[-16.4,20.95],[14.6,20.95]]]);   // what player canals drain into: every waterway, plus the field drain in front of the crop field
 function mainNear(x,z,m){for(const [w,...P] of MAIN_CANALS) for(let i=0;i<P.length-1;i++){const [ax,az]=P[i], [bx,bz]=P[i+1], dx=bx-ax, dz=bz-az, L=dx*dx+dz*dz||1, t=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/L)); if(Math.hypot(x-ax-dx*t,z-az-dz*t)<w+m) return true;} return false;}
 function wwNear(x,z,m){for(const [w,...P] of WW_CLEAR) for(let i=0;i<P.length-1;i++){const [ax,az]=P[i], [bx,bz]=P[i+1], dx=bx-ax, dz=bz-az, L=dx*dx+dz*dz||1, t=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/L)); if(Math.hypot(x-ax-dx*t,z-az-dz*t)<w+m) return true;} return false;}
 // Visual-only irrigation site and maintenance approach; keep procedural foliage clear.
@@ -7053,7 +7054,7 @@ const resCars=[0,1].map(k=>{const g=makeCar(k?'l300':'innova',CAR_COLS[(k*5+3)%C
 (()=>{const b=[];
   // irrigation canal along the front of the field (the water itself is the 'tubigan' waterway, centred on z 20.95): a lined channel with
   // low stone lips and grassy sloped banks, a slatted footbridge in the middle and two flush plank crossings, so nobody's way is blocked
-  {const wz=20.95, w=2*FHALF+4, x0=FLD.x;
+  if(!goneWay('tubigan')){const wz=20.95, w=2*FHALF+4, x0=FLD.x;
    b.push(P('box',0x5b4a36,x0,.02,wz,w,.04,1.5));                                                                  // channel floor under the water
    for(const sd of [-1,1]){b.push(P('box',0x8c8574,x0,.1,wz+sd*.8,w,.12,.2)); b.push(P('box',0xa39b88,x0,.165,wz+sd*.8,w,.02,.24));   // stone lips
      b.push(P('box',0x7d9a55,x0,.06,wz+sd*1.15,w,.06,.5,sd*.12,0,0));}                                               // grassy sloped banks
@@ -8144,7 +8145,7 @@ const ROAD_JUNCTIONS=[
 const WWAYS=(()=>{
   const off=(pts,d)=>pts.map((p,i)=>{const a=pts[Math.max(0,i-1)], b=pts[Math.min(pts.length-1,i+1)], dx=b[0]-a[0], dz=b[1]-a[1], L=Math.hypot(dx,dz)||1; return [p[0]-dz/L*d,p[1]+dx/L*d];});
   const acc=(()=>{const a=off(ACCESS,4.3); return (a[0][0]<ACCESS[0][0]?a:off(ACCESS,-4.3)).filter(([x,z])=>z>-100&&z<-43);})();   // west side of the farm road
-  const list=[
+  const list0=[
     {id:'ilog',kind:'creek',w:3.6,sp:.32,pts:spline([[268,-252],[276,-236],[290,-218],[307,-202],[315,-191],[315,-181],[309,-169],[307.6,-152],[307.6,-122],[307.6,-110],[309,-97],[315,-82],[321,-66],[325,-56]],false,.9)},
     {id:'brgy',kind:'kanal',w:1.1,sp:.2,pts:straight([[45,-191.3],[312.5,-191.3]],.9)},
     {id:'palengke',kind:'kanal',w:1.1,sp:.2,pts:straight([[147,-116.4],[305.2,-116.4]],.9)},
@@ -8153,6 +8154,7 @@ const WWAYS=(()=>{
     {id:'bukid',kind:'kanal',w:1.0,sp:.16,pts:straight([[-46,-19.4],[-46,-15.6],[-16.4,-15.6],[-16.4,20.95],[-14.6,20.95]],.8)},
     {id:'tubigan',kind:'bare',w:1.4,sp:.14,pts:straight([[-14.6,20.95],[14.6,20.95]],.8)},   // the field canal (its banks are already built)
   ];
+  const list=list0.filter(W=>!goneWay(W.id));   // the farm's own canals can be taken out by the player
   // Meet the actual curved river bank instead of ending the roadside drain at a guessed x.
   const river=list.find(w=>w.id==='ilog'),barangayDrain=list.find(w=>w.id==='brgy'),joinZ=STZ-8;
   const joinSegment=river.pts.findIndex((p,i)=>i+1<river.pts.length&&p[1]<=joinZ&&river.pts[i+1][1]>=joinZ);
@@ -8463,10 +8465,10 @@ let wwLast=performance.now(), wwRain=0, wwSnd=0;
   const g=new THREE.Group();g.name='Player farm improvements';scene.add(g);
   const b=[],B=(x,y,z,w,h,d,c,rx=0,ry=0,rz=0)=>b.push(P('box',c,x,y,z,w,h,d,rx,ry,rz));
   const part=k=>{const pg=new THREE.Group(), pb=[], o=FIXOFF(k); pg.position.set(o.dx,0,o.dz); pg.name='fix:'+k; if(!FIXGONE(k)) scene.add(pg); return {g:pg,b:pb,B:(x,y,z,w,h,d,c,rx=0,ry=0,rz=0)=>pb.push(P('box',c,x,y,z,w,h,d,rx,ry,rz))};};   // a piece the player can move or take down
-  const GH=part('greenhouse'), PK=part('packing'), RK=part('rack');
+  const GH=part('greenhouse'), PK=part('packing'), RK=part('rack'), SH=[part('shrubA'),part('shrubB')], SG={PASTURE:part('signPasture'),POULTRY:part('signPoultry'),ORCHARD:part('signOrchard')};
   const stone=0x928866,wood=0x98754e,steel=0x637b64;   // a muted packed-earth and gravel tone, not bright cream
   // Follow the existing footpaths and keep all crop plot IDs and vehicle tracks intact: a packed-earth tread with a darker worn line down the middle.
-  for(const id of ['p-field','p-poultry','p-dike']){
+  for(const id of ['p-field','p-poultry','p-dike']){if(goneWay(id)) continue;
     const pts=ROADS[id].s;
     for(let i=1;i<pts.length;i++){const a=pts[i-1],c=pts[i],dx=c[0]-a[0],dz=c[1]-a[1];
       B((a[0]+c[0])/2,.09,(a[1]+c[1])/2,1.2,.035,Math.hypot(dx,dz)+1.2,stone,0,Math.atan2(dx,dz));
@@ -8511,14 +8513,14 @@ let wwLast=performance.now(), wwRain=0, wwSnd=0;
   for(const x of [-29.5,-28.5,-27.5,-26.5]){RK.B(x,1.2,6.65,.06,1.6,.06,0xc3a16c);RK.B(x,.45,6.65,.35,.4,.08,steel);}
   for(let y=.15;y<.7;y+=.2)for(let z=6;z<7.4;z+=.4)RK.B(-23,y,z,2,.1,.25,wood);
   // Low planting and signs clarify the different areas without closing their existing gates.
-  for(const [x,z] of [[-46,18.5],[-20,18.5]]){B(x,.2,z,1.4,.35,1.4,stone);b.push(P('sph',0x658a46,x,.65,z,1.2,.9,1.2));}
+  [[-46,18.5],[-20,18.5]].forEach(([x,z],k)=>{SH[k].B(x,.2,z,1.4,.35,1.4,stone);SH[k].b.push(P('sph',0x658a46,x,.65,z,1.2,.9,1.2));});
   const sign=(text,x,z,w,G=g)=>{const q=boardSign([text],'#426343','#fff0cd',x,z,0,w,.65,2.1,wood,false);G.add(q);};
   sign('SEEDLING GREENHOUSE',-36,16.3,7,GH.g);sign('HARVEST PACKING',-24,16.3,5.5,PK.g);
-  for(const [x,z,title] of [[-59,14,'PASTURE'],[-18,23,'POULTRY'],[25,49,'ORCHARD']])sign(title,x,z,2.5);
+  for(const [x,z,title] of [[-59,14,'PASTURE'],[-18,23,'POULTRY'],[25,49,'ORCHARD']])sign(title,x,z,2.5,SG[title].g);
   for(const x of [-43,-40,-37,-34,-31]){GH.B(x,.45,7.8,.1,.9,.1,wood);}
   GH.B(-37,.65,7.8,12,.08,.08,wood);
   const m=new THREE.Mesh(mergeGeo(b),VCMAT);m.castShadow=m.receiveShadow=true;g.add(m);
-  for(const Q of [GH,PK,RK]) if(Q.b.length){const mm=new THREE.Mesh(mergeGeo(Q.b),VCMAT); mm.castShadow=mm.receiveShadow=true; Q.g.add(mm);}
+  for(const Q of [GH,PK,RK,...SH]) if(Q.b.length){const mm=new THREE.Mesh(mergeGeo(Q.b),VCMAT); mm.castShadow=mm.receiveShadow=true; Q.g.add(mm);}
 })();
 
 // Provincial planting and fitted entrances, kept clear of road lanes, gates and loading bays.
@@ -9925,6 +9927,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:72,date:'Nov 13, 2026',title:'Take out the old paths and canals',items:['🚶 In Decorate, press and hold a footpath (round the old field, to the poultry, on the pond dike, to the house) and tap 🗑 to take it out. Draw your own dirt roads instead.','💧 The field drain and the farm canal can be taken out the same way. The irrigation canal along the farm fence stays: it is where the water comes from, and where your own canals can drain to.','🌳 The round shrub planters and the PASTURE, POULTRY and ORCHARD signs can now be moved or removed too.','🏗️ Anything you take out can be put back from the Decorate bar.']},
   {v:71,date:'Nov 13, 2026',title:'Plots anywhere, and a smaller start',items:['⛏️ Hoe anywhere: pick 🧰 Tools → Hoe and drag across open ground to make new crop plots (₱20 each while your farm is small), snapped neatly beside each other.','✋ In Decorate, press and hold a plot to move it (its crop comes along) or 🗑 remove it.','🌱 A new game starts small: 4 hoed plots, your house, garage, bodega, water tower and 4 fruit trees. Everything else you build yourself. Farms you already have keep everything they have.','🧱 Each open end of a canal you draw now finishes in a low concrete headwall with a pipe mouth, like the farm\'s own kanal.']},
   {v:70,date:'Nov 13, 2026',title:'Move or remove the farm buildings and trees',items:['✋ In Decorate, press and hold the bodega, the water tower yard, the seedling greenhouse, the packing shelter, the tool rack or the kubol to pick it up. Drag it and tap ✓: the farm is rebuilt around it in a moment.','🗑 The greenhouse, packing shelter, tool rack and kubol can be taken down too. The bodega and the water tower stay, since your harvest and your hose water need them. Anything you take down can be put back from the Decorate bar.','🌳 Press and hold a fruit tree to move it anywhere on open ground, or 🗑 to remove its plot. Put new tree plots back from Decorate → Tree plot, then tap the plot to plant.','🛣️ Moved the bodega? Build a dirt road to its new door so trucks can still bring the egg trays.']},
   {v:69,date:'Nov 13, 2026',title:'Canals drain your field',items:['🌊 When it rains, plots that no canal drains start to flood. Any crop still under water when the rain stops is lost. Watering is still done with your tank and hose.','⛏️ Draw a Kanal from Decorate like a fence, along the side of your field to the main canal (the field drain or the farm canals). Canals stay off the crops, and cross paths on a concrete culvert.','✅ Rain water runs across the field into the nearest drain: a canal along one side drains up to 6 rows in from it. The field drain in front already drains the front half; the back half needs your canal.','👆 A sketch guide shows you where the Kanal is and how to draw it, and comes back when the rain floods your plots.']},
@@ -10239,7 +10242,9 @@ var DECO=(()=>{
   let sel=null, rot=0, moving=null, editId=null;
   // the farm's own buildings the player can move (and, except the bodega and the water tower, take down): base centre and footprint
   const FIXED=[{k:'bodega',name:'bodega',cx:-24,cz:-2,w:14,d:9,keep:1},{k:'util',name:'water tower yard',cx:-38,cz:-1,w:14,d:12,keep:1},{k:'greenhouse',name:'seedling greenhouse',cx:-36,cz:12.1,w:12.6,d:9},
-    {k:'packing',name:'packing shelter',cx:-24,cz:12.6,w:7.6,d:8},{k:'rack',name:'tool rack',cx:-25.5,cz:6.7,w:7.2,d:2},{k:'kubo',name:'kubol',cx:25.6,cz:19.2,w:3.8,d:3.8}];
+    {k:'packing',name:'packing shelter',cx:-24,cz:12.6,w:7.6,d:8},{k:'rack',name:'tool rack',cx:-25.5,cz:6.7,w:7.2,d:2},{k:'kubo',name:'kubol',cx:25.6,cz:19.2,w:3.8,d:3.8},
+    {k:'shrubA',name:'shrub planter',cx:-46,cz:18.5,w:1.6,d:1.6},{k:'shrubB',name:'shrub planter',cx:-20,cz:18.5,w:1.6,d:1.6},
+    {k:'signPasture',name:'PASTURE sign',cx:-59,cz:14,w:2.8,d:.8},{k:'signPoultry',name:'POULTRY sign',cx:-18,cz:23,w:2.8,d:.8},{k:'signOrchard',name:'ORCHARD sign',cx:25,cz:49,w:2.8,d:.8}];
   const fixRect=(f,o=FIXOFF(f.k))=>[f.cx+o.dx-f.w/2,f.cx+o.dx+f.w/2,f.cz+o.dz-f.d/2,f.cz+o.dz+f.d/2];
   const blockedForPlot=(x,z)=>inFix(x,z,1.1)||BLOCK_RECTS().some(([bx,bz,hw,hd])=>Math.abs(x-bx)<hw+1&&Math.abs(z-bz)<hd+1)||nearObj(houseG,x,z,1.1)||nearObj(garageG,x,z,1.1)?'Too close to a building.'
     :ORCHARD.spots.some(([sx,sz],i)=>!S.orchardGone[i]&&Math.hypot(x-sx,z-sz)<2.2)?'A fruit tree is in the way.':S.deco.some(d=>Math.hypot(d.x-x,d.z-z)<(d.k==='canal'?1.2:1.4))?'A decoration or canal is in the way.':'';
@@ -10355,7 +10360,8 @@ var DECO=(()=>{
       if(!area&&!house&&!active){const ti=treeAt(g[0],g[1]); if(ti>=0){line=null; pickTree(ti,g); return;}}
       const h=atPoint(g[0],g[1]); if(h){activate(h); line=null; return;}
       if(!area&&!house&&!active){const pi=plotAt(g[0],g[1]); if(pi>=0){line=null; pickPlot(pi,g); return;}}
-      if(!area&&!house&&!active){const f=inFix(g[0],g[1],0); if(f){line=null; pickFix(f,g);}}},450);},true);
+      if(!area&&!house&&!active){const f=inFix(g[0],g[1],0); if(f){line=null; pickFix(f,g); return;}}
+      if(!area&&!house&&!active){const W=wayAt(g[0],g[1]); if(W){line=null; pickWay(W,g);}}},450);},true);
   canvas.addEventListener('pointermove',e=>{if(holdAt&&Math.hypot(e.clientX-holdAt[0],e.clientY-holdAt[1])>8){clearTimeout(holdT); holdAt=null;}},true);
   for(const t of ['pointerup','pointercancel']) canvas.addEventListener(t,()=>{clearTimeout(holdT); holdAt=null; setTimeout(()=>{dragArm=false;},0);},true);
   // ---- moving a whole animal area: press and hold its ground, drag the outline, ✓ moves it (the farm rebuilds), ✕ puts it back
@@ -10423,7 +10429,7 @@ var DECO=(()=>{
   // ---- the farm's buildings and fruit trees: press and hold to pick one up; ✓ puts it there, 🗑 takes it down, ✕ leaves it.
   //      A building move rebuilds the farm round it (a quick reload); a tree moves at once.
   let fixd=null, fixArm=false, putBack=null;
-  const fR=()=>fixd.kind==='tree'?2:fixd.kind==='plot'?1.6:Math.max(fixd.f.w,fixd.f.d)/2+1;
+  const fR=()=>fixd.kind==='way'?3:fixd.kind==='tree'?2:fixd.kind==='plot'?1.6:Math.max(fixd.f.w,fixd.f.d)/2+1;
   const fctl=document.createElement('div'); fctl.id='fix-ctl'; fctl.hidden=true;
   fctl.innerHTML='<button data-f="ok" aria-label="Put it here">✓</button><button data-f="del" aria-label="Take it down">🗑</button><button data-f="no" aria-label="Cancel">✕</button>'; document.body.append(fctl);
   const treeAt=(x,z)=>{let best=-1,bd=1.4; ORCHARD.spots.forEach(([sx,sz],i)=>{if(S.orchardGone[i]) return; const d=Math.hypot(x-sx,z-sz); if(d<bd){bd=d; best=i;}}); return best;};
@@ -10455,12 +10461,12 @@ var DECO=(()=>{
     g.add(fill,line); g.position.set(fixd.x,0,fixd.z); scene.add(g); fixd.v={g,fill,line}; fCheck();}
   function fCheck(){const f=fixd; f.err=f.kind==='plot'?okPlot(f.i,f.x,f.z):f.kind==='tree'?okTree(f.i,f.x,f.z):okFix(f.f,f.x-f.f.cx,f.z-f.f.cz); const bad=!!f.err;
     f.v.fill.material.color.setHex(bad?0xe0735a:0x6fbf4a); f.v.line.material.color.setHex(bad?0xa6402c:0x2e7d32); fctl.classList.toggle('bad',bad); fctl.querySelector('[data-f=ok]').title=f.err||'Put it here';}
-  function pickFix(f,g){if(f.keep&&FARMNET.vehiclesOut()) return toast(`Wait until your vehicles are back in the garage before moving the ${f.name}.`,2800); if(active) cancelActive(); sel=null; const o=FIXOFF(f.k);
+  function pickFix(f,g){fctl.querySelector('[data-f=ok]').hidden=false; if(f.keep&&FARMNET.vehiclesOut()) return toast(`Wait until your vehicles are back in the garage before moving the ${f.name}.`,2800); if(active) cancelActive(); sel=null; const o=FIXOFF(f.k);
     fixd={kind:'fix',f,x:f.cx+o.dx,z:f.cz+o.dz,off:[f.cx+o.dx-g[0],f.cz+o.dz-g[1]]}; fixArm=true; justActivated=true; buzz(); fGhost(); fctl.querySelector('[data-f=del]').hidden=!!f.keep; renderHUD();}
   const okPlot=(i,x,z)=>{const j=plotAt(x,z); if(j>=0&&j!==i) return 'Another plot is there.'; return plotErr(x,z,i);};
-  function pickPlot(i,g){if(claimedBy(i)) return toast('Your farmer is working on that plot. Try again in a moment.',2400); if(active) cancelActive(); sel=null; const p=tilePos(i); fixd={kind:'plot',i,x:p.x,z:p.z,off:[p.x-g[0],p.z-g[1]]}; fixArm=true; justActivated=true; buzz(); fGhost(); fctl.querySelector('[data-f=del]').hidden=false; renderHUD();}
-  function pickTree(i,g){if(active) cancelActive(); sel=null; const [x,z]=ORCHARD.spots[i]; fixd={kind:'tree',i,x,z,off:[x-g[0],z-g[1]]}; fixArm=true; justActivated=true; buzz(); fGhost(); fctl.querySelector('[data-f=del]').hidden=false; renderHUD();}
-  function dropFix(){if(!fixd) return; if(fixd.v) scene.remove(fixd.v.g); fixd=null; fixArm=false; fctl.hidden=true; renderHUD();}
+  function pickPlot(i,g){fctl.querySelector('[data-f=ok]').hidden=false; if(claimedBy(i)) return toast('Your farmer is working on that plot. Try again in a moment.',2400); if(active) cancelActive(); sel=null; const p=tilePos(i); fixd={kind:'plot',i,x:p.x,z:p.z,off:[p.x-g[0],p.z-g[1]]}; fixArm=true; justActivated=true; buzz(); fGhost(); fctl.querySelector('[data-f=del]').hidden=false; renderHUD();}
+  function pickTree(i,g){fctl.querySelector('[data-f=ok]').hidden=false; if(active) cancelActive(); sel=null; const [x,z]=ORCHARD.spots[i]; fixd={kind:'tree',i,x,z,off:[x-g[0],z-g[1]]}; fixArm=true; justActivated=true; buzz(); fGhost(); fctl.querySelector('[data-f=del]').hidden=false; renderHUD();}
+  function dropFix(){if(!fixd) return; if(fixd.v) scene.remove(fixd.v.g); fixd=null; fixArm=false; fctl.hidden=true; fctl.querySelector('[data-f=ok]').hidden=false; renderHUD();}
   function reloadFarm(msg){toast(msg,6000); save(); setTimeout(()=>{if(window.SunfieldCloud&&window.SunfieldCloud.reload) window.SunfieldCloud.reload(); else location.reload();},400);}   // the farm is rebuilt round the building
   function okFixd(){const f=fixd; if(!f) return; if(f.err) return toast('Can\'t put it there. '+f.err,2800);
     if(f.kind==='plot'){const {i,x,z}=f; dropFix(); S.plotPos[i]=[x,z]; plotIndexRebuild(); refreshTile(i,false); changed(); sfx('tap',x,z); toast(S.tiles[i].s==='crop'?'🌾 Plot moved, crop and all.':'Plot moved.'); return;}
@@ -10468,15 +10474,26 @@ var DECO=(()=>{
     const dx=f.x-f.f.cx, dz=f.z-f.f.cz, o=FIXOFF(f.f.k); if(Math.abs(dx-o.dx)<.01&&Math.abs(dz-o.dz)<.01){dropFix(); return;}
     S.fix[f.f.k]={dx,dz}; dropFix(); reloadFarm(`🏗️ Moving the ${f.f.name}… the farm is rebuilt around it.${f.f.k==='bodega'?' Make sure a road reaches its new door.':''}`);}
   function delFixd(){const f=fixd; if(!f) return;
+    if(f.kind==='way'){if(!f.delArm){f.delArm=true; return toast(`Tap 🗑 again to take out the ${f.W.name}. You can put it back from Decorate.`,2800);} S.goneWays.push(f.W.id); dropFix(); reloadFarm(`🧹 Taking out the ${f.W.name}…`); return;}
     if(f.kind==='plot'){if(S.tiles[f.i].s==='crop'&&!f.delArm){f.delArm=true; return toast('Tap 🗑 again to remove this plot. Its crop is lost.',2600);} const i=f.i; dropFix(); S.tiles[i]={s:'locked'}; delete S.plotPos[i]; plotIndexRebuild(); refreshTile(i,false); changed(); toast('Plot removed. Hoe a new one anywhere with 🧰 Tools → Hoe.',3000); return;}
     if(f.kind==='tree'){if(S.orchard[f.i]&&!f.delArm){f.delArm=true; return toast('Tap 🗑 again to cut down this tree. Its fruit is lost.',2600);} const i=f.i; dropFix(); ORCHARD.setGone(i,true); if(NAV&&NAV.ready) NAV.rebuild(); changed(); toast('🪓 Tree plot removed. Put one back any time from Decorate → Tree plot.',3000); return;}
     if(f.f.keep) return; if(!f.delArm){f.delArm=true; return toast(`Tap 🗑 again to take down the ${f.f.name}. You can put it back from Decorate.`,2800);}
     S.fix[f.f.k]={gone:1}; dropFix(); reloadFarm(`🧹 Taking down the ${f.f.name}…`);}
   fctl.addEventListener('pointerdown',e=>e.stopPropagation()); fctl.addEventListener('click',e=>{const b=e.target.closest('[data-f]'); if(!b||!fixd) return; e.stopPropagation(); const a=b.dataset.f;
     if(a==='ok') okFixd(); else if(a==='del') delFixd(); else dropFix();});
-  canvas.addEventListener('pointerdown',e=>{if(openCat!=='decor'||e.button||!fixd) return; const g=ground(e.clientX,e.clientY); if(!g) return; const R=fR();
+  canvas.addEventListener('pointerdown',e=>{if(openCat!=='decor'||e.button||!fixd||fixd.kind==='way') return; const g=ground(e.clientX,e.clientY); if(!g) return; const R=fR();
     if(Math.abs(g[0]-fixd.x)<R&&Math.abs(g[1]-fixd.z)<R){fixArm=true; fixd.off=[fixd.x-g[0],fixd.z-g[1]];}},true);
   for(const t of ['pointerup','pointercancel']) canvas.addEventListener(t,()=>{setTimeout(()=>{fixArm=false;},0);},true);
+  const WAYS=[{id:'p-field',name:'footpath round the old field',w:1.5},{id:'p-poultry',name:'footpath to the poultry',w:1.5},{id:'p-dike',name:'footpath on the pond dike',w:1.5},{id:'p-house',name:'path to the house',w:1.5},
+    {id:'tubigan',name:'field drain',w:1.4,pts:[[-14.6,20.95],[14.6,20.95]],canal:1},{id:'bukid',name:'farm canal',w:1.0,pts:[[-46,-19.4],[-46,-15.6],[-16.4,-15.6],[-16.4,20.95],[-14.6,20.95]],canal:1}];
+  const wayPts=W=>W.pts||ROADS[W.id].pts;
+  const wayDist=(W,x,z)=>{const P=wayPts(W); let best=99; for(let k=0;k<P.length-1;k++){const [ax,az]=P[k], [bx,bz]=P[k+1], dx=bx-ax, dz=bz-az, u=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/(dx*dx+dz*dz||1))); best=Math.min(best,Math.hypot(ax+dx*u-x,az+dz*u-z));} return best;};
+  const wayAt=(x,z)=>WAYS.find(W=>!goneWay(W.id)&&wayDist(W,x,z)<W.w/2+.35);
+  function pickWay(W,g){if(active) cancelActive(); sel=null; if(fixd) dropFix(); fixd={kind:'way',W,x:g[0],z:g[1]}; fixArm=false; justActivated=true; buzz();
+    const grp=new THREE.Group(), mt=new THREE.MeshBasicMaterial({color:0xe0735a,transparent:true,opacity:.45,depthWrite:false}), P=wayPts(W);
+    for(let k=0;k<P.length-1;k++){const [ax,az]=P[k], [bx,bz]=P[k+1], L=Math.hypot(bx-ax,bz-az), m=new THREE.Mesh(new THREE.PlaneGeometry(L,W.w+.3),mt); m.rotation.set(-Math.PI/2,0,-Math.atan2(bz-az,bx-ax)); m.position.set((ax+bx)/2,.32,(az+bz)/2); grp.add(m);}
+    scene.add(grp); fixd.v={g:grp,fill:{material:mt},line:{material:mt}}; fixd.err=''; fctl.querySelector('[data-f=ok]').hidden=true; fctl.querySelector('[data-f=del]').hidden=false; fctl.classList.remove('bad'); renderHUD();
+    toast(`The ${W.name}. Tap 🗑 to take it out${W.canal?' (your own canals can drain into the irrigation canal along the farm fence instead)':''}.`,3200);}
   function placeBack(gx,gz){const k=putBack; putBack=null;
     if(k==='tree'){const i=ORCHARD.spots.findIndex((_,j)=>S.orchardGone[j]); if(i<0) return renderHUD(); const x=snap(gx), z=snap(gz), e=okTree(i,x,z); if(e){putBack=k; return toast('Can\'t put it there. '+e,2600);}
       ORCHARD.setGone(i,false); ORCHARD.setSpot(i,x,z); if(NAV&&NAV.ready) NAV.rebuild(); changed(); sfx('tap',x,z); toast('🌱 Tree plot ready. Tap it to plant a fruit tree.'); renderHUD(); return;}
@@ -10609,15 +10626,17 @@ var DECO=(()=>{
     S.coins-=plan.cost; for(const d of plan.pieces){delete d.bad; d.id=S.decoN++; S.deco.push(d);} rebuild(); finish(L.rec); changed(); sfx('hammer',plan.pieces[0].x,plan.pieces[0].z);
     const j=plan.ends.filter(Boolean).length; toast(`${CAT[sel].name}: ${plan.pieces.length} piece${plan.pieces.length>1?'s':''} (₱${plan.cost})${plan.closed?', pen closed':j?`, joined at ${j===2?'both ends':'one end'}`:''}.`,2400);}
   // ---- the bar under the Decorate button
-  function bar(){if(active||area||house||fixd) return ''; const back=FIXED.filter(f=>FIXGONE(f.k)).map(f=>`<button class="tool ${putBack===f.k?'on':''}" data-putback="${f.k}"><span class="ti">🏗️</span><span class="tl">Put back</span><span class="tc">${f.name}</span></button>`).join('')+(ORCHARD.spots.some((_,i)=>S.orchardGone[i])?`<button class="tool ${putBack==='tree'?'on':''}" data-putback="tree"><span class="ti">🌱</span><span class="tl">Tree plot</span><span class="tc">free</span></button>`:''); return back+`<button class="tool" data-deco-undo="1" ${hist.length?'':'disabled'} aria-label="Undo the last change"><span class="ti">↶</span><span class="tl">Undo</span><span class="tc">${hist.length?hist.length+(hist.length>1?' steps':' step'):'nothing yet'}</span></button>`+ORDER.map(k=>{const c=CAT[k], on=sel===k; return `<button class="tool ${on?'on':''}" data-deco="${k}" aria-pressed="${on}"><span class="ti svg" aria-hidden="true">${c.svgFull}</span><span class="tl">${c.name}</span><span class="tc">${c.roadTool?(c.cost?'₱'+c.cost+' / m':'free'):'₱'+c.cost}</span></button>`;}).join('')
+  function bar(){if(active||area||house||fixd) return ''; const back=WAYS.filter(W=>goneWay(W.id)).map(W=>`<button class="tool" data-wayback="${W.id}"><span class="ti">${W.canal?'💧':'🚶'}</span><span class="tl">Put back</span><span class="tc">${W.name}</span></button>`).join('')+FIXED.filter(f=>FIXGONE(f.k)).map(f=>`<button class="tool ${putBack===f.k?'on':''}" data-putback="${f.k}"><span class="ti">🏗️</span><span class="tl">Put back</span><span class="tc">${f.name}</span></button>`).join('')+(ORCHARD.spots.some((_,i)=>S.orchardGone[i])?`<button class="tool ${putBack==='tree'?'on':''}" data-putback="tree"><span class="ti">🌱</span><span class="tl">Tree plot</span><span class="tc">free</span></button>`:''); return back+`<button class="tool" data-deco-undo="1" ${hist.length?'':'disabled'} aria-label="Undo the last change"><span class="ti">↶</span><span class="tl">Undo</span><span class="tc">${hist.length?hist.length+(hist.length>1?' steps':' step'):'nothing yet'}</span></button>`+ORDER.map(k=>{const c=CAT[k], on=sel===k; return `<button class="tool ${on?'on':''}" data-deco="${k}" aria-pressed="${on}"><span class="ti svg" aria-hidden="true">${c.svgFull}</span><span class="tl">${c.name}</span><span class="tc">${c.roadTool?(c.cost?'₱'+c.cost+' / m':'free'):'₱'+c.cost}</span></button>`;}).join('')
     +`<button class="tool" data-deco-rot="1" aria-label="Turn the next piece"><span class="ti">↻</span><span class="tl">Turn</span><span class="tc">${Math.round(rot*180/Math.PI)%360}°</span></button>`;}
-  function hint(){if(fixd) return fixd.kind==='plot'?'Drag the plot to a new spot (its crop comes along). ✓ moves it, 🗑 removes it, ✕ leaves it.':fixd.kind==='tree'?'Drag the tree to a new spot. ✓ moves it, 🗑 removes the tree plot, ✕ leaves it.':`Drag the ${fixd.f.name} to a new spot. ✓ moves it (the farm is rebuilt around it)${fixd.f.keep?'':', 🗑 takes it down'}, ✕ leaves it where it was.`;
+  function hint(){if(fixd&&fixd.kind==='way') return `The ${fixd.W.name}: 🗑 takes it out (the farm is rebuilt without it), ✕ keeps it.`;
+    if(fixd) return fixd.kind==='plot'?'Drag the plot to a new spot (its crop comes along). ✓ moves it, 🗑 removes it, ✕ leaves it.':fixd.kind==='tree'?'Drag the tree to a new spot. ✓ moves it, 🗑 removes the tree plot, ✕ leaves it.':`Drag the ${fixd.f.name} to a new spot. ✓ moves it (the farm is rebuilt around it)${fixd.f.keep?'':', 🗑 takes it down'}, ✕ leaves it where it was.`;
     if(putBack) return putBack==='tree'?'Tap your farm where the new tree plot should go.':`Tap your farm where the ${FIXED.find(f=>f.k===putBack).name} should go.`;
     if(house) return 'Drag the house to a new spot (the light area is the yard its animals use). ✓ puts it there, ✕ leaves it where it was.'; if(area) return 'Drag the area to a new spot inside your farm. ✓ moves it (the farm rebuilds; animals, houses and upgrades come along), ✕ leaves it where it is. Its gate stays on the same side: build a road to it.'; if(sel==='road') return 'Drag across your land to draw a dirt road (₱2 per metre). Its ends join any road they touch. Labels show what your roads reach: trucks only go where they connect.'; if(sel==='eraser') return 'Drag across a road to remove that part of it. Trucks only use roads that still connect.'; if(!sel&&!active&&!moving&&!area) return 'Pick a decoration, then tap your farm to place it. Press and hold something you placed to move it, or press and hold an animal house to move it.'; if(active) return 'Drag it to a new spot. ✓ puts it down, ↻ turns it, ✕ removes it (half back). Tap elsewhere to put it back.'; if(moving) return 'Tap where you want to move it.'; if(!sel) return 'Pick a decoration, then tap your farm to place it. Tap something you placed to turn, move, edit or remove it.';
     return CAT[sel].line?`Drag across your land to build ${CAT[sel].name.toLowerCase()} (₱${CAT[sel].cost} per 2 m). Tap to place one piece.`:`Tap your farm to place a ${CAT[sel].name.toLowerCase()} (₱${CAT[sel].cost}). Tap "Turn" to face it another way.`;}
-  $('tools').addEventListener('click',e=>{const b=e.target.closest('[data-deco],[data-deco-rot],[data-deco-undo],[data-putback]'); if(!b||b.disabled) return;
+  $('tools').addEventListener('click',e=>{const b=e.target.closest('[data-deco],[data-deco-rot],[data-deco-undo],[data-putback],[data-wayback]'); if(!b||b.disabled) return;
     if(b.dataset.decoUndo){undo(); return;}
     if(b.dataset.decoRot){rot=(rot+Math.PI/4)%(Math.PI*2); renderHUD(); return;}
+    if(b.dataset.wayback){const W=WAYS.find(q=>q.id===b.dataset.wayback); S.goneWays=S.goneWays.filter(id=>id!==W.id); reloadFarm(`🏗️ Putting back the ${W.name}…`); return;}
     if(b.dataset.putback){putBack=putBack===b.dataset.putback?null:b.dataset.putback; sel=null; buzz(); renderHUD(); return;}
     const k=b.dataset.deco; sel=sel===k?null:k; putBack=null; if(sel){S.tool=null;} moving=null; buzz(); renderHUD();});
   // ---- the edit sheet: turn, move, remove; for a sign, its words and colour

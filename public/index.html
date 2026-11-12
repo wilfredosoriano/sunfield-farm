@@ -4005,8 +4005,12 @@ const nearSea=(x,z,m=0)=>x>196-m&&z>shoreZ(x)-14-m;
 const inRect=(R,x,z,m)=>x>R[0]-m&&x<R[1]+m&&z>R[2]-m&&z<R[3]+m;
 // the waterways' centre lines and half widths (see WWAYS): trees and bushes keep clear of them
 const WW_CLEAR=[[3.8,[268,-252],[276,-236],[290,-218],[307,-202],[315,-191],[315,-181],[309,-169],[307.6,-152],[307.6,-110],[309,-97],[315,-82],[321,-66],[325,-56]],
-  [1.4,[45,-191.3],[312.5,-191.3]],[1.4,[147,-116.4],[305.2,-116.4]],[1.4,[217.3,-180.6],[217.3,-116.6]],[1.4,[305.4,-103.8],[29.6,-103.8],[29.8,-100],[27,-88],[31.8,-70],[37.8,-54],[37.8,-44],[36,-44.5],[14,-45.2],[-10,-48],[-36,-49.5],[-36,-40.4]],[1.2,[-46,-19.4],[-46,-15.6],[-16.4,-15.6],[-16.4,20.95]]];
-{const bk=WW_CLEAR.find(W=>W[1][0]===-46&&W[1][1]===-19.4); if(bk) bk.id='bukid';}   // the farm canal: skipped while taken out
+  [1.4,[45,-191.3],[312.5,-191.3]],[1.4,[147,-116.4],[305.2,-116.4]],[1.4,[217.3,-180.6],[217.3,-116.6]],[1.4,[305.4,-103.8],[29.6,-103.8],[29.8,-100],[27,-88],[31.8,-70],[37.8,-54],[37.8,-44],[36,-44.5],[14,-45.2],[-10,-48],[-36,-49.5],[-36,-44.9]],[1.2,[-46,-19.4],[-46,-15.6],[-16.4,-15.6],[-16.4,20.95]]];
+{const bk=WW_CLEAR.find(W=>W[1][0]===-46&&W[1][1]===-19.4); if(bk) bk.id='bukid'; const pt=WW_CLEAR.find(W=>W[1][0]===305.4&&W[1][1]===-103.8); if(pt) pt.irr=1;}
+// your canal may meet the irrigation canal just outside the farm fence: an end close to the fence, with that canal close beyond it, drains through a pipe under the fence
+const fenceDist=(x,z)=>{let b=99; for(let i=0;i<FENCE.length;i++){const [ax,az]=FENCE[i], [bx,bz]=FENCE[(i+1)%FENCE.length], dx=bx-ax, dz=bz-az, u=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/(dx*dx+dz*dz||1))); b=Math.min(b,Math.hypot(ax+dx*u-x,az+dz*u-z));} return b;};
+function irrNear(x,z,m){const E=WW_CLEAR.find(W=>W.irr); if(!E) return false; const [w,...P]=E; for(let i=0;i<P.length-1;i++){const [ax,az]=P[i], [bx,bz]=P[i+1], dx=bx-ax, dz=bz-az, u=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/(dx*dx+dz*dz||1))); if(Math.hypot(ax+dx*u-x,az+dz*u-z)<w+m) return true;} return false;}
+const throughFence=(x,z)=>fenceDist(x,z)<2.4&&irrNear(x,z,7);   // the farm canal: skipped while taken out
 const MAIN_CANALS=WW_CLEAR.concat([Object.assign([1.4,[-16.4,20.95],[14.6,20.95]],{id:'tubigan'})]);   // what player canals drain into: every waterway, plus the field drain in front of the crop field
 function mainNear(x,z,m){for(const E of MAIN_CANALS){if(E.id&&goneWay(E.id)) continue; const [w,...P]=E; for(let i=0;i<P.length-1;i++){const [ax,az]=P[i], [bx,bz]=P[i+1], dx=bx-ax, dz=bz-az, L=dx*dx+dz*dz||1, t=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/L)); if(Math.hypot(x-ax-dx*t,z-az-dz*t)<w+m) return true;}} return false;}
 function wwNear(x,z,m){for(const E of WW_CLEAR){if(E.id&&goneWay(E.id)) continue; const [w,...P]=E; for(let i=0;i<P.length-1;i++){const [ax,az]=P[i], [bx,bz]=P[i+1], dx=bx-ax, dz=bz-az, L=dx*dx+dz*dz||1, t=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/L)); if(Math.hypot(x-ax-dx*t,z-az-dz*t)<w+m) return true;}} return false;}
@@ -8151,7 +8155,7 @@ const WWAYS=(()=>{
     {id:'brgy',kind:'kanal',w:1.1,sp:.2,pts:straight([[45,-191.3],[312.5,-191.3]],.9)},
     {id:'palengke',kind:'kanal',w:1.1,sp:.2,pts:straight([[147,-116.4],[305.2,-116.4]],.9)},
     {id:'gilid',kind:'kanal',w:1.1,sp:.2,pts:straight([[217.3,-180.6],[217.3,-116.6]],.9)},
-    {id:'patubig',kind:'kanal',w:1.2,sp:.18,pts:straight([[305.4,-103.8],[29.6,-103.8],...acc,[36,-44.5],[14,-45.2],[-10,-48],[-36,-49.5],[-36,-40.4]],.9)},
+    {id:'patubig',kind:'kanal',w:1.2,sp:.18,pts:straight([[305.4,-103.8],[29.6,-103.8],...acc,[36,-44.5],[14,-45.2],[-10,-48],[-36,-49.5],[-36,-44.9]],.9)},
     {id:'bukid',kind:'kanal',w:1.0,sp:.16,pts:straight([[-46,-19.4],[-46,-15.6],[-16.4,-15.6],[-16.4,20.95],[-14.6,20.95]],.8)},
     {id:'tubigan',kind:'bare',w:1.4,sp:.14,pts:straight([[-14.6,20.95],[14.6,20.95]],.8)},   // the field canal (its banks are already built)
   ];
@@ -9929,6 +9933,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:74,date:'Nov 13, 2026',title:'The irrigation canal stops at your fence',items:['✂️ The irrigation canal along the south of the farm no longer runs into your farm: it now stops at the fence.','🔗 Your canals can join it anywhere along the fence: end your canal close to the fence where the irrigation canal runs just outside, and it drains through a pipe under the fence.']},
   {v:73,date:'Nov 13, 2026',title:'Clean canal corners',items:['📐 Canals joined end to end are now drawn as one channel: the floor, water and walls turn every corner cleanly, with no gaps or walls across the water.','🔗 Continuing a canal from its end is easier: start your next stroke near the end and it snaps on from up to 2 m away. Draw an L in one stroke, or in two.']},
   {v:72,date:'Nov 13, 2026',title:'Take out the old paths and canals',items:['🚶 In Decorate, press and hold a footpath (round the old field, to the poultry, on the pond dike, to the house) and tap 🗑 to take it out. Draw your own dirt roads instead.','💧 The field drain and the farm canal can be taken out the same way. The irrigation canal along the farm fence stays: it is where the water comes from, and where your own canals can drain to.','🌳 The round shrub planters and the PASTURE, POULTRY and ORCHARD signs can now be moved or removed too.','🏗️ Anything you take out can be put back from the Decorate bar.','⚡ Taking out or putting back a path or canal happens right away, without reloading the farm.']},
   {v:71,date:'Nov 13, 2026',title:'Plots anywhere, and a smaller start',items:['⛏️ Hoe anywhere: pick 🧰 Tools → Hoe and drag across open ground to make new crop plots (₱20 each while your farm is small), snapped neatly beside each other.','✋ In Decorate, press and hold a plot to move it (its crop comes along) or 🗑 remove it.','🌱 A new game starts small: 4 hoed plots, your house, garage, bodega, water tower and 4 fruit trees. Everything else you build yourself. Farms you already have keep everything they have.','🧱 Each open end of a canal you draw now finishes in a low concrete headwall with a pipe mouth, like the farm\'s own kanal.']},
@@ -10565,7 +10570,7 @@ var DECO=(()=>{
   let netSig=null, netIds=new Set();
   function canalNet(){const C=S.deco.filter(d=>d.k==='canal'), sig=S.goneWays.join(',')+'#'+C.map(d=>d.id+':'+d.x.toFixed(2)+','+d.z.toFixed(2)+','+(d.s||1)).join('|'); if(sig===netSig) return netIds; netSig=sig;
     const E=C.map(d=>{const e=ends(d); return [e[0],e[2]];}), on=new Set(), q=[];
-    C.forEach((d,k)=>{if(E[k].some(([x,z])=>mainNear(x,z,.6))){on.add(k); q.push(k);}});   // a canal that reaches the main canal
+    C.forEach((d,k)=>{if(E[k].some(([x,z])=>mainNear(x,z,.6)||throughFence(x,z))){on.add(k); q.push(k);}});   // a canal that reaches the main canal
     while(q.length){const a=q.pop(); C.forEach((d,b)=>{if(on.has(b)) return; if(E[b].some(p=>segD(p[0],p[1],C[a])<.7)||E[a].some(p=>segD(p[0],p[1],d)<.7)){on.add(b); q.push(b);}});}   // and every canal joined to it
     netIds=new Set([...on].map(k=>C[k].id)); return netIds;}
   // rain water runs across the field to the nearest drain: plots beside a joined canal (or the field drain) drain, and so do plots up to 5 more in from them
@@ -10751,7 +10756,9 @@ var GUIDE=(()=>{
   function show(w){why=w; on=true; snooze=0;}
   function hide(){on=false; arrow.style.display=bub.style.display=map.style.display='none'; demo=null;}
   const proj=(x,z)=>{const v=new THREE.Vector3(x,0,z).project(camera); return v.z>1?null:[(v.x+1)/2*innerWidth,(1-v.y)/2*innerHeight];};
-  function nearestMain(px,pz){let best=null, bd=1e9; for(const E of MAIN_CANALS){if(E.id&&goneWay(E.id)) continue; const [w,...P]=E; for(let k=0;k<P.length-1;k++){const [ax,az]=P[k], [bx,bz]=P[k+1], dx=bx-ax, dz=bz-az, L=dx*dx+dz*dz||1, u=Math.max(0,Math.min(1,((px-ax)*dx+(pz-az)*dz)/L)), qx=ax+dx*u, qz=az+dz*u;
+  function nearestMain(px,pz){let best=null, bd=1e9;
+    for(const [fx,fz] of FENCE){const ix=fx+(0-fx)*.04, iz=fz+(20-fz)*.04; if(!inLot(ix,iz)||!throughFence(ix,iz)) continue; const d=Math.hypot(px-ix,pz-iz); if(d<bd){bd=d; best=[ix,iz];}}   // a spot just inside the fence by the irrigation canal
+    for(const E of MAIN_CANALS){if(E.id&&goneWay(E.id)) continue; const [w,...P]=E; for(let k=0;k<P.length-1;k++){const [ax,az]=P[k], [bx,bz]=P[k+1], dx=bx-ax, dz=bz-az, L=dx*dx+dz*dz||1, u=Math.max(0,Math.min(1,((px-ax)*dx+(pz-az)*dz)/L)), qx=ax+dx*u, qz=az+dz*u;
       if(!inLot(qx,qz)) continue; const d=Math.hypot(px-qx,pz-qz)-w; if(d<bd){bd=d; best=[qx-(qx-px)/(Math.hypot(qx-px,qz-pz)||1)*w,qz-(qz-pz)/(Math.hypot(qx-px,qz-pz)||1)*w];}} } return best;}
   function pickDemo(){let sx=0, sz=0, n=0;   // along the side of the field nearest the crops that would flood, to the main canal
     for(let i=0;i<NF;i++){const t=S.tiles[i]; if((t.s!=='crop'&&t.s!=='soil')||DECO.drained(i)) continue; const p=tilePos(i); sx+=p.x; sz+=p.z; n++;}

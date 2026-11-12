@@ -236,19 +236,8 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 
 /* ---------- Landscape-only ---------- */
 #hud{padding-left:calc(env(safe-area-inset-left,0px) + 12px);padding-right:calc(env(safe-area-inset-right,0px) + 12px)}
-#rotate{position:fixed;inset:0;z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;
-  padding:24px;text-align:center;background:#a9d8ec;color:#22301d}
-#rotate .phone{width:64px;height:108px;border:6px solid #22301d;border-radius:14px;position:relative;animation:turn 2.4s ease-in-out infinite}
-#rotate .phone::after{content:'';position:absolute;left:50%;bottom:6px;width:14px;height:4px;margin-left:-7px;border-radius:2px;background:#22301d}
-#rotate h2{margin:0;font-size:24px;font-weight:900}
-#rotate p{margin:0;font-size:15px;font-weight:700;color:#4a5a43;max-width:280px;line-height:1.4}
-#rotate button{display:none;margin-top:4px;background:#22301d;color:#f6f9f0;padding:12px 20px;border-radius:14px;font-weight:800}
-#rotate.can-lock button{display:block}
-@keyframes turn{0%,20%{transform:rotate(0)}50%,80%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
-@media (prefers-reduced-motion: reduce){#rotate .phone{animation:none;transform:rotate(-90deg)}}
 /* touch devices held upright: block the game */
 @media (orientation: portrait) and (pointer: coarse){
-  #rotate{display:flex}
   #hud,#status,#bottom,#cats,#toast,#menu,#market,#hwSheet,#upSheet,#bldSheet,#drvSheet,#helpSheet,#bizSheet,#newsSheet,#achSheet,#misSheet,#billSheet,#c{visibility:hidden}
 }
 /* short landscape screens (phones): tools on the left, picker on the right, map in the middle */
@@ -715,13 +704,6 @@ body:not(#z):not(#y) #menu .sheet>.mhead h2{font-size:16px!important;line-height
 </div>
 <div id="holdRing" aria-hidden="true"></div>
 <div id="handTool" aria-hidden="true"><div class="swing"></div></div>
-
-<div id="rotate" role="alertdialog" aria-label="Rotate your device">
-  <div class="phone" aria-hidden="true"></div>
-  <h2>Turn your phone sideways</h2>
-  <p>Sunfield Farm plays in landscape only. Rotate your device to keep farming.</p>
-  <button id="lockBtn">Play in landscape</button>
-</div>
 
 <div id="menu">
   <div class="sheet">
@@ -9921,6 +9903,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:67,date:'Nov 13, 2026',title:'Smoother start',items:['📱 One "turn your phone sideways" screen only, shown first. It also comes back if you turn your phone upright while playing.','⏳ The loading screen now stays until your farm is fully built, including the paths your farmer and helpers walk, so nothing pops in after it closes.']},
   {v:66,date:'Nov 13, 2026',title:'Tidier dirt roads',items:['🛣️ Roads you draw keep straight stretches straight and turn at real corners, with only the small rounding a truck needs. They only curve where you draw a curve.','⬛ A road that ends in the open now stops square. Where it runs into another road it still blends in.']},
   {v:65,date:'Nov 13, 2026',title:'Round pens and any corner',items:['⭕ Fences follow the shape you draw: draw a circle and you get a round pen, draw a curve and the fence curves with it.','↩️ Changed your mind while drawing? Drag back over the line to rub it out, the same way you came. Go all the way back and nothing is built. Works for dirt roads too.','📐 Sharp turns become corners at any angle, not only square ones. Straight stretches stay straight and line up with the farm only when you are already close to it.']},
   {v:64,date:'Nov 12, 2026',title:'Moving animal houses is easier',items:['✋ Press and hold any animal house, anywhere: Decorate opens with the house picked up. Keep your finger down and drag it, then ✓.','🪵 Holding a house now picks up the house, even with a fence chosen or a fence right beside it.']},
@@ -10099,7 +10082,8 @@ function applyEco(){ECO=S.eco===undefined?PHONE:!!S.eco; renderer.setPixelRatio(
   const n=ECO?1024:2048; if(sun.shadow.mapSize.x!==n){sun.shadow.mapSize.set(n,n); if(sun.shadow.map){sun.shadow.map.dispose(); sun.shadow.map=null;}}
   const ty=ECO?THREE.PCFShadowMap:THREE.PCFSoftShadowMap; if(renderer.shadowMap.type!==ty){renderer.shadowMap.type=ty; scene.traverse(o=>{if(o.material) (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.needsUpdate=true);});}}
 const portraitMQ=matchMedia('(orientation: portrait) and (pointer: coarse)');
-function frame(now){
+let FRAMES=0; window.SunfieldGame={get frames(){return FRAMES;}, get navReady(){return !!(NAV&&NAV.ready);}};   // read by the loading screen
+function frame(now){FRAMES++;
   requestAnimationFrame(frame);
   if(gameHealth.graphicsLost){lastFrame=now;return;}
   if(portraitMQ.matches){lastFrame=now; return;} // game is blocked while the phone is upright
@@ -10121,7 +10105,7 @@ function frame(now){
   COOP_LIFE.update(dt,t);
   if(now-(CULL.at||0)>5000){CULL.at=now; CULL.sweep();}
   peopleLOD(now);
-  if(NAV){if(now>6000) NAV.start(); NAV.tick(); if(NAV.ready&&now-(NAV.chk||0)>10000){NAV.chk=now; const sig=S.tiles.filter(q=>q.s==='bld').length+':'+S.house+':'+S.garage+':'+JSON.stringify(S.housePos||0)+':'+shopLv(); if(NAV.sig&&NAV.sig!==sig) NAV.rebuild(); NAV.sig=sig;}}
+  if(NAV){if(now>6000||FRAMES>2) NAV.start(); NAV.tick(window.SunfieldLoading?40:8); if(NAV.ready&&now-(NAV.chk||0)>10000){NAV.chk=now; const sig=S.tiles.filter(q=>q.s==='bld').length+':'+S.house+':'+S.garage+':'+JSON.stringify(S.housePos||0)+':'+shopLv(); if(NAV.sig&&NAV.sig!==sig) NAV.rebuild(); NAV.sig=sig;}}
   updateFarmDispatch(Date.now(),dt);
   if(now-lastTick>300){lastTick=now; const d=Date.now(); updateVehicles(d); updateTravelHUD(d); for(let i=0;i<NT;i++){const s=S.tiles[i].s; if(s==='crop'||s==='bld') updateTile(i,d);}}
   popping.forEach(g=>{const k=Math.min(1,(now-g.userData.born)/380), e=easeBack(k);
@@ -10596,8 +10580,7 @@ function lockLandscape(){
   const req=docEl.requestFullscreen||docEl.webkitRequestFullscreen;
   try{Promise.resolve(req.call(docEl,{navigationUI:'hide'})).then(lock).catch(()=>{});}catch(e){}
 }
-if(canLock) $('rotate').classList.add('can-lock');
-$('lockBtn').addEventListener('click',lockLandscape);
+window.SunfieldLock=canLock?lockLandscape:null;   // the start-up screen's rotate card uses it
 canvas.addEventListener('pointerdown',lockLandscape);
 document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement) locked=false; resize();});
 if(canLock&&screen.orientation) screen.orientation.lock('landscape').then(()=>{locked=true;}).catch(()=>{}); // works when installed to the home screen
@@ -10927,7 +10910,7 @@ NAV=(()=>{
     yield* label(); yield;
     ready=true; NAV.ready=true;}
   let gen=null;
-  const tick=()=>{if(ready) return; if(!gen){if(!started) return; gen=builder();} const t0=performance.now(); while(performance.now()-t0<8){if(gen.next().done){gen=null; break;}}};
+  const tick=(ms=8)=>{if(ready) return; if(!gen){if(!started) return; gen=builder();} const t0=performance.now(); while(performance.now()-t0<ms){if(gen.next().done){gen=null; break;}}};
   // connected areas: two places in different areas have no walk between them, so the search is never tried
   const comp=new Int32Array(N);
   const label=function*(){comp.fill(0); let id=0, done=0; const q=new Int32Array(N); for(let k=0;k<N;k++){if(blk[k]||comp[k]) continue; id++; let h=0,t=0; q[t++]=k; comp[k]=id;
@@ -10965,6 +10948,6 @@ NAV=(()=>{
 
 })();
 </script>
-<script src="/startup.js"></script>
+<script src="/startup.js?v=67"></script>
 </body>
 </html>

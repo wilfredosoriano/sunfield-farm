@@ -33,6 +33,10 @@
  #sf-start .sf-rot .ph{transform-box:fill-box;transform-origin:50% 50%;animation:sfTurn 2.4s ease-in-out infinite}
  @keyframes sfTurn{0%,25%{transform:rotate(0)}55%,100%{transform:rotate(-90deg)}}
  @media (orientation:portrait) and (pointer:coarse){#sf-start .sf-main{display:none}#sf-start .sf-rot{display:block}}
+ /* while playing, the same card is the only rotate reminder: hidden in landscape, over the game when the phone is held upright */
+ #sf-start.idle{display:none;background:rgba(207,230,208,.97)}
+ @media (orientation:portrait) and (pointer:coarse){#sf-start.idle{display:grid}}
+ #sf-start .sf-rot .sf-btn{margin-top:12px}
  @media (max-height:430px){#sf-start .sf-art{max-height:74px}#sf-start .sf-card{padding:12px 16px}#sf-start h1{font-size:19px}#sf-start .sf-btn{min-height:38px;margin-top:7px}}
  @media (prefers-reduced-motion:reduce){#sf-start .tractor,#sf-start .sprout,#sf-start .sf-rot .ph{animation:none}}
  /* the account box inside Settings */
@@ -58,8 +62,13 @@
   <path d="M90 22q16 10 10 30" /><path d="M96 50l4 3 3-5"/></svg>`;
  // ---------- the screen ----------
  const overlay=el('div'); overlay.id='sf-start'; document.body.append(overlay);
- const rot=()=>{const r=el('div','sf-rot'); r.innerHTML=ROT; r.append(el('h1',null,'Turn your phone sideways'),el('p',null,'Sunfield Farm is played in landscape. Rotate your phone to continue.')); return r;};
- function screen(title,body,art=true){overlay.replaceChildren(); overlay.hidden=false; const card=el('div','sf-card'), main=el('div','sf-main');
+ // Android can be locked sideways from a full-screen page; iPhone can't, so there the card simply waits for the turn
+ const docEl=document.documentElement, canLock=!!(screen.orientation&&screen.orientation.lock)&&!!(docEl.requestFullscreen||docEl.webkitRequestFullscreen)&&matchMedia('(pointer:coarse)').matches;
+ function lockSideways(){if(window.SunfieldLock) return window.SunfieldLock(); const lock=()=>screen.orientation.lock('landscape').catch(()=>{}); if(document.fullscreenElement) return lock();
+   const req=docEl.requestFullscreen||docEl.webkitRequestFullscreen; try{Promise.resolve(req.call(docEl,{navigationUI:'hide'})).then(lock).catch(()=>{});}catch{}}
+ const rot=()=>{const r=el('div','sf-rot'); r.innerHTML=ROT; r.append(el('h1',null,'Turn your phone sideways'),el('p',null,'Sunfield Farm is played in landscape. Rotate your phone to continue.'));
+   if(canLock){const b=el('button','sf-btn main','Play in landscape'); b.onclick=lockSideways; r.append(b);} return r;};
+ function screen(title,body,art=true){overlay.replaceChildren(); overlay.hidden=false; overlay.classList.remove('idle'); const card=el('div','sf-card'), main=el('div','sf-main');
    if(art) main.insertAdjacentHTML('beforeend',ART); main.append(el('h1',null,title)); if(body) main.append(el('p',null,body)); card.append(main,rot()); overlay.append(card); return main;}
  const btn=(box,label,fn,cls='',disabled=false)=>{const b=el('button','sf-btn '+cls); if(cls.includes('google')){b.innerHTML=G; b.append(el('span',null,label));} else b.textContent=label;
    b.disabled=disabled; b.onclick=()=>{b.disabled=true; Promise.resolve().then(fn).catch(e=>failure(e.message)).finally(()=>{if(b.isConnected) b.disabled=disabled;});}; box.append(b); return b;};
@@ -114,7 +123,15 @@
    let error=null; const onError=e=>{error=e.error||Error(e.message);}; addEventListener('error',onError);
    const script=el('script'); script.textContent=document.getElementById('sunfield-game').textContent; document.body.append(script); removeEventListener('error',onError);
    if(error){const m=screen('The farm could not start','Your save is still on this device. Reload to try again.'); btn(m,'Reload',()=>location.reload(),'main'); return;}
-   loading('Planting crops and waking the animals…',100); await new Promise(r=>setTimeout(r,250)); overlay.hidden=true;
+   // keep the loading screen up until the farm is really built: drawn, and the paths your farmer and helpers walk worked out
+   window.SunfieldLoading=true; const t0=Date.now(), G=()=>window.SunfieldGame||{frames:0,navReady:false};
+   const STEPS=[[0,'Putting up the barns and fences…'],[.35,'Laying the paths for your helpers…'],[.75,'Planting crops and waking the animals…']];
+   await new Promise(done=>{const tick=()=>{const g=G(), f=Math.min(1,g.frames/12), n=g.navReady?1:Math.min(.9,(Date.now()-t0)/6000), p=Math.min(f*.3+n*.7,1);
+       loading(STEPS.filter(s=>p>=s[0]).pop()[1],75+p*25);
+       if((g.frames>=12&&g.navReady)||Date.now()-t0>15000) return done(); setTimeout(tick,120);};   // never stuck: 15 s at most
+     tick();});
+   window.SunfieldLoading=false; loading('Ready!',100); await new Promise(r=>setTimeout(r,250));
+   overlay.replaceChildren(); const card=el('div','sf-card'); card.append(rot()); overlay.append(card); overlay.classList.add('idle'); overlay.hidden=false;
    if(user&&state==='guest') setState(getMeta().dirty?'pending':'synced'); renderAcct();
    if(user&&getMeta().dirty){pending=JSON.parse(localStorage.getItem(key)||'null'); if(pending) flush();}}
  function guest(){user=null; offlineAccount=false; key=guestKey; state='guest'; return launch();}

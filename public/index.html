@@ -589,6 +589,7 @@ body:not(#z):not(#y) #menu .sheet>.mhead h2{font-size:16px!important;line-height
 #house-ctl{position:fixed;left:0;top:0;z-index:6;display:flex;gap:6px;padding:5px;background:#fbf7ec;border:1.8px solid #4a3f34;border-radius:999px;box-shadow:1.5px 2px 0 #4a3f3526}
 #house-ctl[hidden]{display:none}#house-ctl button{width:40px;height:40px;border-radius:50%;border:1.6px solid #4a3f34;font:700 17px Mali,Nunito,sans-serif;display:grid;place-items:center;color:#3b2e24;background:#f1eadb;cursor:pointer}
 #house-ctl [data-h=ok]{background:#cfe8b6;font-size:20px}#house-ctl [data-h=no]{background:#f5d9cf;color:#9a3324;font-size:20px}#house-ctl button.on{background:#ecd2b8;box-shadow:inset 0 -2px 0 #b98a66}#house-ctl.bad [data-h=ok]{opacity:.5;border-style:dashed}
+#deco-run{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 54px);transform:translateX(-50%);z-index:6;padding:4px 12px;background:#fbf7ec;border:1.6px solid #4a3f34;border-radius:999px;font:700 13px Mali,Nunito,sans-serif;color:#2e5d27;pointer-events:none}#deco-run:empty{display:none}#deco-run.bad{color:#9a3324}
 </style>
 </head>
 <body>
@@ -9884,6 +9885,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:63,date:'Nov 12, 2026',title:'Fences that join up',items:['✏️ Pick a fence (or hedge, wall or canal) and drag to draw it: a see-through fence follows your finger, green where it can go and red where it cannot. Nothing is built or paid for until you let go.','📐 Your line is straightened as you draw, with a post at every corner, so every piece touches the next. End where you started to close a pen.','🔗 A new line starts and ends on the post of a fence that is already there (a green ring shows where it joins), or meets the side of a fence in a T.','🚪 Gates are one size. Drop one on a fence: it lines up with the fence and opens its own gap, and the fence runs right up to its posts.','↶ Undo takes back a whole line in one step.']},
   {v:62,date:'Nov 12, 2026',title:'Put your animal houses anywhere',items:['🏠 Build an animal house by dropping it anywhere on open ground inside your farm fence: no more fixed lots. You can still have up to 3 of each kind, and they still upgrade.','✋ In Decorate, press and hold an animal house to pick it up. Drag it, choose S, M or L for the house and its yard (the light area is where its animals go), then ✓ to put it there or ✕ to leave it.','🚚 Trucks back up to the road nearest each house, and helpers walk straight there, round your fences and through your gates. Keep a road close by.','🧭 Houses you already have stay where they are until you move them.']},
   {v:61,date:'Nov 12, 2026',title:'Fences, gates and signs are yours',items:['🪵 The fences, gates and name boards round your animal areas are now ordinary decorations in the same places: press and hold any piece to move or remove it, or add more from Decorate.','🚪 A new Gate (Tarangkahan) in Decorate: put it on a fence line and the fence under it makes way. Its two leaves swing open when your farmer or a helper walks up, and close behind them. Fences now really keep people out, so they go round to the gate.','🧹 The concrete pads and the BAKANTE boards on empty animal spots are gone.']},
   {v:60,date:'Nov 12, 2026',title:'Cattle like ours',items:['🐄 The cows are now zebu cattle like the ones raised here: creamy white, fawn with a greyer neck and white socks, or grey-white, with the big hump over the shoulders, long drooping ears, loose skin hanging under the neck, short upturned horns, a black nose, a lean body on long legs and a dark tail tuft. The cow icons match.']},
@@ -10222,7 +10224,7 @@ var DECO=(()=>{
   const BLOCK_RECTS=()=>FARM.buildings.map(b=>[b.x,b.z,b.w/2+.4,b.d/2+.4]);
   const objBox=new THREE.Box3();
   function nearObj(o,x,z,m){if(!o) return false; objBox.setFromObject(o); return x>objBox.min.x-m&&x<objBox.max.x+m&&z>objBox.min.z-m&&z<objBox.max.z+m;}
-  function freeAt(x,z,m,self,k){
+  function freeAt(x,z,m,self,k,mid=true){
     if(!inLot(x,z)) return 'Keep it inside your farm fence.';
     if(roadDist(x,z)<m+.25) return 'Not on a road or path: vehicles and people use it.';
     if(inField(x,z,m+.15)) return 'Not on the crop field.';
@@ -10233,10 +10235,12 @@ var DECO=(()=>{
     if(k!=='canal'&&!CAT[k].over&&typeof wwNear==='function'&&wwNear(x,z,m)) return 'Not in the canal water.';
     for(const o of S.deco){if(o.id===self) continue; const c=CAT[o.k]; if(!c) continue; const sameLine=c.line&&CAT[k].line;
       if(CAT[k].over&&o.k==='canal') continue; if(c.over&&k==='canal') continue; if(CAT[k].gate&&c.line) continue;
-      const d=Math.hypot(x-o.x,z-o.z), need=sameLine?.9:(c.line?.6:c.r)+m*.85; if(d<need) return 'Something is already there.';}
+      if(sameLine){if(mid&&segD(x,z,o)<.3) return 'A fence is already there.'; continue;}
+      const d=c.line?segD(x,z,o):Math.hypot(x-o.x,z-o.z), need=c.line?.35+m*.5:c.r+m*.85; if(d<need) return 'Something is already there.';}
     return '';}
-  const ends=d=>{const c=Math.cos(d.r), s=-Math.sin(d.r); return [[d.x-c,d.z-s],[d.x,d.z],[d.x+c,d.z+s]];};
-  function okFor(d){const c=CAT[d.k]; if(c.line){for(const [x,z] of ends(d)){const e=freeAt(x,z,.25,d.id,d.k); if(e) return e;} return '';} return freeAt(d.x,d.z,c.r,d.id,d.k);}
+  const ends=d=>{const h=d.s||1, c=Math.cos(d.r)*h, s=-Math.sin(d.r)*h; return [[d.x-c,d.z-s],[d.x,d.z],[d.x+c,d.z+s]];};
+  const segD=(x,z,o)=>{const [[ax,az],,[bx,bz]]=ends(o), dx=bx-ax, dz=bz-az, u=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/(dx*dx+dz*dz||1))); return Math.hypot(ax+dx*u-x,az+dz*u-z);};
+  function okFor(d){const c=CAT[d.k]; if(c.line){const E=ends(d); for(let q=0;q<3;q++){const e=freeAt(E[q][0],E[q][1],.25,d.id,d.k,q===1); if(e) return e;} return '';} return freeAt(d.x,d.z,c.r,d.id,d.k);}
   // ---- walkers go round fences, walls, hedges, canals, trees, benches, lamps, kubos and signs
   let navPrev=new Map(), navWas=false;
   function navApply(){if(!NAV||!NAV.ready) return; for(const [k,v] of navPrev) NAV.blk[k]=v; navPrev=new Map();
@@ -10247,9 +10251,9 @@ var DECO=(()=>{
       else {const R=c.r*.75; for(let dx=-R;dx<=R;dx+=.25) for(let dz=-R;dz<=R;dz+=.25) if(dx*dx+dz*dz<=R*R) mark(d.x+dx,d.z+dz);}}
     NAV.clearCache&&NAV.clearCache();}
   // ---- drawing: every non-sign piece merged into one mesh (cheap on phones), signs and lamp bulbs on their own
-  let gates=[]; const LEAF=mergeGeo([...[.25,.6,.95].map(y=>P('box',0xa1887f,.8,y,0,1.58,.06,.05)),...[.05,1.55].map(x=>P('box',0x8d6e63,x,.6,0,.07,.85,.07)),P('box',0x8d6e63,.8,.6,0,1.7,.05,.04,0,0,.42)]);
+  const SCX=new THREE.Matrix4(); let gates=[]; const LEAF=mergeGeo([...[.25,.6,.95].map(y=>P('box',0xa1887f,.8,y,0,1.58,.06,.05)),...[.05,1.55].map(x=>P('box',0x8d6e63,x,.6,0,.07,.85,.07)),P('box',0x8d6e63,.8,.6,0,1.7,.05,.04,0,0,.42)]);
   function rebuild(){clearGroup(root); const all=[], W=new THREE.Matrix4(); gates=[];
-    for(const d of S.deco){const c=CAT[d.k]; if(!c) continue; if(active&&active.id===d.id) continue; W.makeRotationY(d.r); W.setPosition(d.x,0,d.z);
+    for(const d of S.deco){const c=CAT[d.k]; if(!c) continue; if(active&&active.id===d.id) continue; W.makeRotationY(d.r); W.setPosition(d.x,0,d.z); if(d.s&&d.s!==1) W.multiply(SCX.makeScale(d.s,1,1));
       if(c.sign){const g=signGroup(d); g.position.set(d.x,0,d.z); g.rotation.y=d.r; root.add(g); continue;}
       for(const [g,m,col] of parts(d)) all.push([g,W.clone().multiply(m),col]);
       if(d.k==='lamp'){const L=lampLight(); L.position.set(.38,2.6,0).applyMatrix4(W); root.add(L);}
@@ -10261,11 +10265,11 @@ var DECO=(()=>{
   let active=null, dragArm=false, justActivated=false, holdT=0, holdAt=null;
   const ring=new THREE.Mesh(new THREE.RingGeometry(.9,1.08,40),new THREE.MeshBasicMaterial({color:0x6fbf4a,transparent:true,opacity:.85,depthWrite:false})); ring.rotation.x=-Math.PI/2; ring.renderOrder=3;
   const ctl=document.createElement('div'); ctl.id='deco-ctl'; ctl.hidden=true;
-  ctl.innerHTML='<button data-c="ok" aria-label="Put it here">✓</button><button data-c="rot" aria-label="Turn it">↻</button><button data-c="del" aria-label="Remove it">✕</button>'; document.body.append(ctl);
+  ctl.innerHTML='<button data-c="ok" aria-label="Put it here">✓</button><button data-c="rot" aria-label="Turn it">↻</button><button data-c="del" aria-label="Remove it">✕</button>'; document.body.append(ctl); const runL=document.createElement('div'); runL.id='deco-run'; document.body.append(runL);
   const tmp=()=>{const d=S.deco.find(o=>o.id===active.id); return d&&{...d,x:active.x,z:active.z,r:active.r};};
   function drawActive(){const t=tmp(); if(!t) return; const c=CAT[t.k], W=new THREE.Matrix4(); let g;
     if(c.sign){g=signGroup(t);} else {g=vcGroup(parts(t)); if(t.k==='lamp'){const L=lampLight(); L.position.set(.38,2.6,0); g.add(L);}}
-    g.position.set(t.x,.12,t.z); g.rotation.y=t.r; g.userData.active=true; root.add(g); active.g=g;
+    g.position.set(t.x,.12,t.z); g.rotation.y=t.r; if(t.s&&!c.sign) g.scale.x=t.s; g.userData.active=true; root.add(g); active.g=g;
     const R=c.line?1.25:c.sign?Math.max(.9,signW(t.t||'')/2+.2):Math.max(.6,c.r+.25); ring.scale.setScalar(R); ring.position.set(t.x,.06,t.z); root.add(ring); check();}
   function check(){const e=okFor(tmp()); active.err=e; ring.material.color.setHex(e?0xe0735a:0x6fbf4a); ctl.classList.toggle('bad',!!e); ctl.querySelector('[data-c=ok]').title=e||'Put it here';}
   function place(){if(active.g){active.g.position.set(active.x,.12,active.z); active.g.rotation.y=active.r;} ring.position.set(active.x,.06,active.z); check();}
@@ -10373,34 +10377,81 @@ var DECO=(()=>{
     const hit=atPoint(gx,gz); if(hit&&!sel){openEdit(hit.id); return true;}
     if(!sel){if(hit) openEdit(hit.id); else toast('Pick a decoration from the bar first, or tap one you placed to change it.',2600); return true;}
     if(CAT[sel].roadTool){toast(sel==='road'?'Drag across your land to draw a dirt road.':'Drag across a road to remove that part of it.',2200); return true;}
-    const res=add(sel,snap(gx),snap(gz),rot); if(res==='coins') return true; if(typeof res==='string'){toast('Can\'t put it there. '+res,2600); return true;}
-    if(CAT[sel].gate){const c=Math.cos(res.r), sn=-Math.sin(res.r); S.deco=S.deco.filter(o=>{if(o===res||!CAT[o.k]||!CAT[o.k].line||o.k==='canal') return true; const dx=o.x-res.x, dz=o.z-res.z, along=dx*c+dz*sn, across=-dx*sn+dz*c; return !(Math.abs(along)<2.4&&Math.abs(across)<.9);});}   // the fence under a new gate makes way for it
+    let px=snap(gx), pz=snap(gz), pr=rot;
+    if(CAT[sel].gate){const f=nearFence(gx,gz,1.6); if(f){const [[ax,az],,[bx,bz]]=ends(f), dx=bx-ax, dz=bz-az, u=((gx-ax)*dx+(gz-az)*dz)/(dx*dx+dz*dz||1); px=ax+dx*u; pz=az+dz*u; pr=f.r;
+        const c=Math.cos(pr), sn=-Math.sin(pr); let best=0, bd=.6; for(const q of postsFor('fence')) for(const sd of [-1,1]){const al=(q[0]-px)*c+(q[1]-pz)*sn, ac=-(q[0]-px)*sn+(q[1]-pz)*c; if(Math.abs(ac)>.2) continue; const sh=al-sd*GATE_H; if(Math.abs(sh)<bd){bd=Math.abs(sh); best=sh;}}
+        px+=c*best; pz+=sn*best;}}   // and slides a little so a post lands on a fence post   // a gate sits in the fence you drop it on
+    const res=add(sel,px,pz,pr); if(res==='coins') return true; if(typeof res==='string'){toast('Can\'t put it there. '+res,2600); return true;}
+    if(CAT[sel].gate) cutForGate(res);
     rebuild(); changed(); sfx('hammer',res.x,res.z); if(CAT[sel].sign) openEdit(res.id); return true;}
-  // a line: start where the finger went down, lay a 2 m piece each time the drag has gone 2 m, turned to the nearest 45°
+  // ---- fences join up: a run starts and ends on a post of a fence (or gate) that is already there
+  const FENCY=k=>k!=='canal'&&CAT[k]&&CAT[k].line&&CAT[k].block;
+  const GATE_H=1.78;   // the gate posts stand 1.78 m either side of its middle; one size only
+  const nearFence=(x,z,m)=>{let best=null, bd=m; for(const o of S.deco){if(!FENCY(o.k)) continue; const d=segD(x,z,o); if(d<bd){bd=d; best=o;}} return best;};
+  function postsFor(k){const P=[]; for(const o of S.deco){const c=CAT[o.k]; if(!c) continue;
+      if(c.gate&&k!=='canal'){const cs=Math.cos(o.r)*GATE_H, sn=-Math.sin(o.r)*GATE_H; P.push([o.x-cs,o.z-sn],[o.x+cs,o.z+sn]);}
+      else if(c.line&&(k==='canal')===(o.k==='canal')){const E=ends(o); P.push(E[0],E[2]);}}
+    return P;}
+  function snapEndPt(p,k,P){let best=null, bd=1.4; for(const q of P){const d=Math.hypot(q[0]-p[0],q[1]-p[1]); if(d<bd){bd=d; best=q;}} if(best) return {p:best.slice(),snapped:true};
+    let bo=null, bo_d=.8; for(const o of S.deco){if(!(k==='canal'?o.k==='canal':FENCY(o.k))) continue; const d=segD(p[0],p[1],o); if(d<bo_d){bo_d=d; bo=o;}}   // a T-joint onto the side of a fence
+    if(bo){const [[ax,az],,[bx,bz]]=ends(bo), dx=bx-ax, dz=bz-az, u=Math.max(0,Math.min(1,((p[0]-ax)*dx+(p[1]-az)*dz)/(dx*dx+dz*dz||1))); return {p:[ax+dx*u,az+dz*u],snapped:true};}
+    return {p:[snap(p[0]),snap(p[1])],snapped:false};}
+  const angQ=a=>{const q4=Math.round(a/(Math.PI/4))*(Math.PI/4); return Math.abs(a-q4)<.21?q4:Math.round(a/(Math.PI/12))*(Math.PI/12);};   // straight and 45° first, otherwise 15° steps
+  function rdp(P,eps){if(P.length<3) return P.slice(); const [ax,az]=P[0], [bx,bz]=P[P.length-1], dx=bx-ax, dz=bz-az, L=Math.hypot(dx,dz)||1; let mi=0, md=0;
+    for(let i=1;i<P.length-1;i++){const d=Math.abs((P[i][0]-ax)*dz-(P[i][1]-az)*dx)/L; if(d>md){md=d; mi=i;}}
+    if(md<=eps) return [P[0],P[P.length-1]]; return rdp(P.slice(0,mi+1),eps).slice(0,-1).concat(rdp(P.slice(mi),eps));}
+  // the drawn path → straight runs (turned to the nearest 15° when close to it), posts at every corner, each run split into equal pieces of at most 2 m
+  function planFence(raw,k){if(raw.length<2) return null; const P=postsFor(k); let pts=rdp(raw,.7).map(q=>q.slice());
+    if(Math.hypot(pts[pts.length-1][0]-pts[0][0],pts[pts.length-1][1]-pts[0][1])<.6&&pts.length<3) return null;
+    const A=snapEndPt(pts[0],k,P); pts[0]=A.p; const lastR=pts[pts.length-1], close=pts.length>=4&&Math.hypot(lastR[0]-pts[0][0],lastR[1]-pts[0][1])<1.4, B=close?{p:pts[0].slice(),snapped:true}:snapEndPt(lastR,k,P);   // ending back at the start closes the pen
+    for(let i=1;i<pts.length-1;i++){const [px,pz]=pts[i-1], dx=pts[i][0]-px, dz=pts[i][1]-pz, L=Math.hypot(dx,dz), a=Math.atan2(dz,dx), q=angQ(a); pts[i]=[px+Math.cos(q)*L,pz+Math.sin(q)*L];}
+    if(!B.snapped&&pts.length>=2){const [px,pz]=pts[pts.length-2], e=pts[pts.length-1], dx=e[0]-px, dz=e[1]-pz, L=Math.hypot(dx,dz), a=Math.atan2(dz,dx), q=angQ(a); pts[pts.length-1]=[px+Math.cos(q)*L,pz+Math.sin(q)*L];} else pts[pts.length-1]=B.p;
+    if(close&&pts.length>=4){const n=pts.length, [sx,sz]=pts[0], v=pts[n-2], a=Math.atan2(v[1]-sz,v[0]-sx), q=angQ(a), L=Math.hypot(v[0]-sx,v[1]-sz), w=[sx+Math.cos(q)*L,sz+Math.sin(q)*L]; if(Math.hypot(w[0]-v[0],w[1]-v[1])<1.2) pts[n-2]=w;}   // and squares its last side
+    const out=[]; let bad='';
+    for(let i=1;i<pts.length;i++){const [ax,az]=pts[i-1], [bx,bz]=pts[i], dx=bx-ax, dz=bz-az, L=Math.hypot(dx,dz); if(L<.5) continue; const n=Math.max(1,Math.ceil(L/2-.02)), r=Math.atan2(-dz,dx);
+      for(let j=0;j<n;j++){const f=(j+.5)/n, d={id:-1,k,x:ax+dx*f,z:az+dz*f,r,s:L/n/2}; const e=okFor(d); if(e&&!bad) bad=e; d.bad=!!e; out.push(d);}}
+    return out.length?{pieces:out,bad,cost:out.length*CAT[k].cost,ends:[A.snapped,B.snapped],pts,closed:close}:null;}
+  const ghostOK=new THREE.MeshBasicMaterial({color:0x6fbf4a,transparent:true,opacity:.55,depthWrite:false}), ghostBad=new THREE.MeshBasicMaterial({color:0xe0735a,transparent:true,opacity:.6,depthWrite:false});
+  let lineGhost=null;
+  function drawGhost(plan){if(lineGhost){scene.remove(lineGhost); lineGhost.traverse(o=>o.geometry&&o.geometry.dispose()); lineGhost=null;} if(!plan) return;
+    const W=new THREE.Matrix4(), list=[[],[]]; for(const d of plan.pieces){W.makeRotationY(d.r); W.setPosition(d.x,.04,d.z); W.multiply(SCX.makeScale(d.s,1,1)); for(const [g,m,col] of parts(d)) list[d.bad?1:0].push([g,W.clone().multiply(m),col]);}
+    lineGhost=new THREE.Group(); lineGhost.renderOrder=3;
+    list.forEach((L,b)=>{if(!L.length) return; const v=vcGroup(L); v.traverse(o=>{if(o.isMesh){o.material=b?ghostBad:ghostOK; o.castShadow=false; o.renderOrder=3;}}); lineGhost.add(v);});
+    const dot=new THREE.RingGeometry(.28,.42,20); for(const q of [0,plan.pts.length-1]) if(plan.ends[q?1:0]){const m=new THREE.Mesh(dot,new THREE.MeshBasicMaterial({color:0x2e7d32,depthWrite:false})); m.rotation.x=-Math.PI/2; m.position.set(plan.pts[q][0],.08,plan.pts[q][1]); lineGhost.add(m);}   // a ring where the run joins a fence
+    scene.add(lineGhost);}
+  // a new gate in a fence: the pieces it stands on are cut back so the fence runs right up to its posts
+  function cutForGate(g){const c=Math.cos(g.r), sn=-Math.sin(g.r), keep=[], add2=[];
+    for(const o of S.deco){if(o===g||!FENCY(o.k)){keep.push(o); continue;} const E=ends(o), al=E.map(([x,z])=>(x-g.x)*c+(z-g.z)*sn), ac=E.map(([x,z])=>-(x-g.x)*sn+(z-g.z)*c);
+      if(Math.max(Math.abs(ac[0]),Math.abs(ac[2]))>.7||Math.max(al[0],al[2])<=-GATE_H+.05||Math.min(al[0],al[2])>=GATE_H-.05){keep.push(o); continue;}
+      const lo=Math.min(al[0],al[2]), hi=Math.max(al[0],al[2]), acr=(ac[0]+ac[2])/2;
+      for(const [a,b] of [[lo,-GATE_H],[GATE_H,hi]]){if(b-a<.3) continue; const m=(a+b)/2; add2.push({id:S.decoN++,k:o.k,x:g.x+c*m-sn*acr,z:g.z+sn*m+c*acr,r:g.r,s:(b-a)/2});}}
+    S.deco=keep.concat(add2);}
+  // a line: drag to draw it; a see-through fence follows your finger and nothing is built until you let go
   let line=null;
   const lineOn=()=>openCat==='decor'&&(dragArm||areaArm||houseArm||(!!sel&&!!CAT[sel].line&&!moving&&!active&&!area&&!house));
   let roadT=0;
   function lineStart(x,y){if(dragArm||areaArm||houseArm) return; const g=ground(x,y); if(!g) return;
-    if(sel&&CAT[sel].roadTool){if(FARMNET.vehiclesOut()){line=null; toast('Wait until your vehicles are back in the garage before changing roads.',2800); return;} line={road:sel,raw:[[g[0],g[1]]],rec:shot(),n:0,bad:''}; return;} line={p:[snap(g[0]),snap(g[1])],n:0,bad:'',rec:shot()};}
+    if(sel&&CAT[sel].roadTool){if(FARMNET.vehiclesOut()){line=null; toast('Wait until your vehicles are back in the garage before changing roads.',2800); return;} line={road:sel,raw:[[g[0],g[1]]],rec:shot(),n:0,bad:''}; return;} line={raw:[[g[0],g[1]]],rec:shot(),plan:null,t:0};}
   function lineTo(x,y){if(houseArm&&house){const g=ground(x,y); if(!g) return; const nx=Math.round((g[0]+house.off[0])*2)/2, nz=Math.round((g[1]+house.off[1])*2)/2; if(nx!==house.x||nz!==house.z){house.x=nx; house.z=nz; house.v.g.position.set(nx,0,nz); hCheck();} return;}
     if(areaArm&&area){const g=ground(x,y); if(!g) return; const nx=Math.round(g[0]+area.off[0]), nz=Math.round(g[1]+area.off[1]); if(nx!==area.dx||nz!==area.dz){area.dx=nx; area.dz=nz; area.v.g.position.set(nx,0,nz); areaCheck();} return;}
     if(line&&line.road){const g=ground(x,y); if(!g) return; const l=line.raw[line.raw.length-1]; if(Math.hypot(g[0]-l[0],g[1]-l[1])>=.8) line.raw.push([g[0],g[1]]);
       const now=performance.now(); if(now-roadT>110){roadT=now; const bad=line.road==='road'?FARMNET.check(line.raw,4):''; line.bad=bad; FARMNET.draw({pts:line.raw,bad:line.road==='eraser'||!!bad});} return;}
-    if(dragArm&&active){const g=ground(x,y); if(!g) return; active.x=snap(g[0]+active.off[0]); active.z=snap(g[1]+active.off[1]); place(); return;} if(!line) return; const g=ground(x,y); if(!g) return; let changedAny=false;
-    for(let guard=0;guard<20;guard++){const dx=g[0]-line.p[0], dz=g[1]-line.p[1], L=Math.hypot(dx,dz); if(L<2) break;
-      const a=Math.round(Math.atan2(dz,dx)/(Math.PI/4))*(Math.PI/4), ux=Math.cos(a), uz=Math.sin(a), step=2;
-      const cx=line.p[0]+ux*step/2, cz=line.p[1]+uz*step/2, r=Math.atan2(-uz,ux);
-      if(Math.abs(Math.cos(a))>.1&&Math.abs(Math.sin(a))>.1){/* diagonal pieces span 2 m along the diagonal */}
-      const res=add(sel,cx,cz,r); if(res&&typeof res==='object'){line.n++; changedAny=true;} else if(res==='coins'){line.p=[g[0],g[1]]; break;} else line.bad=res;
-      line.p=[line.p[0]+ux*step,line.p[1]+uz*step];}
-    if(changedAny) rebuild();}
+    if(dragArm&&active){const g=ground(x,y); if(!g) return; active.x=snap(g[0]+active.off[0]); active.z=snap(g[1]+active.off[1]); place(); return;} if(!line) return; const g=ground(x,y); if(!g) return;
+    const l=line.raw[line.raw.length-1]; if(Math.hypot(g[0]-l[0],g[1]-l[1])>=.35) line.raw.push([g[0],g[1]]); else return;
+    const now=performance.now(); if(now-line.t>80){line.t=now; line.plan=planFence(line.raw,sel); drawGhost(line.plan); if(line.plan) hintCost(line.plan);}}
+  function hintCost(p){const h=document.getElementById('deco-run'); const txt=`${p.pieces.length} piece${p.pieces.length>1?'s':''} · ₱${p.cost}${p.bad?' · '+p.bad:''}`; if(h){h.textContent=txt; h.classList.toggle('bad',!!p.bad);}}
   function lineEnd(){if(houseArm){houseArm=false; return;} if(areaArm){areaArm=false; return;} if(dragArm){dragArm=false; return;} if(!line) return;
     if(line.road){const L=line; line=null;
       if(L.road==='eraser'){const n=FARMNET.erase(L.raw); FARMNET.build(); FARMNET.draw(); if(n){L.rec.roadLabel='Removing road'; finish(L.rec); changed(); toast('Road removed. Trucks only use the roads that are left.',2600); connCheck();} else toast('Drag across a road to remove that part of it.',2400); return;}
       const res=FARMNET.addRoad(L.raw,4); if(res.err){FARMNET.draw(); toast('Can\'t build that road. '+res.err,3000); return;}
       if(S.coins<res.cost){FARMNET.draw(); toast(`That road costs ₱${res.cost}.`,2400); return;}
       S.coins-=res.cost; S.farmRoads.push(res.road); FARMNET.build(); FARMNET.draw(); L.rec.roadLabel='Building road'; finish(L.rec); changed(); sfx('hammer',cam.target.x,cam.target.z);
-      toast(`🛣️ Dirt road built: ${Math.round(res.len)} m (₱${res.cost}).`,2400); connCheck(); return;} const n=line.n, bad=line.bad, rec=line.rec; line=null; finish(rec); if(n){changed(); toast(`${CAT[sel].name}: ${n} piece${n>1?'s':''} (₱${n*CAT[sel].cost}).`);} else if(bad) toast('Can\'t build there. '+bad,2600); else toast('Drag a little further: each piece is 2 m.');}
+      toast(`🛣️ Dirt road built: ${Math.round(res.len)} m (₱${res.cost}).`,2400); connCheck(); return;} const L=line; line=null; const plan=planFence(L.raw,sel); drawGhost(null); const h=document.getElementById('deco-run'); if(h) h.textContent='';
+    if(!plan) return toast('Drag a little further to draw a line.');
+    if(plan.bad) return toast('Can\'t build all of it there. '+plan.bad+' (the red part).',3000);
+    if(S.coins<plan.cost) return toast(`That line costs ₱${plan.cost}. You have ₱${Math.floor(S.coins)}.`,2600);
+    S.coins-=plan.cost; for(const d of plan.pieces){delete d.bad; d.id=S.decoN++; S.deco.push(d);} rebuild(); finish(L.rec); changed(); sfx('hammer',plan.pieces[0].x,plan.pieces[0].z);
+    const j=plan.ends.filter(Boolean).length; toast(`${CAT[sel].name}: ${plan.pieces.length} piece${plan.pieces.length>1?'s':''} (₱${plan.cost})${plan.closed?', pen closed':j?`, joined at ${j===2?'both ends':'one end'}`:''}.`,2400);}
   // ---- the bar under the Decorate button
   function bar(){if(active||area||house) return ''; return `<button class="tool" data-deco-undo="1" ${hist.length?'':'disabled'} aria-label="Undo the last change"><span class="ti">↶</span><span class="tl">Undo</span><span class="tc">${hist.length?hist.length+(hist.length>1?' steps':' step'):'nothing yet'}</span></button>`+ORDER.map(k=>{const c=CAT[k], on=sel===k; return `<button class="tool ${on?'on':''}" data-deco="${k}" aria-pressed="${on}"><span class="ti svg" aria-hidden="true">${c.svgFull}</span><span class="tl">${c.name}</span><span class="tc">${c.roadTool?(c.cost?'₱'+c.cost+' / m':'free'):'₱'+c.cost}</span></button>`;}).join('')
     +`<button class="tool" data-deco-rot="1" aria-label="Turn the next piece"><span class="ti">↻</span><span class="tl">Turn</span><span class="tc">${Math.round(rot*180/Math.PI)%360}°</span></button>`;}

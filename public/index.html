@@ -1072,6 +1072,7 @@ if(!Array.isArray(S.wild)) S.wild=[];
 // animal houses stand wherever the player puts them: S.animalPos[k] = {x,z} for slot k (one fixed lot size); unmoved houses keep their old spot
 if(!Array.isArray(S.goneWays)) S.goneWays=[]; const goneWay=id=>S.goneWays.includes(id), WAYMESH={}, wayMesh=(id,o)=>{(WAYMESH[id]||(WAYMESH[id]=[])).push(o); o.visible=!goneWay(id); return o;};   // built-in footpaths and canals the player took out; their meshes are kept, just hidden   // built-in footpaths and canals the player took out
 if(!S.fix||typeof S.fix!=='object') S.fix={};   // farm buildings the player moved ({dx,dz}) or took down ({gone:1}); applied as the farm is built
+const FIXGROUP={};   // the group of each movable built-in piece, kept even when taken down (hidden), so moves and removals happen live
 const FIXOFF=k=>S.fix[k]&&!S.fix[k].gone?{dx:+S.fix[k].dx||0,dz:+S.fix[k].dz||0}:{dx:0,dz:0}, FIXGONE=k=>!!(S.fix[k]&&S.fix[k].gone);
 {const o=FIXOFF('bodega'), b=FARM.buildings.find(q=>q.id==='bodega'), t=FARM.turning.find(q=>q.name==='bodega yard'); b.x+=o.dx; b.z+=o.dz; t.x+=o.dx; t.z+=o.dz;}
 {const o=FIXOFF('util'), b=FARM.buildings.find(q=>q.id==='utility'); b.x+=o.dx; b.z+=o.dz;}
@@ -4500,7 +4501,7 @@ function boardSign(lines,bg,fg,x,z,ry,w=3.2,h=1,y=1.6,post=0x6d4c41,two=true){
   b.push(P('box',0x958262,x0+1.6,.032,(z0+z1)/2,1.5,.02,z1-z0-1));                                      // picking path
   for(const x of [26.3,29.3,32.2]) b.push(P('box',0x8f8c60,x,.028,(z0+z1)/2,.72,.012,z1-z0-1.4));          // trodden paths between the rows of trees
   for(const z of [16.25,23.25]) b.push(P('box',0x8f8c60,(x0+1.6+33)/2,.03,z,33-x0-1.6,.012,.8));            // cross paths past the kubol, so it is reached from every row
-  const KX=25.6, KZ=19, KB={g:new THREE.Group(),b:[]}; {const o=FIXOFF('kubo'); KB.g.position.set(o.dx,0,o.dz); KB.g.name='fix:kubo'; if(!FIXGONE('kubo')) scene.add(KB.g);}   // the kubol can be moved or taken down
+  const KX=25.6, KZ=19, KB={g:new THREE.Group(),b:[]}; {const o=FIXOFF('kubo'); KB.g.position.set(o.dx,0,o.dz); KB.g.name='fix:kubo'; scene.add(KB.g); KB.g.visible=!FIXGONE('kubo'); FIXGROUP.kubo=KB.g;}   // the kubol can be moved or taken down
   // kubol: bamboo posts, nipa roof, a sorting table with crates of mangga and kalamansi
   const kx=KX, kz=KZ; for(const dx of [-1.3,1.3]) for(const dz of [-1,1]) KB.b.push(P('cyl',0xc9a96a,kx+dx,1.1,kz+dz,.12,2.2,.12));
   KB.b.push(P('pyr',0xb8945a,kx,2.65,kz,3.6,1.1,2.9)); KB.b.push(P('box',0xa98a52,kx,.78,kz,2.2,.08,1.2)); for(const dx of [-.95,.95]) KB.b.push(P('box',0x8d6e4b,kx+dx,.39,kz,.08,.78,1.1));
@@ -8485,7 +8486,7 @@ let wwLast=performance.now(), wwRain=0, wwSnd=0;
 (()=>{
   const g=new THREE.Group();g.name='Player farm improvements';scene.add(g);
   const b=[],B=(x,y,z,w,h,d,c,rx=0,ry=0,rz=0)=>b.push(P('box',c,x,y,z,w,h,d,rx,ry,rz));
-  const part=k=>{const pg=new THREE.Group(), pb=[], o=FIXOFF(k); pg.position.set(o.dx,0,o.dz); pg.name='fix:'+k; if(!FIXGONE(k)) scene.add(pg); return {g:pg,b:pb,B:(x,y,z,w,h,d,c,rx=0,ry=0,rz=0)=>pb.push(P('box',c,x,y,z,w,h,d,rx,ry,rz))};};   // a piece the player can move or take down
+  const part=k=>{const pg=new THREE.Group(), pb=[], o=FIXOFF(k); pg.position.set(o.dx,0,o.dz); pg.name='fix:'+k; scene.add(pg); pg.visible=!FIXGONE(k); FIXGROUP[k]=pg; return {g:pg,b:pb,B:(x,y,z,w,h,d,c,rx=0,ry=0,rz=0)=>pb.push(P('box',c,x,y,z,w,h,d,rx,ry,rz))};};   // a piece the player can move or take down
   const GH=part('greenhouse'), PK=part('packing'), RK=part('rack'), SH=[part('shrubA'),part('shrubB')], SG={PASTURE:part('signPasture'),POULTRY:part('signPoultry'),ORCHARD:part('signOrchard')};
   const stone=0x928866,wood=0x98754e,steel=0x637b64;   // a muted packed-earth and gravel tone, not bright cream
   // Follow the existing footpaths and keep all crop plot IDs and vehicle tracks intact: a packed-earth tread with a darker worn line down the middle.
@@ -9949,6 +9950,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:76,date:'Nov 13, 2026',title:'No more reloads for small changes',items:['⚡ Moving or taking down the greenhouse, packing shelter, tool rack, kubol, shrub planters and signs now happens right away, without the loading screen. Only moving the bodega or the water tower still rebuilds the farm.']},
   {v:75,date:'Nov 13, 2026',title:'Easier decorating',items:['👀 Gates, signs, benches, lamps and every other single item now show a preview first: green where it can go, red (with the reason) where it can\'t. Drag it or tap elsewhere to move it, ↻ to turn it, ✓ to place it (you pay only then), ✕ to cancel.','▾ The row of buttons above the menu can be hidden while you edit, so you see more of your farm. Tap ▴ Show buttons to bring it back.','🧹 The Put back and Turn buttons are gone from the Decorate row (turn a piece with ↻ beside ✓ and ✕).']},
   {v:74,date:'Nov 13, 2026',title:'The irrigation canal stops at your fence',items:['✂️ The irrigation canal along the south of the farm no longer runs into your farm: it now stops at the fence.','🔗 Your canals can join it anywhere along the fence: end your canal close to the fence where the irrigation canal runs just outside, and it drains through a pipe under the fence.']},
   {v:73,date:'Nov 13, 2026',title:'Clean canal corners',items:['📐 Canals joined end to end are now drawn as one channel: the floor, water and walls turn every corner cleanly, with no gaps or walls across the water.','🔗 Continuing a canal from its end is easier: start your next stroke near the end and it snaps on from up to 2 m away. Draw an L in one stroke, or in two.']},
@@ -10558,18 +10560,21 @@ var DECO=(()=>{
   function pickPlot(i,g){fctl.querySelector('[data-f=ok]').hidden=false; if(claimedBy(i)) return toast('Your farmer is working on that plot. Try again in a moment.',2400); if(active) cancelActive(); sel=null; const p=tilePos(i); fixd={kind:'plot',i,x:p.x,z:p.z,off:[p.x-g[0],p.z-g[1]]}; fixArm=true; justActivated=true; buzz(); fGhost(); fctl.querySelector('[data-f=del]').hidden=false; renderHUD();}
   function pickTree(i,g){fctl.querySelector('[data-f=ok]').hidden=false; if(active) cancelActive(); sel=null; const [x,z]=ORCHARD.spots[i]; fixd={kind:'tree',i,x,z,off:[x-g[0],z-g[1]]}; fixArm=true; justActivated=true; buzz(); fGhost(); fctl.querySelector('[data-f=del]').hidden=false; renderHUD();}
   function dropFix(){if(!fixd) return; if(fixd.v) scene.remove(fixd.v.g); fixd=null; fixArm=false; fctl.hidden=true; fctl.querySelector('[data-f=ok]').hidden=false; renderHUD();}
+  function fixLive(){if(NAV&&NAV.ready) NAV.rebuild(); for(const key in ROUTES) delete ROUTES[key]; changed(); renderHUD();}   // walkers find their way round the piece where it now stands
   function reloadFarm(msg){toast(msg,6000); save(); setTimeout(()=>{if(window.SunfieldCloud&&window.SunfieldCloud.reload) window.SunfieldCloud.reload(); else location.reload();},400);}   // the farm is rebuilt round the building
   function okFixd(){const f=fixd; if(!f) return; if(f.err) return toast('Can\'t put it there. '+f.err,2800);
     if(f.kind==='plot'){const {i,x,z}=f; dropFix(); S.plotPos[i]=[x,z]; plotIndexRebuild(); refreshTile(i,false); changed(); sfx('tap',x,z); toast(S.tiles[i].s==='crop'?'🌾 Plot moved, crop and all.':'Plot moved.'); return;}
     if(f.kind==='tree'){const {i,x,z}=f; dropFix(); ORCHARD.setSpot(i,x,z); if(NAV&&NAV.ready) NAV.rebuild(); changed(); sfx('tap',x,z); toast(S.orchard[i]?'🌳 Tree moved.':'🌱 Tree plot moved.'); return;}
     const dx=f.x-f.f.cx, dz=f.z-f.f.cz, o=FIXOFF(f.f.k); if(Math.abs(dx-o.dx)<.01&&Math.abs(dz-o.dz)<.01){dropFix(); return;}
-    S.fix[f.f.k]={dx,dz}; dropFix(); reloadFarm(`🏗️ Moving the ${f.f.name}… the farm is rebuilt around it.${f.f.k==='bodega'?' Make sure a road reaches its new door.':''}`);}
+    S.fix[f.f.k]={dx,dz}; dropFix();
+    if(!f.f.keep&&FIXGROUP[f.f.k]){FIXGROUP[f.f.k].position.set(dx,0,dz); fixLive(); sfx('hammer',f.x,f.z); toast(`🏗️ ${f.f.name[0].toUpperCase()+f.f.name.slice(1)} moved.`); return;}   // small pieces move at once
+    reloadFarm(`🏗️ Moving the ${f.f.name}… the farm is rebuilt around it.${f.f.k==='bodega'?' Make sure a road reaches its new door.':''}`);}
   function delFixd(){const f=fixd; if(!f) return;
     if(f.kind==='way'){if(!f.delArm){f.delArm=true; return toast(`Tap 🗑 again to take out the ${f.W.name}. You can put it back from Decorate.`,2800);} S.goneWays.push(f.W.id); dropFix(); applyWays(); sfx('tap',f.x,f.z); toast(`🧹 The ${f.W.name} is gone. Put it back any time from the Decorate bar.`,2800); return;}
     if(f.kind==='plot'){if(S.tiles[f.i].s==='crop'&&!f.delArm){f.delArm=true; return toast('Tap 🗑 again to remove this plot. Its crop is lost.',2600);} const i=f.i; dropFix(); S.tiles[i]={s:'locked'}; delete S.plotPos[i]; plotIndexRebuild(); refreshTile(i,false); changed(); toast('Plot removed. Hoe a new one anywhere with 🧰 Tools → Hoe.',3000); return;}
     if(f.kind==='tree'){if(S.orchard[f.i]&&!f.delArm){f.delArm=true; return toast('Tap 🗑 again to cut down this tree. Its fruit is lost.',2600);} const i=f.i; dropFix(); ORCHARD.setGone(i,true); if(NAV&&NAV.ready) NAV.rebuild(); changed(); toast('🪓 Tree plot removed. Put one back any time from Decorate → Tree plot.',3000); return;}
     if(f.f.keep) return; if(!f.delArm){f.delArm=true; return toast(`Tap 🗑 again to take down the ${f.f.name}. You can put it back from Decorate.`,2800);}
-    S.fix[f.f.k]={gone:1}; dropFix(); reloadFarm(`🧹 Taking down the ${f.f.name}…`);}
+    S.fix[f.f.k]={gone:1}; dropFix(); if(FIXGROUP[f.f.k]){FIXGROUP[f.f.k].visible=false; fixLive(); toast(`🧹 The ${f.f.name} is gone.`); return;} reloadFarm(`🧹 Taking down the ${f.f.name}…`);}
   fctl.addEventListener('pointerdown',e=>e.stopPropagation()); fctl.addEventListener('click',e=>{const b=e.target.closest('[data-f]'); if(!b||!fixd) return; e.stopPropagation(); const a=b.dataset.f;
     if(a==='ok') okFixd(); else if(a==='del') delFixd(); else dropFix();});
   canvas.addEventListener('pointerdown',e=>{if(openCat!=='decor'||e.button||!fixd||fixd.kind==='way') return; const g=ground(e.clientX,e.clientY); if(!g) return; const R=fR();
@@ -10591,7 +10596,7 @@ var DECO=(()=>{
     if(k==='tree'){const i=ORCHARD.spots.findIndex((_,j)=>S.orchardGone[j]); if(i<0) return renderHUD(); const x=snap(gx), z=snap(gz), e=okTree(i,x,z); if(e){putBack=k; return toast('Can\'t put it there. '+e,2600);}
       ORCHARD.setGone(i,false); ORCHARD.setSpot(i,x,z); if(NAV&&NAV.ready) NAV.rebuild(); changed(); sfx('tap',x,z); toast('🌱 Tree plot ready. Tap it to plant a fruit tree.'); renderHUD(); return;}
     const f=FIXED.find(q=>q.k===k); if(!f) return renderHUD(); const dx=snap(gx)-f.cx, dz=snap(gz)-f.cz, e=okFix(f,dx,dz); if(e){putBack=k; return toast('Can\'t put it there. '+e,2600);}
-    S.fix[k]={dx,dz}; reloadFarm(`🏗️ Putting back the ${f.name}…`);}
+    S.fix[k]={dx,dz}; if(FIXGROUP[k]){FIXGROUP[k].position.set(dx,0,dz); FIXGROUP[k].visible=true; fixLive(); toast(`🏗️ The ${f.name} is back.`); return;} reloadFarm(`🏗️ Putting back the ${f.name}…`);}
   // ---- input
   const ray2=new THREE.Raycaster(), nd=new THREE.Vector2(), gp=new THREE.Plane(new THREE.Vector3(0,1,0),0), hv=new THREE.Vector3();
   function ground(x,y){nd.set(x/innerWidth*2-1,-(y/innerHeight)*2+1); ray2.setFromCamera(nd,camera); return ray2.ray.intersectPlane(gp,hv)?[hv.x,hv.z]:null;}
@@ -10722,7 +10727,7 @@ var DECO=(()=>{
     ;}
   function hint(){if(active&&active.pending){const c=CAT[S.deco.find(o=>o.id===active.id)?.k]||{}; return `Drag it into place (green: OK, red: not there). ✓ places it for ₱${c.cost}, ↻ turns it, ✕ cancels. Tap elsewhere to move it.`;}
     if(fixd&&fixd.kind==='way') return `The ${fixd.W.name}: 🗑 takes it out, ✕ keeps it.`;
-    if(fixd) return fixd.kind==='plot'?'Drag the plot to a new spot (its crop comes along). ✓ moves it, 🗑 removes it, ✕ leaves it.':fixd.kind==='tree'?'Drag the tree to a new spot. ✓ moves it, 🗑 removes the tree plot, ✕ leaves it.':`Drag the ${fixd.f.name} to a new spot. ✓ moves it (the farm is rebuilt around it)${fixd.f.keep?'':', 🗑 takes it down'}, ✕ leaves it where it was.`;
+    if(fixd) return fixd.kind==='plot'?'Drag the plot to a new spot (its crop comes along). ✓ moves it, 🗑 removes it, ✕ leaves it.':fixd.kind==='tree'?'Drag the tree to a new spot. ✓ moves it, 🗑 removes the tree plot, ✕ leaves it.':`Drag the ${fixd.f.name} to a new spot. ✓ moves it${fixd.f.keep?' (the farm is rebuilt around it)':''}${fixd.f.keep?'':', 🗑 takes it down'}, ✕ leaves it where it was.`;
     if(putBack) return putBack==='tree'?'Tap your farm where the new tree plot should go.':`Tap your farm where the ${FIXED.find(f=>f.k===putBack).name} should go.`;
     if(house) return 'Drag the house to a new spot (the light area is the yard its animals use). ✓ puts it there, ✕ leaves it where it was.'; if(area) return 'Drag the area to a new spot inside your farm. ✓ moves it (the farm rebuilds; animals, houses and upgrades come along), ✕ leaves it where it is. Its gate stays on the same side: build a road to it.'; if(sel==='road') return 'Drag across your land to draw a dirt road (₱2 per metre). Its ends join any road they touch. Labels show what your roads reach: trucks only go where they connect.'; if(sel==='eraser') return 'Drag across a road to remove that part of it. Trucks only use roads that still connect.'; if(!sel&&!active&&!moving&&!area) return 'Pick a decoration, then tap your farm to place it. Press and hold something you placed to move it, or press and hold an animal house to move it.'; if(active) return 'Drag it to a new spot. ✓ puts it down, ↻ turns it, ✕ removes it (half back). Tap elsewhere to put it back.'; if(moving) return 'Tap where you want to move it.'; if(!sel) return 'Pick a decoration, then tap your farm to place it. Tap something you placed to turn, move, edit or remove it.';
     return CAT[sel].line?`Drag across your land to build ${CAT[sel].name.toLowerCase()} (₱${CAT[sel].cost} per 2 m). Tap to place one piece.`:`Tap your farm to place a ${CAT[sel].name.toLowerCase()} (₱${CAT[sel].cost}). Tap "Turn" to face it another way.`;}

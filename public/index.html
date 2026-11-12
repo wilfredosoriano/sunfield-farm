@@ -579,6 +579,10 @@ body:not(#z):not(#y) #menu .sheet>.mhead h2{font-size:16px!important;line-height
 #house-ctl[hidden]{display:none}#house-ctl button{width:40px;height:40px;border-radius:50%;border:1.6px solid #4a3f34;font:700 17px Mali,Nunito,sans-serif;display:grid;place-items:center;color:#3b2e24;background:#f1eadb;cursor:pointer}
 #house-ctl [data-h=ok]{background:#cfe8b6;font-size:20px}#house-ctl [data-h=no]{background:#f5d9cf;color:#9a3324;font-size:20px}#house-ctl button.on{background:#ecd2b8;box-shadow:inset 0 -2px 0 #b98a66}#house-ctl.bad [data-h=ok]{opacity:.5;border-style:dashed}
 #deco-run{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 54px);transform:translateX(-50%);z-index:6;padding:4px 12px;background:#fbf7ec;border:1.6px solid #4a3f34;border-radius:999px;font:700 13px Mali,Nunito,sans-serif;color:#2e5d27;pointer-events:none}#deco-run:empty{display:none}#deco-run.bad{color:#9a3324}
+#fix-ctl{position:fixed;left:0;top:0;z-index:6;display:flex;gap:6px;padding:5px;background:#fbf7ec;border:1.8px solid #4a3f34;border-radius:999px;box-shadow:1.5px 2px 0 #4a3f3526}
+#fix-ctl[hidden],#fix-ctl [hidden]{display:none}#fix-ctl button{width:40px;height:40px;border-radius:50%;border:1.6px solid #4a3f34;font:700 17px Mali,Nunito,sans-serif;display:grid;place-items:center;color:#3b2e24;background:#f1eadb;cursor:pointer}
+#fix-ctl [data-f=ok]{background:#cfe8b6;font-size:20px}#fix-ctl [data-f=no]{background:#f5d9cf;color:#9a3324;font-size:20px}#fix-ctl.bad [data-f=ok]{opacity:.5;border-style:dashed}
+@media(orientation:landscape) and (max-height:520px){#fix-ctl button{width:36px;height:36px;font-size:16px}}
 </style>
 </head>
 <body>
@@ -1057,6 +1061,10 @@ if(S.mats.feed_fish==null) S.mats.feed_fish=8;
 if(S.mats.feed_pig==null) S.mats.feed_pig=8; if(S.mats.feed_cow==null) S.mats.feed_cow=8;   // each animal now eats its own feed
 if(!Array.isArray(S.wild)) S.wild=[];
 // animal houses stand wherever the player puts them: S.animalPos[k] = {x,z} for slot k (one fixed lot size); unmoved houses keep their old spot
+if(!S.fix||typeof S.fix!=='object') S.fix={};   // farm buildings the player moved ({dx,dz}) or took down ({gone:1}); applied as the farm is built
+const FIXOFF=k=>S.fix[k]&&!S.fix[k].gone?{dx:+S.fix[k].dx||0,dz:+S.fix[k].dz||0}:{dx:0,dz:0}, FIXGONE=k=>!!(S.fix[k]&&S.fix[k].gone);
+{const o=FIXOFF('bodega'), b=FARM.buildings.find(q=>q.id==='bodega'), t=FARM.turning.find(q=>q.name==='bodega yard'); b.x+=o.dx; b.z+=o.dz; t.x+=o.dx; t.z+=o.dz;}
+{const o=FIXOFF('util'), b=FARM.buildings.find(q=>q.id==='utility'); b.x+=o.dx; b.z+=o.dz;}
 const SLOT_BASE=SLOTS.map(s=>({w:s.w,d:s.d})), HOUSE_SC={S:1,M:1,L:1};   // every animal house has the same full-size lot; the house on it grows as you upgrade (older saves' S and L lots become the standard one)
 if(S.animalPos) for(const k in S.animalPos){const s=SLOTS[k], o=S.animalPos[k]; if(!s||!o||!Number.isFinite(o.x)||!Number.isFinite(o.z)) continue; const c=HOUSE_SC[o.size]||1; s.x=o.x; s.z=o.z; s.w=SLOT_BASE[k].w*c; s.d=SLOT_BASE[k].d*c;}
 if(!S.seedMig){S.seedMig=1; S.mats.seed_wheat=(S.mats.seed_wheat||0)+12; S.mats.seed_carrot=(S.mats.seed_carrot||0)+4;}   // a few starter seeds; buy more at the Binhi store
@@ -1512,7 +1520,7 @@ const ground=new THREE.Mesh(new THREE.PlaneGeometry(1800,1800),new THREE.MeshSta
 
 
 // Farm bodega: a larger open-front storehouse with stock that follows the saved inventory.
-const farmBodega=(()=>{const g=new THREE.Group();g.position.set(-24,0,-2);g.rotation.y=Math.PI/2;const add=(w,h,d,c,x,y,z)=>{const m=part(w,h,d,c,x,y,z);g.add(m);return m;};
+const farmBodega=(()=>{const g=new THREE.Group();g.position.set(-24+FIXOFF('bodega').dx,0,-2+FIXOFF('bodega').dz);g.rotation.y=Math.PI/2;const add=(w,h,d,c,x,y,z)=>{const m=part(w,h,d,c,x,y,z);g.add(m);return m;};
   add(7.8,.22,11.8,0xaaa697,0,.11,0);add(7.2,.18,11.2,0xbeb4a0,0,.3,0);
   add(7.2,3.6,.18,0x9d7953,0,2.05,-5.5);
   for(const side of [-1,1]){add(.18,3.6,11,0xa98760,side*3.5,2.05,0);add(1.25,3.6,.18,0x9d7953,side*2.9,2.05,5.5);
@@ -1562,7 +1570,7 @@ function buildBodegaFridge(){const B=farmBodega, g=B.g, W=3.4, H=2.9, D=1.05, z0
   for(const d of B.displays) if(d.kind==='eggs'){const tray=[]; for(let h=0;h<3;h++){tray.push(P('box',0xd9c7a3,0,h*.09+.03,0,.75,.03,.8)); for(let i=0;i<3;i++) for(let j=0;j<3;j++) tray.push(P('sph',0xf6eedc,-.22+i*.22,h*.09+.08,-.24+j*.24,.15,.13,.15));}
     d.g.clear(); const m=new THREE.Mesh(mergeGeo(tray),VCMAT); m.castShadow=true; d.g.add(m);}
   B.fridge=true;}
-function updateBodega(t){if(!farmBodega.fridge) buildBodegaFridge(); const close=Math.hypot(cam.target.x+24,cam.target.z+2)<21&&cam.dist<43;for(const m of farmBodega.roofMats){m.opacity+=((close?.1:1)-m.opacity)*.15;m.depthWrite=m.opacity>.9;}
+function updateBodega(t){if(!farmBodega.fridge) buildBodegaFridge(); const close=Math.hypot(cam.target.x-farmBodega.g.position.x,cam.target.z-farmBodega.g.position.z)<21&&cam.dist<43;for(const m of farmBodega.roofMats){m.opacity+=((close?.1:1)-m.opacity)*.15;m.depthWrite=m.opacity>.9;}
   if(t-farmBodega.uiAt<1)return;farmBodega.uiAt=t;
   const counts={grain:(S.inv.wheat||0)+(S.inv.corn||0)+Object.entries(S.mats).filter(([k])=>k.startsWith('feed')).reduce((n,[,v])=>n+v,0),eggs:(S.inv.egg||0)+(S.inv.duckegg||0),cold:['chicken','pork','beef','chevon','tilapia','milk'].reduce((n,k)=>n+(stockFor(k)[k]||0),0),produce:Object.entries(S.inv).filter(([k])=>!['wheat','corn','egg','duckegg','chicken','pork','beef','chevon','tilapia','milk'].includes(k)&&!ITEMS[k]?.live).reduce((n,[,v])=>n+v,0)};
   const signature=JSON.stringify([S.inv,S.mats]);if(signature!==farmBodega.signature){farmBodega.signature=signature;for(const d of farmBodega.displays)d.g.visible=d.index<Math.min(d.kind==='eggs'?12:6,Math.ceil(counts[d.kind]/(d.kind==='eggs'?3:5)));if(bldIdx===-5&&bldOpen())renderBodega();}
@@ -2933,7 +2941,7 @@ const thin=seq=>seq.filter((_,k)=>k%2===0||k===seq.length-1);
 function pickupGeo(type){const A=FARM.areas.find(a=>a.type===type), [gx,gz]=A.gate;
   const tk=FARM.roads.find(r=>r.id.startsWith('t-')&&Math.hypot(r.pts[r.pts.length-1][0]-gx,r.pts[r.pts.length-1][1]-gz)<1.5);
   const T=tk?ROADS[tk.id].s:[[gx,gz]], J=ringIdx(T[0][0],T[0][1]); return {T,J};}
-const BODEGA_STOP=[-19.5,-10.6], BODEGA_IN=[[-17.2,-7.6],[-17.6,-2.4],[-20.6,-2.4]];
+const BODEGA_STOP=[-19.5+FIXOFF('bodega').dx,-10.6+FIXOFF('bodega').dz], BODEGA_IN=[[-17.2,-7.6],[-17.6,-2.4],[-20.6,-2.4]].map(([x,z])=>[x+FIXOFF('bodega').dx,z+FIXOFF('bodega').dz]);
 function loopPickupRoute(vid,type,eggs){
   const V=VEH[vid], sx=V.slot, sl=SPD.slow, d=SPD.dirt, {T,J}=pickupGeo(type);
   let L=0, k=T.length-1; const want=(V.rear||3)+.4; for(;k>0;k--){L+=Math.hypot(T[k][0]-T[k-1][0],T[k][1]-T[k-1][1]); if(L>=want) break;}
@@ -3982,7 +3990,7 @@ function goatGeo(){ // white, brown and black native kambing with horns and a li
 function farmReturn(g,tick){let hungry=false; return {g,setReady:()=>{},setProgress:(p,hg)=>{hungry=hg;},tick:tm=>tick(tm,hungry)};}
 const ducks=[];   // (the little decorative duck pond made way for the farm service road; ducks now live in their own enclosures)
 // inside the lot fence: the halamanan (orchard) east of the field and the talyer / utility yard west of the kamalig
-const ORCH=[21,36,-5,44], UTIL=[-45,-31,-7,5], SARI=[16.5,28,-104.8,-96.5];   // [x0,x1,z0,z1]; SARI: sari-sari store where the dirt road meets the highway
+const ORCH=[21,36,-5,44], UTIL0=[-45,-31,-7,5], UTIL=UTIL0.map((v,k)=>v+(k<2?FIXOFF('util').dx:FIXOFF('util').dz)), SARI=[16.5,28,-104.8,-96.5];   // [x0,x1,z0,z1]; SARI: sari-sari store where the dirt road meets the highway
 // the sea in the south-east corner: the shore curves from the south down to a strip of land just south of the highway
 const shoreZ=x=>-78+160*Math.exp(-(x-250)/22)+2.5*Math.sin(x/13)+1.5*Math.sin(x/5.3);
 const nearSea=(x,z,m=0)=>x>196-m&&z>shoreZ(x)-14-m;
@@ -4467,13 +4475,13 @@ function boardSign(lines,bg,fg,x,z,ry,w=3.2,h=1,y=1.6,post=0x6d4c41,two=true){
   b.push(P('box',0x958262,x0+1.6,.032,(z0+z1)/2,1.5,.02,z1-z0-1));                                      // picking path
   for(const x of [26.3,29.3,32.2]) b.push(P('box',0x8f8c60,x,.028,(z0+z1)/2,.72,.012,z1-z0-1.4));          // trodden paths between the rows of trees
   for(const z of [16.25,23.25]) b.push(P('box',0x8f8c60,(x0+1.6+33)/2,.03,z,33-x0-1.6,.012,.8));            // cross paths past the kubol, so it is reached from every row
-  const KX=25.6, KZ=19;
+  const KX=25.6, KZ=19, KB={g:new THREE.Group(),b:[]}; {const o=FIXOFF('kubo'); KB.g.position.set(o.dx,0,o.dz); KB.g.name='fix:kubo'; if(!FIXGONE('kubo')) scene.add(KB.g);}   // the kubol can be moved or taken down
   // kubol: bamboo posts, nipa roof, a sorting table with crates of mangga and kalamansi
-  const kx=KX, kz=KZ; for(const dx of [-1.3,1.3]) for(const dz of [-1,1]) b.push(P('cyl',0xc9a96a,kx+dx,1.1,kz+dz,.12,2.2,.12));
-  b.push(P('pyr',0xb8945a,kx,2.65,kz,3.6,1.1,2.9)); b.push(P('box',0xa98a52,kx,.78,kz,2.2,.08,1.2)); for(const dx of [-.95,.95]) b.push(P('box',0x8d6e4b,kx+dx,.39,kz,.08,.78,1.1));
-  [[-.6,0xf2b23a],[0,0x9ccc3a],[.6,0xf2b23a]].forEach(([dx,c])=>{b.push(P('box',0x8d6e4b,kx+dx,.94,kz,.5,.22,.42)); for(let k=0;k<4;k++) b.push(P('sph',c,kx+dx+(k%2-.5)*.18,1.07,kz+((k>>1)-.5)*.16,.15,.17,.15));});
-  for(let i=0;i<5;i++) b.push(P('box',[0x8d6e4b,0x7a5a3a][i%2],kx-1.2+(i%3)*.55,.2+(i>2?.4:0),kz+1.7,.5,.38,.42));      // empty kaing (crates)
-  scene.add(vcGroup(b));
+  const kx=KX, kz=KZ; for(const dx of [-1.3,1.3]) for(const dz of [-1,1]) KB.b.push(P('cyl',0xc9a96a,kx+dx,1.1,kz+dz,.12,2.2,.12));
+  KB.b.push(P('pyr',0xb8945a,kx,2.65,kz,3.6,1.1,2.9)); KB.b.push(P('box',0xa98a52,kx,.78,kz,2.2,.08,1.2)); for(const dx of [-.95,.95]) KB.b.push(P('box',0x8d6e4b,kx+dx,.39,kz,.08,.78,1.1));
+  [[-.6,0xf2b23a],[0,0x9ccc3a],[.6,0xf2b23a]].forEach(([dx,c])=>{KB.b.push(P('box',0x8d6e4b,kx+dx,.94,kz,.5,.22,.42)); for(let k=0;k<4;k++) KB.b.push(P('sph',c,kx+dx+(k%2-.5)*.18,1.07,kz+((k>>1)-.5)*.16,.15,.17,.15));});
+  for(let i=0;i<5;i++) KB.b.push(P('box',[0x8d6e4b,0x7a5a3a][i%2],kx-1.2+(i%3)*.55,.2+(i>2?.4:0),kz+1.7,.5,.38,.42));      // empty kaing (crates)
+  scene.add(vcGroup(b)); if(KB.b.length) KB.g.add(vcGroup(KB.b));
 
   boardSign(['HALAMANAN','mangga · kalamansi · bayabas · saging'],'#33691e','#fff',x0+.3,z0+8,-Math.PI/2,2.8,.8,1.2);
 })();
@@ -4488,8 +4496,12 @@ const ORCHARD=(()=>{
   S.orchard=out;}
  S.orchardV=2;
  while(S.orchard.length<spots.length)S.orchard.push(null);
+ if(!S.orchardPos||typeof S.orchardPos!=='object') S.orchardPos={}; if(!S.orchardGone||typeof S.orchardGone!=='object') S.orchardGone={};   // tree plots the player moved, or took out
+ for(const k in S.orchardPos){const p=S.orchardPos[k]; if(spots[k]&&p&&Number.isFinite(p[0])&&Number.isFinite(p[1])){spots[k][0]=p[0]; spots[k][1]=p[1];}}
  const g=new THREE.Group();g.name='Harvestable home orchard';scene.add(g);let selected=0,last=0,shown='';
- const views=spots.map(([x,z],i)=>{const root=new THREE.Group();root.position.set(x,0,z);root.userData.orchard=i;g.add(root);return {root,signature:''};});
+ const views=spots.map(([x,z],i)=>{const root=new THREE.Group();root.position.set(x,0,z);root.userData.orchard=i;root.visible=!S.orchardGone[i];g.add(root);return {root,signature:''};});
+ function setSpot(i,x,z){spots[i][0]=x; spots[i][1]=z; S.orchardPos[i]=[x,z]; views[i].root.position.set(x,0,z);}
+ function setGone(i,on){if(on){S.orchardGone[i]=1; S.orchard[i]=null; views[i].signature='';} else delete S.orchardGone[i]; views[i].root.visible=!on;}
  const growth=(t,now=Date.now())=>t?Math.min(1,Math.max(0,(now-t.planted)/(FRUIT_TREES[t.kind].grow*1000))):0;
  // 0 no fruit, 1 young green fruit (the second half of the wait), 2 ripe
  const fruitStage=(t,now=Date.now())=>!t?0:orchardReady(t,now)?2:growth(t,now)>=1&&(t.next-now)<FRUIT_TREES[t.kind].period*500?1:0;
@@ -4541,7 +4553,7 @@ const ORCHARD=(()=>{
  function tickOpen(){const t=S.orchard[selected],st=status(t);if(st+':'+selected+':'+(t?t.kind:'')!==shown) return render(); if(!t) return;
   const tm=timing(t), a=$('orchardStatus'), b=$('orchardBar'); if(a) a.textContent=tm.txt; if(b) b.style.width=tm.pct+'%';}
  function open(i){selected=i;bldIdx=-8;render();$('bldSheet').classList.add('open');}
- function hit(x,y){for(let i=0;i<views.length;i++)if(hitObj(views[i].root,x,y)){open(i);return true;}return false;}
+ function hit(x,y){for(let i=0;i<views.length;i++)if(!S.orchardGone[i]&&hitObj(views[i].root,x,y)){open(i);return true;}return false;}
  function act(action,kind){
   if(action==='go'){selected=Math.max(0,Math.min(spots.length-1,+kind||0)); buzz();}
   else if(action==='prev'||action==='next')selected=(selected+(action==='next'?1:spots.length-1))%spots.length;
@@ -4554,10 +4566,10 @@ const ORCHARD=(()=>{
   draw(selected);render();
  }
  views.forEach((_,i)=>draw(i));
- return {hit,open,act,render,spots,update(t){if(t-last<1)return;last=t;views.forEach((_,i)=>draw(i));if(bldIdx===-8&&bldOpen()&&shown!=='confirm')tickOpen();}};
+ return {hit,open,act,render,spots,views,setSpot,setGone,update(t){if(t-last<1)return;last=t;views.forEach((_,i)=>draw(i));if(bldIdx===-8&&bldOpen()&&shown!=='confirm')tickOpen();}};
 })();
 // ---- talyer at imbakan (utility yard): water tower, workshop, feed bodega, and a shed for the kuliglig
-(()=>{const b=[], [x0,x1,z0,z1]=UTIL, cx=(x0+x1)/2, cz=(z0+z1)/2, CHB=0xcfc8b8, GI=0x9aa3a8, r=rng(57);
+(()=>{const b=[], [x0,x1,z0,z1]=UTIL0, cx=(x0+x1)/2, cz=(z0+z1)/2, CHB=0xcfc8b8, GI=0x9aa3a8, r=rng(57);
   b.push(P('box',0xb9b19f,cx,.016,cz,x1-x0,.03,z1-z0));                                               // gravel pad
   for(let k=0;k<160;k++) b.push(P('box',[0x9e9686,0xc8c0ae,0x8f8879][k%3],x0+r()*(x1-x0),.035,z0+r()*(z1-z0),.1+r()*.12,.02,.1+r()*.12,0,r()*3,0));
   b.push(P('box',0xb9b19f,-28.75,.016,0,4.5,.03,1.4));                                               // path across to the bodega
@@ -4585,8 +4597,8 @@ const ORCHARD=(()=>{
   for(const sd of [-1,1]) b.push(P('box',0x424242,kx-2.6,1,kz+sd*.3,1.3,.07,.07,0,0,-.4));                                                    // handlebars
   b.push(P('box',0x8d6e4b,kx+.8,.75,kz,2.6,.12,1.6)); for(const sd of [-1,1]) b.push(P('box',0x8d6e4b,kx+.8,.95,kz+sd*.78,2.6,.35,.06)); b.push(P('box',0x6d4c41,kx-.6,.65,kz,.9,.08,.08));
   for(const sd of [-1,1]) b.push(P('cyl',0x212121,kx+.8,.38,kz+sd*.85,.7,.18,.7,Math.PI/2,0,0));
-  const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.castShadow=m.receiveShadow=true; scene.add(m);
-  boardSign(['TALYER AT IMBAKAN','tangke · talyer · patuka · kuliglig'],'#37474f','#ffd23f',-30.5,-6.2,Math.PI/2,2.8,.8,1.2);
+  const UO=FIXOFF('util'), m=new THREE.Mesh(mergeGeo(b),VCMAT); m.castShadow=m.receiveShadow=true; m.position.set(UO.dx,0,UO.dz); scene.add(m);   // the whole yard sits where the player put it
+  const sg=boardSign(['TALYER AT IMBAKAN','tangke · talyer · patuka · kuliglig'],'#37474f','#ffd23f',-30.5,-6.2,Math.PI/2,2.8,.8,1.2); sg.position.x+=UO.dx; sg.position.z+=UO.dz;
 })();
 // ---- sari-sari store where the farm road meets the highway: CHB house, grilled window, tin awning, a bench and a tindera
 (()=>{const b=[], sx=22, sz=-100.2, CHB=0xe8dcc6, r=rng(91);
@@ -7736,7 +7748,7 @@ $('fishStop').addEventListener('click',()=>{FISH.on=false; FISH.st='idle'; clear
     if(now-FISH.last>4500){FISH.st='done'; FISH.msg='💨 Too slow, nakatakas! Cast again?'; fishShow();}}})();
 renderNeeds();
 // the hose: it hangs on a reel by the water tower's faucet; whoever waters takes it, drags it along the way they walk, sprays, and rolls it back up
-const REEL=[-37.3,-2.2];
+const REEL=[-37.3+FIXOFF('util').dx,-2.2+FIXOFF('util').dz];
 (()=>{const g=new THREE.Group(); g.position.set(REEL[0],0,REEL[1]); scene.add(g);
   g.add(new THREE.Mesh(mergeGeo([P('box',0x6d4c41,0,.55,0,.12,1.1,.12),P('box',0x6d4c41,0,1.05,.0,.5,.08,.08),P('cyl',0x9e9e9e,.45,.5,.2,.08,.6,.08),P('box',0xd63031,.45,.82,.2,.18,.06,.06)]),VCMAT));
   const coil=new THREE.Mesh(new THREE.TorusGeometry(.32,.07,6,18),new THREE.MeshStandardMaterial({color:0x2e8b3e,roughness:.7})); coil.position.set(0,.8,.12); coil.castShadow=true; g.add(coil); g.userData.coil=coil; REEL.g=g;})();
@@ -8446,6 +8458,8 @@ let wwLast=performance.now(), wwRain=0, wwSnd=0;
 (()=>{
   const g=new THREE.Group();g.name='Player farm improvements';scene.add(g);
   const b=[],B=(x,y,z,w,h,d,c,rx=0,ry=0,rz=0)=>b.push(P('box',c,x,y,z,w,h,d,rx,ry,rz));
+  const part=k=>{const pg=new THREE.Group(), pb=[], o=FIXOFF(k); pg.position.set(o.dx,0,o.dz); pg.name='fix:'+k; if(!FIXGONE(k)) scene.add(pg); return {g:pg,b:pb,B:(x,y,z,w,h,d,c,rx=0,ry=0,rz=0)=>pb.push(P('box',c,x,y,z,w,h,d,rx,ry,rz))};};   // a piece the player can move or take down
+  const GH=part('greenhouse'), PK=part('packing'), RK=part('rack');
   const stone=0x928866,wood=0x98754e,steel=0x637b64;   // a muted packed-earth and gravel tone, not bright cream
   // Follow the existing footpaths and keep all crop plot IDs and vehicle tracks intact: a packed-earth tread with a darker worn line down the middle.
   for(const id of ['p-field','p-poultry','p-dike']){
@@ -8457,49 +8471,50 @@ let wwLast=performance.now(), wwRain=0, wwSnd=0;
   B(-37,.055,18.5,36,.06,1.5,stone);B(-48,.055,14,1.5,.06,10.5,stone);
   B(-45,.055,12,6,.06,1.3,stone);B(-24,.055,8,1.5,.06,11,stone);B(-36,.055,17,1.5,.06,3,stone);
   // Greenhouse uses a light transparent skin and distinct arched frame rather than an opaque box.
-  B(-36,.16,12,12,.25,8,0xaea98d);
+  GH.B(-36,.16,12,12,.25,8,0xaea98d);
   const skin=new THREE.MeshStandardMaterial({color:0xc5e1d4,transparent:true,opacity:.23,roughness:.28,side:THREE.DoubleSide,depthWrite:false});
   const pts=[];for(let i=0;i<=20;i++){const a=i/20*Math.PI;pts.push(new THREE.Vector2(Math.cos(a)*3.6,1+Math.sin(a)*2.5));}
   // Barrel roof extends along X; surface built explicitly to keep the lower side walls straight.
   const positions=[];for(let i=0;i<pts.length-1;i++){const a=pts[i],c=pts[i+1];positions.push(-41.8,a.y,12+a.x,-30.2,a.y,12+a.x,-41.8,c.y,12+c.x,-30.2,a.y,12+a.x,-30.2,c.y,12+c.x,-41.8,c.y,12+c.x);}
-  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geo.computeVertexNormals();g.add(new THREE.Mesh(geo,skin));
-  for(const z of [8.4,15.6]){const pane=mesh(new THREE.BoxGeometry(11.6,1,.025),skin,-36,.65,z);pane.castShadow=false;g.add(pane);B(-36,.3,z,12,.3,.16,steel);}
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geo.computeVertexNormals();GH.g.add(new THREE.Mesh(geo,skin));
+  for(const z of [8.4,15.6]){const pane=mesh(new THREE.BoxGeometry(11.6,1,.025),skin,-36,.65,z);pane.castShadow=false;GH.g.add(pane);GH.B(-36,.3,z,12,.3,.16,steel);}
   for(let x=-41.8;x<=-30.1;x+=2.32){
     const curve=new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(x,p.y,12+p.x)));
-    g.add(mesh(new THREE.TubeGeometry(curve,24,.045,5,false),steel));for(const z of [8.4,15.6])B(x,.6,z,.08,1.2,.08,steel);
+    GH.g.add(mesh(new THREE.TubeGeometry(curve,24,.045,5,false),steel));for(const z of [8.4,15.6])GH.B(x,.6,z,.08,1.2,.08,steel);
   }
   // Translucent end walls and a framed access door facing the maintenance path.
   const endShape=new THREE.Shape();endShape.moveTo(-3.6,.2);endShape.lineTo(3.6,.2);
   pts.forEach(p=>endShape.lineTo(p.x,p.y));endShape.closePath();
   const endGeo=new THREE.ShapeGeometry(endShape);
-  for(const x of [-41.8,-30.2]){const pane=new THREE.Mesh(endGeo,skin);pane.rotation.y=Math.PI/2;pane.position.set(x,0,12);g.add(pane);}
-  for(const z of [11.3,12.7])B(-41.9,1.15,z,.09,2.1,.09,steel);
-  B(-41.9,2.2,12,.09,.09,1.5,steel);B(-42,1.1,11.5,.08,.2,.08,wood);
-  B(-36,3.5,12,12,.08,.08,steel);
+  for(const x of [-41.8,-30.2]){const pane=new THREE.Mesh(endGeo,skin);pane.rotation.y=Math.PI/2;pane.position.set(x,0,12);GH.g.add(pane);}
+  for(const z of [11.3,12.7])GH.B(-41.9,1.15,z,.09,2.1,.09,steel);
+  GH.B(-41.9,2.2,12,.09,.09,1.5,steel);GH.B(-42,1.1,11.5,.08,.2,.08,wood);
+  GH.B(-36,3.5,12,12,.08,.08,steel);
   for(const z of [9.7,14.3]){
-    B(-36,.65,z,10,.16,1.5,wood);for(const x of [-40,-36,-32])B(x,.35,z,.12,.7,1.3,steel);
-    for(let x=-40;x<=-32;x+=1)for(const dz of [-.4,.4]){B(x,.83,z+dz,.65,.2,.55,0x514e39);b.push(P('sph',0x66944c,x,1.05,z+dz,.45,.35,.4));}
+    GH.B(-36,.65,z,10,.16,1.5,wood);for(const x of [-40,-36,-32])GH.B(x,.35,z,.12,.7,1.3,steel);
+    for(let x=-40;x<=-32;x+=1)for(const dz of [-.4,.4]){GH.B(x,.83,z+dz,.65,.2,.55,0x514e39);GH.b.push(P('sph',0x66944c,x,1.05,z+dz,.45,.35,.4));}
   }
   // Packing shelter beside the greenhouse, with sorted crates, a bench and wash basin.
-  B(-24,.16,12.5,7,.25,7,0xb7ae95);
-  for(const x of [-27,-21])for(const z of [9.5,15.5])B(x,1.7,z,.16,3.2,.16,wood);
-  for(const sd of [-1,1])B(-24+sd*1.65,3.35,12.5,3.7,.15,7.8,0x739384,0,0,-sd*.18);
-  B(-24,3.74,12.5,.15,.12,7.9,steel);
-  B(-24,1,11,5,.18,1.2,wood);for(const x of [-26,-22])B(x,.5,11,.12,1,1.1,steel);
-  for(const [x,z] of [[-26,13.5],[-24.5,13.5],[-23,13.5]]){B(x,.4,z,1.2,.65,1,0xb18d52);for(const y of [.2,.45,.65])B(x,y,z+.53,1.25,.05,.04,0xe0c080);}
-  B(-21.7,1,10,1.1,.3,1,0xb6c4bb);B(-21.7,1.17,10,.8,.02,.7,0x6e9997);B(-21.7,1.4,9.6,.06,.55,.06,steel);
+  PK.B(-24,.16,12.5,7,.25,7,0xb7ae95);
+  for(const x of [-27,-21])for(const z of [9.5,15.5])PK.B(x,1.7,z,.16,3.2,.16,wood);
+  for(const sd of [-1,1])PK.B(-24+sd*1.65,3.35,12.5,3.7,.15,7.8,0x739384,0,0,-sd*.18);
+  PK.B(-24,3.74,12.5,.15,.12,7.9,steel);
+  PK.B(-24,1,11,5,.18,1.2,wood);for(const x of [-26,-22])PK.B(x,.5,11,.12,1,1.1,steel);
+  for(const [x,z] of [[-26,13.5],[-24.5,13.5],[-23,13.5]]){PK.B(x,.4,z,1.2,.65,1,0xb18d52);for(const y of [.2,.45,.65])PK.B(x,y,z+.53,1.25,.05,.04,0xe0c080);}
+  PK.B(-21.7,1,10,1.1,.3,1,0xb6c4bb);PK.B(-21.7,1.17,10,.8,.02,.7,0x6e9997);PK.B(-21.7,1.4,9.6,.06,.55,.06,steel);
   // Tool rack and stacked pallets stay beside the fixed storage building.
-  B(-28,1.2,6.5,4,1.8,.12,wood);
-  for(const x of [-29.5,-28.5,-27.5,-26.5]){B(x,1.2,6.65,.06,1.6,.06,0xc3a16c);B(x,.45,6.65,.35,.4,.08,steel);}
-  for(let y=.15;y<.7;y+=.2)for(let z=6;z<7.4;z+=.4)B(-23,y,z,2,.1,.25,wood);
+  RK.B(-28,1.2,6.5,4,1.8,.12,wood);
+  for(const x of [-29.5,-28.5,-27.5,-26.5]){RK.B(x,1.2,6.65,.06,1.6,.06,0xc3a16c);RK.B(x,.45,6.65,.35,.4,.08,steel);}
+  for(let y=.15;y<.7;y+=.2)for(let z=6;z<7.4;z+=.4)RK.B(-23,y,z,2,.1,.25,wood);
   // Low planting and signs clarify the different areas without closing their existing gates.
   for(const [x,z] of [[-46,18.5],[-20,18.5]]){B(x,.2,z,1.4,.35,1.4,stone);b.push(P('sph',0x658a46,x,.65,z,1.2,.9,1.2));}
-  const sign=(text,x,z,w)=>{const q=boardSign([text],'#426343','#fff0cd',x,z,0,w,.65,2.1,wood,false);g.add(q);};
-  sign('SEEDLING GREENHOUSE',-36,16.3,7);sign('HARVEST PACKING',-24,16.3,5.5);
+  const sign=(text,x,z,w,G=g)=>{const q=boardSign([text],'#426343','#fff0cd',x,z,0,w,.65,2.1,wood,false);G.add(q);};
+  sign('SEEDLING GREENHOUSE',-36,16.3,7,GH.g);sign('HARVEST PACKING',-24,16.3,5.5,PK.g);
   for(const [x,z,title] of [[-59,14,'PASTURE'],[-18,23,'POULTRY'],[25,49,'ORCHARD']])sign(title,x,z,2.5);
-  for(const x of [-43,-40,-37,-34,-31]){B(x,.45,7.8,.1,.9,.1,wood);}
-  B(-37,.65,7.8,12,.08,.08,wood);
+  for(const x of [-43,-40,-37,-34,-31]){GH.B(x,.45,7.8,.1,.9,.1,wood);}
+  GH.B(-37,.65,7.8,12,.08,.08,wood);
   const m=new THREE.Mesh(mergeGeo(b),VCMAT);m.castShadow=m.receiveShadow=true;g.add(m);
+  for(const Q of [GH,PK,RK]) if(Q.b.length){const mm=new THREE.Mesh(mergeGeo(Q.b),VCMAT); mm.castShadow=mm.receiveShadow=true; Q.g.add(mm);}
 })();
 
 // Provincial planting and fitted entrances, kept clear of road lanes, gates and loading bays.
@@ -8792,7 +8807,7 @@ const CIVIC=(()=>{
     for(const [x,z] of marks){B(x,.45,z,.14,.9,.14,0x1e88e5); B(x,.93,z,.18,.08,.18,0xffffff);}
     // the farm's water meter and valve at the fence, and the pipe that comes up to the tangke on the water tower
     B(45.6,.25,21,1.1,.5,.8,0x1e6fb8); B(45.6,.52,21,.9,.05,.6,0x9ec9e8); B(46.6,.12,21,1.2,.06,.3,0x1e88e5);
-    C(-40.7,3.6,-2.3,.11,7.2,0x1e88e5); B(-40.7,.2,-1.6,.6,.4,.5,0x1e6fb8);
+    C(-40.7+FIXOFF('util').dx,3.6,-2.3+FIXOFF('util').dz,.11,7.2,0x1e88e5); B(-40.7+FIXOFF('util').dx,.2,-1.6+FIXOFF('util').dz,.6,.4,.5,0x1e6fb8);
     boardSign(['WATER METER','Sunfield Farm · #0001'],'#1e6fb8','#fff',45.6,23.2,-Math.PI/2,1.7,.5,1,0x55606a,false);
     // the barangay main along the back road, and a meter box at every house gate
     for(let x=60;x<=300;x+=12){B(x,.45,STZ+6.3,.14,.9,.14,0x1e88e5); B(x,.93,STZ+6.3,.18,.08,.18,0xffffff);}
@@ -9906,6 +9921,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:70,date:'Nov 13, 2026',title:'Move or remove the farm buildings and trees',items:['✋ In Decorate, press and hold the bodega, the water tower yard, the seedling greenhouse, the packing shelter, the tool rack or the kubol to pick it up. Drag it and tap ✓: the farm is rebuilt around it in a moment.','🗑 The greenhouse, packing shelter, tool rack and kubol can be taken down too. The bodega and the water tower stay, since your harvest and your hose water need them. Anything you take down can be put back from the Decorate bar.','🌳 Press and hold a fruit tree to move it anywhere on open ground, or 🗑 to remove its plot. Put new tree plots back from Decorate → Tree plot, then tap the plot to plant.','🛣️ Moved the bodega? Build a dirt road to its new door so trucks can still bring the egg trays.']},
   {v:69,date:'Nov 13, 2026',title:'Canals drain your field',items:['🌊 When it rains, plots that no canal drains start to flood. Any crop still under water when the rain stops is lost. Watering is still done with your tank and hose.','⛏️ Draw a Kanal from Decorate like a fence, along the side of your field to the main canal (the field drain or the farm canals). Canals stay off the crops, and cross paths on a concrete culvert.','✅ Rain water runs across the field into the nearest drain: a canal along one side drains up to 6 rows in from it. The field drain in front already drains the front half; the back half needs your canal.','👆 A sketch guide shows you where the Kanal is and how to draw it, and comes back when the rain floods your plots.']},
   {v:68,date:'Nov 13, 2026',title:'Animal houses grow as you upgrade',items:['🏠 Every animal house now has the same full-size lot from the day you build it. The house starts small on it and grows with each upgrade until it fills the lot at the top level, along with more animals and extras like the water tank.','🐄 The cattle barn, pig house, fish pond and duck house now grow too, like the chicken and broiler houses.','📏 The S, M and L choice when moving a house is gone: the lot is always the standard size.']},
   {v:67,date:'Nov 13, 2026',title:'Smoother start',items:['📱 One "turn your phone sideways" screen only, shown first. It also comes back if you turn your phone upright while playing.','⏳ The loading screen now stays until your farm is fully built, including the paths your farmer and helpers walk, so nothing pops in after it closes.','🖼️ The turn-sideways screen fills the whole screen. Nothing loads until your phone is sideways, so you see the loading from the start and the farm never opens squashed. Turning your phone while playing re-fits the view.']},
@@ -10216,6 +10232,11 @@ var DECO=(()=>{
   const clean=s=>String(s||'').replace(/[\u0000-\u001f<>]/g,'').replace(/\s+/g,' ').trim().slice(0,24);
   const signW=t=>Math.max(1.3,Math.min(4.4,.7+t.length*.17));
   let sel=null, rot=0, moving=null, editId=null;
+  // the farm's own buildings the player can move (and, except the bodega and the water tower, take down): base centre and footprint
+  const FIXED=[{k:'bodega',name:'bodega',cx:-24,cz:-2,w:14,d:9,keep:1},{k:'util',name:'water tower yard',cx:-38,cz:-1,w:14,d:12,keep:1},{k:'greenhouse',name:'seedling greenhouse',cx:-36,cz:12.1,w:12.6,d:9},
+    {k:'packing',name:'packing shelter',cx:-24,cz:12.6,w:7.6,d:8},{k:'rack',name:'tool rack',cx:-25.5,cz:6.7,w:7.2,d:2},{k:'kubo',name:'kubol',cx:25.6,cz:19.2,w:3.8,d:3.8}];
+  const fixRect=(f,o=FIXOFF(f.k))=>[f.cx+o.dx-f.w/2,f.cx+o.dx+f.w/2,f.cz+o.dz-f.d/2,f.cz+o.dz+f.d/2];
+  const inFix=(x,z,m,skip)=>FIXED.find(f=>f.k!==skip&&!FIXGONE(f.k)&&(r=>x>r[0]-m&&x<r[1]+m&&z>r[2]-m&&z<r[3]+m)(fixRect(f)));
   const root=new THREE.Group(); root.name='Player decorations'; scene.add(root);
   // ---- the pieces, in local space (x along a line piece, from -1 to 1)
   function parts(d){const b=[], B=(c,x,y,z,w,h,dd,rx=0,ry=0,rz=0)=>b.push(P('box',c,x,y,z,w,h,dd,rx,ry,rz)), r=rng(d.id*97+13);
@@ -10259,7 +10280,8 @@ var DECO=(()=>{
     if(!inLot(x,z)) return 'Keep it inside your farm fence.';
     if(k!=='canal'&&roadDist(x,z)<m+.25) return 'Not on a road or path: vehicles and people use it.';   // a canal crosses a road or path through a culvert
     if(inField(x,z,m+.15)) return k==='canal'?'Not across the crops: draw the canal along the side of the field.':'Not on the crop field.';
-    if(x>ORCH[0]-.2&&x<ORCH[1]+.2&&z>ORCH[2]-.2&&z<ORCH[3]+.2&&(ORCHARD.spots.some(([sx,sz])=>Math.hypot(x-sx,z-sz)<1.3+m)||Math.hypot(x-25.6,z-19)<2.4+m)) return 'Not on an orchard plot or the kubol.';
+    if(ORCHARD.spots.some(([sx,sz],i)=>!S.orchardGone[i]&&Math.hypot(x-sx,z-sz)<1.3+m)) return 'Not on a fruit tree.';
+    if(inFix(x,z,m+.2)) return 'Too close to a building.';
     if(SLOTS.some(s=>S.tiles[s.i]&&S.tiles[s.i].s==='bld'&&Math.abs(x-s.x)<s.w/2+m+.3&&Math.abs(z-s.z)<s.d/2+m+.3)) return 'Not on an animal house.';
     if(FARM.turning.some(t=>Math.hypot(x-t.x,z-t.z)<t.r+m)) return 'Keep the turning yard clear for vehicles.';
     if(BLOCK_RECTS().some(([bx,bz,hw,hd])=>Math.abs(x-bx)<hw+m&&Math.abs(z-bz)<hd+m)||nearObj(houseG,x,z,m+.3)||nearObj(garageG,x,z,m+.3)) return 'Too close to a building.';
@@ -10317,8 +10339,10 @@ var DECO=(()=>{
   canvas.addEventListener('pointerdown',e=>{clearTimeout(holdT); holdAt=null; if(openCat!=='decor'||e.button) return;
     const g=ground(e.clientX,e.clientY); if(!g) return;
     if(active&&nearActive(g[0],g[1])){dragArm=true; active.off=[active.x-g[0],active.z-g[1]]; return;}   // a finger on the picked-up piece drags it
-    holdAt=[e.clientX,e.clientY]; holdT=setTimeout(()=>{if(!holdAt) return; if(!area&&!house&&!active){const k=houseAtPt(g[0],g[1]); if(k>=0){line=null; grabHouse(k,g); return;}}   // a house under the finger wins over the fence pieces round it
-      const h=atPoint(g[0],g[1]); if(h){activate(h); line=null;}},450);},true);
+    holdAt=[e.clientX,e.clientY]; holdT=setTimeout(()=>{if(!holdAt||fixd) return; if(!area&&!house&&!active){const k=houseAtPt(g[0],g[1]); if(k>=0){line=null; grabHouse(k,g); return;}}   // a house under the finger wins over the fence pieces round it
+      if(!area&&!house&&!active){const ti=treeAt(g[0],g[1]); if(ti>=0){line=null; pickTree(ti,g); return;}}
+      const h=atPoint(g[0],g[1]); if(h){activate(h); line=null; return;}
+      if(!area&&!house&&!active){const f=inFix(g[0],g[1],0); if(f){line=null; pickFix(f,g);}}},450);},true);
   canvas.addEventListener('pointermove',e=>{if(holdAt&&Math.hypot(e.clientX-holdAt[0],e.clientY-holdAt[1])>8){clearTimeout(holdT); holdAt=null;}},true);
   for(const t of ['pointerup','pointercancel']) canvas.addEventListener(t,()=>{clearTimeout(holdT); holdAt=null; setTimeout(()=>{dragArm=false;},0);},true);
   // ---- moving a whole animal area: press and hold its ground, drag the outline, ✓ moves it (the farm rebuilds), ✕ puts it back
@@ -10383,6 +10407,61 @@ var DECO=(()=>{
   canvas.addEventListener('pointerdown',e=>{if(openCat!=='decor'||e.button||!house) return; const g=ground(e.clientX,e.clientY); if(!g) return; const s=SLOTS[house.k], c=HOUSE_SC[house.size], w=SLOT_BASE[house.k].w*c, d=SLOT_BASE[house.k].d*c;
     if(Math.abs(g[0]-house.x)<w/2+1&&Math.abs(g[1]-house.z)<d/2+1){houseArm=true; house.off=[house.x-g[0],house.z-g[1]];}},true);
   for(const t of ['pointerup','pointercancel']) canvas.addEventListener(t,()=>{setTimeout(()=>{houseArm=false;},0);},true);
+  // ---- the farm's buildings and fruit trees: press and hold to pick one up; ✓ puts it there, 🗑 takes it down, ✕ leaves it.
+  //      A building move rebuilds the farm round it (a quick reload); a tree moves at once.
+  let fixd=null, fixArm=false, putBack=null;
+  const fctl=document.createElement('div'); fctl.id='fix-ctl'; fctl.hidden=true;
+  fctl.innerHTML='<button data-f="ok" aria-label="Put it here">✓</button><button data-f="del" aria-label="Take it down">🗑</button><button data-f="no" aria-label="Cancel">✕</button>'; document.body.append(fctl);
+  const treeAt=(x,z)=>{let best=-1,bd=1.4; ORCHARD.spots.forEach(([sx,sz],i)=>{if(S.orchardGone[i]) return; const d=Math.hypot(x-sx,z-sz); if(d<bd){bd=d; best=i;}}); return best;};
+  const animalHouseAt=(x,z,m)=>SLOTS.some(sl=>S.tiles[sl.i]&&S.tiles[sl.i].s==='bld'&&Math.abs(x-sl.x)<sl.w/2+m&&Math.abs(z-sl.z)<sl.d/2+m);
+  function okTree(i,x,z){if(!inLot(x,z)) return 'Keep it inside your farm fence.'; if(inField(x,z,1)) return 'Not on the crop field.';
+    if(ORCHARD.spots.some(([sx,sz],k)=>k!==i&&!S.orchardGone[k]&&Math.hypot(x-sx,z-sz)<2.6)) return 'Too close to another tree.';
+    if(roadDist(x,z)<1) return 'Not on a road or path.'; if(wwNear(x,z,.8)) return 'Not on a canal.'; if(animalHouseAt(x,z,.8)) return 'Not on an animal house.';
+    if(inFix(x,z,.6)||BLOCK_RECTS().some(([bx,bz,hw,hd])=>Math.abs(x-bx)<hw+.6&&Math.abs(z-bz)<hd+.6)||nearObj(houseG,x,z,.8)||nearObj(garageG,x,z,.8)) return 'Too close to a building.';
+    if(FARM.turning.some(t=>Math.hypot(x-t.x,z-t.z)<t.r+.5)) return 'Keep the turning yards clear for vehicles.';
+    if(S.deco.some(d=>d.k!=='canal'&&Math.hypot(d.x-x,d.z-z)<1.2)) return 'A decoration is in the way.'; return '';}
+  function okFix(f,dx,dz){const r=fixRect(f,{dx,dz});
+    if(f.keep&&FARMNET.vehiclesOut()) return 'Wait until your vehicles are back in the garage.';
+    for(let x=r[0];x<=r[1]+.01;x+=1.2) for(let z=r[2];z<=r[3]+.01;z+=1.2){
+      if(!inLot(x,z)) return 'Keep it inside your farm fence.'; if(inField(x,z,.5)) return 'Not on the crop field.';
+      if(f.k!=='kubo'&&x>ORCH[0]&&x<ORCH[1]&&z>ORCH[2]&&z<ORCH[3]) return 'Not on the orchard.';
+      if(ORCHARD.spots.some(([sx,sz],i)=>!S.orchardGone[i]&&Math.hypot(x-sx,z-sz)<1.6)) return 'A fruit tree is in the way.';
+      if(roadDist(x,z)<.3) return 'A road or path is in the way.'; if(wwNear(x,z,.2)) return 'Not over a canal.';
+      if(animalHouseAt(x,z,2)) return 'Too close to an animal house (its roof hangs over).'; if(inFix(x,z,.6,f.k)) return 'Too close to another building.';
+      if(nearObj(houseG,x,z,.6)||nearObj(garageG,x,z,.6)) return 'Too close to the house or garage.';
+      if(FARM.turning.some(t=>!(f.k==='bodega'&&t.name==='bodega yard')&&Math.hypot(x-t.x,z-t.z)<t.r)) return 'Keep the turning yards clear for vehicles.';
+      if(S.deco.some(d=>Math.hypot(d.x-x,d.z-z)<.9)) return 'A decoration is in the way. Move it first.';}
+    return '';}
+  function fGhost(){if(fixd.v) scene.remove(fixd.v.g); const g=new THREE.Group(), MB=c=>new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:.38,depthWrite:false}); let fill, line;
+    if(fixd.kind==='tree'){fill=new THREE.Mesh(new THREE.CircleGeometry(1.3,28),MB(0x6fbf4a)); fill.rotation.x=-Math.PI/2; fill.position.y=.3; line=new THREE.Mesh(new THREE.RingGeometry(1.25,1.45,32),new THREE.MeshBasicMaterial({color:0x2e7d32,depthWrite:false})); line.rotation.x=-Math.PI/2; line.position.y=.32;}
+    else {const f=fixd.f; fill=new THREE.Mesh(new THREE.PlaneGeometry(f.w,f.d),MB(0x6fbf4a)); fill.rotation.x=-Math.PI/2; fill.position.y=.3;
+      line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([[-1,-1],[1,-1],[1,1],[-1,1],[-1,-1]].map(([a,b])=>new THREE.Vector3(a*f.w/2,.33,b*f.d/2))),new THREE.LineBasicMaterial({color:0x2e7d32}));}
+    g.add(fill,line); g.position.set(fixd.x,0,fixd.z); scene.add(g); fixd.v={g,fill,line}; fCheck();}
+  function fCheck(){const f=fixd; f.err=f.kind==='tree'?okTree(f.i,f.x,f.z):okFix(f.f,f.x-f.f.cx,f.z-f.f.cz); const bad=!!f.err;
+    f.v.fill.material.color.setHex(bad?0xe0735a:0x6fbf4a); f.v.line.material.color.setHex(bad?0xa6402c:0x2e7d32); fctl.classList.toggle('bad',bad); fctl.querySelector('[data-f=ok]').title=f.err||'Put it here';}
+  function pickFix(f,g){if(f.keep&&FARMNET.vehiclesOut()) return toast(`Wait until your vehicles are back in the garage before moving the ${f.name}.`,2800); if(active) cancelActive(); sel=null; const o=FIXOFF(f.k);
+    fixd={kind:'fix',f,x:f.cx+o.dx,z:f.cz+o.dz,off:[f.cx+o.dx-g[0],f.cz+o.dz-g[1]]}; fixArm=true; justActivated=true; buzz(); fGhost(); fctl.querySelector('[data-f=del]').hidden=!!f.keep; renderHUD();}
+  function pickTree(i,g){if(active) cancelActive(); sel=null; const [x,z]=ORCHARD.spots[i]; fixd={kind:'tree',i,x,z,off:[x-g[0],z-g[1]]}; fixArm=true; justActivated=true; buzz(); fGhost(); fctl.querySelector('[data-f=del]').hidden=false; renderHUD();}
+  function dropFix(){if(!fixd) return; if(fixd.v) scene.remove(fixd.v.g); fixd=null; fixArm=false; fctl.hidden=true; renderHUD();}
+  function reloadFarm(msg){toast(msg,6000); save(); setTimeout(()=>{if(window.SunfieldCloud&&window.SunfieldCloud.reload) window.SunfieldCloud.reload(); else location.reload();},400);}   // the farm is rebuilt round the building
+  function okFixd(){const f=fixd; if(!f) return; if(f.err) return toast('Can\'t put it there. '+f.err,2800);
+    if(f.kind==='tree'){const {i,x,z}=f; dropFix(); ORCHARD.setSpot(i,x,z); if(NAV&&NAV.ready) NAV.rebuild(); changed(); sfx('tap',x,z); toast(S.orchard[i]?'🌳 Tree moved.':'🌱 Tree plot moved.'); return;}
+    const dx=f.x-f.f.cx, dz=f.z-f.f.cz, o=FIXOFF(f.f.k); if(Math.abs(dx-o.dx)<.01&&Math.abs(dz-o.dz)<.01){dropFix(); return;}
+    S.fix[f.f.k]={dx,dz}; dropFix(); reloadFarm(`🏗️ Moving the ${f.f.name}… the farm is rebuilt around it.${f.f.k==='bodega'?' Make sure a road reaches its new door.':''}`);}
+  function delFixd(){const f=fixd; if(!f) return;
+    if(f.kind==='tree'){if(S.orchard[f.i]&&!f.delArm){f.delArm=true; return toast('Tap 🗑 again to cut down this tree. Its fruit is lost.',2600);} const i=f.i; dropFix(); ORCHARD.setGone(i,true); if(NAV&&NAV.ready) NAV.rebuild(); changed(); toast('🪓 Tree plot removed. Put one back any time from Decorate → Tree plot.',3000); return;}
+    if(f.f.keep) return; if(!f.delArm){f.delArm=true; return toast(`Tap 🗑 again to take down the ${f.f.name}. You can put it back from Decorate.`,2800);}
+    S.fix[f.f.k]={gone:1}; dropFix(); reloadFarm(`🧹 Taking down the ${f.f.name}…`);}
+  fctl.addEventListener('pointerdown',e=>e.stopPropagation()); fctl.addEventListener('click',e=>{const b=e.target.closest('[data-f]'); if(!b||!fixd) return; e.stopPropagation(); const a=b.dataset.f;
+    if(a==='ok') okFixd(); else if(a==='del') delFixd(); else dropFix();});
+  canvas.addEventListener('pointerdown',e=>{if(openCat!=='decor'||e.button||!fixd) return; const g=ground(e.clientX,e.clientY); if(!g) return; const R=fixd.kind==='tree'?2:Math.max(fixd.f.w,fixd.f.d)/2+1;
+    if(Math.abs(g[0]-fixd.x)<R&&Math.abs(g[1]-fixd.z)<R){fixArm=true; fixd.off=[fixd.x-g[0],fixd.z-g[1]];}},true);
+  for(const t of ['pointerup','pointercancel']) canvas.addEventListener(t,()=>{setTimeout(()=>{fixArm=false;},0);},true);
+  function placeBack(gx,gz){const k=putBack; putBack=null;
+    if(k==='tree'){const i=ORCHARD.spots.findIndex((_,j)=>S.orchardGone[j]); if(i<0) return renderHUD(); const x=snap(gx), z=snap(gz), e=okTree(i,x,z); if(e){putBack=k; return toast('Can\'t put it there. '+e,2600);}
+      ORCHARD.setGone(i,false); ORCHARD.setSpot(i,x,z); if(NAV&&NAV.ready) NAV.rebuild(); changed(); sfx('tap',x,z); toast('🌱 Tree plot ready. Tap it to plant a fruit tree.'); renderHUD(); return;}
+    const f=FIXED.find(q=>q.k===k); if(!f) return renderHUD(); const dx=snap(gx)-f.cx, dz=snap(gz)-f.cz, e=okFix(f,dx,dz); if(e){putBack=k; return toast('Can\'t put it there. '+e,2600);}
+    S.fix[k]={dx,dz}; reloadFarm(`🏗️ Putting back the ${f.name}…`);}
   // ---- input
   const ray2=new THREE.Raycaster(), nd=new THREE.Vector2(), gp=new THREE.Plane(new THREE.Vector3(0,1,0),0), hv=new THREE.Vector3();
   function ground(x,y){nd.set(x/innerWidth*2-1,-(y/innerHeight)*2+1); ray2.setFromCamera(nd,camera); return ray2.ray.intersectPlane(gp,hv)?[hv.x,hv.z]:null;}
@@ -10405,6 +10484,8 @@ var DECO=(()=>{
   function tap(x,y){const r=shot(), res=tap0(x,y); finish(r); return res;}
   function tap0(x,y){if(openCat!=='decor'&&!moving) return false; const g=ground(x,y); if(!g) return true; const [gx,gz]=g;
     if(justActivated){justActivated=false; return true;}
+    if(fixd){const R=fixd.kind==='tree'?2:Math.max(fixd.f.w,fixd.f.d)/2+1; if(!(Math.abs(gx-fixd.x)<R&&Math.abs(gz-fixd.z)<R)){dropFix(); toast('Left where it was.');} return true;}
+    if(putBack){placeBack(gx,gz); return true;}
     if(house){const s=SLOTS[house.k], c=HOUSE_SC[house.size], w=SLOT_BASE[house.k].w*c, d=SLOT_BASE[house.k].d*c; if(!(Math.abs(gx-house.x)<w/2+1&&Math.abs(gz-house.z)<d/2+1)){dropHouse(); toast('Left where it was.');} return true;}
     if(area){const a=FARM.areas[area.ai]; if(!(gx>a.fence[0]+area.dx-1&&gx<a.fence[2]+area.dx+1&&gz>a.fence[1]+area.dz-1&&gz<a.fence[3]+area.dz+1)){dropArea(); toast('Left where it was.');} return true;}
     if(active){if(!nearActive(gx,gz)){cancelActive(); toast('Put back where it was.');} return true;}
@@ -10480,11 +10561,12 @@ var DECO=(()=>{
     S.deco=keep.concat(add2);}
   // a line: drag to draw it; a see-through fence follows your finger and nothing is built until you let go
   let line=null;
-  const lineOn=()=>openCat==='decor'&&(dragArm||areaArm||houseArm||(!!sel&&!!CAT[sel].line&&!moving&&!active&&!area&&!house));
+  const lineOn=()=>openCat==='decor'&&(dragArm||areaArm||houseArm||fixArm||(!!sel&&!!CAT[sel].line&&!moving&&!active&&!area&&!house&&!fixd));
   let roadT=0;
-  function lineStart(x,y){if(dragArm||areaArm||houseArm) return; const g=ground(x,y); if(!g) return;
+  function lineStart(x,y){if(dragArm||areaArm||houseArm||fixArm) return; const g=ground(x,y); if(!g) return;
     if(sel&&CAT[sel].roadTool){if(FARMNET.vehiclesOut()){line=null; toast('Wait until your vehicles are back in the garage before changing roads.',2800); return;} line={road:sel,raw:[[g[0],g[1]]],rec:shot(),n:0,bad:''}; return;} line={raw:[[g[0],g[1]]],rec:shot(),plan:null,t:0};}
-  function lineTo(x,y){if(houseArm&&house){const g=ground(x,y); if(!g) return; const nx=Math.round((g[0]+house.off[0])*2)/2, nz=Math.round((g[1]+house.off[1])*2)/2; if(nx!==house.x||nz!==house.z){house.x=nx; house.z=nz; house.v.g.position.set(nx,0,nz); hCheck();} return;}
+  function lineTo(x,y){if(fixArm&&fixd){const g=ground(x,y); if(!g) return; const nx=Math.round((g[0]+fixd.off[0])*2)/2, nz=Math.round((g[1]+fixd.off[1])*2)/2; if(nx!==fixd.x||nz!==fixd.z){fixd.x=nx; fixd.z=nz; fixd.delArm=false; fixd.v.g.position.set(nx,0,nz); fCheck();} return;}
+    if(houseArm&&house){const g=ground(x,y); if(!g) return; const nx=Math.round((g[0]+house.off[0])*2)/2, nz=Math.round((g[1]+house.off[1])*2)/2; if(nx!==house.x||nz!==house.z){house.x=nx; house.z=nz; house.v.g.position.set(nx,0,nz); hCheck();} return;}
     if(areaArm&&area){const g=ground(x,y); if(!g) return; const nx=Math.round(g[0]+area.off[0]), nz=Math.round(g[1]+area.off[1]); if(nx!==area.dx||nz!==area.dz){area.dx=nx; area.dz=nz; area.v.g.position.set(nx,0,nz); areaCheck();} return;}
     if(line&&line.road){const g=ground(x,y); if(!g) return; const bk=line.road==='road'&&backUp(line.raw,g,1); if(bk) line.backed=true; const l=line.raw[line.raw.length-1]; if(!bk&&Math.hypot(g[0]-l[0],g[1]-l[1])>=.8) line.raw.push([g[0],g[1]]);
       const now=performance.now(); if(now-roadT>110){roadT=now; const sp=line.road==='road'?FARMNET.shape(line.raw,4):null, bad=sp?FARMNET.check(sp,4,true):''; line.bad=bad; FARMNET.draw(sp?{pts:sp,lin:true,bad:!!bad}:{pts:line.raw,bad:true});} return;}
@@ -10494,7 +10576,7 @@ var DECO=(()=>{
   // dragging back over the line you are drawing rubs it out, the same way you came (only the newest part, so ending at the start still closes a pen)
   function backUp(raw,g,r){let n=0; while(raw.length>=2){const a=raw[raw.length-1], b=raw[raw.length-2], db=Math.hypot(g[0]-b[0],g[1]-b[1]); if(db<r&&db<Math.hypot(g[0]-a[0],g[1]-a[1])){raw.pop(); n++;} else break;} return n>0;}
   function hintCost(p){const h=document.getElementById('deco-run'); const txt=`${p.pieces.length} piece${p.pieces.length>1?'s':''} · ₱${p.cost}${p.bad?' · '+p.bad:''}`; if(h){h.textContent=txt; h.classList.toggle('bad',!!p.bad);}}
-  function lineEnd(){if(houseArm){houseArm=false; return;} if(areaArm){areaArm=false; return;} if(dragArm){dragArm=false; return;} if(!line) return;
+  function lineEnd(){if(fixArm){fixArm=false; return;} if(houseArm){houseArm=false; return;} if(areaArm){areaArm=false; return;} if(dragArm){dragArm=false; return;} if(!line) return;
     if(line.road){const L=line; line=null; if(L.road==='road'&&L.raw.length<2){FARMNET.draw(); if(L.backed) toast('Road rubbed out. Nothing built.',1800); return;}
       if(L.road==='eraser'){const n=FARMNET.erase(L.raw); FARMNET.build(); FARMNET.draw(); if(n){L.rec.roadLabel='Removing road'; finish(L.rec); changed(); toast('Road removed. Trucks only use the roads that are left.',2600); connCheck();} else toast('Drag across a road to remove that part of it.',2400); return;}
       const res=FARMNET.addRoad(L.raw,4); if(res.err){FARMNET.draw(); toast('Can\'t build that road. '+res.err,3000); return;}
@@ -10507,14 +10589,17 @@ var DECO=(()=>{
     S.coins-=plan.cost; for(const d of plan.pieces){delete d.bad; d.id=S.decoN++; S.deco.push(d);} rebuild(); finish(L.rec); changed(); sfx('hammer',plan.pieces[0].x,plan.pieces[0].z);
     const j=plan.ends.filter(Boolean).length; toast(`${CAT[sel].name}: ${plan.pieces.length} piece${plan.pieces.length>1?'s':''} (₱${plan.cost})${plan.closed?', pen closed':j?`, joined at ${j===2?'both ends':'one end'}`:''}.`,2400);}
   // ---- the bar under the Decorate button
-  function bar(){if(active||area||house) return ''; return `<button class="tool" data-deco-undo="1" ${hist.length?'':'disabled'} aria-label="Undo the last change"><span class="ti">↶</span><span class="tl">Undo</span><span class="tc">${hist.length?hist.length+(hist.length>1?' steps':' step'):'nothing yet'}</span></button>`+ORDER.map(k=>{const c=CAT[k], on=sel===k; return `<button class="tool ${on?'on':''}" data-deco="${k}" aria-pressed="${on}"><span class="ti svg" aria-hidden="true">${c.svgFull}</span><span class="tl">${c.name}</span><span class="tc">${c.roadTool?(c.cost?'₱'+c.cost+' / m':'free'):'₱'+c.cost}</span></button>`;}).join('')
+  function bar(){if(active||area||house||fixd) return ''; const back=FIXED.filter(f=>FIXGONE(f.k)).map(f=>`<button class="tool ${putBack===f.k?'on':''}" data-putback="${f.k}"><span class="ti">🏗️</span><span class="tl">Put back</span><span class="tc">${f.name}</span></button>`).join('')+(ORCHARD.spots.some((_,i)=>S.orchardGone[i])?`<button class="tool ${putBack==='tree'?'on':''}" data-putback="tree"><span class="ti">🌱</span><span class="tl">Tree plot</span><span class="tc">free</span></button>`:''); return back+`<button class="tool" data-deco-undo="1" ${hist.length?'':'disabled'} aria-label="Undo the last change"><span class="ti">↶</span><span class="tl">Undo</span><span class="tc">${hist.length?hist.length+(hist.length>1?' steps':' step'):'nothing yet'}</span></button>`+ORDER.map(k=>{const c=CAT[k], on=sel===k; return `<button class="tool ${on?'on':''}" data-deco="${k}" aria-pressed="${on}"><span class="ti svg" aria-hidden="true">${c.svgFull}</span><span class="tl">${c.name}</span><span class="tc">${c.roadTool?(c.cost?'₱'+c.cost+' / m':'free'):'₱'+c.cost}</span></button>`;}).join('')
     +`<button class="tool" data-deco-rot="1" aria-label="Turn the next piece"><span class="ti">↻</span><span class="tl">Turn</span><span class="tc">${Math.round(rot*180/Math.PI)%360}°</span></button>`;}
-  function hint(){if(house) return 'Drag the house to a new spot (the light area is the yard its animals use). ✓ puts it there, ✕ leaves it where it was.'; if(area) return 'Drag the area to a new spot inside your farm. ✓ moves it (the farm rebuilds; animals, houses and upgrades come along), ✕ leaves it where it is. Its gate stays on the same side: build a road to it.'; if(sel==='road') return 'Drag across your land to draw a dirt road (₱2 per metre). Its ends join any road they touch. Labels show what your roads reach: trucks only go where they connect.'; if(sel==='eraser') return 'Drag across a road to remove that part of it. Trucks only use roads that still connect.'; if(!sel&&!active&&!moving&&!area) return 'Pick a decoration, then tap your farm to place it. Press and hold something you placed to move it, or press and hold an animal house to move it.'; if(active) return 'Drag it to a new spot. ✓ puts it down, ↻ turns it, ✕ removes it (half back). Tap elsewhere to put it back.'; if(moving) return 'Tap where you want to move it.'; if(!sel) return 'Pick a decoration, then tap your farm to place it. Tap something you placed to turn, move, edit or remove it.';
+  function hint(){if(fixd) return fixd.kind==='tree'?'Drag the tree to a new spot. ✓ moves it, 🗑 removes the tree plot, ✕ leaves it.':`Drag the ${fixd.f.name} to a new spot. ✓ moves it (the farm is rebuilt around it)${fixd.f.keep?'':', 🗑 takes it down'}, ✕ leaves it where it was.`;
+    if(putBack) return putBack==='tree'?'Tap your farm where the new tree plot should go.':`Tap your farm where the ${FIXED.find(f=>f.k===putBack).name} should go.`;
+    if(house) return 'Drag the house to a new spot (the light area is the yard its animals use). ✓ puts it there, ✕ leaves it where it was.'; if(area) return 'Drag the area to a new spot inside your farm. ✓ moves it (the farm rebuilds; animals, houses and upgrades come along), ✕ leaves it where it is. Its gate stays on the same side: build a road to it.'; if(sel==='road') return 'Drag across your land to draw a dirt road (₱2 per metre). Its ends join any road they touch. Labels show what your roads reach: trucks only go where they connect.'; if(sel==='eraser') return 'Drag across a road to remove that part of it. Trucks only use roads that still connect.'; if(!sel&&!active&&!moving&&!area) return 'Pick a decoration, then tap your farm to place it. Press and hold something you placed to move it, or press and hold an animal house to move it.'; if(active) return 'Drag it to a new spot. ✓ puts it down, ↻ turns it, ✕ removes it (half back). Tap elsewhere to put it back.'; if(moving) return 'Tap where you want to move it.'; if(!sel) return 'Pick a decoration, then tap your farm to place it. Tap something you placed to turn, move, edit or remove it.';
     return CAT[sel].line?`Drag across your land to build ${CAT[sel].name.toLowerCase()} (₱${CAT[sel].cost} per 2 m). Tap to place one piece.`:`Tap your farm to place a ${CAT[sel].name.toLowerCase()} (₱${CAT[sel].cost}). Tap "Turn" to face it another way.`;}
-  $('tools').addEventListener('click',e=>{const b=e.target.closest('[data-deco],[data-deco-rot],[data-deco-undo]'); if(!b||b.disabled) return;
+  $('tools').addEventListener('click',e=>{const b=e.target.closest('[data-deco],[data-deco-rot],[data-deco-undo],[data-putback]'); if(!b||b.disabled) return;
     if(b.dataset.decoUndo){undo(); return;}
     if(b.dataset.decoRot){rot=(rot+Math.PI/4)%(Math.PI*2); renderHUD(); return;}
-    const k=b.dataset.deco; sel=sel===k?null:k; if(sel){S.tool=null;} moving=null; buzz(); renderHUD();});
+    if(b.dataset.putback){putBack=putBack===b.dataset.putback?null:b.dataset.putback; sel=null; buzz(); renderHUD(); return;}
+    const k=b.dataset.deco; sel=sel===k?null:k; putBack=null; if(sel){S.tool=null;} moving=null; buzz(); renderHUD();});
   // ---- the edit sheet: turn, move, remove; for a sign, its words and colour
   const esc=s=>String(s).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
   function openEdit(id){editId=id; bldIdx=-9; render(); $('bldSheet').classList.add('open');}
@@ -10551,6 +10636,8 @@ var DECO=(()=>{
     if(active&&openCat!=='decor') cancelActive();
     if(area&&openCat!=='decor') dropArea();
     if(house&&openCat!=='decor') dropHouse();
+    if(fixd&&openCat!=='decor') dropFix(); if(putBack&&openCat!=='decor') putBack=null;
+    if(fixd){pv.set(fixd.x,fixd.kind==='tree'?3.2:4,fixd.z).project(camera); fctl.hidden=pv.z>1; fctl.style.transform=`translate(${Math.round((pv.x+1)/2*innerWidth)}px,${Math.round((1-pv.y)/2*innerHeight)}px) translate(-50%,-100%)`;}
     if(house){pv.set(house.x,3.4,house.z).project(camera); hctl.hidden=pv.z>1; hctl.style.transform=`translate(${Math.round((pv.x+1)/2*innerWidth)}px,${Math.round((1-pv.y)/2*innerHeight)}px) translate(-50%,-100%)`;}
     if(area){const a=FARM.areas[area.ai]; pv.set((a.fence[0]+a.fence[2])/2+area.dx,2.5,(a.fence[1]+a.fence[3])/2+area.dz).project(camera); actl.hidden=pv.z>1; actl.style.transform=`translate(${Math.round((pv.x+1)/2*innerWidth)}px,${Math.round((1-pv.y)/2*innerHeight)}px) translate(-50%,-100%)`;}
     const showConn=openCat==='decor'&&!!sel&&CAT[sel]&&CAT[sel].roadTool; conn.hidden=!showConn; if(showConn){if(!connList.length) connCheck(); for(const o of connList){pv.set(o.x,2.2,o.z).project(camera); const vis=pv.z<1&&Math.abs(pv.x)<1.1&&Math.abs(pv.y)<1.1; o.el.style.display=vis?'':'none'; if(vis) o.el.style.transform=`translate(${Math.round((pv.x+1)/2*innerWidth)}px,${Math.round((1-pv.y)/2*innerHeight)}px) translate(-50%,-100%)`;}}
@@ -10561,7 +10648,7 @@ var DECO=(()=>{
       S.deco.push({id:S.decoN++,k:'gate',x:A.gate[0],z:A.gate[1],r:A.gate[2],area:A.type}); S.deco.push({id:S.decoN++,k:'sign',x:A.sign[0],z:A.sign[1],r:A.sign[2],t:A.sign[3].slice(0,24),st:0,area:A.type});}
     S.areaDecoMig=1; save();}
   rebuild();
-  return {CAT,planFence,canalNet,drained,drainedByCanal,canalOnTile,get drawing(){return !!line;},holdHouseAt,tap,lineOn,lineStart,lineTo,lineEnd,bar,hint,render,update,rebuild,get sel(){return sel;},set sel(v){sel=v;},get moving(){return moving;},clearSel(){sel=null; moving=null;},add,okFor,atPoint,undo,get undoSteps(){return hist.length;}};
+  return {CAT,FIXED,okFix:(k,dx,dz)=>okFix(FIXED.find(f=>f.k===k),dx,dz),okTree:(i,x,z)=>okTree(i,x,z),planFence,canalNet,drained,drainedByCanal,canalOnTile,get drawing(){return !!line;},holdHouseAt,tap,lineOn,lineStart,lineTo,lineEnd,bar,hint,render,update,rebuild,get sel(){return sel;},set sel(v){sel=v;},get moving(){return moving;},clearSel(){sel=null; moving=null;},add,okFor,atPoint,undo,get undoSteps(){return hist.length;}};
 })();
 /* ---------- rain and drainage: in the rain, crops on plots no canal drains are flooded; any still flooded when the rain stops are lost ---------- */
 var FLOOD=(()=>{let last=0, warned=0;
@@ -11046,6 +11133,6 @@ NAV=(()=>{
 
 })();
 </script>
-<script src="/startup.js?v=71"></script>
+<script src="/startup.js?v=72"></script>
 </body>
 </html>

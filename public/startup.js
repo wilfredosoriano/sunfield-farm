@@ -104,7 +104,8 @@
    catch(e){pending=pending||data; if(e.status===409){paused='conflict'; setState('conflict');} else if(e.status===401){paused='expired'; setState('expired');} else if(e.status===400||e.status===413){paused='rejected'; setState('rejected');} else setState('offline');}
    finally{busy=false;}}
  window.SunfieldCloud={key,queue(s){if(key!==guestKey){const m=getMeta(); if(!m.dirty){m.dirty=true; setMeta(m);}} if(!user||paused) return; pending=JSON.parse(JSON.stringify(s)); if(state==='synced') setState('pending'); if(!timer) timer=setTimeout(()=>{timer=null; flush();},8000);},
-   flush:()=>flush(true)};
+   flush:()=>flush(true),
+   reload:async()=>{try{await flush(true);}catch{} try{sessionStorage.setItem('sf-resume',JSON.stringify({key,user:!!user,offline:offlineAccount}));}catch{} location.reload();}};   // the game rebuilds the farm: come straight back to the same farm
  setInterval(()=>flush(),30000); addEventListener('online',()=>flush());
  document.addEventListener('visibilitychange',()=>{if(document.hidden) flush(true);}); addEventListener('pagehide',()=>flush(true));
  // ---------- account and sync, inside the game's Settings ----------
@@ -175,6 +176,8 @@
      {label:'Use my guest farm',sub:summary(guestSave),fn:()=>use(guestSave,true),main:true},{label:'Start a new farm',sub:'An empty farm saved to your account',fn:()=>use(null,false)}]);
    return use(null,false);}
  async function boot(){loading('Checking your account…',12);
+   let resume=null; try{resume=JSON.parse(sessionStorage.getItem('sf-resume')); sessionStorage.removeItem('sf-resume');}catch{}
+   if(resume&&!resume.user){if(resume.offline&&resume.key){user=null; offlineAccount=true; key=resume.key; state='offlineAccount'; return launch();} return guest();}   // straight back to the guest or offline farm after a rebuild
    try{const s=await api('/api/session'); configured=!!s.configured; user=s.user;
      if(user){remember(user); return account();}
      const last=lastAccount(), lastKey=last?guestKey+'-account-'+last.id:null, lastLocal=lastKey&&read(lastKey);

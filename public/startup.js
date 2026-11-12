@@ -185,5 +185,6 @@
      btn(m,last?'Play as a guest instead':'Play as a guest',guest,'quiet');
      if(!configured) m.append(el('p','sf-note','Google sign-in is not set up yet. Guest play saves on this device.'));}
    catch(e){failure(e.message);}}
- boot();
+ // held upright, only the turn-sideways card shows; nothing loads until the phone is sideways, so you see the loading from the start
+ screen('Sunfield Farm',null); sideways().then(boot);
 })();

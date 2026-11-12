@@ -9903,7 +9903,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
-  {v:67,date:'Nov 13, 2026',title:'Smoother start',items:['📱 One "turn your phone sideways" screen only, shown first. It also comes back if you turn your phone upright while playing.','⏳ The loading screen now stays until your farm is fully built, including the paths your farmer and helpers walk, so nothing pops in after it closes.']},
+  {v:67,date:'Nov 13, 2026',title:'Smoother start',items:['📱 One "turn your phone sideways" screen only, shown first. It also comes back if you turn your phone upright while playing.','⏳ The loading screen now stays until your farm is fully built, including the paths your farmer and helpers walk, so nothing pops in after it closes.','🖼️ The turn-sideways screen fills the whole screen, and the farm only starts once your phone is sideways, so it never opens squashed. Turning your phone while playing re-fits the view.']},
   {v:66,date:'Nov 13, 2026',title:'Tidier dirt roads',items:['🛣️ Roads you draw keep straight stretches straight and turn at real corners, with only the small rounding a truck needs. They only curve where you draw a curve.','⬛ A road that ends in the open now stops square. Where it runs into another road it still blends in.']},
   {v:65,date:'Nov 13, 2026',title:'Round pens and any corner',items:['⭕ Fences follow the shape you draw: draw a circle and you get a round pen, draw a curve and the fence curves with it.','↩️ Changed your mind while drawing? Drag back over the line to rub it out, the same way you came. Go all the way back and nothing is built. Works for dirt roads too.','📐 Sharp turns become corners at any angle, not only square ones. Straight stretches stay straight and line up with the farm only when you are already close to it.']},
   {v:64,date:'Nov 12, 2026',title:'Moving animal houses is easier',items:['✋ Press and hold any animal house, anywhere: Decorate opens with the house picked up. Keep your finger down and drag it, then ✓.','🪵 Holding a house now picks up the house, even with a fence chosen or a fence right beside it.']},
@@ -10076,6 +10076,8 @@ updateAchBadge(); achSeen=ACH.filter(achReady).length;
 /* ---------- Loop ---------- */
 function resize(){renderer.setSize(innerWidth,innerHeight,false); camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); if(POST) POST.resize();}
 addEventListener('resize',resize); resize();
+{const refit=()=>{resize(); for(const t of [120,350,700,1200]) setTimeout(resize,t);};   // phones report the new size a moment after turning: measure again until it has settled
+  addEventListener('orientationchange',refit); if(window.visualViewport) visualViewport.addEventListener('resize',resize); screen.orientation&&screen.orientation.addEventListener&&screen.orientation.addEventListener('change',refit);}
 const easeBack=x=>{const c1=1.70158,c3=c1+1;return 1+c3*Math.pow(x-1,3)+c1*Math.pow(x-1,2);};
 let lastTick=0, lastFrame=performance.now();
 function applyEco(){ECO=S.eco===undefined?PHONE:!!S.eco; renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,PHONE?1.25:ECO?1.5:2)); resize();
@@ -10948,6 +10950,6 @@ NAV=(()=>{
 
 })();
 </script>
-<script src="/startup.js?v=67"></script>
+<script src="/startup.js?v=70"></script>
 </body>
 </html>

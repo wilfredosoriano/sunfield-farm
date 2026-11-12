@@ -7,9 +7,12 @@
  const $=s=>document.querySelector(s), el=(t,c,txt)=>{const e=document.createElement(t); if(c) e.className=c; if(txt!=null) e.textContent=txt; return e;};
  // ---------- look ----------
  const css=`
- #sf-start{position:fixed;inset:0;z-index:100000;display:grid;place-items:center;padding:14px;font-family:Mali,Nunito,system-ui,sans-serif;color:#3b2e24;
+ #sf-start{position:fixed;top:0;left:0;right:0;bottom:auto;height:100vh;height:100lvh;z-index:100000;box-sizing:border-box;display:grid;place-items:center;padding:14px;font-family:Mali,Nunito,system-ui,sans-serif;color:#3b2e24;
    background:radial-gradient(ellipse 90% 45% at 50% 112%,#b9d39a 0 70%,transparent 71%),radial-gradient(ellipse 70% 35% at 15% 105%,#a3c47f 0 70%,transparent 71%),linear-gradient(#cfe8ee,#eef3e2) #cfe6d0;-webkit-text-size-adjust:100%;text-size-adjust:100%}
  #sf-start[hidden]{display:none}
+ /* behind the start screens the page is the same colour, so no strip of sky shows under a phone's toolbar or home bar */
+ html.sf-cover,html.sf-cover body{background:#dfeee0!important}
+ @media (orientation:portrait) and (pointer:coarse){html.sf-idle,html.sf-idle body{background:#dfeee0!important}}
  #sf-start .sf-card{position:relative;background:#fbf7ec;border:2px solid #4a3f34;border-radius:16px 20px 15px 19px/19px 15px 20px 16px;box-shadow:2px 3px 0 #4a3f3526;
    width:min(440px,100%);max-height:calc(100dvh - 28px);overflow:auto;padding:18px 20px 16px;box-sizing:border-box}
  #sf-start .sf-art{display:block;width:100%;height:auto;max-height:118px;margin:-4px 0 6px}
@@ -68,7 +71,8 @@
    const req=docEl.requestFullscreen||docEl.webkitRequestFullscreen; try{Promise.resolve(req.call(docEl,{navigationUI:'hide'})).then(lock).catch(()=>{});}catch{}}
  const rot=()=>{const r=el('div','sf-rot'); r.innerHTML=ROT; r.append(el('h1',null,'Turn your phone sideways'),el('p',null,'Sunfield Farm is played in landscape. Rotate your phone to continue.'));
    if(canLock){const b=el('button','sf-btn main','Play in landscape'); b.onclick=lockSideways; r.append(b);} return r;};
- function screen(title,body,art=true){overlay.replaceChildren(); overlay.hidden=false; overlay.classList.remove('idle'); const card=el('div','sf-card'), main=el('div','sf-main');
+ const cover=on=>{document.documentElement.classList.toggle('sf-cover',on); document.documentElement.classList.toggle('sf-idle',!on);};
+ function screen(title,body,art=true){overlay.replaceChildren(); overlay.hidden=false; overlay.classList.remove('idle'); cover(true); const card=el('div','sf-card'), main=el('div','sf-main');
    if(art) main.insertAdjacentHTML('beforeend',ART); main.append(el('h1',null,title)); if(body) main.append(el('p',null,body)); card.append(main,rot()); overlay.append(card); return main;}
  const btn=(box,label,fn,cls='',disabled=false)=>{const b=el('button','sf-btn '+cls); if(cls.includes('google')){b.innerHTML=G; b.append(el('span',null,label));} else b.textContent=label;
    b.disabled=disabled; b.onclick=()=>{b.disabled=true; Promise.resolve().then(fn).catch(e=>failure(e.message)).finally(()=>{if(b.isConnected) b.disabled=disabled;});}; box.append(b); return b;};
@@ -118,7 +122,12 @@
    box.append(who,sync,acts);}
  setInterval(()=>{if(state==='synced') renderAcct();},30000);
  // ---------- start the game ----------
- async function launch(){if(started) return; started=true; window.SunfieldCloud.key=key; loading('Building your farm…',70); await new Promise(r=>setTimeout(r,80));
+ const upright=()=>matchMedia('(orientation:portrait) and (pointer:coarse)').matches;
+ function sideways(){if(!upright()) return Promise.resolve(); return new Promise(ok=>{let done1=false; const mq=matchMedia('(orientation:portrait) and (pointer:coarse)'), go=()=>{if(upright()||done1) return; done1=true; mq.removeEventListener?.('change',go); removeEventListener('resize',go);
+     let n=0, w=0; const settle=()=>{const W=innerWidth; if(W>innerHeight&&W===w&&++n>=3) return ok(); if(W!==w) n=0; w=W; setTimeout(settle,120);}; settle();};   // wait until the size the phone reports stops changing
+   mq.addEventListener?mq.addEventListener('change',go):addEventListener('resize',go); addEventListener('resize',go);
+   const poll=setInterval(()=>{if(!upright()){clearInterval(poll); go();}},300);});}   // and check now and then, in case the turn's event is missed
+ async function launch(){if(started) return; started=true; window.SunfieldCloud.key=key; loading('Building your farm…',70); await sideways(); await new Promise(r=>setTimeout(r,80));
    if(!window.THREE){started=false; return failure('The 3D engine could not load. Check your connection and try again.');}
    let error=null; const onError=e=>{error=e.error||Error(e.message);}; addEventListener('error',onError);
    const script=el('script'); script.textContent=document.getElementById('sunfield-game').textContent; document.body.append(script); removeEventListener('error',onError);
@@ -131,7 +140,7 @@
        if((g.frames>=12&&g.navReady)||Date.now()-t0>15000) return done(); setTimeout(tick,120);};   // never stuck: 15 s at most
      tick();});
    window.SunfieldLoading=false; loading('Ready!',100); await new Promise(r=>setTimeout(r,250));
-   overlay.replaceChildren(); const card=el('div','sf-card'); card.append(rot()); overlay.append(card); overlay.classList.add('idle'); overlay.hidden=false;
+   overlay.replaceChildren(); const card=el('div','sf-card'); card.append(rot()); overlay.append(card); overlay.classList.add('idle'); overlay.hidden=false; cover(false);
    if(user&&state==='guest') setState(getMeta().dirty?'pending':'synced'); renderAcct();
    if(user&&getMeta().dirty){pending=JSON.parse(localStorage.getItem(key)||'null'); if(pending) flush();}}
  function guest(){user=null; offlineAccount=false; key=guestKey; state='guest'; return launch();}

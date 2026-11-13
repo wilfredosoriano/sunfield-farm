@@ -341,6 +341,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .sndrow button .lb{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .sndrow button small{font-size:10px;font-weight:900;opacity:.6}
 .sndrow button.on small{opacity:1;color:#2e7d32}
+.langrow{grid-template-columns:1fr 1fr}.langrow button.on{background:#dcebc8}
 /* the three-button pop-ups */
 #drvSheet{z-index:9}
 #bldSheet .sheet,#drvSheet .sheet{width:min(440px,100%)!important}
@@ -720,6 +721,7 @@ body:not(#z):not(#y) #menu .sheet>.mhead h2{font-size:16px!important;line-height
     <button id="achMenuBtn">🏆 Achievements</button>
     <button id="billBtn">🧾 Bills · water, power, garbage</button>
     <div class="sndrow"><button id="sndMusic"></button><button id="sndAmb"></button><button id="sndSfx"></button><button id="ecoBtn"></button></div>
+    <div class="sndrow langrow" role="group" aria-label="Language"><button id="langEn" translate="no"><span class="ic">🌐</span><span class="lb">English</span></button><button id="langTl" translate="no"><span class="ic">🇵🇭</span><span class="lb">Tagalog</span></button></div>
     <button id="recenter">Recenter the view</button>
     <button id="reset" class="warn">Start a new farm</button>
     <button id="closeMenu">Back to the farm</button>
@@ -1103,6 +1105,8 @@ const canvas=document.getElementById('c');
 // battery saver: on by default on phones and tablets; 30 frames a second, a lower drawing resolution and simpler shadows
 const PHONE=matchMedia('(pointer: coarse)').matches;
 let ECO=S.eco===undefined?PHONE:!!S.eco;
+// the language rides in the save, so it follows the account to other devices
+if(S.lang) SFI18N.set(S.lang);
 const renderer=new THREE.WebGLRenderer({canvas,antialias:!ECO,powerPreference:ECO?'low-power':'default'});   // the picture is drawn through the ink pass anyway, so screen antialiasing adds little
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,PHONE?1.25:ECO?1.5:2));
 renderer.shadowMap.enabled=true; renderer.shadowMap.type=ECO?THREE.PCFShadowMap:THREE.PCFSoftShadowMap;
@@ -2459,7 +2463,7 @@ function updateKubo(t){
   if(ks.length<2){kubo.talker=null; B.sp.visible=false; return;}
   if(now>kubo.next||!kubo.sitters.has(kubo.talker)){
     kubo.talker=ks[(Math.random()*ks.length)|0]; kubo.next=now+2800+Math.random()*1500;
-    const c=B.cv.getContext('2d'), txt=kubo.lines[(Math.random()*kubo.lines.length)|0]; c.clearRect(0,0,512,160);
+    const c=B.cv.getContext('2d'), txt=SFI18N.t(kubo.lines[(Math.random()*kubo.lines.length)|0]); c.clearRect(0,0,512,160);
     c.font='800 54px Arial, sans-serif'; const w=Math.min(500,c.measureText(txt).width+56);
     c.fillStyle='rgba(255,255,255,.95)'; c.beginPath(); c.roundRect?c.roundRect(256-w/2,10,w,104,40):c.rect(256-w/2,10,w,104); c.fill();
     c.beginPath(); c.moveTo(236,112); c.lineTo(256,150); c.lineTo(276,112); c.fill();
@@ -4395,6 +4399,7 @@ function badge(cx,kind,x,y,R){const INK='#3b2e24'; cx.lineWidth=5; cx.lineCap=cx
     default: C(0,0,.5,'#fbf7ec'); L(0,0,0,-.32); L(0,0,.24,.12);}}   // a clock
 // a board: paper with a slightly wobbly double pencil outline, a badge, the words in the game's hand lettering, and a progress bar when there is one
 function drawLabel(o,kind,text,accent,prog){
+  text=SFI18N.t(text);
   const sp=farmLabel(o), key=kind+'|'+text+'|'+(prog==null?'':Math.round(prog*24)); if(sp.userData.key===key) return; sp.userData.key=key;
   const cx=sp.userData.cv.getContext('2d'), W=560, H=150, bar=prog!=null; cx.clearRect(0,0,W,H);
   cx.font='700 46px Mali, Nunito, Arial, sans-serif'; const tw=Math.min(W-150,cx.measureText(text).width), bw=tw+132, x0=(W-bw)/2, y0=bar?14:26, bh=bar?120:96;
@@ -4968,6 +4973,9 @@ function ambTick(){
 // every pop-up sheet makes a soft pop when it opens
 ['market','hwSheet','upSheet','bldSheet','drvSheet','helpSheet','bizSheet','newsSheet','achSheet','misSheet','menu'].forEach(id=>{const el=document.getElementById(id); if(!el) return;
   new MutationObserver(()=>{const o=el.classList.contains('open'); if(o!==!!el._o){el._o=o; sfx(o?'pop':'close');}}).observe(el,{attributes:true,attributeFilter:['class']});});
+function renderLang(){['En','Tl'].forEach(k=>document.getElementById('lang'+k).classList.toggle('on',SFI18N.lang===k.toLowerCase()));}
+['En','Tl'].forEach(k=>document.getElementById('lang'+k).addEventListener('click',()=>{S.lang=k.toLowerCase(); SFI18N.set(S.lang); save(); renderLang(); sfx('tap');}));
+renderLang();
 function renderSnd(){[['music','sndMusic','🎵','Music'],['amb','sndAmb','🐦','Nature'],['sfx','sndSfx','🔔','Effects']].forEach(([k,id,ic,l])=>{const b=document.getElementById(id); if(b){b.innerHTML=`<span class="ic">${ic}</span><span class="lb">${l}</span><small>${SND[k]?'ON':'OFF'}</small>`; b.classList.toggle('on',SND[k]);}});
   const e=document.getElementById('ecoBtn'); if(e){e.innerHTML=`<span class="ic">🔋</span><span class="lb">Battery</span><small>${ECO?'ON':'OFF'}</small>`; e.classList.toggle('on',ECO);}}
 document.getElementById('ecoBtn').addEventListener('click',()=>{S.eco=!ECO; save(); applyEco(); renderSnd(); sfx('tap'); toast(ECO?'🔋 Battery saver on: smoother on your battery, slightly softer picture.':'🔋 Battery saver off: full quality.',2600);});
@@ -7340,7 +7348,7 @@ function updatePark(dt,t){
 /* ---------- street vendors: balut at night, pandesal at dawn, sorbetes at tanghaling tapat ---------- */
 function makeBubble(){const cv=document.createElement('canvas'); cv.width=512; cv.height=160; const tx=new THREE.CanvasTexture(cv);
   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tx,transparent:true,depthTest:false})); sp.scale.set(2.8,.88,1); sp.visible=false; sp.renderOrder=9; scene.add(sp);
-  return {sp,set(txt){const c=cv.getContext('2d'); c.clearRect(0,0,512,160); c.font='900 56px Arial, sans-serif'; const w=Math.min(500,c.measureText(txt).width+56);
+  return {sp,set(txt){txt=SFI18N.t(txt); const c=cv.getContext('2d'); c.clearRect(0,0,512,160); c.font='900 56px Arial, sans-serif'; const w=Math.min(500,c.measureText(txt).width+56);
     c.fillStyle='rgba(255,250,220,.96)'; c.beginPath(); c.roundRect?c.roundRect(256-w/2,10,w,104,40):c.rect(256-w/2,10,w,104); c.fill(); c.beginPath(); c.moveTo(236,112); c.lineTo(256,150); c.lineTo(276,112); c.fill();
     c.fillStyle='#b71c1c'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(txt,256,64); tx.needsUpdate=true;}};}
 function makeRider(kind){
@@ -9974,6 +9982,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:79,date:'Nov 13, 2026',title:'English or Tagalog',items:['🌐 Settings now has a language choice: English or Tagalog. Every menu, button, message, board and news entry switches at once.','☁️ Your choice is saved with your farm, so it follows your account to your other devices.','🌾 Crop, item and building names (Palay, Manukan-Itlog, Bodega…) keep their names in both languages.']},
   {v:77,date:'Nov 13, 2026',title:'Sketched status boards',items:['🪧 The boards over your animal houses (Gutom, Puno na, Handa na, the timers) are now drawn like the rest of the game: paper, pencil lines and little drawn badges instead of emoji, with a striped bar for time left.','🔨 Building and upgrading show a sketched board too: Ginagawa or Ina-upgrade, the time left and a progress bar.','💧 Drawing a canal no longer joins another canal by accident: only the start of a stroke reaches for a nearby canal end; the end joins only when you finish right on one. A canal right alongside another shows red.','🔍 The boards stay solid and clear at every zoom, and roofs only turn see-through when you zoom right in.']},
   {v:76,date:'Nov 13, 2026',title:'No more reloads for small changes',items:['⚡ Moving or taking down the greenhouse, packing shelter, tool rack, kubol, shrub planters and signs now happens right away, without the loading screen. Only moving the bodega or the water tower still rebuilds the farm.']},
   {v:75,date:'Nov 13, 2026',title:'Easier decorating',items:['👀 Gates, signs, benches, lamps and every other single item now show a preview first: green where it can go, red (with the reason) where it can\'t. Drag it or tap elsewhere to move it, ↻ to turn it, ✓ to place it (you pay only then), ✕ to cancel.','▾ The row of buttons above the menu can be hidden while you edit, so you see more of your farm. Tap ▴ Show buttons to bring it back.','🧹 The Put back and Turn buttons are gone from the Decorate row (turn a piece with ↻ beside ✓ and ✕).']},
@@ -11303,6 +11312,7 @@ NAV=(()=>{
 
 })();
 </script>
+<script src="/i18n.js?v=1"></script>
 <script src="/startup.js?v=72"></script>
 </body>
 </html>

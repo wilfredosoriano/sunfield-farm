@@ -8184,7 +8184,7 @@ const WWAYS=(()=>{
   const list0=[
     {id:'ilog',kind:'creek',w:3.6,sp:.32,pts:spline([[268,-252],[276,-236],[290,-218],[307,-202],[315,-191],[315,-181],[309,-169],[307.6,-152],[307.6,-122],[307.6,-110],[309,-97],[315,-82],[321,-66],[325,-56]],false,.9)},
     {id:'brgy',kind:'kanal',w:.7,sp:.2,pts:straight([[64,-189.95],[312.5,-189.95]],.9)},
-    {id:'palengke',kind:'kanal',w:1.1,sp:.2,pts:straight([[147,-116.4],[301.5,-116.4],[304.6,-121.5]],.9)},
+    {id:'palengke',kind:'kanal',w:1.1,sp:.2,pts:straight([[147,-116.4],[295.6,-116.4]],.9)},
     {id:'gilid',kind:'kanal',w:1.1,sp:.2,pts:straight([[219.5,-180.6],[219.5,-116.6]],.9)},   // clear of the side street's culvert, so the join is open
   ];
   const list=list0;   // the farm's own canals (bukid, tubigan) can be taken out by the player: their group is hidden
@@ -8193,19 +8193,25 @@ const WWAYS=(()=>{
   const joinSegment=river.pts.findIndex((p,i)=>i+1<river.pts.length&&p[1]<=joinZ&&river.pts[i+1][1]>=joinZ);
   const ja=river.pts[joinSegment],jb=river.pts[joinSegment+1];
   const joinX=ja[0]+(jb[0]-ja[0])*(joinZ-ja[1])/(jb[1]-ja[1]);
-  barangayDrain.pts=straight([[64,-189.95],[joinX-river.w/2-4,-189.95],[joinX-river.w/2-1.2,joinZ],[joinX-river.w/2+.15,joinZ]],.45);
+  {const tx=jb[0]-ja[0], tz=jb[1]-ja[1], tl=Math.hypot(tx,tz), nx=tz/tl, nz=-tx/tl, sg=nx<0?1:-1, P2=[joinX+sg*nx*(river.w/2+2.4),joinZ+sg*nz*(river.w/2+2.4)];   // the last stretch meets the big canal square on
+    barangayDrain.pts=straight([[64,-189.95],[P2[0]-(-189.95-P2[1]),-189.95],P2,[joinX,joinZ]],.45);}
   const nearOn=(P,x,z)=>{let best=null; for(let i=0;i<P.length-1;i++){const [ax,az]=P[i],[bx,bz]=P[i+1],dx=bx-ax,dz=bz-az,u=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/(dx*dx+dz*dz||1))),qx=ax+dx*u,qz=az+dz*u,d=Math.hypot(x-qx,z-qz); if(!best||d<best.d) best={d,q:[qx,qz],i,n:[-dz/Math.hypot(dx,dz),dx/Math.hypot(dx,dz)]};} return best;};
   for(const W of list){W.open=[]; W.into=[];}
+  const insPt=(P,p)=>{let bi=0,bd=1e9; for(let i=0;i<P.length-1;i++){const [ax,az]=P[i],[bx,bz]=P[i+1],dx=bx-ax,dz=bz-az,u=Math.max(0,Math.min(1,((p[0]-ax)*dx+(p[1]-az)*dz)/(dx*dx+dz*dz||1))),d=Math.hypot(ax+dx*u-p[0],az+dz*u-p[1]); if(d<bd){bd=d; bi=i;}}
+    if(P.some(o=>Math.hypot(o[0]-p[0],o[1]-p[1])<.03)) return; const [ax,az]=P[bi],[bx,bz]=P[bi+1],dx=bx-ax,dz=bz-az,u=Math.max(0,Math.min(1,((p[0]-ax)*dx+(p[1]-az)*dz)/(dx*dx+dz*dz||1))); P.splice(bi+1,0,[ax+dx*u,az+dz*u]);};
   for(const B of list){if(B.kind!=='kanal') continue; for(const end of [0,1]){const P=B.pts, e=end?P[P.length-1]:P[0], f=end?P[Math.max(0,P.length-5)]:P[Math.min(P.length-1,4)];
     let hit=null; for(const A of list){if(A===B||A.kind==='bare') continue; const h=nearOn(A.pts,e[0],e[1]); if(h&&h.d<A.w/2+B.w/2+2.5&&h.i>0&&h.i<A.pts.length-2&&(!hit||h.d<hit.h.d)) hit={A,h};}
-    if(!hit) continue; const {A,h}=hit, q=h.q, L=Math.hypot(q[0]-e[0],q[1]-e[1]), ext=[]; for(let k=.45;k<L;k+=.45) ext.push([e[0]+(q[0]-e[0])*k/L,e[1]+(q[1]-e[1])*k/L]); ext.push(q);
+    if(!hit) continue; const {A,h}=hit, q=h.q, n=h.n, t=[n[1],-n[0]], L=Math.hypot(q[0]-e[0],q[1]-e[1]), ext=[]; for(let k=.45;k<L;k+=.45) ext.push([e[0]+(q[0]-e[0])*k/L,e[1]+(q[1]-e[1])*k/L]); ext.push(q);
     B.pts=end?P.concat(ext):ext.reverse().concat(P);
-    A.open.push({q,side:Math.sign((f[0]-q[0])*h.n[0]+(f[1]-q[1])*h.n[1])||1,r:B.w/2+.2}); B.into.push({q,r:A.w/2,wall:A.kind==='creek'?.42:.2});}}
+    const wa=A.kind==='creek'?.4:.18, dl=Math.hypot(q[0]-f[0],q[1]-f[1])||1, dir=[(q[0]-f[0])/dl,(q[1]-f[1])/dl], cs=Math.max(.35,Math.abs(dir[0]*n[0]+dir[1]*n[1]));
+    for(const d of [A.w/2+wa,A.w/2]) insPt(B.pts,[q[0]-dir[0]*d/cs,q[1]-dir[1]*d/cs]);   // where the kanal crosses the other's outer and inner faces
+    for(const sg of [-1,1]) insPt(A.pts,[q[0]+t[0]*sg*B.w/2/cs,q[1]+t[1]*sg*B.w/2/cs]);   // the opening's edges: the kanal's inner faces
+    A.open.push({q,t,side:Math.sign((f[0]-q[0])*n[0]+(f[1]-q[1])*n[1])||1,half:B.w/2/cs}); B.into.push({q,n,r:A.w/2,wall:wa});}}
   const hr=(x,z,m)=>{for(const r of HROADS) for(const [a,c] of r.s) if(Math.hypot(x-a,z-c)<r.w/2+m) return true; return false;};
   const turn=(x,z,m)=>FARM.turning.some(t=>Math.hypot(x-t.x,z-t.z)<t.r+m);
-  const houseCrossing=(x,z,m)=>Math.abs(z+189.95)<1.6&&HOUSES.some(H=>H.side>0&&(Math.abs(x-H.door[0])<1.3+m||H.car&&Math.abs(x-H.door[0]-4.65)<1.6+m));   // a footbridge to every house door over the barangay kanal, and a culvert for the carport
-  const bridged=(x,z,m)=>houseCrossing(x,z,m-(m>.5?.6:0))||stopDrainCovered(x,z,m)||(Math.abs(x-PX)<7+m&&Math.abs(z+116.4)<3+m)||([273,300].some(a=>Math.abs(x-a)<3.5+m)&&Math.abs(z+116.4)<2.9+m)||(Math.abs(x-236)<5+m&&Math.abs(z+116.4)<2.9+m);
-  const covered=(x,z,m)=>(Math.abs(x-140)<5+m&&Math.abs(z+103.8)<4)||(Math.abs(z-HZ)<5.2+m)||(Math.abs(z-STZ)<4.3+m&&x>35-m&&x<335+m)||(Math.abs(x-SRX)<4.3+m&&z>STZ&&z<HZ)||((Math.abs(x-40)<4.3+m||Math.abs(x-330)<4.3+m)&&z>STZ-4.3&&z<HZ)
+  const houseCrossing=(x,z,m)=>Math.abs(z+189.95)<1.6&&HOUSES.some(H=>H.side>0&&Math.abs(x-H.door[0])<1.3+m), carport=(x,z,m)=>Math.abs(z+189.95)<1.6&&HOUSES.some(H=>H.side>0&&H.car&&Math.abs(x-H.door[0]-4.65)<1.6+m);   // a footbridge to every house door over the barangay kanal, and a culvert for the carport
+  const bridged=(x,z,m)=>houseCrossing(x,z,m-(m>.5?.6:0))||stopDrainCovered(x,z,m);
+  const covered=(x,z,m)=>carport(x,z,m-(m>.5?.6:0))||(Math.abs(x-PX)<7+m&&Math.abs(z+116.4)<3+m)||([273,300].some(a=>Math.abs(x-a)<3.5+m)&&Math.abs(z+116.4)<2.9+m)||(Math.abs(x-236)<5+m&&Math.abs(z+116.4)<2.9+m)||(Math.abs(x-140)<5+m&&Math.abs(z+103.8)<4)||(Math.abs(z-HZ)<5.2+m)||(Math.abs(z-STZ)<4.3+m&&x>35-m&&x<335+m)||(Math.abs(x-SRX)<4.3+m&&z>STZ&&z<HZ)||((Math.abs(x-40)<4.3+m||Math.abs(x-330)<4.3+m)&&z>STZ-4.3&&z<HZ)
     ||(Math.abs(x-TWN.wx)<TWN.w/2+1.3+m&&z>TWN.bz&&z<HZ)||(Math.abs(z-TWN.bz)<TWN.w/2+1.3+m&&x>TWN.wx&&x<SRX)||hr(x,z,m)||roadDist0(x,z)<m||turn(x,z,m-.5);
   const gy=(x,z)=>{const h=hillH(x,z); return h>0?h+.08:0;};
   const tex=(rough)=>{const cv=document.createElement('canvas'); cv.width=64; cv.height=256; const c=cv.getContext('2d'); c.fillStyle=rough?'#e6e6e6':'#d4d4d4'; c.fillRect(0,0,64,256); const r=rng(rough?5:3);
@@ -8218,16 +8224,16 @@ const WWAYS=(()=>{
   for(const W of list){const hw=W.w/2, pts=W.pts, n=pts.length, cov=[], br=[], nor=[], dist=[0]; W.g=new THREE.Group(); scene.add(W.g); if(W.id==='bukid'||W.id==='tubigan') wayMesh(W.id,W.g);
     for(let i=0;i<n;i++){const a=pts[Math.max(0,i-1)], b=pts[Math.min(n-1,i+1)], dx=b[0]-a[0], dz=b[1]-a[1], L=Math.hypot(dx,dz)||1; nor.push([-dz/L,dx/L]); if(i) dist.push(dist[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]));
       cov.push(W.kind!=='bare'&&covered(pts[i][0],pts[i][1]-(W.id==='brgy'?1.6:0),W.kind==='creek'?1.1:hw+.25)); br.push(W.kind==='kanal'&&bridged(pts[i][0],pts[i][1],hw+.25));}
-    const openAt=(i,side)=>W.open.some(o=>o.side===side&&Math.hypot(pts[i][0]-o.q[0],pts[i][1]-o.q[1])<o.r);   // another kanal opens into this side here
-    const inMain=i=>{let r=0; for(const t of W.into){const d=Math.hypot(pts[i][0]-t.q[0],pts[i][1]-t.q[1]); if(d<t.r) return 2; if(d<t.r+t.wall) r=1;} return r;};   // 2: inside the waterway it joins, 1: in its wall
+    const mid=i=>[(pts[i][0]+pts[i+1][0])/2,(pts[i][1]+pts[i+1][1])/2], openSeg=(i,side)=>{const m=mid(i); return W.open.some(o=>o.side===side&&Math.abs((m[0]-o.q[0])*o.t[0]+(m[1]-o.q[1])*o.t[1])<o.half&&Math.hypot(m[0]-o.q[0],m[1]-o.q[1])<o.half+3);};   // another kanal opens into this side here
+    const inMain=i=>{const m=mid(i); let r=0; for(const o of W.into){if(Math.hypot(m[0]-o.q[0],m[1]-o.q[1])>o.r+o.wall+3) continue; const d=Math.abs((m[0]-o.q[0])*o.n[0]+(m[1]-o.q[1])*o.n[1]); if(d<o.r) return 2; if(d<o.r+o.wall) r=1;} return r;};   // 2: inside the waterway it joins, 1: in its wall
     const bp=[], bc=[], wp=[], wu=[], parts=[], banks=[];
     const at=(i,o,h)=>{const [x,z]=pts[i], [nx,nz]=nor[i]; return [x+nx*o,gy(x+nx*o,z+nz*o)+h,z+nz*o];};
     const prof=PROF[W.kind]?PROF[W.kind].map(([o,h,c])=>[o<=0?-hw+o:o>=1?hw+(o-1):0,h,c]):null;
-    for(let i=0;i<n-1;i++){if(cov[i]||cov[i+1]){if(W.kind==='kanal'&&cov[i]&&cov[i+1]){const e=hw+.2, A=at(i,-e,.07), B=at(i,e,.07), C=at(i+1,-e,.07), D=at(i+1,e,.07); bp.push(...A,...C,...B,...B,...C,...D); col.setHex(W.id==='bukid'?(i%3?0x968a73:0x8b7f69):(i%3?0xa6a297:0x8f8b80)); for(let q=0;q<6;q++) bc.push(col.r,col.g,col.b);} continue;}   // concrete covers where a road runs over a kanal (on the farm, a culvert slab with dirt on it)
-      const jm=Math.min(inMain(i),inMain(i+1)); if(jm===2) continue;   // inside the waterway it joins: that one draws the water there
+    for(let i=0;i<n-1;i++){if(cov[i]||cov[i+1]) continue;   // in a culvert: the road on top hides it
+      const jm=inMain(i); if(jm===2) continue;   // inside the waterway it joins: that one draws the water there
       if(prof) for(let k=0;k<prof.length-1;k++){
-        const sd=k<3?-1:k>3?1:0; if(k!==3&&(jm||Math.max(inMain(i),inMain(i+1))===2)) continue;   // a joining kanal's walls stop at the outer face
-        if(sd&&(openAt(i,sd)||openAt(i+1,sd))&&!(W.kind==='creek'&&(k===1||k===5))) continue;   // the side wall opens for a joining kanal (the big canal keeps its cap as a lintel)
+        const sd=k<3?-1:k>3?1:0; if(k!==3&&jm) continue;   // a joining kanal's walls stop at the outer face
+        if(sd&&openSeg(i,sd)) continue;   // the side wall opens exactly as wide as the joining kanal
         let [o1,h1]=prof[k], [o2,h2,c]=prof[k+1];
         if(['bukid','tubigan','patubig'].includes(W.id)&&k!==3) banks.push({start:bp.length,x:(pts[i][0]+pts[i+1][0])/2+nor[i][0]*(o1+o2)/2,z:(pts[i][1]+pts[i+1][1])/2+nor[i][1]*(o1+o2)/2});
         const A=at(i,o1,h1), B=at(i,o2,h2), C=at(i+1,o1,h1), D=at(i+1,o2,h2); bp.push(...A,...C,...B,...B,...C,...D); col.setHex(prof[k][1]>h2?prof[k][2]:c); for(let q=0;q<6;q++) bc.push(col.r,col.g,col.b);}
@@ -8245,9 +8251,10 @@ const WWAYS=(()=>{
           if(!covered(px,pz,.35))parts.push(P('box',0xb9b4a8,px,gy(px,pz)+.48,pz,.44,.96,.44));}
       }else{parts.push(P('box',0xb3afa4,x,g+.2,z,W.w+.7,.4,.28,0,ry,0));
         if(W.id==='bukid'){const tx=nor[j][1], tz=-nor[j][0]; parts.push([PG.limb,limbM(x-tx*.17,g+.16,z-tz*.17,x+tx*.17,g+.16,z+tz*.17,.24),0x2c2823]); parts.push(P('box',0x9e998c,x,g+.43,z,W.w+.8,.06,.36,0,ry,0));}}}   // the culvert pipe's dark mouth and a cap on the headwall
+    if(W.kind==='kanal') for(const j of [0,n-1]) if(!cov[j]&&!W.into.some(o=>Math.hypot(pts[j][0]-o.q[0],pts[j][1]-o.q[1])<.1)){const [x,z]=pts[j]; parts.push(P('box',0xb3afa4,x,gy(x,z)+.2,z,W.w+.7,.4,.28,0,Math.atan2(-nor[j][1],nor[j][0]),0));}   // a kanal that ends on its own ends at a wall (its water goes on in a pipe)
     if(W.kind==='creek'){
       const bankPoint=(i,side)=>{const [x,z]=pts[i],o=side*(hw+.2);return [x+nor[i][0]*o,z+nor[i][1]*o];};
-      const railOpen=(i,side)=>{if(i<0||i>=n-1||cov[i]||cov[i+1])return false;
+      const railOpen=(i,side)=>{if(i<0||i>=n-1||cov[i]||cov[i+1]||openSeg(i,side))return false;
         const A=bankPoint(i,side),B=bankPoint(i+1,side);
         if(covered(A[0],A[1],.3)||covered(B[0],B[1],.3))return false;
         return true;   // the drain outlet sits beneath the continuous cap and railing
@@ -9969,7 +9976,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
-  {v:80,date:'Nov 15, 2026',title:'Tidier canals, no more floods',items:['🌧️ Rain no longer floods your crops, and the farm has no canals any more: the farm canal, the field drain, the irrigation canal and the Kanal you could draw are gone. The town canals stay.','🧱 Canals now open properly into each other. The barangay kanal runs along the road in front of the house fences, with a slab at every gate and carport, and the drains meet the big canal clear of the bridges.']},
+  {v:80,date:'Nov 15, 2026',title:'Tidier canals, no more floods',items:['🌧️ Rain no longer floods your crops, and the farm has no canals any more: the farm canal, the field drain, the irrigation canal and the Kanal you could draw are gone. The town canals stay.','🧱 Canals now meet like real concrete: the bigger wall opens exactly as wide as the kanal and the walls join at the corners. The barangay kanal runs along the road in front of the house fences, with a footbridge at every gate and a culvert under every carport and driveway.']},
   {v:79,date:'Nov 13, 2026',title:'English or Tagalog',items:['🌐 Settings now has a language choice: English or Tagalog. Every menu, button, message, board and news entry switches at once.','☁️ Your choice is saved with your farm, so it follows your account to your other devices.','🌾 Crop, item and building names (Palay, Manukan-Itlog, Bodega…) keep their names in both languages.']},
   {v:77,date:'Nov 13, 2026',title:'Sketched status boards',items:['🪧 The boards over your animal houses (Gutom, Puno na, Handa na, the timers) are now drawn like the rest of the game: paper, pencil lines and little drawn badges instead of emoji, with a striped bar for time left.','🔨 Building and upgrading show a sketched board too: Ginagawa or Ina-upgrade, the time left and a progress bar.','💧 Drawing a canal no longer joins another canal by accident: only the start of a stroke reaches for a nearby canal end; the end joins only when you finish right on one. A canal right alongside another shows red.','🔍 The boards stay solid and clear at every zoom, and roofs only turn see-through when you zoom right in.']},
   {v:76,date:'Nov 13, 2026',title:'No more reloads for small changes',items:['⚡ Moving or taking down the greenhouse, packing shelter, tool rack, kubol, shrub planters and signs now happens right away, without the loading screen. Only moving the bodega or the water tower still rebuilds the farm.']},
@@ -11224,7 +11231,7 @@ NAV=(()=>{
 
 })();
 </script>
-<script src="/i18n.js?v=3"></script>
+<script src="/i18n.js?v=4"></script>
 <script src="/startup.js?v=72"></script>
 </body>
 </html>

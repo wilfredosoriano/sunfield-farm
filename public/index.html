@@ -4013,18 +4013,18 @@ const nearSea=(x,z,m=0)=>x>196-m&&z>shoreZ(x)-14-m;
 const inRect=(R,x,z,m)=>x>R[0]-m&&x<R[1]+m&&z>R[2]-m&&z<R[3]+m;
 // the waterways' centre lines and half widths (see WWAYS): trees and bushes keep clear of them
 const WW_CLEAR=[[3.8,[268,-252],[276,-236],[290,-218],[307,-202],[315,-191],[315,-181],[309,-169],[307.6,-152],[307.6,-110],[309,-97],[315,-82],[321,-66],[325,-56]],
-  [1.4,[45,-191.3],[312.5,-191.3]],[1.4,[147,-116.4],[305.2,-116.4]],[1.4,[217.3,-180.6],[217.3,-116.6]],[1.4,[305.4,-103.8],[29.6,-103.8],[29.8,-100],[27,-88],[31.8,-70],[37.8,-54],[37.8,-44],[36,-44.5],[14,-45.2],[-10,-48],[-36,-49.5],[-36,-44.9]],[1.2,[-46,-19.4],[-46,-15.6],[-16.4,-15.6],[-16.4,20.95]]];
-{const bk=WW_CLEAR.find(W=>W[1][0]===-46&&W[1][1]===-19.4); if(bk) bk.id='bukid'; const pt=WW_CLEAR.find(W=>W[1][0]===305.4&&W[1][1]===-103.8); if(pt) pt.irr=1;}
+  [1,[64,-189.95],[312.5,-189.95]],[1.4,[147,-116.4],[305.2,-116.4]],[1.4,[217.3,-180.6],[217.3,-116.6]],[1.4,[305.4,-102.8],[29.6,-102.8],[29.8,-100],[27,-88],[31.8,-70],[37.8,-54],[37.8,-44],[36,-44.5],[14,-45.2],[-10,-48],[-36,-49.5],[-36,-44.9]],[1.2,[-46,-19.4],[-46,-15.6],[-16.4,-15.6],[-16.4,20.95]],Object.assign([1.4,[37.7,-47],[46.6,-47],[46.6,-36],[43.9,-27],[43.9,-5]],{irr:1})];
+{const bk=WW_CLEAR.find(W=>W[1][0]===-46&&W[1][1]===-19.4); if(bk) bk.id='bukid'; const pt=WW_CLEAR.find(W=>W[1][0]===305.4&&W[1][1]===-102.8); if(pt) pt.irr=1;}
 // your canal may meet the irrigation canal just outside the farm fence: an end close to the fence, with that canal close beyond it, drains through a pipe under the fence
 const fenceDist=(x,z)=>{let b=99; for(let i=0;i<FENCE.length;i++){const [ax,az]=FENCE[i], [bx,bz]=FENCE[(i+1)%FENCE.length], dx=bx-ax, dz=bz-az, u=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/(dx*dx+dz*dz||1))); b=Math.min(b,Math.hypot(ax+dx*u-x,az+dz*u-z));} return b;};
-function irrNear(x,z,m){const E=WW_CLEAR.find(W=>W.irr); if(!E) return false; const [w,...P]=E; for(let i=0;i<P.length-1;i++){const [ax,az]=P[i], [bx,bz]=P[i+1], dx=bx-ax, dz=bz-az, u=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/(dx*dx+dz*dz||1))); if(Math.hypot(ax+dx*u-x,az+dz*u-z)<w+m) return true;} return false;}
+function irrNear(x,z,m){for(const E of WW_CLEAR.filter(W=>W.irr)){const [w,...P]=E; for(let i=0;i<P.length-1;i++){const [ax,az]=P[i], [bx,bz]=P[i+1], dx=bx-ax, dz=bz-az, u=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/(dx*dx+dz*dz||1))); if(Math.hypot(ax+dx*u-x,az+dz*u-z)<w+m) return true;}} return false;}
 const throughFence=(x,z)=>fenceDist(x,z)<2.4&&irrNear(x,z,7);   // the farm canal: skipped while taken out
 const MAIN_CANALS=WW_CLEAR.concat([Object.assign([1.4,[-16.4,20.95],[14.6,20.95]],{id:'tubigan'})]);   // what player canals drain into: every waterway, plus the field drain in front of the crop field
 // Exact visible centerline target for player-built canal joins (not broad vegetation clearance bounds).
 function farmCanalSnap(p,limit=2.2){let best=null,dist=limit;
- for(const A of WWAYS.all){if(!['bukid','tubigan','patubig'].includes(A.W.id)||goneWay(A.W.id))continue;
+ for(const A of WWAYS.all){if(!['bukid','tubigan','patubig','tabi'].includes(A.W.id)||goneWay(A.W.id))continue;
   const pts=A.W.pts;for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i],dx=b[0]-a[0],dz=b[1]-a[1],u=Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dz)/(dx*dx+dz*dz||1))),q=[a[0]+dx*u,a[1]+dz*u],d=Math.hypot(q[0]-p[0],q[1]-p[1]);
-   if(d<dist&&(A.W.id!=='patubig'||fenceDist(q[0],q[1])<6)){dist=d;best={p:q,id:A.W.id,w:A.W.w,end:i===1&&u<.01?-1:i===pts.length-1&&u>.99?1:0,tangent:[dx/Math.hypot(dx,dz),dz/Math.hypot(dx,dz)]};}}
+   if(d<dist&&(!['patubig','tabi'].includes(A.W.id)||fenceDist(q[0],q[1])<6)){dist=d;best={p:q,id:A.W.id,w:A.W.w,end:i===1&&u<.01?-1:i===pts.length-1&&u>.99?1:0,tangent:[dx/Math.hypot(dx,dz),dz/Math.hypot(dx,dz)]};}}
  }return best;}
 // Only a short outfall corridor beside the fixed farm fence may extend outside the lot.
 function farmCanalOutfall(x,z){return fenceDist(x,z)<6&&irrNear(x,z,3);}
@@ -4363,7 +4363,7 @@ setInterval(()=>{const pn=performance.now(), dt=Math.min(5,(pn-lifeLast)/1000); 
   const now=Date.now(), m=monthN(now), M=m%12, houses=lifeTiles(), stocked=b=>houses.some(i=>(!b||b.includes(S.tiles[i].b))&&S.tiles[i].n>0);
   if(S.ev.m!==m){const first=S.ev.m==null; S.ev.m=m;
     if(!first&&[11,0,1].includes(M)&&Math.random()<BALANCE.fluSeasonChance&&m-(S.ev.lastFluMonth??-100)>=BALANCE.eventCooldownMonths&&stocked(POULTRY_B)){S.ev.flu=m;S.ev.lastFluMonth=m; sfx('nope'); toast('📻 Balita: bird flu found in a nearby province! Vaccinate your manukan and itikan with 💉 Bakuna from the Agrivet.',5200);}
-    if(!first&&[5,6,7,8,9,10].includes(M)) toast('🌧️ Tag-ulan na: the rainy months. Rain waters your crops, but plots with no canal to drain them can flood. Dig canals joined to the main canal.',4600);
+    if(!first&&[5,6,7,8,9,10].includes(M)) toast('🌧️ Tag-ulan na: the rainy months. The rain waters your crops for you.',4600);
     if(!first&&[2,3,4].includes(M)&&Math.random()<BALANCE.heatSeasonChance&&m-(S.ev.lastHeatMonth??-100)>=BALANCE.eventCooldownMonths&&stocked()){S.ev.heatEnd=now+DAY_MS;S.ev.lastHeatMonth=m; houses.forEach(i=>S.tiles[i].wet=now); toast('🥵 Heat wave today! Your animals need water every few hours: tap their house, then 🐾 Alaga → 💧 Painumin.',5200);}
     save();}
   {const d=gameDayN(now); if(S.ev.d!==d){const first=S.ev.d==null; S.ev.d=d; if(!first&&[5,6,7,8,9,10].includes(M)&&Math.random()<.4) startRain(now);}}   // a rainy day in the rainy months
@@ -8199,11 +8199,12 @@ const WWAYS=(()=>{
   const acc=(()=>{const a=off(ACCESS,4.3); return (a[0][0]<ACCESS[0][0]?a:off(ACCESS,-4.3)).filter(([x,z])=>z>-100&&z<-43);})();   // west side of the farm road
   const list0=[
     {id:'ilog',kind:'creek',w:3.6,sp:.32,pts:spline([[268,-252],[276,-236],[290,-218],[307,-202],[315,-191],[315,-181],[309,-169],[307.6,-152],[307.6,-122],[307.6,-110],[309,-97],[315,-82],[321,-66],[325,-56]],false,.9)},
-    {id:'brgy',kind:'kanal',w:1.1,sp:.2,pts:straight([[45,-191.3],[312.5,-191.3]],.9)},
-    {id:'palengke',kind:'kanal',w:1.1,sp:.2,pts:straight([[147,-116.4],[305.2,-116.4]],.9)},
+    {id:'brgy',kind:'kanal',w:.7,sp:.2,pts:straight([[64,-189.95],[312.5,-189.95]],.9)},
+    {id:'palengke',kind:'kanal',w:1.1,sp:.2,pts:straight([[147,-116.4],[301.5,-116.4],[304.6,-121.5]],.9)},
     {id:'gilid',kind:'kanal',w:1.1,sp:.2,pts:straight([[217.3,-180.6],[217.3,-116.6]],.9)},
-    {id:'patubig',kind:'kanal',w:1.2,sp:.18,pts:straight([[305.4,-103.8],[29.6,-103.8],...acc,[36,-44.5],[14,-45.2],[-10,-48],[-36,-49.5],[-36,-44.9]],.9)},
+    {id:'patubig',kind:'kanal',w:1.2,sp:.18,pts:straight([[306.4,-97.6],[301.4,-102.8],[29.6,-102.8],...acc,[36,-44.5],[14,-45.2],[-10,-48],[-36,-49.5],[-36,-44.9]],.9)},
     {id:'bukid',kind:'kanal',w:1.0,sp:.16,pts:straight([[-46,-19.4],[-46,-15.6],[-16.4,-15.6],[-16.4,20.95],[-14.6,20.95]],.8)},
+    {id:'tabi',kind:'kanal',w:1.1,sp:.18,pts:straight([[37.7,-47],[46.6,-47],[46.6,-36],[43.9,-27],[43.9,-5]],.9)},   // the farm-side canal: off the irrigation canal, under the farm road, past the garbage point (fixed)
     {id:'tubigan',kind:'bare',w:1.4,sp:.14,pts:straight([[-14.6,20.95],[14.6,20.95]],.8)},   // the field canal (its banks are already built)
   ];
   const list=list0;   // the farm's own canals (bukid, tubigan) can be taken out by the player: their group is hidden
@@ -8212,13 +8213,19 @@ const WWAYS=(()=>{
   const joinSegment=river.pts.findIndex((p,i)=>i+1<river.pts.length&&p[1]<=joinZ&&river.pts[i+1][1]>=joinZ);
   const ja=river.pts[joinSegment],jb=river.pts[joinSegment+1];
   const joinX=ja[0]+(jb[0]-ja[0])*(joinZ-ja[1])/(jb[1]-ja[1]);
-  barangayDrain.pts=straight([[45,-191.3],[joinX-river.w/2-4,-191.3],[joinX-river.w/2-1.2,joinZ],[joinX-river.w/2+.15,joinZ]],.45);
+  barangayDrain.pts=straight([[64,-189.95],[joinX-river.w/2-4,-189.95],[joinX-river.w/2-1.2,joinZ],[joinX-river.w/2+.15,joinZ]],.45);
+  const nearOn=(P,x,z)=>{let best=null; for(let i=0;i<P.length-1;i++){const [ax,az]=P[i],[bx,bz]=P[i+1],dx=bx-ax,dz=bz-az,u=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/(dx*dx+dz*dz||1))),qx=ax+dx*u,qz=az+dz*u,d=Math.hypot(x-qx,z-qz); if(!best||d<best.d) best={d,q:[qx,qz],i,n:[-dz/Math.hypot(dx,dz),dx/Math.hypot(dx,dz)]};} return best;};
+  for(const W of list){W.open=[]; W.into=[];}
+  for(const B of list){if(B.kind!=='kanal') continue; for(const end of [0,1]){const P=B.pts, e=end?P[P.length-1]:P[0], f=end?P[Math.max(0,P.length-5)]:P[Math.min(P.length-1,4)];
+    let hit=null; for(const A of list){if(A===B||A.kind==='bare') continue; const h=nearOn(A.pts,e[0],e[1]); if(h&&h.d<A.w/2+B.w/2+2.5&&h.i>0&&h.i<A.pts.length-2&&(!hit||h.d<hit.h.d)) hit={A,h};}
+    if(!hit) continue; const {A,h}=hit, q=h.q, L=Math.hypot(q[0]-e[0],q[1]-e[1]), ext=[]; for(let k=.45;k<L;k+=.45) ext.push([e[0]+(q[0]-e[0])*k/L,e[1]+(q[1]-e[1])*k/L]); ext.push(q);
+    B.pts=end?P.concat(ext):ext.reverse().concat(P);
+    A.open.push({q,side:Math.sign((f[0]-q[0])*h.n[0]+(f[1]-q[1])*h.n[1])||1,r:B.w/2+.2}); B.into.push({q,r:A.w/2,wall:A.kind==='creek'?.42:.2});}}
   const hr=(x,z,m)=>{for(const r of HROADS) for(const [a,c] of r.s) if(Math.hypot(x-a,z-c)<r.w/2+m) return true; return false;};
   const turn=(x,z,m)=>FARM.turning.some(t=>Math.hypot(x-t.x,z-t.z)<t.r+m);
-  const houseCrossing=(x,z,m)=>Math.abs(z+191.3)<1.6&&HOUSES.some(H=>H.side>0&&(Math.abs(x-H.door[0])<1.3+m||H.car&&Math.abs(x-H.door[0]-4.65)<1.6+m));   // a footbridge to every house door over the barangay kanal, and a culvert for the carport
-  const covered=(x,z,m)=>houseCrossing(x,z,m-(m>.5?.6:0))||(Math.abs(x-140)<5+m&&Math.abs(z+103.8)<4)||stopDrainCovered(x,z,m)||(Math.abs(z-HZ)<5.2+m)||(Math.abs(z-STZ)<4.3+m&&x>35-m&&x<335+m)||(Math.abs(x-SRX)<4.3+m&&z>STZ&&z<HZ)||((Math.abs(x-40)<4.3+m||Math.abs(x-330)<4.3+m)&&z>STZ-4.3&&z<HZ)
-    ||(Math.abs(x-PX)<7+m&&Math.abs(z+116.4)<3+m) // palengke entrance culvert
-    ||([273,300].some(a=>Math.abs(x-a)<3.5+m)&&Math.abs(z+116.4)<2.9+m)||(Math.abs(x-236)<5+m&&Math.abs(z+116.4)<2.9+m)   // terminal driveways, bus entrance
+  const houseCrossing=(x,z,m)=>Math.abs(z+189.95)<1.6&&HOUSES.some(H=>H.side>0&&(Math.abs(x-H.door[0])<1.3+m||H.car&&Math.abs(x-H.door[0]-4.65)<1.6+m));   // a footbridge to every house door over the barangay kanal, and a culvert for the carport
+  const bridged=(x,z,m)=>houseCrossing(x,z,m-(m>.5?.6:0))||stopDrainCovered(x,z,m)||(Math.abs(x-PX)<7+m&&Math.abs(z+116.4)<3+m)||([273,300].some(a=>Math.abs(x-a)<3.5+m)&&Math.abs(z+116.4)<2.9+m)||(Math.abs(x-236)<5+m&&Math.abs(z+116.4)<2.9+m);
+  const covered=(x,z,m)=>(Math.abs(x-140)<5+m&&Math.abs(z+103.8)<4)||(Math.abs(z-HZ)<5.2+m)||(Math.abs(z-STZ)<4.3+m&&x>35-m&&x<335+m)||(Math.abs(x-SRX)<4.3+m&&z>STZ&&z<HZ)||((Math.abs(x-40)<4.3+m||Math.abs(x-330)<4.3+m)&&z>STZ-4.3&&z<HZ)
     ||(Math.abs(x-TWN.wx)<TWN.w/2+1.3+m&&z>TWN.bz&&z<HZ)||(Math.abs(z-TWN.bz)<TWN.w/2+1.3+m&&x>TWN.wx&&x<SRX)||hr(x,z,m)||roadDist0(x,z)<m||turn(x,z,m-.5);
   const gy=(x,z)=>{const h=hillH(x,z); return h>0?h+.08:0;};
   const tex=(rough)=>{const cv=document.createElement('canvas'); cv.width=64; cv.height=256; const c=cv.getContext('2d'); c.fillStyle=rough?'#e6e6e6':'#d4d4d4'; c.fillRect(0,0,64,256); const r=rng(rough?5:3);
@@ -8228,22 +8235,23 @@ const WWAYS=(()=>{
   const PROF={creek:[[-.4,.02,0xa9a59a],[-.4,.95,0xd2cec3],[0,.95,0xb8b4a9],[0,.06,0x6a665c],[1,.06,0x6a665c],[1,.95,0xb8b4a9],[1.4,.95,0xd2cec3],[1.4,.02,0xa9a59a]],   // offsets past the edges, height, colour: the big concrete canal
               kanal:[[-.18,.02,0xb3afa4],[-.18,.32,0xc9c5ba],[0,.32,0xb3afa4],[0,.03,0x6f6a5e],[1,.03,0x6f6a5e],[1,.32,0xb3afa4],[1.18,.32,0xc9c5ba],[1.18,.02,0xb3afa4]]};
   const all=[], col=new THREE.Color(), WWMAT=VCMAT.clone(); WWMAT.side=THREE.DoubleSide;
-  for(const W of list){const hw=W.w/2, pts=W.pts, n=pts.length, cov=[], nor=[], dist=[0]; W.g=new THREE.Group(); scene.add(W.g); if(W.id==='bukid'||W.id==='tubigan') wayMesh(W.id,W.g);
+  for(const W of list){const hw=W.w/2, pts=W.pts, n=pts.length, cov=[], br=[], nor=[], dist=[0]; W.g=new THREE.Group(); scene.add(W.g); if(W.id==='bukid'||W.id==='tubigan') wayMesh(W.id,W.g);
     for(let i=0;i<n;i++){const a=pts[Math.max(0,i-1)], b=pts[Math.min(n-1,i+1)], dx=b[0]-a[0], dz=b[1]-a[1], L=Math.hypot(dx,dz)||1; nor.push([-dz/L,dx/L]); if(i) dist.push(dist[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]));
-      cov.push(W.kind!=='bare'&&covered(pts[i][0],pts[i][1],W.kind==='creek'?1.1:hw+.25));}
+      cov.push(W.kind!=='bare'&&covered(pts[i][0],pts[i][1]-(W.id==='brgy'?1.6:0),W.kind==='creek'?1.1:hw+.25)); br.push(W.kind==='kanal'&&bridged(pts[i][0],pts[i][1],hw+.25));}
+    const openAt=(i,side)=>W.open.some(o=>o.side===side&&Math.hypot(pts[i][0]-o.q[0],pts[i][1]-o.q[1])<o.r);   // another kanal opens into this side here
+    const inMain=i=>{let r=0; for(const t of W.into){const d=Math.hypot(pts[i][0]-t.q[0],pts[i][1]-t.q[1]); if(d<t.r) return 2; if(d<t.r+t.wall) r=1;} return r;};   // 2: inside the waterway it joins, 1: in its wall
     const bp=[], bc=[], wp=[], wu=[], parts=[], banks=[];
     const at=(i,o,h)=>{const [x,z]=pts[i], [nx,nz]=nor[i]; return [x+nx*o,gy(x+nx*o,z+nz*o)+h,z+nz*o];};
     const prof=PROF[W.kind]?PROF[W.kind].map(([o,h,c])=>[o<=0?-hw+o:o>=1?hw+(o-1):0,h,c]):null;
     for(let i=0;i<n-1;i++){if(cov[i]||cov[i+1]){if(W.kind==='kanal'&&cov[i]&&cov[i+1]){const e=hw+.2, A=at(i,-e,.07), B=at(i,e,.07), C=at(i+1,-e,.07), D=at(i+1,e,.07); bp.push(...A,...C,...B,...B,...C,...D); col.setHex(W.id==='bukid'?(i%3?0x968a73:0x8b7f69):(i%3?0xa6a297:0x8f8b80)); for(let q=0;q<6;q++) bc.push(col.r,col.g,col.b);} continue;}   // concrete covers where a road runs over a kanal (on the farm, a culvert slab with dirt on it)
+      const jm=Math.min(inMain(i),inMain(i+1)); if(jm===2) continue;   // inside the waterway it joins: that one draws the water there
       if(prof) for(let k=0;k<prof.length-1;k++){
-        // End the small drain's side walls at the outside bank; only its floor continues through the outlet.
-        if(W.id==='brgy'&&(pts[i][0]+pts[i+1][0])/2>joinX-river.w/2-.4&&k!==3)continue;
-        // Keep a low drain outlet beneath a continuous concrete lintel and wall cap.
+        const sd=k<3?-1:k>3?1:0; if(k!==3&&(jm||Math.max(inMain(i),inMain(i+1))===2)) continue;   // a joining kanal's walls stop at the outer face
+        if(sd&&(openAt(i,sd)||openAt(i+1,sd))&&!(W.kind==='creek'&&(k===1||k===5))) continue;   // the side wall opens for a joining kanal (the big canal keeps its cap as a lintel)
         let [o1,h1]=prof[k], [o2,h2,c]=prof[k+1];
-        const mouth=W.id==='ilog'&&Math.abs((pts[i][1]+pts[i+1][1])/2-joinZ)<barangayDrain.w/2+.3;
-        if(mouth&&o1>=hw&&o2>=hw){h1=Math.max(.42,h1);h2=Math.max(.42,h2);}
         if(['bukid','tubigan','patubig'].includes(W.id)&&k!==3) banks.push({start:bp.length,x:(pts[i][0]+pts[i+1][0])/2+nor[i][0]*(o1+o2)/2,z:(pts[i][1]+pts[i+1][1])/2+nor[i][1]*(o1+o2)/2});
         const A=at(i,o1,h1), B=at(i,o2,h2), C=at(i+1,o1,h1), D=at(i+1,o2,h2); bp.push(...A,...C,...B,...B,...C,...D); col.setHex(prof[k][1]>h2?prof[k][2]:c); for(let q=0;q<6;q++) bc.push(col.r,col.g,col.b);}
+      if(br[i]&&br[i+1]){const e=hw+.2, A=at(i,-e,.345), B=at(i,e,.345), C=at(i+1,-e,.345), D=at(i+1,e,.345); bp.push(...A,...C,...B,...B,...C,...D); col.setHex(i%3?0xc2bdb0:0xaea99c); for(let q=0;q<6;q++) bc.push(col.r,col.g,col.b);}
       const A=at(i,-hw+.03,0), B=at(i,hw-.03,0), C=at(i+1,-hw+.03,0), D=at(i+1,hw-.03,0), v1=dist[i]/4, v2=dist[i+1]/4; wp.push(...A,...C,...B,...B,...C,...D); wu.push(0,v1,0,v2,1,v1,1,v1,0,v2,1,v2);}
     // where the water goes under a road: concrete headwalls for a kanal, a bridge parapet with a railing for the ilog
     for(let i=1;i<n;i++) if(cov[i]!==cov[i-1]){const j=cov[i]?i-1:i, [x,z]=pts[j], g=gy(x,z), ry=Math.atan2(-nor[j][1],nor[j][0]);
@@ -8255,7 +8263,7 @@ const WWAYS=(()=>{
           parts.push(P('box',0xd8d3c6,x,g+.95,z,width+.08,.12,.38,0,ry,0));}
         for(const side of [-1,1]){const px=x+nor[j][0]*side*(hw+.2),pz=z+nor[j][1]*side*(hw+.2);
           if(!covered(px,pz,.35))parts.push(P('box',0xb9b4a8,px,gy(px,pz)+.48,pz,.44,.96,.44));}
-      }else if(!(W.id==='brgy'&&x>joinX-river.w/2-4.5)){parts.push(P('box',0xb3afa4,x,g+.2,z,W.w+.7,.4,.28,0,ry,0));
+      }else{parts.push(P('box',0xb3afa4,x,g+.2,z,W.w+.7,.4,.28,0,ry,0));
         if(W.id==='bukid'){const tx=nor[j][1], tz=-nor[j][0]; parts.push([PG.limb,limbM(x-tx*.17,g+.16,z-tz*.17,x+tx*.17,g+.16,z+tz*.17,.24),0x2c2823]); parts.push(P('box',0x9e998c,x,g+.43,z,W.w+.8,.06,.36,0,ry,0));}}}   // the culvert pipe's dark mouth and a cap on the headwall
     if(W.kind==='creek'){
       const bankPoint=(i,side)=>{const [x,z]=pts[i],o=side*(hw+.2);return [x+nor[i][0]*o,z+nor[i][1]*o];};
@@ -8281,7 +8289,7 @@ const WWAYS=(()=>{
     const calm=W.kind==='creek'?0x5b9fae:W.kind==='bare'?0x5d9da0:0x6aa2a0, mat=new THREE.MeshLambertMaterial({map:CALM.clone(),color:calm,transparent:true,opacity:.93,side:THREE.DoubleSide}); mat.map.needsUpdate=true;
     const wm=new THREE.Mesh(wg,mat); wm.receiveShadow=true; W.g.add(wm);
     const lv=W.kind==='creek'?[.22,.72]:W.kind==='bare'?[.11,.17]:[.1,.27]; wm.position.y=lv[0];
-    all.push({W,wm,mat,calm:new THREE.Color(calm),lv,samp:pts.filter((p,i)=>i%4===0&&!cov[i]),openPts:pts.filter((p,i)=>!cov[i])});}
+    all.push({W,wm,mat,calm:new THREE.Color(calm),lv,samp:pts.filter((p,i)=>i%4===0&&!cov[i]),openPts:pts.filter((p,i)=>!cov[i]&&!br[i])});}
   return {all,CALM,ROUGH,open:()=>all.filter(a=>!goneWay(a.W.id)).flatMap(a=>a.openPts.map(p=>[p[0],p[1],a.W.w/2+.15]))};   // open water, for the walking map
 })();
 let wwLast=performance.now(), wwRain=0, wwSnd=0;
@@ -9982,6 +9990,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:80,date:'Nov 15, 2026',title:'Tidier canals, no more floods',items:['🌧️ Rain no longer floods your crops: your field is fine without canals. The canals you dig are for looks.','🌊 A new canal runs outside your farm fence by the garbage point. It branches off the irrigation canal at the farm road, and your own canals can join it through the fence.','🧱 Canals now open properly into each other. The barangay kanal runs along the road in front of the house fences, with a slab at every gate and carport, and the drains meet the big canal clear of the bridges.']},
   {v:79,date:'Nov 13, 2026',title:'English or Tagalog',items:['🌐 Settings now has a language choice: English or Tagalog. Every menu, button, message, board and news entry switches at once.','☁️ Your choice is saved with your farm, so it follows your account to your other devices.','🌾 Crop, item and building names (Palay, Manukan-Itlog, Bodega…) keep their names in both languages.']},
   {v:77,date:'Nov 13, 2026',title:'Sketched status boards',items:['🪧 The boards over your animal houses (Gutom, Puno na, Handa na, the timers) are now drawn like the rest of the game: paper, pencil lines and little drawn badges instead of emoji, with a striped bar for time left.','🔨 Building and upgrading show a sketched board too: Ginagawa or Ina-upgrade, the time left and a progress bar.','💧 Drawing a canal no longer joins another canal by accident: only the start of a stroke reaches for a nearby canal end; the end joins only when you finish right on one. A canal right alongside another shows red.','🔍 The boards stay solid and clear at every zoom, and roofs only turn see-through when you zoom right in.']},
   {v:76,date:'Nov 13, 2026',title:'No more reloads for small changes',items:['⚡ Moving or taking down the greenhouse, packing shelter, tool rack, kubol, shrub planters and signs now happens right away, without the loading screen. Only moving the bodega or the water tower still rebuilds the farm.']},
@@ -10182,7 +10191,7 @@ function frame(now){FRAMES++;
   if(ECO&&now-lastFrame<31) return;               // battery saver: about 30 frames a second
   const rawDt=(now-lastFrame)/1000, dt=Math.min(.05,rawDt); lastFrame=now; const t=now/1000;
   try{
-  ORCHARD.update(t); if(DECO) DECO.update(); if(typeof FLOOD!=='undefined'){FLOOD.tick(); GUIDE.update();}
+  ORCHARD.update(t); if(DECO) DECO.update(); 
   IRRIGATION_VISUAL.update(t);
   DISTRICT_LIFE.update(dt,t);
   CIVIC.update(dt,t);
@@ -10825,80 +10834,7 @@ var DECO=(()=>{
   rebuild();
   return {waterLevel(y){for(const m of root.children)if(m.userData.canalWater)m.position.y=y;},CAT,FIXED,blockedForPlot,okFix:(k,dx,dz)=>okFix(FIXED.find(f=>f.k===k),dx,dz),okTree:(i,x,z)=>okTree(i,x,z),planFence,canalNet,drained,drainedByCanal,canalOnTile,get drawing(){return !!line;},holdHouseAt,tap,lineOn,lineStart,lineTo,lineEnd,bar,hint,render,update,rebuild,get sel(){return sel;},set sel(v){sel=v;},get moving(){return moving;},clearSel(){sel=null; moving=null;},add,okFor,atPoint,undo,get undoSteps(){return hist.length;}};
 })();
-/* ---------- rain and drainage: in the rain, crops on plots no canal drains are flooded; any still flooded when the rain stops are lost ---------- */
-var FLOOD=(()=>{let last=0, warned=0;
-  const waterMat=new THREE.MeshBasicMaterial({color:0x5aa7d6,transparent:true,opacity:.55,depthWrite:false}), geo=new THREE.PlaneGeometry(T*.96,T*.96).rotateX(-Math.PI/2);
-  function show(i,on){const o=tiles[i]; if(!o) return; if(on&&!o.floodM){const m=new THREE.Mesh(geo,waterMat); m.position.y=.34; m.renderOrder=2; o.g.add(m); o.floodM=m;} else if(!on&&o.floodM){o.g.remove(o.floodM); o.floodM=null;}}
-  function tick(){const now=Date.now(); if(now-last<1500||!DECO) return; last=now; const rain=rainOn(now), fl=[];
-    for(let i=0;i<NF;i++){const t=S.tiles[i]; if(t.s!=='crop'){if(t.flood) delete t.flood; if(tiles[i]&&tiles[i].floodM) show(i,false); continue;}
-      if(rain){if(DECO.drained(i)){if(t.flood) delete t.flood; show(i,false);} else {if(!t.flood) t.flood=now; show(i,true); fl.push(i);}}
-      else if(t.flood) fl.push(i);}
-    if(rain&&fl.length&&warned!==S.ev.rainEnd){warned=S.ev.rainEnd; sfx('nope');
-      toast(`🌊 ${fl.length} plot${fl.length>1?'s are':' is'} flooding! Crops still under water when the rain stops will be lost. Draw a Kanal along the side of your field to the main canal to drain them.`,6000); GUIDE.show('rain');}
-    if(!rain&&fl.length){for(const i of fl){S.tiles[i]={s:'soil'}; show(i,false); refreshTile(i,false);}
-      toast(`😢 ${fl.length} crop${fl.length>1?'s':''} drowned in the flood. Dig canals joined to the main canal so the rain can drain away.`,5200); save();}}
-  return {tick};
-})();
-
-/* ---------- the canal guide: a sketch arrow to the Kanal in Decorate, then a hand showing how to draw it from the field to the main canal ---------- */
-var GUIDE=(()=>{
-  const st=document.createElement('style'); st.textContent=`
-  #gd-arrow{position:fixed;left:0;top:0;z-index:7;pointer-events:none;display:none;width:150px;transform-origin:50% 100%}
-  #gd-arrow svg{display:block;width:46px;height:58px;margin:0 auto;animation:gdBob 1s ease-in-out infinite alternate}
-  #gd-bub{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 56px);transform:translateX(-50%);z-index:7;display:none;max-width:min(430px,calc(100% - 140px));
-    background:#fbf7ec;border:1.8px solid #4a3f34;border-radius:12px 14px 11px 13px/13px 11px 14px 12px;box-shadow:1.5px 2px 0 #4a3f3526;padding:7px 34px 7px 12px;font:600 13px/1.4 Mali,Nunito,sans-serif;color:#3b2e24}
-  #gd-bub b{font-weight:700}#gd-bub button{position:absolute;right:6px;top:5px;width:24px;height:24px;border-radius:50%;border:1.4px solid #4a3f34;background:#f1eadb;font:700 13px Mali,sans-serif;color:#3b2e24;cursor:pointer}
-  #gd-map{position:fixed;inset:0;z-index:5;pointer-events:none;display:none;width:100%;height:100%}
-  @keyframes gdBob{from{transform:translateY(-5px)}to{transform:translateY(4px)}}
-  @media (orientation:landscape) and (max-height:520px){#gd-bub{font-size:12px;top:calc(env(safe-area-inset-top,0px) + 50px)}}
-  @media (prefers-reduced-motion:reduce){#gd-arrow svg{animation:none}}`; document.head.append(st);
-  const arrow=document.createElement('div'); arrow.id='gd-arrow';
-  arrow.innerHTML='<svg viewBox="0 0 46 58" fill="none" stroke="#4a3f34" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M24 4q-12 16-2 30t2 20"/><path d="M13 44l11 11 9-13"/></svg>';
-  const bub=document.createElement('div'); bub.id='gd-bub'; const txt=document.createElement('span'), x=document.createElement('button'); x.textContent='✕'; x.setAttribute('aria-label','Hide the canal guide'); bub.append(txt,x);
-  const NS='http://www.w3.org/2000/svg', map=document.createElementNS(NS,'svg'); map.id='gd-map';
-  map.innerHTML='<path id="gd-line" fill="none" stroke="#2e6f9a" stroke-width="4" stroke-linecap="round" stroke-dasharray="10 9" opacity=".85"/><circle id="gd-dot" r="7" fill="#fbf7ec" stroke="#2e6f9a" stroke-width="2.5"/>'
-    +'<g id="gd-hand"><path d="M2 26q-2-9 4-10l2-13q2-4 5 0l1 11q4-2 6 1 4-1 5 3 4 0 4 5l-2 11q-2 6-9 7H9q-5-2-7-15Z" fill="#fbf7ec" stroke="#4a3f34" stroke-width="2" stroke-linejoin="round"/><path d="M14 17v9M20 18v8M25 22v5" stroke="#4a3f34" stroke-width="1.5" stroke-linecap="round"/></g>';
-  document.body.append(map,arrow,bub);
-  let on=false, why='', snooze=0, demo=null, demoT=0, lastChk=0;
-  x.onclick=()=>{hide(); snooze=Date.now()+DAY_MS;};   // later: back at the next rain, or after a game day
-  function show(w){why=w; on=true; snooze=0;}
-  function hide(){on=false; arrow.style.display=bub.style.display=map.style.display='none'; demo=null;}
-  const proj=(x,z)=>{const v=new THREE.Vector3(x,0,z).project(camera); return v.z>1?null:[(v.x+1)/2*innerWidth,(1-v.y)/2*innerHeight];};
-  function nearestMain(px,pz){let best=null, bd=1e9;
-    for(const [fx,fz] of FENCE){const ix=fx+(0-fx)*.04, iz=fz+(20-fz)*.04; if(!inLot(ix,iz)||!throughFence(ix,iz)) continue; const d=Math.hypot(px-ix,pz-iz); if(d<bd){bd=d; best=[ix,iz];}}   // a spot just inside the fence by the irrigation canal
-    for(const E of MAIN_CANALS){if(E.id&&goneWay(E.id)) continue; const [w,...P]=E; for(let k=0;k<P.length-1;k++){const [ax,az]=P[k], [bx,bz]=P[k+1], dx=bx-ax, dz=bz-az, L=dx*dx+dz*dz||1, u=Math.max(0,Math.min(1,((px-ax)*dx+(pz-az)*dz)/L)), qx=ax+dx*u, qz=az+dz*u;
-      if(!inLot(qx,qz)) continue; const d=Math.hypot(px-qx,pz-qz)-w; if(d<bd){bd=d; best=[qx-(qx-px)/(Math.hypot(qx-px,qz-pz)||1)*w,qz-(qz-pz)/(Math.hypot(qx-px,qz-pz)||1)*w];}} } return best;}
-  function pickDemo(){let sx=0, sz=0, n=0;   // along the side of the field nearest the crops that would flood, to the main canal
-    for(let i=0;i<NF;i++){const t=S.tiles[i]; if((t.s!=='crop'&&t.s!=='soil')||DECO.drained(i)) continue; const p=tilePos(i); sx+=p.x; sz+=p.z; n++;}
-    if(!n) return null; let best=null, bd=1e9;
-    for(let i=0;i<NF;i++){const t=S.tiles[i]; if((t.s!=='crop'&&t.s!=='soil')||DECO.drained(i)) continue; const p=tilePos(i), m=nearestMain(p.x,p.z); if(!m) continue; const d=Math.hypot(m[0]-p.x,m[1]-p.z); if(d<bd){bd=d; best={p,m};}}
-    if(!best) return null; const {p,m}=best, L=Math.hypot(m[0]-p.x,m[1]-p.z)||1, ux=(m[0]-p.x)/L, uz=(m[1]-p.z)/L, sx2=-uz, sz2=ux;   // start beside the plot, not on it
-    return {a:[p.x+ux*1.6+sx2*1.4,p.z+uz*1.6+sz2*1.4],b:m};}
-  const need=()=>S.tiles.slice(0,NF).some((t,i)=>t.s==='crop'&&!DECO.drained(i));
-  function update(){const now=Date.now();
-    if(now-lastChk>2000){lastChk=now;
-      if(!S.canalTut&&DECO.canalNet().size&&S.tiles.slice(0,NF).some((t,i)=>(t.s==='crop'||t.s==='soil')&&DECO.drainedByCanal(i))){   // their first canal drains a plot: lesson learned
-        S.canalTut=1; if(on){hide(); toast('👏 Your canal is joined to the main canal. Plots near it drain when it rains, so their crops won’t drown.',4200);} save();}
-      if(!on&&!S.canalTut&&now>snooze&&need()) show('first');
-      if(on&&!need()&&why!=='first') hide();}
-    if(!on) return;
-    const decor=openCat==='decor', canalSel=decor&&DECO.sel==='canal';
-    let target=null, msg='';
-    if(!decor){target=document.querySelector('#cats [data-cat=decor]'); msg=why==='rain'?'<b>It’s raining!</b> Open <b>Decorate</b> and draw a <b>Kanal</b> along your field so the water can drain.':'Rain can flood your crops. Open <b>Decorate</b> and draw a <b>Kanal</b> (canal) along the side of your field to the main canal.';}
-    else if(!canalSel){target=document.querySelector('[data-deco=canal]'); if(target&&!target.dataset.gdSeen){target.dataset.gdSeen=1; try{target.scrollIntoView({inline:'center',block:'nearest'});}catch(e){}} msg='Pick <b>Kanal</b>.';}
-    else msg='Now <b>drag from beside your plots</b> to the <b>main canal</b>, like drawing a fence. Rain water runs across the plots into it.';
-    if(txt.innerHTML!==msg) txt.innerHTML=msg; bub.style.display='block';
-    if(target){const r=target.getBoundingClientRect(); if(r.width){arrow.style.display='block'; arrow.style.transform=`translate(${Math.round(r.left+r.width/2-75)}px,${Math.round(r.top-64)}px)`;} else arrow.style.display='none';} else arrow.style.display='none';
-    if(canalSel&&!DECO.drawing){if(!demo||now-demoT>4000){demo=pickDemo(); demoT=now;}
-      const A=demo&&proj(...demo.a), B=demo&&proj(...demo.b);
-      if(A&&B){map.style.display='block'; const f=((now%2600)/2600), e=Math.min(1,f*1.25), hx=A[0]+(B[0]-A[0])*e, hy=A[1]+(B[1]-A[1])*e;
-        map.querySelector('#gd-line').setAttribute('d',`M${A[0]},${A[1]} L${hx},${hy}`); const dot=map.querySelector('#gd-dot'); dot.setAttribute('cx',B[0]); dot.setAttribute('cy',B[1]);
-        map.querySelector('#gd-hand').setAttribute('transform',`translate(${hx-12},${hy-2})`);}
-      else map.style.display='none';}
-    else map.style.display='none';}
-  return {show,hide,update,get on(){return on;}};
-})();
-if(/[?&]debug\b/.test(location.search)) window.SF={farmnet:FARMNET,deco:DECO,flood:FLOOD,guide:GUIDE,mainNear,tilePos,getS:()=>S,startRainNow:n=>startRain(n||Date.now()),animalh:ANIMALH,BLDS,tiles,orchard:ORCHARD,fruitTrees:FRUIT_TREES,districtLife:DISTRICT_LIFE,livestock:{stockFor,choose:chooseAnimalPickup,continue:continueAnimalHaul,process:processKatQueue,path:farmHaulPath},bodega:{world:farmBodega,open:openBodega,tick:updateBodega},farmDispatch:{loading:LOADING_DISPATCH,state:FARM_DISPATCH,tick:updateFarmDispatch,setSlots,simulate:(now,dt)=>{roadSnapshot();updateFarmDispatch(now,dt);updateVehicles(now);placeVehicles(now,dt);}},shop:{config:SHOP,world:farmShop,open:openFarmShop,unlock:shopUnlock,sale:shopSale,deliver:shopDeliver,dispatch:shopDispatch,refund:shopRefund,incoming:shopIncoming,setDraft:q=>{shopDraft=q;},tick:updateFarmShop},resCars,junctions:TRAFFIC_JUNCTIONS,health:gameHealth,trafficUpdate:updateTraffic,setTrafficUpdate:fn=>{updateTraffic=fn;},pointerCount:()=>ptrs.size,canvas,cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,holdPose,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,vans,traffic,models:{vkCar,CAR_SPECS,tripLoad,buildLoad,cageCart,animalGeo,makePerson,bakePerson,poseWalk,poseStand,poseSit,randLook,makeCar,makePUJ,makeBus,makeTrike,makeVan,makeTraderTruck,makeLiner,VEH:()=>VEH},lanes:LN,laneStep:lnStep,laneMs:()=>LN_MS,trikes,puvs,traders,JEEPS:()=>JEEPS,townStep:updateTownVehicles,transitStep:updateTransit,bizStep:updateBiz,trikeStep:updateTrikes,shiftDays:n=>{TIME_SHIFT+=n*DAY_MS;},LINERS:()=>LINERS,PATROL:()=>PATROL,FIESTA:()=>FIESTA,loadWalkers,STOP,homeAct:(a,r)=>homeAct(a,{dataset:{r}}),openHome,FISH,startRain,dayAt:f=>{const g=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((f-g+1)%1)*DAY_MS;},step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
+if(/[?&]debug\b/.test(location.search)) window.SF={farmnet:FARMNET,deco:DECO,mainNear,tilePos,getS:()=>S,startRainNow:n=>startRain(n||Date.now()),animalh:ANIMALH,BLDS,tiles,orchard:ORCHARD,fruitTrees:FRUIT_TREES,districtLife:DISTRICT_LIFE,livestock:{stockFor,choose:chooseAnimalPickup,continue:continueAnimalHaul,process:processKatQueue,path:farmHaulPath},bodega:{world:farmBodega,open:openBodega,tick:updateBodega},farmDispatch:{loading:LOADING_DISPATCH,state:FARM_DISPATCH,tick:updateFarmDispatch,setSlots,simulate:(now,dt)=>{roadSnapshot();updateFarmDispatch(now,dt);updateVehicles(now);placeVehicles(now,dt);}},shop:{config:SHOP,world:farmShop,open:openFarmShop,unlock:shopUnlock,sale:shopSale,deliver:shopDeliver,dispatch:shopDispatch,refund:shopRefund,incoming:shopIncoming,setDraft:q=>{shopDraft=q;},tick:updateFarmShop},resCars,junctions:TRAFFIC_JUNCTIONS,health:gameHealth,trafficUpdate:updateTraffic,setTrafficUpdate:fn=>{updateTraffic=fn;},pointerCount:()=>ptrs.size,canvas,cam,camera,scene,renderer,S,flyTo,STYLE,draw:drawFrame,SLOT_SPOT,SLOTS,AREA_BOX,planRoute,farmer,helpers,holdPose,jobSpot,placeBuilding,onTap,tileAt,routesFor,routePos,roadDist,VEH,walkOut,vans,traffic,models:{vkCar,CAR_SPECS,tripLoad,buildLoad,cageCart,animalGeo,makePerson,bakePerson,poseWalk,poseStand,poseSit,randLook,makeCar,makePUJ,makeBus,makeTrike,makeVan,makeTraderTruck,makeLiner,VEH:()=>VEH},lanes:LN,laneStep:lnStep,laneMs:()=>LN_MS,trikes,puvs,traders,JEEPS:()=>JEEPS,townStep:updateTownVehicles,transitStep:updateTransit,bizStep:updateBiz,trikeStep:updateTrikes,shiftDays:n=>{TIME_SHIFT+=n*DAY_MS;},LINERS:()=>LINERS,PATROL:()=>PATROL,FIESTA:()=>FIESTA,loadWalkers,STOP,homeAct:(a,r)=>homeAct(a,{dataset:{r}}),openHome,FISH,startRain,dayAt:f=>{const g=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((f-g+1)%1)*DAY_MS;},step:t=>frame(t),LIFE,lifeTiles,startPickup,openKat,katAct,vehPhase,routesFor2:routesFor,restock,produce,collect,openBld,MONTHS,monthN,snd:{get ac(){return AC;},get bus(){return BUS;},sfx,SND,MUS,animal},noon:()=>{const f=(Date.now()%DAY_MS)/DAY_MS; TIME_SHIFT=((.35-f+1)%1)*DAY_MS;}};   // for testing in the browser console only
 // keep the open Tools / Build panel clear of the bottom bar: measure the bar and hand its height to the CSS
 (()=>{const cats=$('cats'), set=()=>document.documentElement.style.setProperty('--catsH',Math.ceil(cats.getBoundingClientRect().height)+'px');
   set(); try{new ResizeObserver(set).observe(cats);}catch(e){addEventListener('resize',set);} })();
@@ -11312,7 +11248,7 @@ NAV=(()=>{
 
 })();
 </script>
-<script src="/i18n.js?v=2"></script>
+<script src="/i18n.js?v=3"></script>
 <script src="/startup.js?v=72"></script>
 </body>
 </html>

@@ -1922,6 +1922,11 @@
 "low":{"tl":"kaunti na"},
 "empty":{"tl":"ubos"},
 "Farm {0}":{"tl":"Bukid {0}"},
-"+{0} coming":{"tl":"+{0} parating"}
+"+{0} coming":{"tl":"+{0} parating"},
+"🌧️ Tag-ulan na: the rainy months. The rain waters your crops for you.":{"en":"🌧️ Rainy season: the rainy months. The rain waters your crops for you.","tl":"🌧️ Tag-ulan na. Ang ulan na ang nagdidilig sa mga tanim mo."},
+"Tidier canals, no more floods":{"tl":"Mas maayos na kanal, wala nang baha"},
+"🌧️ Rain no longer floods your crops: your field is fine without canals. The canals you dig are for looks.":{"tl":"🌧️ Hindi na binabaha ng ulan ang mga tanim mo: ayos lang ang taniman kahit walang kanal. Pampaganda na lang ang mga kanal na ginagawa mo."},
+"🌊 A new canal runs outside your farm fence by the garbage point. It branches off the irrigation canal at the farm road, and your own canals can join it through the fence.":{"tl":"🌊 May bagong kanal sa labas ng bakod ng bukid mo, sa tabi ng tapunan ng basura. Sumasanga ito mula sa patubig sa may kalsada ng bukid, at puwedeng ikabit dito ang sarili mong mga kanal sa ilalim ng bakod."},
+"🧱 Canals now open properly into each other. The barangay kanal runs along the road in front of the house fences, with a slab at every gate and carport, and the drains meet the big canal clear of the bridges.":{"tl":"🧱 Maayos nang nagdudugtong ang mga kanal. Nasa gilid na ng kalsada sa harap ng mga bakod ng bahay ang kanal ng barangay, may takip na semento sa bawat gate at garahe, at malayo na sa mga tulay ang dugtungan ng mga alulod sa malaking kanal."}
  });
 })();

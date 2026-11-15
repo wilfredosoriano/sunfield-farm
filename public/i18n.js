@@ -1935,6 +1935,10 @@
 "Real townspeople":{"tl":"Totoong mga taga-bayan"},
 "🧑‍🤝‍🧑 The people walking, shopping, waiting for rides and sitting about town are now real-looking townsfolk in everyday clothes, with smooth walking, standing and sitting.":{"tl":"🧑‍🤝‍🧑 Mukhang totoong tao na ang mga naglalakad, namimili, naghihintay ng sasakyan at nakaupo sa bayan, naka-pang-araw-araw na damit, at maayos ang paglakad, pagtayo at pag-upo nila."},
 "📦 The loader boys at the hardware and the palengke wear work clothes and carry each load in both hands at the chest.":{"tl":"📦 Naka-pantrabaho na ang mga kargador sa hardware at palengke, at buhat nila ang bawat karga gamit ang dalawang kamay sa dibdib."},
-"🙏 Townspeople from “Citizen NPC Pack 1” by 00amza (Sketchfab), CC BY 4.0, rigged and animated for Sunfield Farm.":{"tl":"🙏 Ang mga taga-bayan ay mula sa “Citizen NPC Pack 1” ni 00amza (Sketchfab), CC BY 4.0, nilagyan ng buto at galaw para sa Sunfield Farm."}
+"🙏 Townspeople from “Citizen NPC Pack 1” by 00amza (Sketchfab), CC BY 4.0, rigged and animated for Sunfield Farm.":{"tl":"🙏 Ang mga taga-bayan ay mula sa “Citizen NPC Pack 1” ni 00amza (Sketchfab), CC BY 4.0, nilagyan ng buto at galaw para sa Sunfield Farm."},
+"Everyone is a real person now":{"tl":"Totoong tao na ang lahat"},
+"👨‍🌾 Your farmer is now a real-looking farmer in a blue shirt and salakot, and he walks, carries, works the field, sits, eats and sleeps the same as before.":{"tl":"👨‍🌾 Mukhang totoong magsasaka na ang farmer mo, naka-asul na polo at salakot, at naglalakad, nagbubuhat, nagtatrabaho sa bukid, umuupo, kumakain at natutulog pa rin siya gaya ng dati."},
+"🧑‍🤝‍🧑 Every other person is too: vendors, drivers and passengers, your helpers, farm workers, guards, players, the parade and the patients at the clinic. Men, women and workers in caps each have their own looks.":{"tl":"🧑‍🤝‍🧑 Pati ang lahat ng iba: mga tindera, drayber at pasahero, mga katulong mo, trabahador sa bukid, guwardiya, manlalaro, ang parada at ang mga pasyente sa klinika. May sariling itsura ang mga lalaki, babae at mga trabahador na naka-cap."},
+"📦 All the loaders carry their boxes and sacks at the chest with both hands.":{"tl":"📦 Buhat ng lahat ng kargador ang kahon at sako nila sa dibdib gamit ang dalawang kamay."}
  });
 })();

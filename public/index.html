@@ -1173,6 +1173,7 @@ const POST=(()=>{
 let shadowTick=0;
 const drawFrame=()=>{
   if(!ECO||(shadowTick++&1)===0) renderer.shadowMap.needsUpdate=true;   // battery saver: shadows refresh every other frame
+  npcSyncAll();
   if(POST)POST.render();else renderer.render(scene,camera);
 };
 renderer.shadowMap.autoUpdate=false;   // one shadow pass per visible frame; the cover pass reuses it
@@ -1749,8 +1750,8 @@ const PEOPLE=new Set(), PLOD={at:0,v:new THREE.Vector3()};
 function peopleLOD(now){if(now-PLOD.at<250) return; PLOD.at=now; const cp=camera.position, far=55+cam.dist*.6, v=PLOD.v;
   for(const r of PEOPLE){let top=r; while(top.parent) top=top.parent; if(top!==scene){if(r.userData.seen&&!r.parent) PEOPLE.delete(r); continue;} r.userData.seen=true;
     r.getWorldPosition(v); const d=v.distanceTo(cp), show=d<far, sh=d<40;
-    if(r.userData.lod!==show||r.userData.lsh!==sh){r.userData.lod=show; r.userData.lsh=sh; r.traverse(o=>{if(o.isMesh){o.layers.set(show?0:2); o.castShadow=sh;}});}}}
-function makePerson(L){
+    if(r.userData.lod!==show||r.userData.lsh!==sh){r.userData.lod=show; r.userData.lsh=sh; const m=r.userData.p&&r.userData.p.npc.m; if(m){if(show) r.userData.p.bod.add(m); else if(m.parent) m.parent.remove(m);} r.traverse(o=>{if(o.isMesh){o.layers.set(show?0:2); o.castShadow=sh;}});}}}
+function drawPerson(L){
   HG=L.lo?HG_LO:HG_HI;
   const root=new THREE.Group(), bod=new THREE.Group(), f=L.f, sw=f?.16:.185, b=[], top=L.top, bot=L.bottom, sk=L.skin, hr=L.hair;
   root.add(bod);
@@ -1817,7 +1818,7 @@ function holdPose(p,k,o){const m=k&&HOLD[k];
   else if(m==='hang'){p.aR.rotation.x=-.06; p.aR.rotation.z=-.2; const h=o&&o[k]; if(h){h.rotation.x=-p.aR.rotation.x; h.rotation.z=-p.aR.rotation.z;}}   // the pail stays upright under the hand
   else {p.aL.rotation.z=.06; p.aR.rotation.z=-.06;}}
 const PJ=(o,axis,v,k)=>{o.rotation[axis]+=(v-o.rotation[axis])*k;};
-function poseWalk(p,ph){if(p.npc) return npcPose(p,p.npcLoad&&p.npcLoad.visible?'Carry':'Walk',ph/(Math.PI*2));
+function poseWalk(p,ph){
   const k=p.snap?1:.35, s=Math.sin(ph), c=Math.cos(ph); p.snap=false;
   PJ(p.lL.g,'x',-s*.38-.04,k); PJ(p.lR.g,'x',s*.38-.04,k);                                 // stride sized to the walking speed so the feet do not slide
   PJ(p.lL.k,'x',.08+Math.max(0,Math.sin(ph+1.2))*.8,k); PJ(p.lR.k,'x',.08+Math.max(0,-Math.sin(ph+1.2))*.8,k);   // the knee folds as the leg swings through
@@ -1825,7 +1826,7 @@ function poseWalk(p,ph){if(p.npc) return npcPose(p,p.npcLoad&&p.npcLoad.visible?
   if(p.aL.e){PJ(p.aL.e,'x',-.2-Math.max(0,-s)*.35,k); PJ(p.aR.e,'x',-.2-Math.max(0,s)*.35,k);}
   if(p.bod){p.bod.position.y=Math.abs(c)*.028-.012; PJ(p.bod,'y',s*.07,k); PJ(p.bod,'x',.04,k);}   // a small bob, hip sway and forward lean
 }
-function poseStand(p,t){if(p.npc) return npcPose(p,'Idle',t/4);
+function poseStand(p,t){
   const k=p.snap?1:.25; p.snap=false;
   PJ(p.lL.g,'x',0,k); PJ(p.lR.g,'x',0,k); PJ(p.lL.k,'x',0,k); PJ(p.lR.k,'x',0,k);
   const reach=Math.max(0,Math.sin(t*1.6));
@@ -1833,14 +1834,14 @@ function poseStand(p,t){if(p.npc) return npcPose(p,'Idle',t/4);
   if(p.aL.e){PJ(p.aL.e,'x',-.15,k); PJ(p.aR.e,'x',-.15-reach*.5,k);}
   if(p.bod){p.bod.position.y+=(Math.sin(t*1.3)*.004-p.bod.position.y)*k; PJ(p.bod,'y',0,k); PJ(p.bod,'x',0,k);}   // breathing
 }
-function poseSit(p){if(p.npc){npcPose(p,'Sit',performance.now()/4000); p.root.position.y=.46-.88; return;}
+function poseSit(p){
   p.snap=false; p.lL.g.rotation.x=p.lR.g.rotation.x=-Math.PI/2+.08; p.lL.k.rotation.x=p.lR.k.rotation.x=Math.PI/2-.08;
   p.aL.rotation.x=p.aR.rotation.x=-.8; if(p.aL.e){p.aL.e.rotation.x=p.aR.e.rotation.x=-.5;}
   if(p.bod){p.bod.position.y=0; p.bod.rotation.set(0,0,0);} p.root.position.y=.46-.88*p.L.h;
 }
 const vendorsAnim=[];
 function makeVendor(L){
-  const p=makePerson(L); poseSit(p); p.root.updateMatrixWorld(true);
+  const p=makePerson(L); poseSit(p); if(p.npc) return p; p.root.updateMatrixWorld(true);
   const inv=new THREE.Matrix4().copy(p.root.matrixWorld).invert(), keep=new Set(), list=[];
   p.aL.traverse(o=>keep.add(o)); p.aR.traverse(o=>keep.add(o));
   p.root.traverse(o=>{if(o.isMesh&&!keep.has(o)) list.push([o.geometry,new THREE.Matrix4().multiplyMatrices(inv,o.matrixWorld),null]);});
@@ -1860,27 +1861,47 @@ function updateVendors(t){
   }
 }
 function bakePerson(L,pose,lo){
-  if(lo) L={...L,lo:true}; const p=makePerson(L); pose(p); p.root.updateMatrixWorld(true);
+  if(lo) L={...L,lo:true}; const p=makePerson(L); pose(p); if(p.npc){const g=new THREE.Group(); g.add(p.root); if(lo) g.scale.setScalar(.9); return g;}   // inside vehicles a little smaller, so heads clear the roof   // the holder is placed; the person keeps the pose's own height inside it p.root.updateMatrixWorld(true);
   const list=[]; p.root.traverse(o=>{if(o.isMesh) list.push([o.geometry,o.matrixWorld.clone(),null]);});
   const m=new THREE.Mesh(mergeGeo(list),SKIN_MAT); m.castShadow=true; p.root.traverse(o=>{if(o.isMesh) o.geometry.dispose();}); return m;
 }
 function disposePerson(p){if(p.npc) return; p.root.traverse(o=>{if(o.isMesh) o.geometry.dispose();});}   // townspeople share their model with others
-// Townspeople: "Citizen NPC Pack 1" by 00amza (sketchfab.com/00amza), CC-BY-4.0, rigged for this game with Idle, Walk, Sit and Carry.
-// 006, 010 and 012 (work clothes) are the loader boys; the rest walk, wait, shop and sit about town. Each person is a clone; until a
-// model has loaded it is an empty group, and if the loaders are missing the drawn person is used instead.
-const NPC={files:{},wait:{},ids:{worker:['006','010','012'],town:['001','002','003','004','005','007','008','009','011','013','014']}};
+// People: "Citizen NPC Pack 1" by 00amza (sketchfab.com/00amza), CC-BY-4.0, rigged for this game (scripts/rig-npc.py). Every person is a
+// clone of one of the 14 characters: 011 is your farmer, 006/010/012 (work clothes) are the loaders and workers in caps, the rest are men
+// and women about town. The game's poses still set the same joints (aL/aR with elbows .e, lL/lR {g,k}, bod), and npcSync turns those
+// joints into bone rotations every frame, so walking, sitting, farm work, carrying and sleeping all show on the model. Until a model has
+// loaded the person is an empty group; if the loaders are missing the drawn person is used instead.
+const NPC={files:{},wait:{},seq:{},ids:{farmer:['011'],worker:['006','010','012'],man:['001','003','004','008'],woman:['002','005','007','009','013','014']}};
 (()=>{if(!THREE.GLTFLoader||!THREE.SkeletonUtils) return; const ld=new THREE.GLTFLoader();
-  for(const id of [...NPC.ids.worker,...NPC.ids.town]) ld.load('models/npc_'+id+'.glb',g=>{const bb=new THREE.Box3().setFromObject(g.scene); g.userData.h=(bb.max.y-bb.min.y)||1.8; NPC.files[id]=g; (NPC.wait[id]||[]).forEach(npcAttach); delete NPC.wait[id];},undefined,()=>{});})();
-let npcSeq=0;
-function townPerson(L,kind='town'){if(!THREE.GLTFLoader||!THREE.SkeletonUtils) return makePerson(L);
-  const ids=NPC.ids[kind], id=ids[(npcSeq++)%ids.length], root=new THREE.Group(), bod=new THREE.Group(), joint=()=>{const g=new THREE.Object3D(); g.e=new THREE.Object3D(); return g;};
-  root.add(bod); const p={root,bod,aL:joint(),aR:joint(),lL:{g:new THREE.Object3D(),k:new THREE.Object3D()},lR:{g:new THREE.Object3D(),k:new THREE.Object3D()},L:{...L,h:1},snap:true,npc:{id,bag:L.bag,hs:L.h||1}};
-  root.userData.person=true; PEOPLE.add(root); if(NPC.files[id]) npcAttach(p); else (NPC.wait[id]||(NPC.wait[id]=[])).push(p); return p;}
-function npcAttach(p){const n=p.npc, g=NPC.files[n.id], m=THREE.SkeletonUtils.clone(g.scene); m.scale.setScalar(1.72*n.hs/g.userData.h);
-  m.traverse(o=>{if(o.isMesh) o.castShadow=true;}); p.root.add(m); const mx=new THREE.AnimationMixer(m), acts={}; for(const a of g.animations) acts[a.name]=mx.clipAction(a); Object.assign(n,{m,mx,acts,cur:null});
-  if(n.bag){const h=m.getObjectByName('handR')||m.getObjectByName('hand.R'); if(h){const sc=1/m.scale.x, bg=mesh(new THREE.SphereGeometry(.5,8,6),n.bag==='plastic'?0xf2f2f2:n.bag==='bayong'?0xb08850:0xff9ff3,0,.14*sc,0); bg.scale.set(.2*sc,.25*sc,.14*sc); h.add(bg);}}   // a shopping bag in the right hand
-  p.root.userData.lod=undefined; npcPose(p,'Idle',Math.random());}
-function npcPose(p,clip,ph){const n=p.npc; if(!n.mx) return; const a=n.acts[clip]||n.acts.Idle; if(!a) return; if(n.cur!==a){if(n.cur) n.cur.stop(); a.play(); n.cur=a;} a.time=(((ph%1)+1)%1)*a.getClip().duration; n.mx.update(0);}
+  for(const id of Object.values(NPC.ids).flat()) ld.load('models/npc_'+id+'.glb',g=>{const bb=new THREE.Box3().setFromObject(g.scene); g.userData.h=(bb.max.y-bb.min.y)||1.8; NPC.files[id]=g; (NPC.wait[id]||[]).forEach(npcAttach); delete NPC.wait[id];},undefined,()=>{});})();
+function npcId(L){if(L.npc) return L.npc; const k=L.kind||(!L.f&&(L.style==='cap'||L.style==='salakot')?'worker':L.f?'woman':'man'), ids=NPC.ids[k]; NPC.seq[k]=(NPC.seq[k]||0)+1; return ids[NPC.seq[k]%ids.length];}
+function makePerson(L){if(!THREE.GLTFLoader||!THREE.SkeletonUtils) return drawPerson(L);
+  const root=new THREE.Group(), bod=new THREE.Group(), sw=L.f?.16:.185;
+  const arm=side=>{const g=new THREE.Group(); g.position.set(side*(sw+.005),1.35,0); g.rotation.z=side*.06; const e=new THREE.Group(); e.position.y=-.28; g.add(e); g.e=e; return g;};
+  const leg=side=>{const g=new THREE.Group(); g.position.set(side*(L.f?.085:.09),.88,0); const k=new THREE.Group(); k.position.y=-.44; g.add(k); return {g,k};};
+  const aL=arm(1), aR=arm(-1), lL=leg(1), lR=leg(-1); root.add(bod); bod.add(aL,aR,lL.g,lR.g); root.scale.setScalar(L.h||1);
+  const p={root,bod,aL,aR,lL,lR,L,snap:true,npc:{id:npcId(L)}}; root.userData.person=true; root.userData.p=p; PEOPLE.add(root);
+  if(NPC.files[p.npc.id]) npcAttach(p); else (NPC.wait[p.npc.id]||(NPC.wait[p.npc.id]=[])).push(p); return p;}
+const townPerson=(L,kind)=>makePerson(kind?{...L,kind}:L);
+const NQ={down:new THREE.Vector3(0,-1,0),v:new THREE.Vector3(),w1:new THREE.Quaternion(),w2:new THREE.Quaternion(),w3:new THREE.Quaternion(),t:new THREE.Quaternion()};
+function npcAttach(p){const n=p.npc, g=NPC.files[n.id], m=THREE.SkeletonUtils.clone(g.scene), sc=1.75/g.userData.h; m.scale.setScalar(sc);
+  m.traverse(o=>{if(o.isMesh) o.castShadow=true;}); p.bod.add(m); n.m=m; m.updateMatrixWorld(true);   // far away the model leaves the scene, so its bones cost nothing
+  const inv=new THREE.Matrix4().copy(m.matrixWorld).invert(), B={}, W={}, P={};
+  m.traverse(o=>{if(!o.isBone) return; const q=new THREE.Quaternion(), v=new THREE.Vector3(); new THREE.Matrix4().multiplyMatrices(inv,o.matrixWorld).decompose(v,q,new THREE.Vector3()); B[o.name]=o; W[o.name]=q; P[o.name]=v;});
+  const align=(x,y)=>new THREE.Quaternion().setFromUnitVectors(NQ.v.subVectors(P[y],P[x]).normalize(),NQ.down);   // the rest bone turned to hang straight down, like the drawn limbs
+  const chain=(b1,b2,b3,par,j1,j2)=>{if(!B[b1]||!B[b2]||!B[b3]) return null; const a1=align(b1,b2), a2=align(b2,b3);
+    return {B:[B[b1],B[b2],B[b3]], ip:W[par].clone().invert(), r1:a1.multiply(W[b1]), r2:a2.clone().multiply(W[b2]), r3:a2.multiply(W[b3]), j1, j2};};
+  n.ch=[chain('upper_armL','forearmL','handL','shoulderL',p.aL,p.aL.e), chain('upper_armR','forearmR','handR','shoulderR',p.aR,p.aR.e),
+    chain('thighL','shinL','footL','hips',p.lL.g,p.lL.k), chain('thighR','shinR','footR','hips',p.lR.g,p.lR.k)].filter(Boolean);
+  const L=p.L, k=1/sc;
+  if(L.bag&&B.handR){const bg=mesh(new THREE.SphereGeometry(.5,8,6),L.bag==='bayong'?0xb08850:L.bag==='plastic'?0xf2f2f2:0xff9ff3,0,.14*k,0); bg.scale.set(.2*k,.25*k,.14*k); B.handR.add(bg);}   // a shopping bag in the right hand
+  if(L.style==='salakot'&&B.head){const h=new THREE.Group(); h.add(mesh(new THREE.ConeGeometry(.29,.2,12),0xd4b06a,0,.09,0)); h.add(mesh(new THREE.CylinderGeometry(.13,.13,.025,12),0x8a6a3a,0,0,0)); h.scale.setScalar(k); h.position.y=.1*g.userData.h; B.head.add(h);}   // the farmer's salakot
+  p.root.userData.lod=undefined; npcSync(p);}
+function npcSync(p){const Q=NQ;
+  for(const c of p.npc.ch){
+    Q.w1.copy(c.j1.quaternion).multiply(c.r1); Q.w2.copy(c.j1.quaternion).multiply(c.j2.quaternion); Q.w3.copy(Q.w2).multiply(c.r3); Q.w2.multiply(c.r2);
+    c.B[0].quaternion.copy(c.ip).multiply(Q.w1); c.B[1].quaternion.copy(Q.t.copy(Q.w1).invert()).multiply(Q.w2); c.B[2].quaternion.copy(Q.t.copy(Q.w2).invert()).multiply(Q.w3);}}
+function npcSyncAll(){for(const r of PEOPLE){const p=r.userData.p; if(p&&p.npc.ch&&r.visible&&r.userData.lod!==false) npcSync(p);}}
 const lerpAng=(a,b,t)=>a+((((b-a+Math.PI)%(Math.PI*2))+Math.PI*2)%(Math.PI*2)-Math.PI)*t;
 const HOUSES=[];   // barangay houses (filled in later); many palengke shoppers walk from here
 /* shoppers: arrive on the sidewalk, browse the aisles, leave, and new ones come */
@@ -2748,7 +2769,7 @@ const boys=[];
 (()=>{const r=rng(12);
   for(let k=0;k<3;k++){const L=randLook(r); L.f=false; L.style=k===1?'cap':'short'; L.shorts=true; L.bag=null; L.h=.95;
     L.top=[0xf5f5f5,0xe74c3c,0x2e86de][k];
-    const p=townPerson(L,'worker'), load=part(.32,.28,.6,[0xb08850,0xd9d4c7,0x9e9e9e][k],.12,1.62,0); load.visible=false; p.root.add(load); if(p.npc){p.npcLoad=load; load.position.set(0,1.12,.42);}
+    const p=townPerson(L,'worker'), load=part(.32,.28,.6,[0xb08850,0xd9d4c7,0x9e9e9e][k],0,1.02,.42); load.visible=false; p.root.add(load);
     const home=[HWX-2+k*2,HZ-8.4]; p.root.position.set(home[0],.08,home[1]); scene.add(p.root); boys.push({p,load,home,ph:k/3});}
 })();
 // kargadors (porters) at the palengke who unload your deliveries
@@ -2756,7 +2777,7 @@ const palBoys=[];
 (()=>{const r=rng(55);
   for(let k=0;k<3;k++){const L=randLook(r); L.f=false; L.style=k===2?'cap':'short'; L.shorts=true; L.bag=null; L.h=.97;
     L.top=[0xf5f5f5,0x27ae60,0xf1c40f][k];
-    const p=townPerson(L,'worker'), load=part(.5,.32,.6,[0xe8dcc0,0xc79a5b,0x2e86de][k],.12,1.62,0); load.visible=false; p.root.add(load); if(p.npc){p.npcLoad=load; load.position.set(0,1.12,.42);}
+    const p=townPerson(L,'worker'), load=part(.5,.32,.4,[0xe8dcc0,0xc79a5b,0x2e86de][k],0,1.02,.42); load.visible=false; p.root.add(load);
     const home=[PX+5+k*1.6,-129.6]; p.root.position.set(home[0],.08,home[1]); scene.add(p.root); palBoys.push({p,load,home,ph:k/3});}
 })();
 // ---- the Elf truck (cab-over light truck with dropside bed)
@@ -3865,7 +3886,7 @@ const psG=new THREE.Group(); psG.position.set(PSX,0,HZ-17); scene.add(psG);
 const psBoys=[];
 (()=>{const r=rng(66);
   for(let k=0;k<2;k++){const L=randLook(r); L.f=false; L.style='cap'; L.capC=0x27ae60; L.shorts=true; L.bag=null; L.h=.97; L.top=[0x27ae60,0xf5f5f5][k];
-    const p=makePerson(L), load=part(.5,.3,.75,0xf2f2f2,.12,1.62,0); load.visible=false; p.root.add(load);
+    const p=makePerson({...L,kind:'worker'}), load=part(.5,.3,.4,0xf2f2f2,0,1.02,.42); load.visible=false; p.root.add(load);
     const home=[PSX-2+k*4,HZ-11]; p.root.position.set(home[0],.08,home[1]); scene.add(p.root); psBoys.push({p,load,home,ph:k/2});}
 })();
 // ---- Binhi at Abono: seed and fertilizer store beside the highway
@@ -3890,7 +3911,7 @@ const ssG=new THREE.Group(); ssG.position.set(SSX,0,HZ-17); scene.add(ssG);
 const ssBoys=[];
 (()=>{const r=rng(88);
   for(let k=0;k<2;k++){const L=randLook(r); L.f=k===1; L.style=k?'bun':'cap'; L.capC=0x8bc34a; L.shorts=!k; L.skirt=false; L.bag=null; L.h=.97; L.top=[0x8bc34a,0xfff59d][k];
-    const p=makePerson(L), load=part(.5,.3,.75,0xf2e6c9,.12,1.62,0); load.visible=false; p.root.add(load);
+    const p=makePerson({...L,kind:'worker'}), load=part(.5,.3,.4,0xf2e6c9,0,1.02,.42); load.visible=false; p.root.add(load);
     const home=[SSX-2+k*4,HZ-11]; p.root.position.set(home[0],.08,home[1]); scene.add(p.root); ssBoys.push({p,load,home,ph:k/2});}
 })();
 // feed sacks on the vehicles
@@ -5314,7 +5335,7 @@ function changed(){
 
 /* ---------- Your farmer: every Hoe / Seeds / Sickle job becomes a task he runs to do ---------- */
 const FARM_HOME=seatWorld(0).slice(0,2), BODEGA=[-17.6,-2];
-const FARMER_LOOK={f:false,skin:0xb07850,hair:0x1c1c1c,top:0x3b6e8f,bottom:0x5d4037,shorts:false,skirt:false,style:'salakot',capC:0,shoes:0x5d4037,bag:null,h:1.02};
+const FARMER_LOOK={npc:'011',f:false,skin:0xb07850,hair:0x1c1c1c,top:0x3b6e8f,bottom:0x5d4037,shorts:false,skirt:false,style:'salakot',capC:0,shoes:0x5d4037,bag:null,h:1.02};
 const farmer=(()=>{
   const L=FARMER_LOOK;
   const p=makePerson(L); p.root.position.set(FARM_HOME[0],.08,FARM_HOME[1]); scene.add(p.root);
@@ -6340,7 +6361,7 @@ function updateBoys(t){
     const a=go?door:[rx,rz], z=go?[rx,rz]:door;
     r.position.set(a[0]+(z[0]-a[0])*u,.08,a[1]+(z[1]-a[1])*u);
     r.rotation.y=Math.atan2(z[0]-a[0],z[1]-a[1]); poseWalk(b.p,t*9+k*2); b.load.visible=go;
-    if(go){b.p.aR.rotation.x=-2.6; b.p.aL.rotation.x=-.3;}
+    if(go) holdPose(b.p,'crate');
   });
 }
 function updatePalBoys(t){
@@ -6354,7 +6375,7 @@ function updatePalBoys(t){
     const a=carry?[sx,sz]:door, z=carry?door:[sx,sz];
     const x=a[0]+(z[0]-a[0])*u, zz=a[1]+(z[1]-a[1])*u;
     r.position.set(x,zz<-131?.2:.08,zz); r.rotation.y=Math.atan2(z[0]-a[0],z[1]-a[1]); poseWalk(b.p,t*9+k*2); b.load.visible=carry;
-    if(carry){b.p.aR.rotation.x=-2.6; b.p.aL.rotation.x=-2.6;}
+    if(carry) holdPose(b.p,'crate');
   });
 }
 function updatePsBoys(t){loadBoys(t,psBoys,'poultry',PSX); loadBoys(t,ssBoys,'seeds',SSX);}
@@ -6368,7 +6389,7 @@ function loadBoys(t,list,dest,X){ // store helpers carry the sacks into your veh
     const door=[X-1+k*2,HZ-12.4], c=(t*.5+b.ph)%1, carry=c<.5, u=carry?c/.5:(c-.5)/.5;
     const a=carry?door:[sx,sz], z=carry?[sx,sz]:door;
     r.position.set(a[0]+(z[0]-a[0])*u,.08,a[1]+(z[1]-a[1])*u); r.rotation.y=Math.atan2(z[0]-a[0],z[1]-a[1]); poseWalk(b.p,t*9+k*2); b.load.visible=carry;
-    if(carry){b.p.aR.rotation.x=-2.6; b.p.aL.rotation.x=-2.6;}
+    if(carry) holdPose(b.p,'crate');
   });
 }
 function updateBuild(now,t){
@@ -8875,7 +8896,7 @@ var NAV=null;   // the walking map (built after the town loads; see the end of t
 const NAVED=new WeakSet();
 function navFix(o,R,key='path',ik='i'){if(!NAV||!NAV.ready) return; const P=o[key]; if(!P||NAVED.has(P)||o[ik]>=P.length) return; const np=NAV.route([R.position.x,R.position.z],P.slice(o[ik])); NAVED.add(np); o[key]=np; o[ik]=0;}   // re-plan a walk round walls, fences and water
 // ---- a worker who goes round a list of jobs: walk (along waypoints) to a place, do something there for a while, then the next job
-function makeWorker(look,steps,o={}){const L={...look,bag:null}; if(o.hat) L.style='cap', L.capC=o.hat; const p=makePerson(L);
+function makeWorker(look,steps,o={}){const L={...look,bag:null,kind:'worker'}; if(o.hat) L.style='cap', L.capC=o.hat; const p=makePerson(L);
   const props=makeCarry(p,['sack','pail']), clip=new THREE.Group(); clip.add(part(.26,.34,.02,0x8d6e4b,0,0,0)); clip.add(part(.22,.26,.025,0xf5f5f0,0,.02,.005)); clip.position.set(-.08,1.12,.34); clip.rotation.x=-.7; clip.visible=false; p.root.add(clip);
   const s0=steps[0], at=s0.path?s0.path[s0.path.length-1]:s0.to; p.root.position.set(at[0],o.y||.1,at[1]); scene.add(p.root);
   return {p,props,clip,steps,i:0,leg:null,wp:0,timer:(s0.dur||3)*Math.random(),ph:Math.random()*6,y:o.y||.1,sp:o.sp||1.1,carry:null,hidden:false,day:o.day};}
@@ -10080,6 +10101,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:83,date:'Nov 15, 2026',title:'Everyone is a real person now',items:['👨‍🌾 Your farmer is now a real-looking farmer in a blue shirt and salakot, and he walks, carries, works the field, sits, eats and sleeps the same as before.','🧑‍🤝‍🧑 Every other person is too: vendors, drivers and passengers, your helpers, farm workers, guards, players, the parade and the patients at the clinic. Men, women and workers in caps each have their own looks.','📦 All the loaders carry their boxes and sacks at the chest with both hands.']},
   {v:82,date:'Nov 15, 2026',title:'Real townspeople',items:['🧑‍🤝‍🧑 The people walking, shopping, waiting for rides and sitting about town are now real-looking townsfolk in everyday clothes, with smooth walking, standing and sitting.','📦 The loader boys at the hardware and the palengke wear work clothes and carry each load in both hands at the chest.','🙏 Townspeople from “Citizen NPC Pack 1” by 00amza (Sketchfab), CC BY 4.0, rigged and animated for Sunfield Farm.']},
   {v:81,date:'Nov 15, 2026',title:'A bigger mountain barangay',items:['⛰️ Taller mountains rise either side of the hillside barangay, with Benguet pines and many more trees, and colourful two- and three-storey homes stacked up the slope.','🛣️ Every road up the mountain is now asphalt like the town’s, with kerbs and lines, and the roads climb smoothly. Roads reach new sitios on both side mountains, each with a turning plaza and a waiting shed.','🚌 The Bundok bus now calls at all three sitios and turns round each plaza instead of flipping on the spot, and more cars drive up to visit. People walk the roads and stand outside their homes.','🧍 People have no painted faces any more, and a smoother, more natural body and shoulders.']},
   {v:80,date:'Nov 15, 2026',title:'Tidier canals, no more floods',items:['🌧️ Rain no longer floods your crops, and the farm has no canals any more: the farm canal, the field drain, the irrigation canal and the Kanal you could draw are gone. The town canals stay.','🧱 Canals now meet like real concrete: the bigger wall opens exactly as wide as the kanal and the walls join at the corners. The barangay kanal runs along the road in front of the house fences, with a footbridge at every gate and a culvert under every carport and driveway.']},
@@ -11337,7 +11359,7 @@ NAV=(()=>{
 
 })();
 </script>
-<script src="/i18n.js?v=6"></script>
+<script src="/i18n.js?v=7"></script>
 <script src="/startup.js?v=72"></script>
 </body>
 </html>

@@ -1735,10 +1735,10 @@ function randLook(r){
 // torso and hips; arms that bend at the elbow, with hands; legs that bend at the knee, with shoes. Parts are merged so one person costs
 // about seven draws. The interface the game uses stays: root, aL/aR (shoulders), lL/lR {g: hip, k: knee}; aL.e/aR.e are the elbows.
 const SKIN_MAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.72,metalness:0});
-const HGset=k=>({ball:new THREE.SphereGeometry(.5,10-k*3,7-k*2), bead:new THREE.SphereGeometry(.5,7-k*2,5-k), dot:new THREE.SphereGeometry(.5,5,3),
+const HGset=k=>({ball:new THREE.SphereGeometry(.5,14-k*7,10-k*5), bead:new THREE.SphereGeometry(.5,7-k*2,5-k), dot:new THREE.SphereGeometry(.5,5,3),
   dome:new THREE.SphereGeometry(.5,10-k*3,5-k,0,Math.PI*2,0,Math.PI*.58), cap:new THREE.SphereGeometry(.5,10-k*3,4,0,Math.PI*2,0,Math.PI/2),
-  torso:new THREE.LatheGeometry([[0,0],[.4,0],[.44,.12],[.43,.32],[.46,.58],[.5,.78],[.47,.9],[.34,.98],[.12,1]].map(([x,y])=>new THREE.Vector2(x,y)),10-k*3),
-  limb:new THREE.CylinderGeometry(.5,.4,1,7-k*2,1,true), trunk:new THREE.CylinderGeometry(.5,.42,1,10,1,true), neck:new THREE.CylinderGeometry(.5,.5,1,6,1,true),
+  torso:new THREE.LatheGeometry([[0,0],[.42,0],[.45,.1],[.4,.3],[.43,.5],[.49,.7],[.5,.8],[.44,.9],[.3,.97],[.12,1]].map(([x,y])=>new THREE.Vector2(x,y)),16-k*9),
+  limb:new THREE.CylinderGeometry(.5,.4,1,10-k*5,1,true), trunk:new THREE.CylinderGeometry(.5,.42,1,10,1,true), neck:new THREE.CylinderGeometry(.5,.5,1,6,1,true),
   skirt:new THREE.CylinderGeometry(.36,.5,1,10-k*3,1,true), brim:new THREE.CylinderGeometry(.5,.5,1,12-k*4), cone:new THREE.ConeGeometry(.5,1,10-k*3), box:new THREE.BoxGeometry(1,1,1)});
 const HG_HI=HGset(0), HG_LO=HGset(1); let HG=HG_HI;   // seated passengers half hidden in vehicles use the lighter set
 const HP=(g,c,x,y,z,sx,sy,sz,rx,ry,rz)=>[HG[g],Mx(x,y,z,sx,sy,sz,rx,ry,rz),c];
@@ -1749,40 +1749,34 @@ function peopleLOD(now){if(now-PLOD.at<250) return; PLOD.at=now; const cp=camera
     r.getWorldPosition(v); const d=v.distanceTo(cp), show=d<far, sh=d<40;
     if(r.userData.lod!==show||r.userData.lsh!==sh){r.userData.lod=show; r.userData.lsh=sh; r.traverse(o=>{if(o.isMesh){o.layers.set(show?0:2); o.castShadow=sh;}});}}}
 function makePerson(L){
-  HG=L.lo?HG_LO:HG_HI; const face=!L.lo;
+  HG=L.lo?HG_LO:HG_HI;
   const root=new THREE.Group(), bod=new THREE.Group(), f=L.f, sw=f?.16:.185, b=[], top=L.top, bot=L.bottom, sk=L.skin, hr=L.hair;
   root.add(bod);
   // hips and torso: a tapered trunk, rounded at the shoulders, belly and seat
   if(L.skirt) b.push(HP('skirt',bot,0,.72,0,f?.4:.42,.36,.3));
   b.push(HP('ball',bot,0,.9,0,f?.36:.34,.24,.24));                              // hips
-  b.push(HP('torso',top,0,.9,0,sw*2+.05,.52,.25));                               // torso: one smooth shape from the waist to the shoulders
+  b.push(HP('torso',top,0,.9,0,sw*2+.05,.52,.23));                               // torso: one smooth shape from the waist to the shoulders
   b.push(HP('bead',top,0,1.385,0,.16,.06,.12));                                 // collar
-  b.push(HP('neck',sk,0,1.43,.005,.09,.12,.085));
+  b.push(HP('neck',sk,0,1.44,.005,.08,.14,.078));
   // head: a slightly egg-shaped skull with a softer jaw
   const hd=b.length;
-  b.push(HP('ball',sk,0,1.585,0,.205,.235,.22)); b.push(HP('bead',sk,0,1.515,.03,.15,.1,.15));
-  b.push(HP('bead',sk,-.103,1.575,-.005,.04,.065,.05)); b.push(HP('bead',sk,.103,1.575,-.005,.04,.065,.05));          // ears
-  b.push(HP('bead',sk,0,1.565,.108,.04,.06,.05));                               // nose
-  if(face) for(const s of [-1,1]){b.push(HP('dot',0xf4efe6,s*.044,1.607,.094,.042,.03,.02)); b.push(HP('dot',0x2a1d15,s*.044,1.607,.103,.022,.024,.012));   // eyes: white and iris
-    b.push(HP('box',hr,s*.046,1.643,.098,.05,.011,.014,0,0,s*-.15));}            // brows
-  if(face) b.push(HP('box',0x8e4a3c,0,1.518,.099,.05,.011,.012));                        // mouth
-  else for(const s of [-1,1]) b.push(HP('box',0x2a1d15,s*.044,1.607,.1,.03,.024,.012));
+  b.push(HP('ball',sk,0,1.575,0,.2,.25,.215));
   // hair
   const st=L.style;
   if(st!=='cap'&&st!=='salakot') b.push(HP('dome',hr,0,1.6,-.012,.225,.23,.24,-.12));
-  if(st==='short'){b.push(HP('bead',hr,0,1.585,-.06,.21,.2,.14)); for(const s of [-1,1]) b.push(HP('box',hr,s*.1,1.57,.035,.02,.06,.035));}
+  if(st==='short') b.push(HP('bead',hr,0,1.585,-.06,.21,.2,.14));
   if(st==='long'){b.push(HP('bead',hr,0,1.5,-.075,.23,.36,.12)); for(const s of [-1,1]) b.push(HP('bead',hr,s*.1,1.52,.0,.05,.22,.12));}
   if(st==='bun'){b.push(HP('bead',hr,0,1.585,-.06,.21,.2,.14)); b.push(HP('ball',hr,0,1.66,-.13,.12,.12,.12));}
   if(st==='cap'){b.push(HP('bead',hr,0,1.565,-.07,.2,.14,.12)); b.push(HP('cap',L.capC,0,1.615,0,.235,.2,.25)); b.push(HP('brim',L.capC,0,1.63,.135,.17,.012,.13)); b.push(HP('dot',L.capC,0,1.715,0,.04,.02,.04));}
   if(st==='salakot'){b.push(HP('bead',hr,0,1.58,-.06,.21,.18,.14)); b.push(HP('cone',0xd4b06a,0,1.81,0,.86,.3,.86)); b.push(HP('brim',0x8a6a3a,0,1.68,0,.48,.03,.48)); b.push(HP('box',0xf5f5f5,.2,1.38,.02,.06,.24,.24,0,0,-.3));}
-  {const S=new THREE.Matrix4().makeTranslation(0,1.45,0).multiply(new THREE.Matrix4().makeScale(1.12,1.12,1.12)).multiply(new THREE.Matrix4().makeTranslation(0,-1.45,0)); for(let i=hd;i<b.length;i++) b[i][1]=S.clone().multiply(b[i][1]);}   // a slightly big head, as in illustrated games
+  {const S=new THREE.Matrix4().makeTranslation(0,1.45,0).multiply(new THREE.Matrix4().makeScale(1.02,1.02,1.02)).multiply(new THREE.Matrix4().makeTranslation(0,-1.45,0)); for(let i=hd;i<b.length;i++) b[i][1]=S.clone().multiply(b[i][1]);}   // a slightly big head, as in illustrated games
   const trunkMesh=new THREE.Mesh(mergeGeo(b),SKIN_MAT); bod.add(trunkMesh);
   const arm=side=>{
-    const g=new THREE.Group(); g.position.set(side*(sw+.02),1.36,0); g.rotation.z=side*.06;
-    const up=[HP('bead',top,0,-.02,0,.135,.14,.14), HP('limb',L.sleeveless?sk:top,0,-.09,0,.125,.17,.125), HP('limb',sk,0,-.22,0,.1,.12,.095), HP('bead',sk,0,-.28,0,.09,.08,.09)];
+    const g=new THREE.Group(); g.position.set(side*(sw+.005),1.35,0); g.rotation.z=side*.06;
+    const up=[HP('bead',top,-side*.012,-.035,0,.115,.12,.13), HP('limb',L.sleeveless?sk:top,0,-.09,0,.14,.17,.14), HP('limb',sk,0,-.22,0,.112,.12,.106), HP('bead',sk,0,-.28,0,.09,.08,.09)];
     g.add(new THREE.Mesh(mergeGeo(up),SKIN_MAT));
     const e=new THREE.Group(); e.position.y=-.28;
-    const lo=[HP('limb',sk,0,-.12,0,.088,.24,.085), HP('bead',sk,0,-.29,.012,.085,.11,.06), HP('bead',sk,side*-.035,-.27,.035,.035,.065,.035,-.3)];   // forearm, hand, thumb
+    const lo=[HP('limb',sk,0,-.12,0,.098,.24,.094), HP('bead',sk,0,-.29,.012,.085,.11,.06), HP('bead',sk,side*-.035,-.27,.035,.035,.065,.035,-.3)];   // forearm, hand, thumb
     if(side>0&&L.bag==='bayong'){lo.push(HP('box',0xb08850,0,-.49,.03,.27,.22,.12)); lo.push(HP('box',0x7a5a32,0,-.49,.095,.27,.04,.01)); lo.push(HP('box',0x8a6a3a,0,-.35,.03,.2,.03,.02));}
     else if(side>0&&L.bag) lo.push(HP('ball',L.bag==='plastic'?0xf2f2f2:0xff9ff3,0,-.5,.03,.22,.27,.15));
     e.add(new THREE.Mesh(mergeGeo(lo),SKIN_MAT)); g.add(e); g.e=e; return g;
@@ -3366,8 +3360,28 @@ function lnBuild(){
   const zE=lnRoad('zE',[49,-184.25],[321,-184.25],{vmax:9,boxes:[[49,53],[146,160],[204,220],[317,321]],cuts:[158,206,218],w:2.6}), zW=lnRoad('zW',[325,-187.75],[45,-187.75],{vmax:9,boxes:[[325,321],[160,146],[220,204],[49,45]],cuts:[155,206,218],w:2.6});
   lnTurn(wN.last,zE.first,{pri:1}); lnTurn(zW.last,wS.first,{pri:2}); lnTurn(zE.last,eS.first,{pri:1}); lnTurn(eN.last,zW.first,{pri:2});
   lnTurn(sN.last,zE.startAt(218),{pri:3}); lnTurn(sN.last,zW.startAt(206),{pri:3}); lnTurn(zW.endAt(218),sS.first,{pri:2}); lnTurn(zE.endAt(206),sS.first,{pri:1});
-  {const up=HROADS[0].s; let i0=0; while(i0<MTN_STOP.k-2&&up[i0][1]>-192.5) i0++; const pts=up.slice(i0,MTN_STOP.k+1);
-    const mUp=lnLane('mtn:up',pts,{vmax:6,w:2.6,solo:true}), mDn=lnLane('mtn:dn',pts.slice().reverse(),{vmax:6,w:2.6,solo:true}); lnTurn(zW.endAt(155),mUp,{pri:3}); lnTurn(mDn,zE.startAt(158),{pri:3});}
+  {const U=HROADS[0].s, n=U.length-1, k=HLOOP.k; let i0=0; while(i0<k-2&&U[i0][1]>-192.5) i0++;
+    const side=(P,o)=>P.map((p,i)=>{const a=P[Math.max(0,i-1)], b=P[Math.min(P.length-1,i+1)], dx=b[0]-a[0], dz=b[1]-a[1], L=Math.hypot(dx,dz)||1; return [p[0]-dz/L*o,p[1]+dx/L*o];});   // keep to the right
+    const dirOf=(P,i)=>{const a=P[Math.max(0,i-1)], b=P[Math.min(P.length-1,i+1)], L=Math.hypot(b[0]-a[0],b[1]-a[1])||1; return [(b[0]-a[0])/L,(b[1]-a[1])/L];};
+    const UP=side(U,1.75), DN=side(U.slice().reverse(),1.75).reverse(), run=(A,a,b)=>a<=b?A.slice(a,b+1):A.slice(b,a+1).reverse();   // UP[i], DN[i]: the up and down lane beside road point i
+    const j1=nearestOn(U,...HROADS[1].s[0]), js=j1-3, jd=j1+3;   // where the west road leaves
+    const o={vmax:7,w:2.6}, ot={vmax:4,w:2.6,solo:true};
+    const mUp=lnLane('mtn:up',run(UP,i0,js),o), mUp2=lnLane('mtn:up2',run(UP,js,k),o), mDn=lnLane('mtn:dn',run(DN,k,jd),o), mDnM=lnLane('mtn:dnM',run(DN,jd,js),o), mDn1=lnLane('mtn:dn1',run(DN,js,i0),o);
+    const LP=HLOOP.pts, a=HLOOP.a, b=HLOOP.b;
+    const mTA=lnLane('mtn:turnA',[UP[k],...LP.slice(5,a+1)],ot), mTB=lnLane('mtn:turnB',LP.slice(a,b+1),ot), mTC=lnLane('mtn:turnC',[...LP.slice(b,LP.length-5),DN[k]],ot);
+    lnLink(mUp,mUp2); lnLink(mUp2,mTA); lnLink(mTA,mTB); lnLink(mTB,mTC); lnLink(mTC,mDn); lnLink(mDn,mDnM); lnLink(mDnM,mDn1);
+    lnTurn(zW.endAt(155),mUp,{pri:3}); lnTurn(mDn1,zE.startAt(158),{pri:3});
+    // a side road: its two lanes from the main road to its sitio's plaza, and round the plaza
+    const branch=(name,pts,PL,s0)=>{const ix=nearestOn(pts,...PL.pts[0]), P2=pts.slice(0,ix+1), BU=side(P2,1.35), BD=side(P2.slice().reverse(),1.35);
+      const up=lnLane(name+':up',BU.slice(s0),{vmax:6,w:2.5}), turn=lnLane(name+':turn',[BU[BU.length-1],...PL.pts.slice(5,-5),BD[0]],{vmax:4,w:2.5,solo:true}), dn=lnLane(name+':dn',BD.slice(0,BD.length-s0),{vmax:6,w:2.5});
+      lnLink(up,turn); lnLink(turn,dn); return {up,dn,BU,BD,s0};};
+    const E=branch('mtnE',U.slice(HLOOP.kq).concat(HROADS[3].s.slice(1)),ELOOP,0);
+    const toE=lnLane('mtn:toE',lnCurve(LP[a],dirOf(LP,a),E.BU[0],dirOf(E.BU,0)),{vmax:4,w:2.6}), fromE=lnLane('mtn:fromE',lnCurve(E.BD[E.BD.length-1],dirOf(E.BD,E.BD.length-1),LP[b],dirOf(LP,b)),{vmax:4,w:2.6});
+    lnLink(mTA,toE); lnLink(toE,E.up); lnLink(E.dn,fromE); lnLink(fromE,mTC);
+    const W=branch('mtnW',HROADS[1].s.concat(HROADS[4].s.slice(1)),WLOOP,3), wu=W.BU[3], wd=W.BD[W.BD.length-4];
+    const toW=lnLane('mtn:toW',lnCurve(UP[js],dirOf(UP,js),wu,dirOf(W.BU,3)),{vmax:4,w:2.6}), toW2=lnLane('mtn:toW2',lnCurve(DN[jd],[-dirOf(U,jd)[0],-dirOf(U,jd)[1]],wu,dirOf(W.BU,3)),{vmax:4,w:2.6});
+    const fromW=lnLane('mtn:fromW',lnCurve(wd,dirOf(W.BD,W.BD.length-4),DN[js],[-dirOf(U,js)[0],-dirOf(U,js)[1]]),{vmax:4,w:2.6});
+    lnLink(mUp,toW); lnLink(toW,W.up); lnLink(mDn,toW2); lnLink(toW2,W.up); lnLink(W.dn,fromW); lnLink(fromW,mDn1);}
   // the factory gate and the vans' yard
   const GIN=lnLane('f:in',[[396.75,-115],[396.75,-124]],{vmax:POCK,solo:true}), GOUT=lnLane('f:out',[[393.25,-124],[393.25,-115]],{vmax:POCK,solo:true});
   lnTurn(E(389),GIN,{pri:2}); lnTurn(W(401),GIN,{pri:1}); lnTurn(GOUT,Ws(389),{pri:3}); lnTurn(GOUT,Es(401),{pri:3});
@@ -3549,7 +3563,8 @@ function lnPlace(v,dt){ // the front and rear wheels run on the path; the body s
   const L=v.path[v.pi], a=v.len*.32, f=lnPt(v,a,false), b=lnPt(v,-a,false), x=(f[0]+b[0])/2, z=(f[1]+b[1])/2;
   let ang=Math.atan2(f[0]-b[0],f[1]-b[1]); if(L.rev) ang+=Math.PI;
   const g=v.g; if(v.place) return v.place(x,z,ang,dt);
-  g.position.set(x,v.v>.3?Math.abs(Math.sin(LN.now*9+v.ph))*v.bounce:0,z); g.rotation.y=dt>=1?ang:lerpAng(g.rotation.y,ang,1-Math.exp(-dt*12));
+  g.rotation.y=dt>=1?ang:lerpAng(g.rotation.y,ang,1-Math.exp(-dt*12)); const y=(hy(x,z)>.01||g.rotation.x||g.rotation.z)?onSlope(g,x,z,v.len*.32,v.width*.42):0;
+  g.position.set(x,y+(v.v>.3?Math.abs(Math.sin(LN.now*9+v.ph))*v.bounce:0),z);
 }
 function lnForeign(dt){ // your own vehicles out on a trip, with their speed
   const F=LN.foreign; F.length=0;
@@ -4147,34 +4162,83 @@ function irrigationSite(x,z,m=0){m=Math.max(0,m);return (x>-206-m&&x<-114+m&&z>-
 // ---- mountain barangay: a real slope north of the barangay. A main road climbs it in gentle switchbacks along the contours, two
 // branches lead off it, modest homes stand in small clusters at the junctions and bends (only where the ground is gentle enough to
 // build), rice terraces step down two faces of the hill, and trees fill the gaps.
-const HILL={x:190,z:-300,rx:140,rz:76,h:24};
-function hillRaw(x,z){const u=(x-HILL.x)/HILL.rx, v=(z-HILL.z)/HILL.rz, w=Math.max(0,1-u*u)*Math.max(0,1-v*v); return HILL.h*w*w*Math.exp(-u*u*1.2-v*v*.6)*(1+.06*Math.sin(x*.09)+.05*Math.sin(z*.13+x*.03));}
+const HILL={x:190,z:-300,rx:140,rz:76,h:30};
+const HILLS=[HILL,{x:-30,z:-340,rx:125,rz:82,h:40},{x:425,z:-338,rx:130,rz:86,h:36}];   // the barangay's hill, and taller mountains either side
+function hillRaw(x,z){let h=0; for(const H of HILLS){const u=(x-H.x)/H.rx, v=(z-H.z)/H.rz; if(u*u>=1||v*v>=1) continue; const w=(1-u*u)*(1-v*v), b=H.h*w*w*Math.exp(-u*u*1.2-v*v*.6); if(b>h) h=b;}
+  return h*(1+.06*Math.sin(x*.09)+.05*Math.sin(z*.13+x*.03));}
 // the hill roads are cut level across: next to a road the ground blends to the height of the road's centre line
 let HGRID=null;
 function hillH(x,z){const raw=hillRaw(x,z); if(raw<=0) return raw;
-  if(!HGRID){let R; try{R=HROADS;}catch(e){return raw;} HGRID=new Map(); for(const r of R) for(const [a,c] of r.s){const k=Math.floor(a/8)+','+Math.floor(c/8); if(!HGRID.has(k)) HGRID.set(k,[]); HGRID.get(k).push([a,c,r.w/2,hillRaw(a,c)]);}}
-  let bd=1e9, bh=0, bw=0; const cx=Math.floor(x/8), cz=Math.floor(z/8);
-  for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){const L=HGRID.get((cx+i)+','+(cz+j)); if(L) for(const [a,c,hw,h] of L){const d=Math.hypot(x-a,z-c); if(d<bd){bd=d; bh=h; bw=hw;}}}
-  if(bd>bw+4) return raw; const t=Math.max(0,Math.min(1,(bd-bw-.6)/3.4)), s=t*t*(3-2*t); return bh+(raw-bh)*s;}
+  if(!HGRID){let R; try{R=HROADS;}catch(e){return raw;} HGRID=new Map(); for(const r of R){const hs=r.hs=r.s.map(([a,c])=>hillRaw(a,c)); let pd=3;
+    for(const o of R){if(o===r||!o.hs) continue; const j=nearestOn(o.s,...r.s[0]), d=Math.hypot(o.s[j][0]-r.s[0][0],o.s[j][1]-r.s[0][1]); if(d<pd){pd=d; hs[0]=o.hs[j];}}   // a branch road starts at the height of the road it leaves
+    for(let it=0;it<60;it++) for(let i=1;i<hs.length-1;i++) hs[i]=(hs[i-1]+2*hs[i]+hs[i+1])/4;
+    r.s.forEach(([a,c],i)=>{const k=Math.floor(a/8)+','+Math.floor(c/8); if(!HGRID.has(k)) HGRID.set(k,[]); HGRID.get(k).push([r,i]);}); for(const pl of PLAZAS) if(pl.road===r) pl.y=hs[pl.k];}}
+  const near=new Map(), cx=Math.floor(x/8), cz=Math.floor(z/8);
+  for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){const L=HGRID.get((cx+i)+','+(cz+j)); if(L) for(const [r,k] of L) for(const q of [k-1,k]){if(q<0||q>=r.s.length-1) continue; const [ax,az]=r.s[q], [bx,bz]=r.s[q+1], dx=bx-ax, dz=bz-az, u=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/(dx*dx+dz*dz||1))), d=Math.hypot(ax+dx*u-x,az+dz*u-z);
+      const o=near.get(r); if(!o||d<o.d) near.set(r,{d,h:r.hs[q]+(r.hs[q+1]-r.hs[q])*u,bw:r.w/2});}}   // the height runs smoothly along each road
+  let sw=0, sh=0, fm=0; for(const {d,h,bw} of near.values()){const t=Math.max(0,Math.min(1,(d-bw-1.5)/4)), f=1-t*t*(3-2*t); if(f<=0) continue; const w=f*f*f*f; sw+=w; sh+=w*h; if(f>fm) fm=f;}   // where two roads meet, the ground blends between them
+  let h=raw; if(sw>0){const rh=sh/sw; h=rh+(raw-rh)*(1-fm);}   // level well past a road's edge, so the hillside never pokes through it
+  for(const pl of PLAZAS){const pd=Math.hypot(x-pl.c[0],z-pl.c[1])-pl.R; if(pd<7){const t=Math.max(0,pd/7), s=t*t*(3-2*t); h=pl.y+(h-pl.y)*s;}}   // the turning plazas are cut level into the hill
+  return h;}
 const hillSlope=(x,z)=>Math.hypot(hillH(x+1,z)-hillH(x-1,z),hillH(x,z+1)-hillH(x,z-1))/2;
 const HROADS=[
-  {w:4,pts:[[150,-189],[151,-215],[158,-232],[178,-244],[206,-252],[232,-262],[246,-280],[236,-296],[212,-304],[186,-310],[160,-318],[146,-334],[158,-350],[186,-356],[214,-352]]},
-  {w:3.2,pts:[[206,-252],[196,-268],[176,-276],[150,-282],[128,-294],[118,-312]]},
-  {w:3.2,pts:[[246,-280],[272,-286],[294,-300]]}].map(r=>({...r,s:spline(r.pts,false,1.5)}));
-const hroadDist=(x,z)=>{let b=99; for(const r of HROADS) for(const [a,c] of r.s){const d=Math.hypot(x-a,z-c)-r.w/2; if(d<b) b=d;} return b;};
-(()=>{const r=rng(707), geo=new THREE.PlaneGeometry(HILL.rx*2,HILL.rz*2,140,76); geo.rotateX(-Math.PI/2); geo.translate(HILL.x,0,HILL.z);
+  {w:7,paved:1,pts:[[150,-189],[151,-215],[158,-232],[178,-244],[206,-252],[232,-262],[246,-280],[236,-296],[212,-304],[186,-310],[160,-318],[146,-334],[158,-350],[186,-356],[214,-352]]},
+  {w:5.4,paved:1,pts:[[206,-252],[196,-268],[176,-276],[150,-282],[128,-294],[118,-312]]},
+  {w:5.4,paved:1,pts:[[246,-280],[272,-286],[294,-300]]},
+  {w:5.4,paved:1,pts:[[214,-352],[246,-348],[282,-334],[318,-322],[352,-324],[384,-334],[412,-342],[432,-350]]},   // on over the ridge to the sitio on the east mountain
+  {w:5.4,paved:1,pts:[[118,-312],[96,-324],[66,-332],[36,-336],[8,-342],[-18,-348],[-38,-352]]}].map(r=>({...r,s:spline(r.pts,false,1.5)}));   // and to the sitio on the west mountain
+// the rotonda at Sitio Bundok, on the road at the bus stop: right 60°, left round 300°, right 60°, back where it started facing down
+// a turning plaza on a road at index k: the lane goes right 60°, left round 300°, right 60°, back where it started facing back
+function mkLoop(S,k,road){const [x,z]=S[k], [a,c]=S[k+1]||S[k], Rr=7.5, out=[[x,z]]; let th=Math.atan2(a-x,c-z), px=x, pz=z;
+  const arc=ang=>{const n=Math.ceil(Math.abs(ang)*Rr/.7), st=Math.abs(ang)*Rr/n; for(let i=0;i<n;i++){th+=ang/n/2; px+=Math.sin(th)*st; pz+=Math.cos(th)*st; th+=ang/n/2; out.push([px,pz]);}};
+  arc(-Math.PI/3); arc(Math.PI*5/3); arc(-Math.PI/3); out[out.length-1]=[x,z];
+  let cx=0, cz=0; out.forEach(p=>{cx+=p[0]; cz+=p[1];}); return {k,S,road,pts:out,c:[cx/out.length,cz/out.length],r:Rr,R:Rr+3.8,y:0};}
+const HLOOP=(()=>{const S=HROADS[0].s, L=mkLoop(S,nearestOn(S,232,-262),HROADS[0]), P=L.pts, n=P.length;
+  let kq=L.k; while(kq<S.length-1&&Math.hypot(S[kq][0]-L.c[0],S[kq][1]-L.c[1])<L.R+1.5) kq++;   // where the road leaves the plaza for the east sitio
+  const Q=S[kq], tg=i=>[P[i+1][0]-P[i][0],P[i+1][1]-P[i][1]], to=i=>{const t=tg(i); return t[0]*(Q[0]-P[i][0])+t[1]*(Q[1]-P[i][1]);}, dQ=i=>Math.hypot(P[i][0]-Q[0],P[i][1]-Q[1]);
+  let a=-1, b=-1; for(let i=6;i<n-7;i++) if(to(i)>0&&(a<0||dQ(i)<dQ(a))) a=i;   // off the plaza here (heading for the road)
+  for(let i=a+3;i<n-7;i++) if(to(i)<0&&(b<0||dQ(i)<dQ(b))) b=i;                   // back onto it here
+  if(b<0) b=Math.min(n-8,a+6); return Object.assign(L,{kq,a,b});})();
+const ELOOP=mkLoop(HROADS[3].s,HROADS[3].s.length-16,HROADS[3]), WLOOP=mkLoop(HROADS[4].s,HROADS[4].s.length-16,HROADS[4]), PLAZAS=[HLOOP,ELOOP,WLOOP];
+const hroadDist=(x,z)=>{let b=Math.min(...PLAZAS.map(p=>Math.hypot(x-p.c[0],z-p.c[1])-p.R)); for(const r of HROADS) for(const [a,c] of r.s){const d=Math.hypot(x-a,z-c)-r.w/2; if(d<b) b=d;} return b;};
+const HILLSPOTS=[];   // in front of the hillside homes: where people stand about
+(()=>{const r=rng(707), X0=Math.min(...HILLS.map(H=>H.x-H.rx)), X1=Math.max(...HILLS.map(H=>H.x+H.rx)), Z0=Math.min(...HILLS.map(H=>H.z-H.rz)), Z1=Math.max(...HILLS.map(H=>H.z+H.rz));
+  const geo=new THREE.PlaneGeometry(X1-X0,Z1-Z0,Math.ceil((X1-X0)/2),Math.ceil((Z1-Z0)/2)); geo.rotateX(-Math.PI/2); geo.translate((X0+X1)/2,0,(Z0+Z1)/2);
   const p=geo.attributes.position; for(let i=0;i<p.count;i++) p.setY(i,hillH(p.getX(i),p.getZ(i))-.05); geo.computeVertexNormals();
   const hm=new THREE.Mesh(geo,worldGrass(0xe2ead2)); hm.receiveShadow=true; scene.add(hm);
   const b=[], lv=[], at=(x,z)=>hillH(x,z), _q=new THREE.Quaternion(), _e=new THREE.Euler(0,0,0,'YXZ');
   const PY=(g,c,x,y,z,sx,sy,sz,rx,ry)=>[PG[g],new THREE.Matrix4().compose(new THREE.Vector3(x,y,z),_q.setFromEuler(_e.set(rx||0,ry||0,0,'YXZ')),new THREE.Vector3(sx,sy,sz)),c];   // turn first, then tilt
   // roads: a strip whose every vertex sits on the ground, with ruts and a lighter crown like the farm roads
-  for(const R of HROADS){const g=ribbon(R.s,R.w,[0x8f8c5e,0x8c7657,0xa89272],0,R.w*13), q=g.attributes.position;
-    for(let k=0;k<q.count;k++) q.setY(k,at(q.getX(k),q.getZ(k))+.12); g.computeVertexNormals(); const m=new THREE.Mesh(g,ROAD_MAT); m.receiveShadow=true; scene.add(m);}
-  const S0=HROADS[0].s; for(let k=10;k<S0.length;k+=20){const [x,z]=S0[k], [a,c]=S0[k+1]||S0[k-1], L=Math.hypot(a-x,c-z)||1, px=x-(c-z)/L*3, pz=z+(a-x)/L*3;   // power poles
+  for(const R of HROADS){const g=R.paved?ribbon(R.s,R.w,[0xa8a090,0x45474b],0,R.w*13,[[-1,0],[-.86,0],[-.84,1],[.84,1],[.86,0],[1,0]]):ribbon(R.s,R.w,[0x8f8c5e,0x8c7657,0xa89272],0,R.w*13), q=g.attributes.position;
+    for(let k=0;k<q.count;k++){const qx=q.getX(k), qz=q.getZ(k); q.setY(k,at(qx,qz)+(PLAZAS.some(p=>Math.hypot(qx-p.c[0],qz-p.c[1])<p.R)?.12:.34));} g.computeVertexNormals(); const m=new THREE.Mesh(g,ROAD_MAT); m.receiveShadow=true; scene.add(m);   // a little proud of the slope, so the ground never shows through (under the plaza, which covers it)
+    if(R.paved) for(let i=0;i<R.s.length-1;i++){const [ax,az]=R.s[i], [bx,bz]=R.s[i+1], dx=bx-ax, dz=bz-az, L=Math.hypot(dx,dz)||1, yaw=Math.atan2(dx,dz); if(PLAZAS.some(p=>Math.hypot(ax-p.c[0],az-p.c[1])<p.R+.5)||(R!==HROADS[0]&&i<4)) continue;
+      for(const o of i%4<2?[-R.w/2*.78,0,R.w/2*.78]:[-R.w/2*.78,R.w/2*.78]){const x0=ax-dz/L*o, z0=az+dx/L*o, x1=bx-dz/L*o, z1=bz+dx/L*o, y0=at(x0,z0), y1=at(x1,z1);
+        b.push(PY('box',o?0xf2f0e8:0xf2c230,(x0+x1)/2,(y0+y1)/2+.36,(z0+z1)/2,o?.13:.16,.02,L+.05,-Math.atan2(y1-y0,L),yaw));}
+      if(i%40===20&&Math.hypot(ax-HLOOP.c[0],az-HLOOP.c[1])>HLOOP.R+2){const px=ax-dz/L*(R.w/2+.7), pz=az+dx/L*(R.w/2+.7); b.push(P('box',0xf5f5f0,px,at(px,pz)+.45,pz,.18,.9,.12)); b.push(P('box',0x2e7d32,px,at(px,pz)+.95,pz,.2,.18,.14));}}}   // kilometre posts
+  for(const PL of PLAZAS){const [cx,cz]=PL.c, y=PL.y, ir=2.6;   // each turning plaza: level asphalt with a kerb, an island with a flagpole, and street lamps
+    for(const [rr,col,top] of [[PL.R+.6,0xa8a090,.13],[PL.R,0x45474b,.17]]){const pm=new THREE.Mesh(new THREE.CylinderGeometry(rr,rr,top,56),new THREE.MeshStandardMaterial({color:col,roughness:1})); pm.position.set(cx,y+top/2,cz); pm.receiveShadow=true; scene.add(pm);}
+    b.push(P('cyl',0xd8d4cc,cx,y+.25,cz,ir*2+.3,.3,ir*2+.3)); b.push(P('cyl',0x6f9e4a,cx,y+.42,cz,ir*2,.06,ir*2));
+    {const kerb=new THREE.Mesh(new THREE.TorusGeometry(PL.R,.16,6,64).rotateX(Math.PI/2),new THREE.MeshStandardMaterial({color:0xd8d4cc,roughness:1})); kerb.position.set(cx,y+.2,cz); scene.add(kerb);}
+    for(let q=0;q<4;q++){const a=Math.PI/4+q*Math.PI/2, lx=cx+Math.cos(a)*(PL.R-.7), lz=cz+Math.sin(a)*(PL.R-.7); b.push(P('cyl',0x5f6b63,lx,y+2.4,lz,.14,4.6,.14)); b.push(P('box',0x5f6b63,lx-Math.cos(a)*.5,y+4.65,lz-Math.sin(a)*.5,1.1,.08,.12,0,-a,0)); b.push(P('box',0xfff3c4,lx-Math.cos(a),y+4.55,lz-Math.sin(a),.4,.12,.25,0,-a,0));}
+    b.push(P('cyl',0xbdbdbd,cx,y+3.4,cz,.12,6,.12)); b.push(P('box',0x1565c0,cx+.55,y+5.9,cz,1,.32,.02)); b.push(P('box',0xc62828,cx+.55,y+5.58,cz,1,.32,.02)); b.push(P('box',0xffffff,cx+.2,y+5.74,cz,.3,.64,.03));}
+  const S0=HROADS[0].s; for(let k=10;k<S0.length;k+=20){const [x,z]=S0[k], [a,c]=S0[k+1]||S0[k-1], L=Math.hypot(a-x,c-z)||1, px=x-(c-z)/L*5.2, pz=z+(a-x)/L*5.2; if(Math.hypot(px-HLOOP.c[0],pz-HLOOP.c[1])<HLOOP.R+2) continue;   // power poles
     b.push(P('cyl',0x8a8a80,px,at(px,pz)+3.5,pz,.22,7,.22)); b.push(PY('box',0x6b6b6b,px,at(px,pz)+6.6,pz,1.6,.1,.1,0,Math.atan2(a-x,c-z)+Math.PI/2));}
   // houses: CHB homes on a plinth stepped down to the lowest corner, or timber homes on posts on the downhill side
   const WALLS=[0xe8dcc2,0xd7cbb0,0xc9d6c4,0xe9d0b8,0xd8c6b0,0xd0c4a8], WOOD=[0xa07850,0x8f6a46,0xb08860], ROOFS=[0xa24a3a,0x4f6f8f,0x5f7f4a,0x8a5a3a,0x9a3f34,0x8f9aa0];
-  const homes=[];
+  const homes=[], BRIGHT=[0xe8508a,0x3fa9f5,0x5cc46f,0xf5c542,0x9b6bd6,0xff7f50,0x2ec4b6,0xf28dba,0x6fc3e6,0xe74c3c,0xb5e655], BROOF=[0xd8433a,0x2f80ed,0x27ae60,0xf2994a,0x8e44ad,0xe0dcd2];
+  const stack=(hx,hz,face)=>{const w=4+r()*2, d=3.6+r()*1.4, fl=2+(r()<.35?1:0), ht=2.6, ca=Math.cos(face), sa=Math.sin(face), W2=(lx,lz)=>[hx+ca*lx+sa*lz,hz-sa*lx+ca*lz];
+    const cs=[[-w/2,-d/2],[w/2,-d/2],[-w/2,d/2],[w/2,d/2]].map(([lx,lz])=>at(...W2(lx,lz))), hi=Math.max(...cs), y=hi+.3;
+    const M=(lx,ly,lz,sx,sy,sz,c,g='box',rx=0)=>{const [cx,cz]=W2(lx,lz); b.push(PY(g,c,cx,ly,cz,sx,sy,sz,rx,face));};
+    for(const [lx,lz] of [[-w/2+.2,-d/2+.2],[w/2-.2,-d/2+.2],[-w/2+.2,d/2-.2],[w/2-.2,d/2-.2]]){const gy=at(...W2(lx,lz)); if(y-gy>.35) M(lx,(gy+y)/2-.1,lz,.28,y-gy+.2,.28,0xa8a294);}   // concrete posts down the slope
+    M(0,y-.08,0,w+.2,.16,d+.2,0xb8b2a4); let c0=BRIGHT[(r()*BRIGHT.length)|0];
+    for(let k=0;k<fl;k++){const yy=y+k*ht, c=r()<.3?BRIGHT[(r()*BRIGHT.length)|0]:c0; M(0,yy+ht/2,0,w,ht,d,c); M(0,yy+ht-.06,0,w+.12,.12,d+.12,0xf2efe6);   // a storey and its slab edge
+      for(const lx of [-w/4,w/4]) if(!(k===0&&lx<0)){M(lx,yy+1.5,d/2+.02,1,.9,.05,0x35505f); M(lx,yy+1.5,d/2+.04,1.1,.06,.04,0xf2efe6);}
+      if(k===0) M(-w/4,yy+.95,d/2+.02,.85,1.9,.05,0x6b4423);
+      if(k>0&&r()<.6){M(0,yy+.05,d/2+.55,w,.1,1.1,0xd8d4cc); M(0,yy+.55,d/2+1.08,w,.06,.05,0xf2efe6); for(let q=0;q<=6;q++) M(-w/2+q*w/6,yy+.3,d/2+1.08,.05,.5,.05,0xf2efe6);}}   // a balcony
+    const top=y+fl*ht; if(r()<.55){M(0,top+.12,0,w+.1,.24,d+.1,0xd8d4cc); if(r()<.6) M(w/2-.8,top+.75,-d/2+.8,1,1.1,1,0x2a6fb0,'cyl');}   // flat roof (a water tank on many)
+    else {const rc=BROOF[(r()*BROOF.length)|0]; M(0,top,0,w+.02,1,d+.02,c0,'gable'); for(const sd of [-1,1]) M(0,top+.5,sd*(d/4+.15),w+.6,.08,d/2+.6,rc,'box',sd*.5); M(0,top+1.02,0,w+.7,.1,.3,rc);}
+    if(r()<.4){for(const sd of [-1,1]) M(sd*1.3,y+.9,-d/2-1.1,.06,1.8,.06,0x6d4c41); M(0,y+1.75,-d/2-1.1,2.6,.02,.02,0x444444); for(let i=0;i<4;i++) M(-1+i*.65,y+1.5,-d/2-1.1,.03,.5,.4,[0xe74c3c,0xf1c40f,0x2e86de,0xffffff][i]);}   // sampayan
+    homes.push([hx,hz,Math.max(w,d)/2+.6]); const [fx,fz]=W2(0,d/2+1.4); HILLSPOTS.push([fx,fz,face]);};
   const house=(hx,hz,face,kind)=>{const w=4.2+r()*1.8, d=3.6+r()*1.2, ht=2.5+r()*.5, rc=ROOFS[(r()*ROOFS.length)|0];
     const cs=[[-w/2,-d/2],[w/2,-d/2],[-w/2,d/2],[w/2,d/2]].map(([lx,lz])=>at(hx+Math.cos(face)*lx+Math.sin(face)*lz,hz-Math.sin(face)*lx+Math.cos(face)*lz));
     const lo=Math.min(...cs), hi=Math.max(...cs), y=kind==='wood'?hi+.9:hi+.3;
@@ -4190,13 +4254,18 @@ const hroadDist=(x,z)=>{let b=99; for(const r of HROADS) for(const [a,c] of r.s)
     if(kind!=='wood'&&r()<.5){M(0,y+.05,d/2+1.1,w,.1,2.1,0xbdb6a6); for(const s of [-1,1]) M(s*(w/2-.1),y+1.05,d/2+2.1,.1,2.1,.1,0x6d4c41); M(0,y+2.15,d/2+1.1,w+.2,.06,2.3,rc,'box',.12,0);}   // porch
     if(r()<.5){for(const s of [-1,1]) M(s*1.4,y+.9,-d/2-1.2,.06,1.8,.06,0x6d4c41); M(0,y+1.75,-d/2-1.2,2.8,.02,.02,0x444444); for(let i=0;i<4;i++) M(-1+i*.65,y+1.5,-d/2-1.2,.03,.5,.4,[0xe74c3c,0xf1c40f,0x2e86de,0xffffff][i]);}   // sampayan
     if(r()<.4) M(w/2+.6,y+.5,0,.8,1.0,.8,0x3a6f9e,'cyl');
-    homes.push([hx,hz,Math.max(w,d)/2+1]);};
+    homes.push([hx,hz,Math.max(w,d)/2+1]); HILLSPOTS.push([hx+Math.sin(face)*(d/2+1.6),hz+Math.cos(face)*(d/2+1.6),face]);};
   const tryHouse=(cx,cz,rad)=>{for(let t=0;t<40;t++){const a=r()*6.28, rr=rad*(.3+r()*.7), x=cx+Math.cos(a)*rr, z=cz+Math.sin(a)*rr, rd=hroadDist(x,z);
       if(rd<7||rd>14||at(x,z)<.4||hillSlope(x,z)>.3||homes.some(([a2,c2,q])=>Math.hypot(a2-x,c2-z)<q+3.5)) continue;
       let bi=0,bd=1e9; for(const R of HROADS) for(const [a2,c2] of R.s){const d=Math.hypot(a2-x,c2-z); if(d<bd){bd=d; bi=[a2,c2];}}
       house(x,z,Math.atan2(bi[0]-x,bi[1]-z),hillSlope(x,z)>.16?'wood':(r()<.25?'wood':'chb')); return true;} return false;};
   for(const [cx,cz,n] of [[206,-252,5],[236,-294,4],[162,-316,4],[130,-292,3],[186,-352,3],[272,-288,3]]) for(let k=0;k<n;k++) tryHouse(cx,cz,16);   // clusters
   for(const R of HROADS) for(let k=12;k<R.s.length;k+=30) if(r()<.6) tryHouse(R.s[k][0],R.s[k][1],10);                                      // a few on their own
+  for(let t=0,n=0;t<2600&&n<105;t++){const x=118+r()*175, z=-302+r()*76, y=at(x,z); if(y<2||hroadDist(x,z)<4||wwNear(x,z,2)||hillSlope(x,z)>.55||homes.some(([a,c,q])=>Math.hypot(a-x,c-z)<q+3.4)) continue;   // the stacked homes up the slope, with room for trees between
+    const gx=at(x+1,z)-at(x-1,z), gz=at(x,z+1)-at(x,z-1); stack(x,z,Math.atan2(-gx,-gz)); n++;}
+  for(const RD of HROADS.slice(3)) for(let k=10;k<RD.s.length;k+=16) tryHouse(RD.s[k][0],RD.s[k][1],12);
+  for(const [cx,cz] of [[420,-340],[-28,-346]]) for(let t=0,n=0;t<1200&&n<26;t++){const a=r()*6.28, rr=7+r()*30, x=cx+Math.cos(a)*rr, z=cz+Math.sin(a)*rr, y=at(x,z);
+    if(y<2||hroadDist(x,z)<4||hillSlope(x,z)>.55||homes.some(([a2,c2,q])=>Math.hypot(a2-x,c2-z)<q+3)) continue; const gx=at(x+1,z)-at(x-1,z), gz=at(x,z+1)-at(x,z-1); stack(x,z,Math.atan2(-gx,-gz)); n++;}
   // rice terraces: strips along the contour lines, each a green paddy edged with a soil riser, stepping down the hill
   const terr=[];
   for(const [x0,x1,z0,z1] of [[118,176,-262,-300],[254,296,-306,-338]]) for(let L=2;L<=16;L+=1.4) for(let x=x0;x<=x1;x+=1.6) for(let z=z1;z<=z0;z+=1.6){
@@ -4204,8 +4273,10 @@ const hroadDist=(x,z)=>{let b=99; for(const r of HROADS) for(const [a,c] of r.s)
     const gx=at(x+1,z)-at(x-1,z), gz=at(x,z+1)-at(x,z-1); if(Math.hypot(gx,gz)<.08) continue; const yaw=Math.atan2(-gz,gx);   // the strip runs across the slope
     b.push(PY('box',0x8a7456,x,L-.5,z,1.9,1.1,1.6,0,yaw)); b.push(PY('box',[0x8fb35a,0x9cc068,0x7fa64e][((L*5)|0)%3],x,L+.07,z,1.9,.06,1.5,0,yaw)); terr.push([x,z]);}
   // trees, leaving gaps round the houses, roads and terraces
-  for(let k=0;k<170;k++){const x=HILL.x+(r()-.5)*HILL.rx*1.8, z=HILL.z+(r()-.5)*HILL.rz*1.8, y=at(x,z); if(y<.5||hroadDist(x,z)<4||wwNear(x,z,2)||homes.some(([a,c,q])=>Math.hypot(a-x,c-z)<q+3)||terr.some(([a,c])=>Math.hypot(a-x,c-z)<3)) continue;
-    const s=.7+r()*.6; b.push(P('cyl',0x6b4a2a,x,y+1.2*s,z,.4*s,2.4*s,.4*s)); lv.push(P('sph',[0x46733a,0x527f40,0x3a6630][k%3],x,y+3*s,z,3.2*s,2.6*s,3.2*s));}
+  for(const H of HILLS) for(let k=0,N=H===HILL?900:520;k<N;k++){const x=H.x+(r()-.5)*H.rx*1.8, z=H.z+(r()-.5)*H.rz*1.8, y=at(x,z); if(y<.5||hroadDist(x,z)<4||wwNear(x,z,2)||homes.some(([a,c,q])=>Math.hypot(a-x,c-z)<q+1.1)||terr.some(([a,c])=>Math.hypot(a-x,c-z)<3)) continue;
+    const s=.7+r()*.6;
+    if(r()<(H===HILL?.3:.6)){b.push(P('cyl',0x5b3d22,x,y+1.9*s,z,.3*s,3.8*s,.3*s)); for(let q=0;q<3;q++) lv.push(P('cone',[0x2f5a33,0x36633a,0x2a4f2e][(k+q)%3],x,y+(2.2+q*1.25)*s,z,(2.8-q*.7)*s,2.2*s,(2.8-q*.7)*s));}   // a Benguet pine
+    else {b.push(P('cyl',0x6b4a2a,x,y+1.2*s,z,.4*s,2.4*s,.4*s)); lv.push(P('sph',[0x46733a,0x527f40,0x3a6630][k%3],x,y+3*s,z,3.2*s,2.6*s,3.2*s));}}
   const m=new THREE.Mesh(mergeGeo(b),VCMAT); m.castShadow=m.receiveShadow=true; scene.add(m);
   const t=new THREE.Mesh(mergeGeo(lv),VCSMOOTH); t.castShadow=true; scene.add(t);
 })();
@@ -7823,10 +7894,11 @@ function spray(W,i,t){if(!W.spr){W.spr=new THREE.Group(); for(let k=0;k<10;k++) 
 const TOWN={bus:[250,-122], jx:[280,-126], pol:[350,-150]};
 const hy=(x,z)=>Math.max(0,hillH(x,z));
 // sit a vehicle on the hillside: height and tilt (front to back and side to side) from the ground under its four wheels, so no wheel sinks in
+const roadLift=(x,z)=>{const h=hy(x,z); return h>0?Math.min(.22,h*1.5):0;};   // hill roads are drawn this much proud of the ground
 function onSlope(g,x,z,hl,hw){const a=g.rotation.y, s=Math.sin(a), c=Math.cos(a), H=(f,l)=>hy(x+s*f+c*l,z+c*f-s*l);
   const fr=H(hl,hw), fl=H(hl,-hw), br=H(-hl,hw), bl=H(-hl,-hw), hf=(fr+fl)/2, hb=(br+bl)/2, hR=(fr+br)/2, hL=(fl+bl)/2;
   g.rotation.order='YXZ'; g.rotation.x+=(Math.atan2(hb-hf,2*hl)-g.rotation.x)*.25; g.rotation.z+=(Math.atan2(hR-hL,2*hw)-g.rotation.z)*.25;
-  return (fr+fl+br+bl)/4;}
+  return (fr+fl+br+bl)/4+roadLift(x,z);}
 function signPlane(lines,bg,fg,w,h,cw=512,ch=128){const cv=document.createElement('canvas'); cv.width=cw; cv.height=ch; const x=cv.getContext('2d'); x.fillStyle=bg; x.fillRect(0,0,cw,ch);
   x.fillStyle=fg; x.textAlign='center'; x.textBaseline='middle'; lines.forEach((s,k)=>{x.font=`900 ${k?ch*.22:ch*.42}px Arial, sans-serif`; x.fillText(s,cw/2,lines.length>1?(k?ch*.76:ch*.36):ch/2,cw-16);});
   return new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)}));}
@@ -7858,12 +7930,17 @@ function signPlane(lines,bg,fg,w,h,cw=512,ch=128){const cv=document.createElemen
   for(const [x,z,s] of [[262,-131.9,1],[300,-131.4,.8]]) glow(scene,x,3.2,z,5*s,GM.white);
   glow(scene,TOWN.pol[0]-4.6,3.6,TOWN.pol[1],3,GM.white);})();
 // the mountain bus stop: a waiting shed at the end of the bus climb, with people who wait for it
-const MTN_STOP=(()=>{const up=HROADS[0].s, k=nearestOn(up,232,-262), [x,z]=up[k], [a,c]=up[Math.min(up.length-1,k+1)], L=Math.hypot(a-x,c-z)||1, ox=x-(c-z)/L*4.4, oz=z+(a-x)/L*4.4, y=hy(ox,oz);
-  const g=new THREE.Group(); g.position.set(ox,y,oz); g.rotation.y=Math.atan2(a-x,c-z); scene.add(g);
-  g.add(new THREE.Mesh(mergeGeo([P('box',0xbdb6a6,0,.1,0,4,.2,2.2),...[[-1.8,-.9],[1.8,-.9],[-1.8,.9],[1.8,.9]].map(([px,pz])=>P('box',0x6d4c41,px,1.2,pz,.14,2.4,.14)),P('pyr',0xa8823f,0,2.75,0,4.8,.8,3),P('box',0x8d6e4b,0,.55,.5,3.2,.1,.5)]),VCMAT));
-  const s=signPlane(['BUS STOP','Sitio Bundok'],'#2e7d32','#fff',2.4,.7); s.position.set(0,2.05,-1.15); s.rotation.y=Math.PI; g.add(s);
-  const wait=[]; for(let k=0;k<3;k++){const p=makePerson(randLook(Math.random)); p.root.position.set(ox+(k-1)*.9,y+.08,oz+.3); p.root.rotation.y=g.rotation.y+Math.PI; scene.add(p.root); poseStand(p,k); wait.push(p);}
-  return {x,z,ox,oz,k,wait};})();
+function mkShed(PL,i0,i1,label){const P=PL.pts; let i=i0; for(let q=i0;q<=i1;q++) if(P[q][1]>P[i][1]) i=q;   // the plaza's south (town) side
+  const [bx,bz]=P[i], ul=Math.hypot(bx-PL.c[0],bz-PL.c[1])||1, ux=(bx-PL.c[0])/ul, uz=(bz-PL.c[1])/ul, ox=PL.c[0]+ux*(PL.r+3.9), oz=PL.c[1]+uz*(PL.r+3.9), y=hy(ox,oz);
+  const g=new THREE.Group(); g.position.set(ox,y,oz); g.rotation.y=Math.atan2(ux,uz); scene.add(g);
+  g.add(new THREE.Mesh(mergeGeo([P_('box',0xbdb6a6,0,.12,0,9,.24,3.6),...[-4.2,0,4.2].flatMap(px=>[[px,-1.5],[px,1.5]]).map(([px,pz])=>P_('box',0x8a8f94,px,1.45,pz,.16,2.7,.16)),P_('box',0x2f80ed,0,2.86,0,9.8,.12,4.4,.1,0,0),P_('box',0x2468c0,0,2.8,0,9.9,.06,4.5,.1,0,0),
+    ...[-2.2,2.2].flatMap(px=>[P_('box',0x8d6e4b,px,.55,.85,3.6,.1,.55),P_('box',0x8d6e4b,px,.85,1.15,3.6,.5,.08),P_('box',0x6d4c41,px-1.6,.3,.85,.1,.5,.4),P_('box',0x6d4c41,px+1.6,.3,.85,.1,.5,.4)])]),VCMAT));   // a long roof on six posts and two benches
+  const sg=signPlane(['BUS STOP',label],'#2e7d32','#fff',3.2,.8); sg.position.set(0,2.35,-1.6); sg.rotation.y=Math.PI; g.add(sg);
+  const wait=[], ca=Math.cos(g.rotation.y), sa=Math.sin(g.rotation.y); for(let k=0;k<6;k++){const p=makePerson(randLook(Math.random)), lx=(k-2.5)*1.25, lz=.1; p.root.position.set(ox+ca*lx+sa*lz,y+.2,oz-sa*lx+ca*lz); p.root.rotation.y=g.rotation.y+Math.PI; scene.add(p.root); poseStand(p,k); wait.push(p);}
+  return {ox,oz,bx,bz,wait};}
+const P_=(...a)=>P(...a);
+const MTN_STOP=(()=>{const up=HROADS[0].s, k=HLOOP.k, [x,z]=up[k];
+  return Object.assign(mkShed(HLOOP,HLOOP.b,HLOOP.pts.length-7,'Sitio Bundok'),{x,z,k,E:mkShed(ELOOP,6,ELOOP.pts.length-7,'Sitio Silangan'),W:mkShed(WLOOP,6,WLOOP.pts.length-7,'Sitio Kanluran')});})();
 // Sinag Liner buses: one passes through to Maynila, one climbs to the mountain barangay
 function linerTex(dest){const cv=document.createElement('canvas'); cv.width=1024; cv.height=230; const x=cv.getContext('2d');
   x.fillStyle='#fffaf0'; x.fillRect(0,0,1024,230); const gr=x.createLinearGradient(0,0,1024,0); gr.addColorStop(0,'#f9a825'); gr.addColorStop(1,'#e65100'); x.fillStyle=gr; x.fillRect(0,150,1024,80);
@@ -7881,7 +7958,11 @@ function makeLiner(dest){const b=[], GL=0x22303c, D=0x1b1b1b, g=new THREE.Group(
   const d=bakePerson(randLook(Math.random),poseSit,true); d.position.set(-.75,.95,4.4); g.add(d); scene.add(g); return g;}
 const LINERS=(()=>{const mk=(dest,legs,e,away)=>{const g=makeLiner(dest); g.visible=false; return {g,legs,k:0,e,away,lv:null};};   // legs: lanes to drive through, or a wait in seconds
   return [mk('Maynila',[['in',['LE','t:bay']],['wait',14],['go',['LE$']]],0,30),
-          mk('Bundok',[['in',['LE','t:bay']],['wait',14],['go',['eN','zW','mtn:up']],['stop',14],['go',['mtn:dn','eS','LW$'],true]],-55,20)];})();
+          mk('Bundok',[['in',['LE','t:bay']],['wait',14],['go',['eN','zW','mtnE:turn'],false,MTN_STOP.E],['stop',12,MTN_STOP.E],['go',['mtnE:dn','mtn:turnC'],false,MTN_STOP],['stop',12,MTN_STOP],['go',['mtn:dn','mtnW:turn'],false,MTN_STOP.W],['stop',12,MTN_STOP.W],['go',['mtnW:dn','mtn:dn1','eS','LW$']]],-55,20)];})();
+// cars visiting the mountain barangay: in from the highway, up the national road, round the rotonda and back down
+const MTNCARS=['innova','hilux','sedan','l300','fortuner','sedan','innova','hilux','sedan'].map((t,k)=>{const g=makeCar(t,CAR_COLS[(k*3+1)%CAR_COLS.length]); g.visible=false; return {g,away:6+k*13,lv:null};});
+(()=>{const S=HROADS[0].s; for(const [k,sd,t] of [[70,1,'innova'],[118,-1,'hilux'],[150,1,'sedan'],[190,-1,'l300']]){if(k>=S.length-1) continue; const [x,z]=S[k], [a,c]=S[k+1], L=Math.hypot(a-x,c-z)||1, px=x-(c-z)/L*4.7*sd, pz=z+(a-x)/L*4.7*sd;
+  const g=makeCar(t,CAR_COLS[(k*7)%CAR_COLS.length]); g.rotation.y=Math.atan2(a-x,c-z); for(let q=0;q<20;q++) g.position.set(px,onSlope(g,px,pz,1.6,.8),pz); scene.add(g);}})();   // parked on the shoulder
 // jeepneys queue at the terminal; the one in front loads riders, then goes to the palengke (west) or the Mega Foods gate (east)
 const JEEPS=(()=>{const list=[]; for(let k=0;k<3;k++){const g=makePUJ();g.position.set(282+k*8,0,-126);g.rotation.y=-Math.PI/2; g.visible=true; const tex=['PALENGKE','MEGA FOODS','RESIDENTIAL'].map(s=>signPlane([s],'#fff','#c62828',1.5,.32,256,56));
     tex.forEach((q,i)=>{q.position.set(0,2.08,1.16); q.visible=false; g.add(q);}); list.push({g,tex,state:k<2?'queue':'back',x:282+k*8,trip:k%3,timer:0,riders:0,stopIndex:0,lv:null});} return list;})();
@@ -8009,8 +8090,9 @@ const PATROL=(()=>{const g=makeCar('sedan',0xf4f4f4), [px,pz]=TOWN.pol; g.add(ne
   g.position.set(px-8,0,pz); g.rotation.y=-Math.PI/2; const cops=[0,1].map(k=>{const L=randLook(Math.random); L.top=0x1f4e9a; L.bottom=0x1b2a4a; L.bag=null; const p=makePerson(L); p.root.position.set(px-5.5,.1,pz+(k?1:-1)); p.root.rotation.y=-Math.PI/2; scene.add(p.root); poseStand(p,k); return p;});
   return {g,red,blue,gr,gb,state:'park',timer:20,cops,lv:null};})();
 // people living up in the mountain barangay, walking its roads
-const HILLFOLK=(()=>{const list=[], r=rng(91); for(let k=0;k<10;k++){const R=HROADS[k%HROADS.length].s, p=makePerson(randLook(r)); scene.add(p.root); list.push({p,R,u:r()*R.length,dir:r()<.5?1:-1,sp:1.1+r()*.4,ph:r()*6,pause:0});} return list;})();
+const HILLFOLK=(()=>{const list=[], r=rng(91); for(let k=0;k<28;k++){const RD=HROADS[k%3===2?1+(k>>2)%(HROADS.length-1):0], R=RD.s, p=makePerson(randLook(r)); scene.add(p.root); list.push({p,R,w:RD.w,u:r()*R.length,dir:r()<.5?1:-1,sp:1.1+r()*.4,ph:r()*6,pause:0});} return list;})();
 // fiesta days: banderitas over the barangay back road and a parade with a band, dancers, higantes and a carroza
+const HILLIDLE=(()=>{const r=rng(93), out=[]; for(let k=0;k<HILLSPOTS.length&&out.length<40;k+=3){const [x,z,face]=HILLSPOTS[k], p=makePerson(randLook(r)); p.root.position.set(x,hy(x,z)+.08,z); p.root.rotation.y=face+Math.PI+(r()-.5); scene.add(p.root); out.push({p,ph:r()*9});} return out;})();
 const fiestaOn=(now=Date.now())=>{const m=monthN(now); return m%2===0&&gameDayN(now)%2===0;};
 const FIESTA=(()=>{const g=new THREE.Group(), b=[], C=[0xe74c3c,0xf1c40f,0x2e86de,0x27ae60,0xff7f50,0x9b59b6]; g.visible=false; scene.add(g);
   for(let x=60;x<=320;x+=13){for(const z of [-179.6,-192.4]) b.push(P('box',0x8d6e4b,x,2.6,z,.12,5.2,.12)); for(const s of [0,1]){const zz=-179.6-s*.0, y=5.0-s*.5;
@@ -8030,16 +8112,19 @@ function updateTownVehicles(dt,t){   // Sinag Liner buses, terminal jeepneys and
     if(!B.lv) B.lv=lnVeh(B.g,{len:10.6,width:2.6,vmax:13,acc:1.2,place:(x,z,a,d)=>{B.g.rotation.y=d>=1?a:lerpAng(B.g.rotation.y,a,1-Math.exp(-d*5)); B.g.position.set(x,onSlope(B.g,x,z,3.4,1.2)+(B.lv.v>.3?Math.abs(Math.sin(LN.now*9))*.015:0),z);}});
     const lv=B.lv;
     if(B.away>0){B.away-=dt; if(lv.on) lnHide(lv); B.g.visible=false; continue;}
-    const next=()=>{B.k++; B.e=0; B.started=false; if(B.k>=B.legs.length){B.k=0; B.away=25+Math.random()*25; lnHide(lv); MTN_STOP.wait.forEach(p=>p.root.visible=true);}};
+    const next=()=>{B.k++; B.e=0; B.started=false; if(B.k>=B.legs.length){B.k=0; B.away=25+Math.random()*25; lnHide(lv); for(const o of [MTN_STOP,MTN_STOP.E,MTN_STOP.W]) o.wait.forEach(p=>p.root.visible=true);}};
     const [kind,arg,fresh]=B.legs[B.k];
     if(kind==='in'&&!lv.on){if(B.e<0){B.e+=dt; continue;}   // one bus at a time heads for the bay, so nobody queues on the highway
       if(LINERS.some(o=>o!==B&&o.away<=0&&o.lv&&o.lv.on&&(o.legs[o.k][0]==='in'||o.legs[o.k][0]==='wait'))) continue;
       const P=lnPath(...arg); if(P&&lnFreeAt(P[0],5.3,10.6,lv,25)) lnGo(lv,P,null,{v:12,endOff:5.3}); continue;}
-    if(kind==='wait'||kind==='stop'){B.e+=dt; if(kind==='stop') MTN_STOP.wait.forEach((p,i)=>p.root.visible=B.e<3+i);
+    if(kind==='wait'||kind==='stop'){B.e+=dt; if(kind==='stop') (fresh||MTN_STOP).wait.forEach((p,i)=>p.root.visible=B.e<3+i);   // the people at this stop get on one by one
       if(B.e>=arg&&!(kind==='wait'&&COMMUTERS.some(w=>(w.state==='busBoarding'&&w.bus===B)||w.state==='busWait'))) next();}
-    else if(kind==='go'&&!B.started) B.started=fresh?lnGo(lv,lnPath(...arg),0,{v:0}):lnNext(lv,lnPath(lv.path[lv.pi],...arg));
-    else if(lv.done) next();
+    else if(kind==='go'&&!B.started){B.started=fresh?lnGo(lv,lnPath(...arg),0,{v:0}):lnNext(lv,lnPath(lv.path[lv.pi],...arg)); if(B.started&&B.legs[B.k][3]){const q=B.legs[B.k][3]; lnStopAt(lv,q.bx,q.bz);}}   // pull up by the waiting shed
+    else if(lv.done||(B.legs[B.k][3]&&lv.atStop)) next();
   }
+  for(const C of MTNCARS){if(!C.lv) C.lv=lnVeh(C.g,{len:4.6,width:2,vmax:12,acc:1.8}); const v=C.lv;
+    if(!v.on){C.away-=dt; if(C.away>0) continue; const P=lnPath('LE','eN','zW',...[['mtn:turnB','mtn:dn'],['mtnE:turn','mtnE:dn','mtn:dn'],['mtnW:turn','mtnW:dn']][MTNCARS.indexOf(C)%3],'mtn:dn1','eS','LW$'); if(P&&lnFreeAt(P[0],2.3,4.6,v,25)) lnGo(v,P,null,{v:10}); else C.away=3; continue;}
+    if(v.done){lnHide(v); C.away=18+Math.random()*40;}}
   // jeepneys: the queue is a lane in the terminal; the one in front loads, then drives its trip; they come back by the driveway at x = 300
   const Q=LN.by['t:jq'];
   for(const J of JEEPS){
@@ -8073,8 +8158,9 @@ let townLast=performance.now(), terminalLast=-Infinity,commuterLast=null;
   updateTownVehicles(dt,t);
   if(TOWN.flag) TOWN.flag.rotation.y=Math.sin(t*1.7)*.15;
   // hillside walkers
+  for(const I of HILLIDLE) poseStand(I.p,t+I.ph);
   for(const W of HILLFOLK){const R=W.R; if(W.pause>0){W.pause-=dt; poseStand(W.p,W.ph); continue;} W.u+=W.dir*dt*W.sp/1.5; if(W.u<=0||W.u>=R.length-1){W.dir*=-1; W.u=Math.max(0,Math.min(R.length-1.001,W.u)); W.pause=2+Math.random()*4;}
-    const i=Math.floor(W.u), f=W.u-i, [ax,az]=R[i], [bx,bz]=R[Math.min(R.length-1,i+1)], x=ax+(bx-ax)*f+1.1*W.dir, z=az+(bz-az)*f; W.p.root.position.set(x,hy(x,z)+.08,z); W.p.root.rotation.y=Math.atan2((bx-ax)*W.dir,(bz-az)*W.dir); W.ph+=dt*W.sp*5; poseWalk(W.p,W.ph);}
+    const i=Math.floor(W.u), f=W.u-i, [ax,az]=R[i], [bx,bz]=R[Math.min(R.length-1,i+1)], L2=Math.hypot(bx-ax,bz-az)||1, o=(W.w/2-.45)*W.dir, x=ax+(bx-ax)*f-(bz-az)/L2*o, z=az+(bz-az)*f+(bx-ax)/L2*o; W.p.root.position.set(x,hy(x,z)+.08+roadLift(x,z),z); W.p.root.rotation.y=Math.atan2((bx-ax)*W.dir,(bz-az)*W.dir); W.ph+=dt*W.sp*5; poseWalk(W.p,W.ph);}
   // fiesta
   const F=FIESTA, on=fiestaOn(now), h=gameHour(); F.g.visible=on;
   if(on!==F.was){F.was=on; if(on) toast(monthN(now)%12===4?'🌸 Santacruzan sa barangay! Watch the parade on the back road.':'🎉 Pista sa barangay! Banderitas are up and the parade is on the back road.',4200);}
@@ -8952,9 +9038,9 @@ const CIVIC=(()=>{
 
   function tankerTick(dt,t){const T=wt; if(!T.v) T.v=lnVeh(T.g,{len:6.2,width:2.1,vmax:8,acc:1.2}); const v=T.v;
     if(T.state==='init'){const L=LN.by['south:utilities:bay']; if(L){lnGo(v,[L],L.L-v.len/2); v.v=0; T.state='fill'; T.timer=14;}}
-    else if(T.state==='fill'){hose.visible=true; T.timer-=dt; if(T.timer<=0){hose.visible=false; const P=lnPath('south:utilities:bay','mtn:up'); if(P&&lnNext(v,P)){T.state='up';} else T.timer=3;}}
+    else if(T.state==='fill'){hose.visible=true; T.timer-=dt; if(T.timer<=0){hose.visible=false; const P=lnPath('south:utilities:bay','mtn:up2'); if(P&&lnNext(v,P)){T.state='up';} else T.timer=3;}}
     else if(T.state==='up'&&v.done){T.state='serve'; T.timer=26; T.folk.forEach((f,i)=>{f.mode='come'; f.t=i*2.5; const [x,z]=[MTN_STOP.ox+(i-1)*2.4,MTN_STOP.oz+3]; f.p.root.position.set(x,hy(x,z)+.08,z); f.p.root.visible=true;});}
-    else if(T.state==='serve'){T.timer-=dt; if(T.timer<=0&&T.folk.every(f=>f.mode==='home')){const P=lnPath('mtn:dn','south:utilities:bay'); if(P){lnGo(v,P,v.len/2); T.state='down';} else T.timer=2;}}
+    else if(T.state==='serve'){T.timer-=dt; if(T.timer<=0&&T.folk.every(f=>f.mode==='home')){const P=lnPath(v.path[v.pi],'mtn:turnA','south:utilities:bay'); if(P&&lnNext(v,P)){T.state='down';} else T.timer=2;}}
     else if(T.state==='down'&&v.done){T.state='fill'; T.timer=16;}
     if(T.state==='serve'){const [rx,rz]=rear(v,.9);
       T.folk.forEach((f,i)=>{const p=f.p, R=p.root; f.ph+=dt*5.5; f.t-=dt;
@@ -9976,6 +10062,7 @@ let seaLast=performance.now(), seaWave=0;
   if(AC&&SND.amb&&AC.state==='running'){seaWave-=dt; if(seaWave<=0){seaWave=2.6+Math.random()*1.5; const k=near(330,shoreZ(330)); if(k>.05) noise(BUS.amb,{d:2.2,a:1.0,v:.12*k,f:600,f2:1400,q:.4,type:'lowpass'});}}
 })();
 const NEWS=[
+  {v:81,date:'Nov 15, 2026',title:'A bigger mountain barangay',items:['⛰️ Taller mountains rise either side of the hillside barangay, with Benguet pines and many more trees, and colourful two- and three-storey homes stacked up the slope.','🛣️ Every road up the mountain is now asphalt like the town’s, with kerbs and lines, and the roads climb smoothly. Roads reach new sitios on both side mountains, each with a turning plaza and a waiting shed.','🚌 The Bundok bus now calls at all three sitios and turns round each plaza instead of flipping on the spot, and more cars drive up to visit. People walk the roads and stand outside their homes.','🧍 People have no painted faces any more, and a smoother, more natural body and shoulders.']},
   {v:80,date:'Nov 15, 2026',title:'Tidier canals, no more floods',items:['🌧️ Rain no longer floods your crops, and the farm has no canals any more: the farm canal, the field drain, the irrigation canal and the Kanal you could draw are gone. The town canals stay.','🧱 Canals now meet like real concrete: the bigger wall opens exactly as wide as the kanal and the walls join at the corners. The barangay kanal runs along the road in front of the house fences, with a footbridge at every gate and a culvert under every carport and driveway.']},
   {v:79,date:'Nov 13, 2026',title:'English or Tagalog',items:['🌐 Settings now has a language choice: English or Tagalog. Every menu, button, message, board and news entry switches at once.','☁️ Your choice is saved with your farm, so it follows your account to your other devices.','🌾 Crop, item and building names (Palay, Manukan-Itlog, Bodega…) keep their names in both languages.']},
   {v:77,date:'Nov 13, 2026',title:'Sketched status boards',items:['🪧 The boards over your animal houses (Gutom, Puno na, Handa na, the timers) are now drawn like the rest of the game: paper, pencil lines and little drawn badges instead of emoji, with a striped bar for time left.','🔨 Building and upgrading show a sketched board too: Ginagawa or Ina-upgrade, the time left and a progress bar.','💧 Drawing a canal no longer joins another canal by accident: only the start of a stroke reaches for a nearby canal end; the end joins only when you finish right on one. A canal right alongside another shows red.','🔍 The boards stay solid and clear at every zoom, and roofs only turn see-through when you zoom right in.']},
@@ -11231,7 +11318,7 @@ NAV=(()=>{
 
 })();
 </script>
-<script src="/i18n.js?v=4"></script>
+<script src="/i18n.js?v=5"></script>
 <script src="/startup.js?v=72"></script>
 </body>
 </html>

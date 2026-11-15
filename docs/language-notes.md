@@ -13,7 +13,12 @@ How it works:
 - `scripts/check-i18n.cjs` checks every entry keeps its placeholders and that switching works both ways.
 
 Finding missing text: open `/?debug`, switch to Tagalog, open panels, then run `[...SFI18N.miss]` in the console. Add lines for real misses.
+`miss` also lists text whose Tagalog is the same on purpose (names, ON/OFF, MAX, `Level {0}`) and News lines split by drawn icons; those need no line.
+When you change `i18n.js`, bump its `?v=` in `index.html` so phones load the new copy.
 
-Still to do (as of Nov 14, 2026):
-1. Play through in Tagalog again and add the remaining misses; check English mode the same way.
-2. Show both directions in the browser, then deploy (`npx -y wrangler@4 deploy`). Not deployed yet.
+Done Nov 15, 2026: swept every top-bar, side-menu and home panel of a new farm in both languages. Tagalog misses added (placement buttons,
+mini-mart panel, bills); English mode shows no Tagalog sentences. Fixed: a `{0}` no longer swallows the next ` · ` part of a line.
+
+Still to do:
+1. The sweep used a new guest farm, so animal-house, katayan, cooperative and greenhouse panels were not opened. Check them on a grown farm.
+2. Deploy (`npx -y wrangler@4 deploy`) when the owner asks.

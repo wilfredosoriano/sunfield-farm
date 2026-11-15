@@ -27,9 +27,9 @@
      a.forEach((x,i)=>{if(/[A-Za-z]{3}/.test(x)&&!/\{\d+\}/.test(x)){const p={src:x,en:b[i],tl:c[i]}; p.enN=p.en; p.tlN=p.tl; for(const k of [x,b[i],c[i]]) index(k,p,0);}});}
    pats.sort((a,b)=>b.size-a.size); cache.clear();}
  const out=([e,n])=>n?e[lang+'N']:e[lang];
- // one piece of text, without its outer spaces
+ // one piece of text, without its outer spaces; a {0} never spans " · " (such a line is split into its parts instead)
  function core(s){let o=exact.get(s); if(o) return out(o); const k=lang+'\u0000'+s; o=cache.get(k); if(o!=null) return o;
-   o=s; for(const p of pats){const m=p.re.exec(s); if(!m) continue; const v={}; p.order.forEach((d,j)=>{const x=m[j+1], h=exact.get(x.trim()); v[d]=h?x.replace(x.trim(),out(h)):x;}); o=out([p.e,p.n]).replace(/\{(\d+)\}/g,(_,d)=>v[d]); break;}
+   o=s; for(const p of pats){const m=p.re.exec(s); if(!m||m.some((x,j)=>j&&x.includes(' · '))) continue; const v={}; p.order.forEach((d,j)=>{const x=m[j+1], h=exact.get(x.trim()); v[d]=h?x.replace(x.trim(),out(h)):x;}); o=out([p.e,p.n]).replace(/\{(\d+)\}/g,(_,d)=>v[d]); break;}
    if(cache.size>4000) cache.clear(); cache.set(k,o); return o;}
  const EDGE=/^([\s\p{Extended_Pictographic}\uFE0F\u200D]*)([\s\S]*?)([\s\p{Extended_Pictographic}\uFE0F\u200D]*)$/u;
  function t(s){if(typeof s!=='string'||!/[A-Za-z]/.test(s)) return s; const w=/^(\s*)([\s\S]*?)(\s*)$/.exec(s), o=core(w[2]); if(o!==w[2]) return w[1]+o+w[3];
@@ -1896,6 +1896,32 @@
 "English or Tagalog":{"tl":"Ingles o Tagalog"},
 "🌐 Settings now has a language choice: English or Tagalog. Every menu, button, message, board and news entry switches at once.":{"tl":"🌐 May pagpipilian na ng wika sa Settings: Ingles o Tagalog. Sabay-sabay na nagpapalit ang bawat menu, button, mensahe, karatula at balita."},
 "☁️ Your choice is saved with your farm, so it follows your account to your other devices.":{"tl":"☁️ Naka-save ang pinili mo kasama ng bukid mo, kaya sumusunod ito sa account mo sa iba mong device."},
-"🌾 Crop, item and building names (Palay, Manukan-Itlog, Bodega…) keep their names in both languages.":{"tl":"🌾 Hindi nagbabago ang pangalan ng mga pananim, gamit at gusali (Palay, Manukan-Itlog, Bodega…) sa dalawang wika."}
+"🌾 Crop, item and building names (Palay, Manukan-Itlog, Bodega…) keep their names in both languages.":{"tl":"🌾 Hindi nagbabago ang pangalan ng mga pananim, gamit at gusali (Palay, Manukan-Itlog, Bodega…) sa dalawang wika."},
+"Turn it":{"tl":"Iikot"},
+"Remove it":{"tl":"Tanggalin"},
+"Move the area here":{"tl":"Ilipat dito ang lugar"},
+"Cancel":{"tl":"Kanselahin"},
+"Take it down":{"tl":"Baklasin"},
+"NEW":{"tl":"BAGO"},
+"Power":{"tl":"Kuryente"},
+"base ₱{0}, +₱{1} per building":{"tl":"base ₱{0}, +₱{1} bawat gusali"},
+"base ₱{0}, +₱{1} per building, +₱{2} the mini-mart":{"tl":"base ₱{0}, +₱{1} bawat gusali, +₱{2} sa mini-mart"},
+"· level {0} of {1}":{"tl":"· level {0} sa {1}"},
+"level {0} of {1}":{"tl":"level {0} sa {1}"},
+"{0} shelf units, up to {1} of each product":{"tl":"{0} puwesto sa estante, hanggang {1} bawat produkto"},
+"Add {0} {1}":{"tl":"Magdagdag ng {0} {1}"},
+"Remove {0} {1}":{"tl":"Magbawas ng {0} {1}"},
+"Restock {0}":{"tl":"Mag-restock ng {0}"},
+"OPEN":{"tl":"BUKAS"},
+"CLOSED":{"tl":"SARADO"},
+"PAUSED":{"tl":"NAKAHINTO"},
+"sales":{"tl":"benta"},
+"Prepaid: ₱{0} ({1} days)":{"tl":"Bayad na: ₱{0} ({1} araw)"},
+"wages so far ₱{0}":{"tl":"sahod sa ngayon ₱{0}"},
+"Shelf {0}":{"tl":"Estante {0}"},
+"low":{"tl":"kaunti na"},
+"empty":{"tl":"ubos"},
+"Farm {0}":{"tl":"Bukid {0}"},
+"+{0} coming":{"tl":"+{0} parating"}
  });
 })();

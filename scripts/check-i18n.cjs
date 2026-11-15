@@ -1,6 +1,6 @@
 // The language table: every entry keeps its {0} placeholders in both languages, and t() fills them in and switches both ways.
 const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');
-const src=fs.readFileSync('public/i18n.js','utf8'), store={};
+const src=fs.readFileSync('public/i18n.js','utf8').replace(/\r\n/g,'\n'), store={};   // a Windows checkout has CRLF line ends
 const ctx={location:{search:''},localStorage:{getItem:k=>store[k]??null,setItem:(k,v)=>{store[k]=v;}},MutationObserver:class{observe(){}},
   document:{documentElement:{},body:{nodeType:9},createTreeWalker:()=>({nextNode:()=>null})},addEventListener(){},dispatchEvent(){},Event:class{},window:{}};
 ctx.window=ctx; vm.createContext(ctx);
@@ -12,5 +12,6 @@ assert.equal(L.lang,'en'); assert.equal(L.t(plain),table[plain].en??plain);
 L.set('tl'); assert.equal(store['sunfield-lang'],'tl'); assert.equal(L.t('  '+plain+' '),'  '+table[plain].tl+' ');
 assert.equal(L.t(pick.replace('{0}','42')),table[pick].tl.replace('{0}','42'));
 assert.equal(L.t('no such text here'),'no such text here'); assert.equal(L.t('₱1,200'),'₱1,200');
+assert.equal(L.t('Shelf 0 · empty'),'Estante 0 · ubos');   // a {0} must not swallow the next " · " part
 L.set('en'); assert.equal(L.t(plain),table[plain].en??plain);
 console.log(`PASS: ${Object.keys(table).length} texts, ${n} translations keep their placeholders; t() fills {0} and switches both ways`);
